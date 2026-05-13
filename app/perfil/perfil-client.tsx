@@ -1,0 +1,367 @@
+"use client";
+
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { useState } from "react";
+import { FrutigerBackdrop } from "../components/frutiger-backdrop";
+import { GlossyPersonIcon } from "../components/glossy-person-icon";
+
+type MainTab = "materia" | "estatus" | "comentarios" | "boleta";
+type MateriaSub = "asignaturas" | "personal";
+
+const navRoutes = [
+  { href: "/", label: "Inicio" },
+  { href: "/login", label: "Login" },
+  { href: "/perfil", label: "Perfil" },
+  { href: "/chat", label: "Chat" },
+  { href: "/profesor", label: "Profesor" },
+  { href: "/directivo", label: "Directivo" },
+] as const;
+
+function GlossyNavPill({
+  children,
+  active,
+  href,
+}: {
+  children: ReactNode;
+  active?: boolean;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`relative flex-1 overflow-hidden rounded-full border border-white/35 px-6 py-2.5 text-center text-sm font-extrabold uppercase tracking-wider shadow-[inset_0_2px_0_rgba(255,255,255,0.35),inset_0_-2px_0_rgba(0,0,0,0.2),0_4px_14px_rgba(2,6,23,0.12)] transition hover:brightness-105 sm:flex-none sm:px-10 ${
+        active
+          ? "bg-linear-to-b from-sky-500 via-sky-700 to-sky-900 text-white"
+          : "bg-linear-to-b from-sky-600 via-sky-800 to-sky-950 text-white/95"
+      } before:pointer-events-none before:absolute before:inset-x-4 before:top-0 before:h-[46%] before:rounded-b-[100%] before:bg-linear-to-b before:from-white/45 before:to-transparent`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function BubblePill({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full border border-white/70 bg-white/88 px-3 py-2 text-center text-[10px] font-bold uppercase leading-tight text-sky-900 shadow-[inset_0_2px_0_rgba(255,255,255,0.95),0_2px_8px_rgba(14,165,233,0.12)] sm:text-xs ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function MainTabButton({
+  id,
+  label,
+  selected,
+  onSelect,
+}: {
+  id: MainTab;
+  label: string;
+  selected: boolean;
+  onSelect: (id: MainTab) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={selected}
+      onClick={() => onSelect(id)}
+      className={`min-w-0 flex-1 rounded-t-2xl border border-b-0 px-2 py-3 text-[10px] font-extrabold uppercase tracking-wide transition sm:px-4 sm:text-xs ${
+        selected
+          ? "relative z-[1] border-sky-800/25 bg-white/92 text-sky-800 shadow-[inset_0_2px_0_rgba(255,255,255,1),0_-4px_16px_rgba(14,165,233,0.08)]"
+          : "border-transparent bg-slate-400/75 text-slate-700 shadow-[inset_0_-2px_0_rgba(0,0,0,0.08)] hover:bg-slate-400/90"
+      } ${selected ? "" : "translate-y-px"}`}
+    >
+      <span
+        className={`relative block ${selected ? "before:pointer-events-none before:absolute before:inset-x-1 before:top-0 before:h-[40%] before:rounded-b-[100%] before:bg-linear-to-b before:from-white/55 before:to-transparent" : ""}`}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
+const estatusCol1 = [
+  "Promedio",
+  "Promedio 2do",
+  "Promedio 3ro",
+  "Promedio 4to",
+  "Promedio 5to",
+  "Promedio 6to",
+];
+const estatusCol2 = [
+  "Materias reprobadas",
+  "Materia 1",
+  "Materia 2",
+  "Materia 3",
+  "Materia 4",
+  "Materia 5 etc.",
+];
+
+const personalLabels: string[][] = [
+  ["Nombre", "Apellido P", "Apellido M", "Curp"],
+  ["Genero", "Grado", "Carrera", "Celular"],
+  ["Tipo de sangre", "—", "—", "—"],
+  ["Peso y talla", "—", "—", "—"],
+  ["Vacunación", "—", "—", "—"],
+  ["Salud mental actual", "—", "—", "—"],
+];
+
+export function PerfilClient() {
+  const [tab, setTab] = useState<MainTab>("materia");
+  const [materiaSub, setMateriaSub] = useState<MateriaSub>("asignaturas");
+  const [materiaFiltro, setMateriaFiltro] = useState(0);
+
+  return (
+    <FrutigerBackdrop>
+      <div className="relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 lg:max-w-6xl lg:px-8 lg:pt-8">
+        {/* Barra Perfil / Chat */}
+        <div className="mb-6 flex flex-col gap-4 sm:mb-8">
+          <div className="flex h-14 items-center justify-center gap-3 rounded-full border-[3px] border-sky-800/55 bg-sky-200/45 px-3 py-2 shadow-[0_8px_28px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl backdrop-saturate-150 sm:h-16 sm:justify-between sm:px-6">
+            <GlossyNavPill href="/perfil" active>
+              Perfil
+            </GlossyNavPill>
+            <GlossyNavPill href="/chat">Chat</GlossyNavPill>
+          </div>
+
+          <nav
+            className="flex flex-wrap items-center justify-center gap-2 sm:justify-end"
+            aria-label="Secciones del sitio"
+          >
+            {navRoutes.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`rounded-full border border-white/55 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-md transition hover:bg-white/45 ${
+                  href === "/perfil"
+                    ? "bg-white/50 text-sky-950"
+                    : "bg-white/25 text-sky-900"
+                }`}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        {/* Cabecera avatar + nombre */}
+        <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-center">
+          <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-[1.75rem] border-[3px] border-sky-900/70 bg-white/75 p-2 shadow-[0_10px_28px_rgba(14,165,233,0.2),inset_0_2px_0_rgba(255,255,255,0.95)] backdrop-blur-md sm:h-32 sm:w-32">
+            <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-linear-to-b from-sky-100/90 to-sky-300/50">
+              <GlossyPersonIcon
+                uid="perfil-main"
+                className="h-[82%] w-[82%] drop-shadow-[0_6px_12px_rgba(2,132,199,0.4)]"
+              />
+              <div
+                className="pointer-events-none absolute inset-x-2 top-1 h-[40%] rounded-b-[100%] bg-linear-to-b from-white/60 to-transparent"
+                aria-hidden
+              />
+            </div>
+          </div>
+
+          <div className="flex min-h-[4.5rem] min-w-0 flex-1 items-stretch overflow-hidden rounded-full border-[3px] border-sky-900/70 bg-linear-to-r from-sky-900 via-sky-900 to-sky-900/90 shadow-[0_8px_24px_rgba(2,6,23,0.12)] backdrop-blur-sm sm:min-h-[5.5rem]">
+            <div
+              className="w-10 shrink-0 bg-sky-950 sm:w-12"
+              aria-hidden
+            />
+            <div className="relative flex flex-1 items-center justify-center bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4">
+              <span className="text-lg font-extrabold tracking-wide text-white drop-shadow-sm sm:text-xl">
+                Nombre
+              </span>
+              <div
+                className="pointer-events-none absolute inset-x-6 top-1 h-[38%] rounded-b-[100%] bg-linear-to-b from-white/35 to-transparent"
+                aria-hidden
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Contenedor principal con pestañas */}
+        <div className="relative flex flex-1 flex-col overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
+          <div
+            className="pointer-events-none absolute inset-0 z-0 rounded-[2rem] opacity-[0.12]"
+            aria-hidden
+            style={{
+              backgroundImage: `radial-gradient(circle at 20% 30%, white 0%, transparent 45%), radial-gradient(circle at 80% 70%, #7dd3fc 0%, transparent 40%)`,
+            }}
+          />
+
+          <div
+            role="tablist"
+            aria-label="Secciones del perfil"
+            className="relative z-[1] flex gap-1 px-1 pt-1 sm:gap-2 sm:px-2"
+          >
+            <MainTabButton
+              id="materia"
+              label="Materia"
+              selected={tab === "materia"}
+              onSelect={setTab}
+            />
+            <MainTabButton
+              id="estatus"
+              label="Estatus"
+              selected={tab === "estatus"}
+              onSelect={setTab}
+            />
+            <MainTabButton
+              id="comentarios"
+              label="Comentarios"
+              selected={tab === "comentarios"}
+              onSelect={setTab}
+            />
+            <MainTabButton
+              id="boleta"
+              label="Boleta"
+              selected={tab === "boleta"}
+              onSelect={setTab}
+            />
+          </div>
+
+          <div
+            role="tabpanel"
+            className="relative z-[1] mt-0 min-h-[280px] rounded-3xl rounded-tl-none border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[360px] sm:p-6 md:min-h-[400px]"
+          >
+            {tab === "materia" && (
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
+                    {["Materia 1", "Materia 2", "Materia 3", "Materia 4"].map(
+                      (m, i) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setMateriaFiltro(i)}
+                          className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition ${
+                            materiaFiltro === i
+                              ? "bg-linear-to-b from-sky-500 to-sky-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
+                              : "bg-white/70 text-sky-900 hover:bg-white"
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMateriaSub("asignaturas")}
+                      className={`rounded-full px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide ${
+                        materiaSub === "asignaturas"
+                          ? "border border-sky-800/30 bg-white/90 text-sky-900 shadow-md"
+                          : "border border-white/50 bg-white/40 text-sky-800"
+                      }`}
+                    >
+                      Vista materias
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMateriaSub("personal")}
+                      className={`rounded-full px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide ${
+                        materiaSub === "personal"
+                          ? "border border-sky-800/30 bg-white/90 text-sky-900 shadow-md"
+                          : "border border-white/50 bg-white/40 text-sky-800"
+                      }`}
+                    >
+                      Información personal
+                    </button>
+                  </div>
+                </div>
+
+                {materiaSub === "asignaturas" ? (
+                  <div className="flex min-h-[220px] flex-1 items-center justify-center rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-6 py-16 text-center text-sm font-semibold text-slate-700 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:min-h-[280px]">
+                    Contenido de{" "}
+                    <span className="font-extrabold text-sky-900">
+                      Materia {materiaFiltro + 1}
+                    </span>
+                    <br />
+                    <span className="mt-2 block text-xs font-medium opacity-80">
+                      Aquí irá el detalle de la asignatura seleccionada.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    <div className="inline-flex w-fit rounded-full border border-white/70 bg-white/90 px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-sky-900 shadow-sm">
+                      Información personal
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+                      {personalLabels.flatMap((row, ri) =>
+                        row.map((cell, ci) => (
+                          <BubblePill
+                            key={`${ri}-${ci}`}
+                            className="min-h-[2.75rem]"
+                          >
+                            {cell}
+                          </BubblePill>
+                        )),
+                      )}
+                    </div>
+                    <div className="rounded-full border border-white/75 bg-white/90 px-5 py-4 text-center text-sm font-bold text-sky-900 shadow-[inset_0_2px_0_rgba(255,255,255,1)]">
+                      Comentarios del alumno acerca de él
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {tab === "estatus" && (
+              <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0">
+                <div className="grid min-w-[36rem] grid-cols-4 gap-2 sm:min-w-0 sm:gap-3">
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <div key={`estatus-row-${i}`} className="contents">
+                      <BubblePill>{estatusCol1[i]}</BubblePill>
+                      <BubblePill>{estatusCol2[i]}</BubblePill>
+                      <BubblePill>Etiqueta</BubblePill>
+                      <BubblePill>Etiqueta</BubblePill>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {tab === "comentarios" && (
+              <ul className="flex flex-col gap-4">
+                {[1, 2, 3].map((n) => (
+                  <li
+                    key={n}
+                    className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4"
+                  >
+                    <span className="shrink-0 rounded-full border border-white/80 bg-white/95 px-4 py-2 text-center text-[11px] font-extrabold uppercase tracking-wide text-sky-800 shadow-[inset_0_2px_0_rgba(255,255,255,1)] sm:min-w-[8.5rem]">
+                      Profesor &apos;{n}&apos;
+                    </span>
+                    <div className="relative min-h-[3rem] flex-1 overflow-hidden rounded-full border border-white/60 bg-slate-400/35 px-4 py-3 text-center text-sm font-bold text-sky-900 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-sm">
+                      Comentarios
+                      <div
+                        className="pointer-events-none absolute inset-x-8 top-1 h-[35%] rounded-b-[100%] bg-linear-to-b from-white/40 to-transparent"
+                        aria-hidden
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {tab === "boleta" && (
+              <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-[1.5rem] border border-dashed border-white/50 bg-slate-500/15 px-6 py-12 text-center backdrop-blur-sm sm:min-h-[300px]">
+                <p className="text-sm font-extrabold uppercase tracking-widest text-sky-950">
+                  Boleta
+                </p>
+                <p className="max-w-md text-sm font-medium text-slate-700">
+                  Espacio reservado para calificaciones y resumen del ciclo.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </FrutigerBackdrop>
+  );
+}
