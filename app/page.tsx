@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { FrutigerBackdrop } from "./components/frutiger-backdrop";
 import { GlossyPersonIcon } from "./components/glossy-person-icon";
+import { HomeLoginForm } from "./components/home-login-form";
 
 export const metadata = {
   title: "AulaNube — Inicio de sesión",
@@ -58,36 +58,6 @@ function StarStudentCell({ uid }: { uid: string }) {
   );
 }
 
-function BubbleField({
-  label,
-  variant,
-}: {
-  label: string;
-  variant: "matricula" | "clave";
-}) {
-  const isClave = variant === "clave";
-  const shell = isClave
-    ? "border-white/40 bg-linear-to-b from-sky-600 via-sky-700 to-sky-900 text-white placeholder:text-sky-100/85 shadow-[0_8px_24px_rgba(2,132,199,0.35),inset_0_2px_0_rgba(255,255,255,0.35),inset_0_-3px_0_rgba(0,0,0,0.2)]"
-    : "border-white/60 bg-linear-to-b from-slate-100 via-slate-200/95 to-slate-300/90 text-slate-800 placeholder:text-slate-500 shadow-[0_6px_20px_rgba(15,23,42,0.08),inset_0_2px_0_rgba(255,255,255,0.9),inset_0_-2px_0_rgba(15,23,42,0.06)]";
-
-  return (
-    <label className="relative block">
-      <span className="sr-only">{label}</span>
-      <input
-        type={isClave ? "password" : "text"}
-        name={isClave ? "clave" : "matricula"}
-        placeholder={label}
-        autoComplete={isClave ? "current-password" : "username"}
-        className={`w-full rounded-full border px-6 py-4 text-center text-sm font-extrabold uppercase tracking-widest outline-none transition focus-visible:ring-2 focus-visible:ring-sky-300 ${shell}`}
-      />
-      <span
-        className="pointer-events-none absolute inset-x-8 top-1 h-[32%] rounded-b-[100%] bg-linear-to-b from-white/45 to-transparent opacity-80"
-        aria-hidden
-      />
-    </label>
-  );
-}
-
 function EventPlaceholder({ label }: { label: string }) {
   return (
     <div className="flex min-h-[140px] flex-1 items-center justify-center rounded-[1.35rem] border border-sky-950/25 bg-linear-to-b from-sky-800 via-sky-900 to-sky-950 px-4 py-8 text-center text-xs font-bold uppercase tracking-widest text-sky-100/90 shadow-[inset_0_3px_0_rgba(255,255,255,0.12),inset_0_-4px_0_rgba(0,0,0,0.25),0_8px_24px_rgba(2,6,23,0.2)]">
@@ -95,15 +65,6 @@ function EventPlaceholder({ label }: { label: string }) {
     </div>
   );
 }
-
-const navRoutes = [
-  { href: "/", label: "Inicio" },
-  { href: "/login", label: "Login" },
-  { href: "/perfil", label: "Perfil" },
-  { href: "/chat", label: "Chat" },
-  { href: "/profesor", label: "Profesor" },
-  { href: "/directivo", label: "Directivo" },
-] as const;
 
 export default function Home() {
   return (
@@ -118,22 +79,7 @@ export default function Home() {
           />
         </div>
 
-        <nav
-          className="mb-6 flex flex-wrap items-center justify-center gap-2 sm:justify-end"
-          aria-label="Secciones del sitio"
-        >
-          {navRoutes.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="rounded-full border border-white/55 bg-white/25 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-md transition hover:bg-white/45"
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-12 lg:gap-6 lg:items-start">
+        <div className="mb-6 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-12 lg:gap-6 lg:items-start">
           {/* Izquierda: Alumnos estrella */}
           <section className="lg:col-span-3">
             <GlassShell className="p-5 sm:p-6">
@@ -152,16 +98,7 @@ export default function Home() {
             <GlassShell className="p-6 sm:p-8">
               <PanelTab />
               <SectionPill>Inicio de sesión</SectionPill>
-              <form className="mx-auto flex max-w-sm flex-col gap-4" noValidate>
-                <BubbleField label="Matrícula" variant="matricula" />
-                <BubbleField label="Clave única" variant="clave" />
-                <button
-                  type="submit"
-                  className="relative mt-2 overflow-hidden rounded-full border border-white/50 bg-linear-to-b from-sky-300 via-sky-500 to-sky-700 px-8 py-3.5 text-sm font-extrabold uppercase tracking-widest text-white shadow-[0_8px_24px_rgba(14,165,233,0.45),inset_0_2px_0_rgba(255,255,255,0.55),inset_0_-3px_0_rgba(2,132,199,0.4)] transition active:scale-[0.98] before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-[44%] before:rounded-b-[100%] before:bg-linear-to-b before:from-white/65 before:to-transparent"
-                >
-                  Entrar
-                </button>
-              </form>
+              <HomeLoginForm />
             </GlassShell>
           </section>
 
