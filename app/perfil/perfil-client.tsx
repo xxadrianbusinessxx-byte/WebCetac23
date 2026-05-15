@@ -1,45 +1,14 @@
 "use client";
 
-import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
+import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
 
 type MainTab = "materia" | "estatus" | "comentarios" | "boleta";
 type MateriaSub = "asignaturas" | "personal";
-
-const navRoutes = [
-  { href: "/", label: "Inicio" },
-  { href: "/login", label: "Login" },
-  { href: "/perfil", label: "Perfil" },
-  { href: "/chat", label: "Chat" },
-  { href: "/profesor", label: "Profesor" },
-  { href: "/directivo", label: "Directivo" },
-] as const;
-
-function GlossyNavPill({
-  children,
-  active,
-  href,
-}: {
-  children: ReactNode;
-  active?: boolean;
-  href: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`relative flex-1 overflow-hidden rounded-full border border-white/35 px-6 py-2.5 text-center text-sm font-extrabold uppercase tracking-wider shadow-[inset_0_2px_0_rgba(255,255,255,0.35),inset_0_-2px_0_rgba(0,0,0,0.2),0_4px_14px_rgba(2,6,23,0.12)] transition hover:brightness-105 sm:flex-none sm:px-10 ${
-        active
-          ? "bg-linear-to-b from-sky-500 via-sky-700 to-sky-900 text-white"
-          : "bg-linear-to-b from-sky-600 via-sky-800 to-sky-950 text-white/95"
-      } before:pointer-events-none before:absolute before:inset-x-4 before:top-0 before:h-[46%] before:rounded-b-[100%] before:bg-linear-to-b before:from-white/45 before:to-transparent`}
-    >
-      {children}
-    </Link>
-  );
-}
 
 function BubblePill({
   children,
@@ -116,6 +85,9 @@ const personalLabels: string[][] = [
 ];
 
 export function PerfilClient() {
+  const searchParams = useSearchParams();
+  const modoDirectivo = searchParams.get("modo") === "directivo";
+  const alumnoConsulta = searchParams.get("alumno");
   const [tab, setTab] = useState<MainTab>("materia");
   const [materiaSub, setMateriaSub] = useState<MateriaSub>("asignaturas");
   const [materiaFiltro, setMateriaFiltro] = useState(0);
@@ -123,33 +95,19 @@ export function PerfilClient() {
   return (
     <FrutigerBackdrop>
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 lg:max-w-6xl lg:px-8 lg:pt-8">
-        {/* Barra Perfil / Chat */}
-        <div className="mb-6 flex flex-col gap-4 sm:mb-8">
-          <div className="flex h-14 items-center justify-center gap-3 rounded-full border-[3px] border-sky-800/55 bg-sky-200/45 px-3 py-2 shadow-[0_8px_28px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl backdrop-saturate-150 sm:h-16 sm:justify-between sm:px-6">
-            <GlossyNavPill href="/perfil" active>
-              Perfil
-            </GlossyNavPill>
-            <GlossyNavPill href="/chat">Chat</GlossyNavPill>
+        {modoDirectivo && (
+          <div className="mb-4 rounded-2xl border border-amber-400/60 bg-amber-100/90 px-4 py-3 text-center text-sm font-bold text-amber-950 shadow-md">
+            Modo directivo
+            {alumnoConsulta ? `: ${alumnoConsulta}` : ""} — puedes editar
+            contenido sensible (información personal, estatus y boleta).
           </div>
-
-          <nav
-            className="flex flex-wrap items-center justify-center gap-2 sm:justify-end"
-            aria-label="Secciones del sitio"
-          >
-            {navRoutes.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`rounded-full border border-white/55 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-md transition hover:bg-white/45 ${
-                  href === "/perfil"
-                    ? "bg-white/50 text-sky-950"
-                    : "bg-white/25 text-sky-900"
-                }`}
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
+        )}
+        {/* Barra Perfil / Chat */}
+        <div className="mb-6 flex h-14 items-center justify-center gap-3 rounded-full border-[3px] border-sky-800/55 bg-sky-200/45 px-3 py-2 shadow-[0_8px_28px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl backdrop-saturate-150 sm:mb-8 sm:h-16 sm:justify-between sm:px-6">
+          <GlossyNavPill href="/perfil" active>
+            Perfil
+          </GlossyNavPill>
+          <GlossyNavPill href="/chat?origen=perfil">Chat</GlossyNavPill>
         </div>
 
         {/* Cabecera avatar + nombre */}
@@ -158,6 +116,7 @@ export function PerfilClient() {
             <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-linear-to-b from-sky-100/90 to-sky-300/50">
               <GlossyPersonIcon
                 uid="perfil-main"
+                genero="masculino"
                 className="h-[82%] w-[82%] drop-shadow-[0_6px_12px_rgba(2,132,199,0.4)]"
               />
               <div

@@ -1,19 +1,39 @@
+import type { GeneroUsuario } from "@/lib/chat/types";
+
+const PALETAS: Record<
+  GeneroUsuario,
+  { stops: [string, string, string]; shine: string }
+> = {
+  masculino: {
+    stops: ["#7dd3fc", "#38bdf8", "#0369a1"],
+    shine: "#ffffff",
+  },
+  femenino: {
+    stops: ["#f9a8d4", "#ec4899", "#be185d"],
+    shine: "#ffffff",
+  },
+};
+
 export function GlossyPersonIcon({
   className = "",
   uid,
+  genero = "masculino",
 }: {
   className?: string;
   uid: string;
+  genero?: GeneroUsuario;
 }) {
   const b = `gp-body-${uid}`;
   const s = `gp-shine-${uid}`;
+  const [c0, c1, c2] = PALETAS[genero].stops;
+
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden>
       <defs>
         <linearGradient id={b} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#7dd3fc" />
-          <stop offset="45%" stopColor="#38bdf8" />
-          <stop offset="100%" stopColor="#0369a1" />
+          <stop offset="0%" stopColor={c0} />
+          <stop offset="45%" stopColor={c1} />
+          <stop offset="100%" stopColor={c2} />
         </linearGradient>
         <radialGradient id={s} cx="35%" cy="25%" r="55%">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
