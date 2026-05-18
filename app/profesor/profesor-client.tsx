@@ -1,9 +1,18 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useRef, useState } from "react";
-import { actionSubirCalificacionesMateria } from "@/app/actions/calificaciones";
-import { MATERIAS_DEMO } from "@/lib/calificaciones/materias-demo";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  actionEnviarComentarioAlumno,
+  actionObtenerVistaMateria,
+  actionSubirMateriaExcel,
+} from "@/app/actions/escolar";
+import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
+import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
+import { MATERIAS_ESCOLAR } from "@/lib/escolar/materias-list";
+import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
+import type { MateriaTablaVista } from "@/lib/escolar/types";
+import type { PortalSessionPayload } from "@/lib/auth/types";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
@@ -30,11 +39,16 @@ function GreyActionPill({
   );
 }
 
-/** Sesión demo hasta leer la cookie del portal en el servidor. */
-const SESION_DEMO = { matricula: "MAE001", rol: "maestro" as const };
+type Props = { sesion: PortalSessionPayload | null };
 
-export function ProfesorClient() {
-  const [materiaIndex, setMateriaIndex] = useState(0);
+export function ProfesorClient({ sesion }: Props) {
+  const [materiaSeleccionada, setMateriaSeleccionada] = useState<string>(
+    MATERIAS_ESCOLAR[0] ?? "",
+  );
+  const [vistaMateria, setVistaMateria] = useState<MateriaTablaVista | null>(
+    null,
+  );
+  const [cargandoVista, setCargandoVista] = useState(false);
   const [archivoSeleccionado, setArchivoSeleccionado] = useState<File | null>(
     null,
   );
@@ -42,9 +56,24 @@ export function ProfesorClient() {
   const [mensajeArchivo, setMensajeArchivo] = useState<string | null>(null);
   const [alumnoNombre, setAlumnoNombre] = useState("");
   const [comentario, setComentario] = useState("");
+  const [enviandoComentario, setEnviandoComentario] = useState(false);
+  const [mensajeComentario, setMensajeComentario] = useState<string | null>(
+    null,
+  );
   const inputArchivoRef = useRef<HTMLInputElement>(null);
 
-  const materia = MATERIAS_DEMO[materiaIndex];
+  const nombreProfesor = sesion?.nombre ?? sesion?.matricula ?? "Profesor";
+
+  const refrescarVista = useCallback(async (nombre: string) => {
+    setCargandoVista(true);
+    const vista = await actionObtenerVistaMateria(nombre);
+    setVistaMateria(vista);
+    setCargandoVista(false);
+  }, []);
+
+  useEffect(() => {
+    if (materiaSeleccionada) void refrescarVista(materiaSeleccionada);
+  }, [materiaSeleccionada, refrescarVista]);
 
   function abrirSelectorArchivo() {
     inputArchivoRef.current?.click();
@@ -69,21 +98,40 @@ export function ProfesorClient() {
     setMensajeArchivo(null);
 
     const formData = new FormData();
-    formData.set("matricula", SESION_DEMO.matricula);
-    formData.set("rol", SESION_DEMO.rol);
-    formData.set("materiaId", materia.id);
     formData.set("archivo", archivoSeleccionado);
 
-    const resultado = await actionSubirCalificacionesMateria(formData);
+    const resultado = await actionSubirMateriaExcel(
+      materiaSeleccionada,
+      formData,
+    );
     setSubiendo(false);
 
     if (resultado.ok) {
       setMensajeArchivo(
-        `Archivo guardado para ${materia.nombre}. Reemplazó el anterior si existía.`,
+        `Contenido de ${materiaSeleccionada} reemplazado (${resultado.filas} filas).`,
       );
       setArchivoSeleccionado(null);
+      void refrescarVista(materiaSeleccionada);
     } else {
       setMensajeArchivo(resultado.error);
+    }
+  }
+
+  async function onEnviarComentario() {
+    if (!alumnoNombre.trim() || !comentario.trim()) return;
+    setEnviandoComentario(true);
+    setMensajeComentario(null);
+    const resultado = await actionEnviarComentarioAlumno(
+      alumnoNombre,
+      comentario,
+      nombreProfesor,
+    );
+    setEnviandoComentario(false);
+    if (resultado.ok) {
+      setComentario("");
+      setMensajeComentario("Comentario guardado en COMENTARIOS.");
+    } else {
+      setMensajeComentario(resultado.error);
     }
   }
 
@@ -116,7 +164,7 @@ export function ProfesorClient() {
             <div className="w-10 shrink-0 bg-sky-950 sm:w-12" aria-hidden />
             <div className="relative flex flex-1 items-center justify-center bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4">
               <span className="text-lg font-extrabold tracking-wide text-white drop-shadow-sm sm:text-xl">
-                Profesor name
+                {nombreProfesor}
               </span>
               <div
                 className="pointer-events-none absolute inset-x-6 top-1 h-[38%] rounded-b-[100%] bg-linear-to-b from-white/35 to-transparent"
@@ -137,31 +185,25 @@ export function ProfesorClient() {
 
           <div className="relative z-[1] flex flex-col gap-4">
             <div className="flex flex-wrap gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
-              {MATERIAS_DEMO.map((m, i) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setMateriaIndex(i)}
-                  className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition ${
-                    materiaIndex === i
-                      ? "bg-linear-to-b from-sky-500 to-sky-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
-                      : "bg-white/70 text-sky-900 hover:bg-white"
-                  }`}
-                >
-                  {m.nombre}
-                </button>
-              ))}
+              <MateriaScrollPicker
+                materias={MATERIAS_ESCOLAR}
+                seleccionada={materiaSeleccionada}
+                onSeleccionar={setMateriaSeleccionada}
+              />
             </div>
 
             <div className="flex min-h-[240px] flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[300px] sm:p-6">
-              <div className="flex flex-1 flex-col items-center justify-center rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-6 py-12 text-center shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm">
-                <p className="text-sm font-semibold text-slate-700">
-                  Vista previa de su excel
-                </p>
-                <p className="mt-2 max-w-sm text-xs font-medium text-slate-600/90">
-                  {materia.nombre} — aquí se mostrará la tabla cuando conectemos
-                  la lectura del archivo.
-                </p>
+              <div className="flex flex-1 flex-col rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-4 py-6 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm">
+                {cargandoVista ? (
+                  <p className="text-center text-sm font-semibold text-slate-600">
+                    Cargando…
+                  </p>
+                ) : (
+                  <MateriaTablaVistaPanel
+                    vista={vistaMateria}
+                    materiaNombre={materiaSeleccionada}
+                  />
+                )}
               </div>
 
               <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -177,7 +219,7 @@ export function ProfesorClient() {
                 </GreyActionPill>
                 {mensajeArchivo && (
                   <p
-                    className={`text-xs font-semibold ${mensajeArchivo.includes("guardado") ? "text-sky-900" : "text-red-700"}`}
+                    className={`text-xs font-semibold ${mensajeArchivo.includes("reemplazado") ? "text-sky-900" : "text-red-700"}`}
                     role="status"
                   >
                     {mensajeArchivo}
@@ -214,7 +256,13 @@ export function ProfesorClient() {
                 placeholder="Nombre completo"
                 className="min-w-[10rem] rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
               />
-              <GreyActionPill type="button">Enviar</GreyActionPill>
+              <GreyActionPill
+                type="button"
+                onClick={onEnviarComentario}
+                className={enviandoComentario ? "opacity-70" : ""}
+              >
+                Enviar
+              </GreyActionPill>
             </div>
             <span className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] sm:text-[11px]">
               Envía un comentario a un alumno
@@ -228,11 +276,22 @@ export function ProfesorClient() {
             <textarea
               id="comentario-alumno"
               value={comentario}
-              onChange={(e) => setComentario(e.target.value)}
+              onChange={(e) =>
+                setComentario(e.target.value.slice(0, COMENTARIO_MAX_LENGTH))
+              }
+              maxLength={COMENTARIO_MAX_LENGTH}
               placeholder="Comparte tu comentario"
               rows={5}
               className="min-h-[140px] w-full resize-y rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-5 py-4 text-sm font-semibold text-slate-700 placeholder:text-slate-600/80 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] outline-none backdrop-blur-sm focus:ring-2 focus:ring-sky-400/50"
             />
+            <p className="mt-1 text-right text-[10px] font-semibold text-slate-600">
+              {comentario.length}/{COMENTARIO_MAX_LENGTH}
+            </p>
+            {mensajeComentario && (
+              <p className="mt-2 text-center text-xs font-semibold text-sky-900">
+                {mensajeComentario}
+              </p>
+            )}
           </div>
         </section>
       </div>

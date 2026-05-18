@@ -83,7 +83,6 @@ export default function Home() {
           {/* Izquierda: Alumnos estrella */}
           <section className="lg:col-span-3">
             <GlassShell className="p-5 sm:p-6">
-              <PanelTab label="Scroll gui" />
               <SectionPill>Alumnos estrella</SectionPill>
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {["a", "b", "c", "d"].map((uid) => (
@@ -105,7 +104,6 @@ export default function Home() {
           {/* Derecha: eventos */}
           <section className="lg:col-span-4">
             <GlassShell className="flex h-full min-h-[320px] flex-col p-5 sm:p-6">
-              <PanelTab label="Scroll gui" />
               <SectionPill>Eventos</SectionPill>
               <div className="flex flex-1 flex-col gap-4">
                 <EventPlaceholder label="Imagen de evento" />

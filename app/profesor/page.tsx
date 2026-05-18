@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { ProfesorClient } from "./profesor-client";
 
 export const metadata: Metadata = {
@@ -7,6 +8,7 @@ export const metadata: Metadata = {
     "Panel del profesor: materias, carga de calificaciones y comentarios a alumnos.",
 };
 
-export default function ProfesorPage() {
-  return <ProfesorClient />;
+export default async function ProfesorPage() {
+  const sesion = await obtenerSesionPortal();
+  return <ProfesorClient sesion={sesion} />;
 }
