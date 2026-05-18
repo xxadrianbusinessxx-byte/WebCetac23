@@ -1,8 +1,25 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  actionActualizarEstatusDirectivo,
+  actionActualizarEtiquetasPersonales,
+  actionObtenerVistaMateria,
+} from "@/app/actions/escolar";
+import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
+import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
+import {
+  etiquetasEstatusDesdeFila,
+  etiquetasPersonalesDesdeFila,
+} from "@/lib/escolar/etiquetas";
+import { nombreCompletoAlumno } from "@/lib/escolar/alumnos";
+import type {
+  AlumnoRow,
+  ComentarioRow,
+  EtiquetasPersonalesRow,
+  MateriaTablaVista,
+} from "@/lib/escolar/types";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
@@ -75,22 +92,45 @@ const estatusCol2 = [
   "Materia 5 etc.",
 ];
 
-const personalLabels: string[][] = [
-  ["Nombre", "Apellido P", "Apellido M", "Curp"],
-  ["Genero", "Grado", "Carrera", "Celular"],
-  ["Tipo de sangre", "—", "—", "—"],
-  ["Peso y talla", "—", "—", "—"],
-  ["Vacunación", "—", "—", "—"],
-  ["Salud mental actual", "—", "—", "—"],
-];
+type PerfilDatos = {
+  alumno: AlumnoRow | null;
+  etiquetas: EtiquetasPersonalesRow | null;
+  comentarios: ComentarioRow[];
+  puedeEditarEstatus: boolean;
+};
 
-export function PerfilClient() {
-  const searchParams = useSearchParams();
-  const modoDirectivo = searchParams.get("modo") === "directivo";
-  const alumnoConsulta = searchParams.get("alumno");
+type Props = {
+  materias: readonly string[];
+  modoDirectivo: boolean;
+  datos: PerfilDatos;
+};
+
+export function PerfilClient({ materias, modoDirectivo, datos }: Props) {
+  const { alumno, etiquetas, comentarios, puedeEditarEstatus } = datos;
+  const nombreMostrar = alumno ? nombreCompletoAlumno(alumno) : "Nombre";
   const [tab, setTab] = useState<MainTab>("materia");
   const [materiaSub, setMateriaSub] = useState<MateriaSub>("asignaturas");
-  const [materiaFiltro, setMateriaFiltro] = useState(0);
+  const [materiaSeleccionada, setMateriaSeleccionada] = useState(
+    materias[0] ?? "",
+  );
+  const [vistaMateria, setVistaMateria] = useState<MateriaTablaVista | null>(
+    null,
+  );
+  const [e1, setE1] = useState(etiquetasEstatusDesdeFila(etiquetas)[0]);
+  const [e2, setE2] = useState(etiquetasEstatusDesdeFila(etiquetas)[1]);
+  const [e3, setE3] = useState(etiquetasEstatusDesdeFila(etiquetas)[2]);
+  const [p1, setP1] = useState(etiquetasPersonalesDesdeFila(etiquetas)[0]);
+  const [p2, setP2] = useState(etiquetasPersonalesDesdeFila(etiquetas)[1]);
+  const [p3, setP3] = useState(etiquetasPersonalesDesdeFila(etiquetas)[2]);
+
+  const refrescarMateria = useCallback(async (nombre: string) => {
+    const vista = await actionObtenerVistaMateria(nombre);
+    setVistaMateria(vista);
+  }, []);
+
+  useEffect(() => {
+    if (materiaSeleccionada) void refrescarMateria(materiaSeleccionada);
+  }, [materiaSeleccionada, refrescarMateria]);
 
   return (
     <FrutigerBackdrop>
@@ -98,7 +138,7 @@ export function PerfilClient() {
         {modoDirectivo && (
           <div className="mb-4 rounded-2xl border border-amber-400/60 bg-amber-100/90 px-4 py-3 text-center text-sm font-bold text-amber-950 shadow-md">
             Modo directivo
-            {alumnoConsulta ? `: ${alumnoConsulta}` : ""} — puedes editar
+            {nombreMostrar !== "Nombre" ? `: ${nombreMostrar}` : ""} — puedes editar
             contenido sensible (información personal, estatus y boleta).
           </div>
         )}
@@ -133,7 +173,7 @@ export function PerfilClient() {
             />
             <div className="relative flex flex-1 items-center justify-center bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4">
               <span className="text-lg font-extrabold tracking-wide text-white drop-shadow-sm sm:text-xl">
-                Nombre
+                {nombreMostrar}
               </span>
               <div
                 className="pointer-events-none absolute inset-x-6 top-1 h-[38%] rounded-b-[100%] bg-linear-to-b from-white/35 to-transparent"
@@ -192,22 +232,11 @@ export function PerfilClient() {
               <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
-                    {["Materia 1", "Materia 2", "Materia 3", "Materia 4"].map(
-                      (m, i) => (
-                        <button
-                          key={m}
-                          type="button"
-                          onClick={() => setMateriaFiltro(i)}
-                          className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition ${
-                            materiaFiltro === i
-                              ? "bg-linear-to-b from-sky-500 to-sky-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
-                              : "bg-white/70 text-sky-900 hover:bg-white"
-                          }`}
-                        >
-                          {m}
-                        </button>
-                      ),
-                    )}
+                    <MateriaScrollPicker
+                      materias={materias}
+                      seleccionada={materiaSeleccionada}
+                      onSeleccionar={setMateriaSeleccionada}
+                    />
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -237,14 +266,10 @@ export function PerfilClient() {
 
                 {materiaSub === "asignaturas" ? (
                   <div className="flex min-h-[220px] flex-1 items-center justify-center rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-6 py-16 text-center text-sm font-semibold text-slate-700 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:min-h-[280px]">
-                    Contenido de{" "}
-                    <span className="font-extrabold text-sky-900">
-                      Materia {materiaFiltro + 1}
-                    </span>
-                    <br />
-                    <span className="mt-2 block text-xs font-medium opacity-80">
-                      Aquí irá el detalle de la asignatura seleccionada.
-                    </span>
+                    <MateriaTablaVistaPanel
+                      vista={vistaMateria}
+                      materiaNombre={materiaSeleccionada}
+                    />
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4">
@@ -252,16 +277,18 @@ export function PerfilClient() {
                       Información personal
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-                      {personalLabels.flatMap((row, ri) =>
-                        row.map((cell, ci) => (
-                          <BubblePill
-                            key={`${ri}-${ci}`}
-                            className="min-h-[2.75rem]"
-                          >
-                            {cell}
-                          </BubblePill>
-                        )),
-                      )}
+                      {[
+                        ["CURP", alumno?.CURP],
+                        ["Nombre", alumno?.NOMBRE],
+                        ["Apellido P", alumno?.P_APELLIDO],
+                        ["Apellido M", alumno?.S_APELLIDO],
+                        ["Clave", alumno?.CLAVE],
+                        ["Género", etiquetas?.GENERO],
+                        ["Grado", etiquetas?.GRADO],
+                        ["Grupo", etiquetas?.GRUPO],
+                      ].map(([l, v]) => (
+                        <BubblePill key={l} className="min-h-[2.75rem]">{l}: {v ?? "—"}</BubblePill>
+                      ))}
                     </div>
                     <div className="rounded-full border border-white/75 bg-white/90 px-5 py-4 text-center text-sm font-bold text-sky-900 shadow-[inset_0_2px_0_rgba(255,255,255,1)]">
                       Comentarios del alumno acerca de él
@@ -278,8 +305,8 @@ export function PerfilClient() {
                     <div key={`estatus-row-${i}`} className="contents">
                       <BubblePill>{estatusCol1[i]}</BubblePill>
                       <BubblePill>{estatusCol2[i]}</BubblePill>
-                      <BubblePill>Etiqueta</BubblePill>
-                      <BubblePill>Etiqueta</BubblePill>
+                      <BubblePill>{i === 0 ? e1 : i === 1 ? e2 : "—"}</BubblePill>
+                      <BubblePill>{i === 0 ? p1 : i === 1 ? p2 : p3}</BubblePill>
                     </div>
                   ))}
                 </div>
@@ -288,20 +315,18 @@ export function PerfilClient() {
 
             {tab === "comentarios" && (
               <ul className="flex flex-col gap-4">
-                {[1, 2, 3].map((n) => (
-                  <li
-                    key={n}
-                    className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4"
-                  >
-                    <span className="shrink-0 rounded-full border border-white/80 bg-white/95 px-4 py-2 text-center text-[11px] font-extrabold uppercase tracking-wide text-sky-800 shadow-[inset_0_2px_0_rgba(255,255,255,1)] sm:min-w-[8.5rem]">
-                      Profesor &apos;{n}&apos;
+                {comentarios.length === 0 && (
+                  <li className="text-center text-sm font-semibold text-slate-600">
+                    Sin comentarios en COMENTARIOS.
+                  </li>
+                )}
+                {comentarios.map((c, i) => (
+                  <li key={`${c.CURP}-${i}`} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                    <span className="shrink-0 rounded-full border border-white/80 bg-white/95 px-4 py-2 text-center text-[11px] font-extrabold uppercase tracking-wide text-sky-800 sm:min-w-[8.5rem]">
+                      Comentario
                     </span>
-                    <div className="relative min-h-[3rem] flex-1 overflow-hidden rounded-full border border-white/60 bg-slate-400/35 px-4 py-3 text-center text-sm font-bold text-sky-900 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-sm">
-                      Comentarios
-                      <div
-                        className="pointer-events-none absolute inset-x-8 top-1 h-[35%] rounded-b-[100%] bg-linear-to-b from-white/40 to-transparent"
-                        aria-hidden
-                      />
+                    <div className="relative min-h-[3rem] flex-1 rounded-full border border-white/60 bg-slate-400/35 px-4 py-3 text-sm font-bold text-sky-900">
+                      {c.COMENTARIO}
                     </div>
                   </li>
                 ))}

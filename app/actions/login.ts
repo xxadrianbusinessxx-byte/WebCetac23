@@ -1,9 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { validatePortalCredentials } from "@/lib/auth/demo-users";
+import { validarAccesoPortal } from "@/lib/auth/portal-login";
 import { setPortalSessionCookie } from "@/lib/auth/session";
 import type { PortalRole } from "@/lib/auth/types";
+import { createClient } from "@/lib/supabase/server";
 
 export type LoginFormState = {
   error?: string;
@@ -22,22 +23,28 @@ function destinationForRole(rol: PortalRole): string {
   }
 }
 
-export async function loginWithMatricula(
+export async function loginWithNombreCompleto(
   _prev: LoginFormState,
-  formData: FormData
+  formData: FormData,
 ): Promise<LoginFormState> {
-  const matricula = String(formData.get("matricula") ?? "").trim();
+  const nombreCompleto = String(formData.get("nombreCompleto") ?? "").trim();
   const clave = String(formData.get("clave") ?? "");
 
-  if (!matricula || !clave) {
-    return { error: "Indica matrícula y clave única." };
+  if (!nombreCompleto || !clave) {
+    return { error: "Indica nombre completo y clave." };
   }
 
-  const user = validatePortalCredentials(matricula, clave);
+  const supabase = await createClient();
+  const user = await validarAccesoPortal(supabase, nombreCompleto, clave);
   if (!user) {
-    return { error: "Matrícula o clave incorrectos." };
+    return { error: "Nombre completo o clave incorrectos." };
   }
 
-  await setPortalSessionCookie({ matricula: user.matricula, rol: user.rol });
+  await setPortalSessionCookie({
+    matricula: user.matricula,
+    rol: user.rol,
+    curp: user.curp,
+    nombre: user.nombre,
+  });
   redirect(destinationForRole(user.rol));
 }

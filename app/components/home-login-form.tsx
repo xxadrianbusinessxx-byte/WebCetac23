@@ -1,14 +1,14 @@
 "use client";
 
 import { useActionState } from "react";
-import { loginWithMatricula, type LoginFormState } from "@/app/actions/login";
+import { loginWithNombreCompleto, type LoginFormState } from "@/app/actions/login";
 
 function BubbleField({
   label,
   variant,
 }: {
   label: string;
-  variant: "matricula" | "clave";
+  variant: "nombreCompleto" | "clave";
 }) {
   const isClave = variant === "clave";
   const shell = isClave
@@ -20,10 +20,10 @@ function BubbleField({
       <span className="sr-only">{label}</span>
       <input
         type={isClave ? "password" : "text"}
-        name={isClave ? "clave" : "matricula"}
+        name={isClave ? "clave" : "nombreCompleto"}
         required
         placeholder={label}
-        autoComplete={isClave ? "current-password" : "username"}
+        autoComplete={isClave ? "current-password" : "name"}
         className={`w-full rounded-full border px-6 py-4 text-center text-sm font-extrabold uppercase tracking-widest outline-none transition focus-visible:ring-2 focus-visible:ring-sky-300 ${shell}`}
       />
       <span
@@ -37,21 +37,27 @@ function BubbleField({
 const initialState: LoginFormState = {};
 
 export function HomeLoginForm() {
-  const [state, formAction, pending] = useActionState(loginWithMatricula, initialState);
+  const [state, formAction, pending] = useActionState(
+    loginWithNombreCompleto,
+    initialState,
+  );
 
   return (
     <form className="mx-auto flex max-w-sm flex-col gap-4" action={formAction} noValidate>
-      <BubbleField label="Matrícula" variant="matricula" />
-      <BubbleField label="Clave única" variant="clave" />
+      <BubbleField label="Nombre completo" variant="nombreCompleto" />
+      <BubbleField label="Clave" variant="clave" />
       {state.error ? (
-        <p className="text-center text-xs font-semibold uppercase tracking-wide text-red-600" role="alert">
+        <p
+          className="text-center text-xs font-semibold uppercase tracking-wide text-red-600"
+          role="alert"
+        >
           {state.error}
         </p>
       ) : null}
       <button
         type="submit"
         disabled={pending}
-        className="relative mt-2 overflow-hidden rounded-full border border-white/50 bg-linear-to-b from-sky-300 via-sky-500 to-sky-700 px-8 py-3.5 text-sm font-extrabold uppercase tracking-widest text-white shadow-[0_8px_24px_rgba(14,165,233,0.45),inset_0_2px_0_rgba(255,255,255,0.55),inset_0_-3px_0_rgba(2,132,199,0.4)] transition enabled:active:scale-[0.98] disabled:opacity-60 before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-[44%] before:rounded-b-[100%] before:bg-linear-to-b before:from-white/65 before:to-transparent"
+        className="relative mt-2 overflow-hidden rounded-full border border-white/50 bg-linear-to-b from-sky-300 via-sky-500 to-sky-700 px-8 py-3.5 text-sm font-extrabold uppercase tracking-widest text-white shadow-[0_8px_24px_rgba(14,165,233,0.45),inset_0_2px_0_rgba(255,255,255,0.55),inset_0_-3px_0_rgba(0,0,0,0.4)] transition enabled:active:scale-[0.98] disabled:opacity-60 before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-[44%] before:rounded-b-[100%] before:bg-linear-to-b before:from-white/65 before:to-transparent"
       >
         {pending ? "Entrando…" : "Entrar"}
       </button>
