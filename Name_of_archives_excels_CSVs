@@ -253,3 +253,8 @@ COMENTARIOS
 SECRET KEY "RJyAgmHyqlQhvSaDSCboMaPAxVY"
 API KEY "131326644425598"
 CLOUD NAME "dbkeikl8i"
+
+"CLAVES SUPABASE"
+anon ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uaGpxcWpvbmFiY2hsdXV3bWtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NTIzNDIsImV4cCI6MjA5NDEyODM0Mn0.WnqXGDo3ihfCiOKUbNsoUEd0Se1UeHXWbOXktvwvYYc"
+service_role ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uaGpxcWpvbmFiY2hsdXV3bWtwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODU1MjM0MiwiZXhwIjoyMDk0MTI4MzQyfQ.596AwGvlag70C-h-aMp44b1caYYgPNRaFPEg_6Q_DSE"
+proyect url = "https://nnhjqqjonabchluuwmkp.supabase.co"
