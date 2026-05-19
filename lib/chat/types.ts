@@ -2,7 +2,7 @@ export type GeneroUsuario = "masculino" | "femenino";
 
 export type ChatOrigen = "perfil" | "profesor" | "directivo";
 
-/** Fila prevista en Supabase (`mensajes_chat`). */
+/** Mensaje del chat (tabla COMENTARIOS en Supabase). */
 export type MensajeChat = {
   id: string;
   fecha: string;
@@ -18,5 +18,7 @@ export type EnviarMensajeInput = {
   remitenteMatricula: string;
   remitenteNombre: string;
   genero: GeneroUsuario;
+  /** Clave corta Cloudinary (cetac23/chat_…) o URL. */
   imagenUrl?: string | null;
+  imagenClave?: string | null;
 };

@@ -8,10 +8,10 @@ export const TABLA_ETIQUETAS_PERSONALES = "ETIQUETAS PERSONALES";
 
 export const COMENTARIO_MAX_LENGTH = 200;
 
-/** Etiquetas de estatus (solo directivo). Se guardan en EMPTY1–3 de ETIQUETAS PERSONALES. */
+/** Títulos de etiquetas personales (ETIQUETAS PERSONALES, EMPTY1–3). */
 export const ETIQUETAS_ESTATUS_KEYS = ["EMPTY1", "EMPTY2", "EMPTY3"] as const;
 
-/** Etiquetas personales del alumno. */
+/** Valores de etiquetas personales (ETIQUETAS PERSONALES, EMPTY4–6). */
 export const ETIQUETAS_PERSONALES_KEYS = ["EMPTY4", "EMPTY5", "EMPTY6"] as const;
 
 export const CLOUDINARY_FOLDER = "cetac23";

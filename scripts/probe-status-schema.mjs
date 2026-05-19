@@ -1,0 +1,47 @@
+import fs from "node:fs";
+import path from "node:path";
+
+const root = path.join(import.meta.dirname, "..");
+const raw = fs.readFileSync(path.join(root, ".env.local"), "utf8");
+const env = {};
+for (const line of raw.split("\n")) {
+  const t = line.trim();
+  if (!t || t.startsWith("#")) continue;
+  const i = t.indexOf("=");
+  if (i < 1) continue;
+  let v = t.slice(i + 1).trim();
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))
+    v = v.slice(1, -1);
+  env[t.slice(0, i).trim()] = v;
+}
+
+const urlBase = (env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().replace(/\/+$/, "");
+const key = env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+const hdr = {
+  apikey: key,
+  Authorization: `Bearer ${key}`,
+  "Content-Type": "application/json",
+  Prefer: "return=representation",
+};
+const ep = encodeURIComponent("ETIQUETAS (STATUS)");
+
+const tests = [
+  { columna1: "OUCB070914MMCLSRA3", columna2: "9.5" },
+  { CURP: "OUCB070914MMCLSRA3", PROMEDIO: "9.5" },
+  { CURP: "OUCB070914MMCLSRA3", "Promedio": "9.5" },
+  { CURP: "OUCB070914MMCLSRA3", "PROMEDIO 1RO": "9.5" },
+];
+
+for (const body of tests) {
+  const r = await fetch(`${urlBase}/rest/v1/${ep}`, {
+    method: "POST",
+    headers: hdr,
+    body: JSON.stringify(body),
+  });
+  console.log(JSON.stringify(body), "=>", r.status, (await r.text()).slice(0, 220));
+}
+
+const r2 = await fetch(`${urlBase}/rest/v1/${ep}?select=*`, {
+  headers: { apikey: key, Authorization: `Bearer ${key}` },
+});
+console.log("ALL:", await r2.text());

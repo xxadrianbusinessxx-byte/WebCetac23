@@ -2,9 +2,17 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { actionEnviarMensajeChat, actionListarMensajesChat } from "@/app/actions/chat";
+import {
+  actionEnviarMensajeChat,
+  actionListarMensajesChat,
+  actionSubirImagenChat,
+} from "@/app/actions/chat";
+import { imagenAClaveGuardado } from "@/lib/chat/comentario-codigo";
+import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
 import { demoProfilePorOrigen } from "@/lib/auth/demo-profiles";
+import type { PortalSessionPayload } from "@/lib/auth/types";
 import { CHAT_ORIGEN_NAV } from "@/lib/chat/constants";
+import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { ChatOrigen, MensajeChat } from "@/lib/chat/types";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
@@ -79,15 +87,25 @@ function parseOrigen(raw: string | null): ChatOrigen {
   return "perfil";
 }
 
-export function ChatClient() {
+type Props = { sesion: PortalSessionPayload | null };
+
+export function ChatClient({ sesion }: Props) {
   const searchParams = useSearchParams();
   const origen = parseOrigen(searchParams.get("origen"));
   const nav = CHAT_ORIGEN_NAV[origen];
-  const usuario = demoProfilePorOrigen(origen);
+  const demo = demoProfilePorOrigen(origen);
+  const usuario = sesion
+    ? {
+        matricula: sesion.matricula,
+        nombre: sesion.nombre ?? sesion.matricula,
+        genero: demo.genero,
+      }
+    : demo;
 
   const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
   const [texto, setTexto] = useState("");
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
+  const [imagenArchivo, setImagenArchivo] = useState<File | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listaRef = useRef<HTMLUListElement>(null);
@@ -111,29 +129,49 @@ export function ChatClient() {
   function onImagenElegida(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (imagenPreview) URL.revokeObjectURL(imagenPreview);
+    if (imagenPreview?.startsWith("blob:")) URL.revokeObjectURL(imagenPreview);
+    setImagenArchivo(file);
     setImagenPreview(URL.createObjectURL(file));
     event.target.value = "";
   }
 
-  /** Solo el borrador del pie: no revocar si la URL ya está en un mensaje enviado. */
   function limpiarBorradorImagen() {
+    if (imagenPreview?.startsWith("blob:")) URL.revokeObjectURL(imagenPreview);
     setImagenPreview(null);
+    setImagenArchivo(null);
   }
 
   function quitarAdjuntoAntesDeEnviar() {
-    if (imagenPreview) URL.revokeObjectURL(imagenPreview);
     limpiarBorradorImagen();
   }
 
   async function onEnviar() {
     const contenido = texto.trim();
-    const urlAdjunto = imagenPreview;
-
-    if (!contenido && !urlAdjunto) return;
+    if (!contenido && !imagenArchivo) return;
 
     setEnviando(true);
     setError(null);
+
+    let urlCloudinary: string | null = null;
+    if (imagenArchivo) {
+      const comprimida = await comprimirImagenSiPosible(imagenArchivo);
+      const fd = new FormData();
+      fd.set("archivo", comprimida);
+      const subida = await actionSubirImagenChat(fd);
+      if (!subida.ok) {
+        setEnviando(false);
+        setError(subida.error);
+        return;
+      }
+      urlCloudinary = subida.url;
+    }
+
+    const imagenClave = urlCloudinary
+      ? imagenAClaveGuardado(urlCloudinary)
+      : null;
+    const imagenMostrar = urlCloudinary ?? imagenPreview;
+
+    const textoMostrar = contenido || "(imagen)";
 
     const local: MensajeChat = {
       id: crypto.randomUUID(),
@@ -141,8 +179,8 @@ export function ChatClient() {
       remitenteMatricula: usuario.matricula,
       remitenteNombre: usuario.nombre.toUpperCase(),
       genero: usuario.genero,
-      texto: contenido || "(imagen)",
-      imagenUrl: urlAdjunto,
+      texto: textoMostrar,
+      imagenUrl: imagenMostrar,
     };
 
     setMensajes((prev) => [...prev, local]);
@@ -150,22 +188,19 @@ export function ChatClient() {
     limpiarBorradorImagen();
 
     const resultado = await actionEnviarMensajeChat({
-      texto: contenido || "(imagen)",
+      texto: contenido,
       remitenteMatricula: usuario.matricula,
       remitenteNombre: usuario.nombre,
       genero: usuario.genero,
-      imagenUrl: null,
+      imagenClave,
+      imagenUrl: imagenClave,
     });
 
     setEnviando(false);
 
     if (!resultado.ok) {
-      setError(
-        resultado.error.includes("mensajes_chat") ||
-          resultado.error.includes("relation")
-          ? "Mensaje visible en pantalla. Conecta la tabla mensajes_chat en Supabase."
-          : resultado.error,
-      );
+      setError(resultado.error);
+      setMensajes((prev) => prev.filter((m) => m.id !== local.id));
     } else {
       setMensajes((prev) =>
         prev.map((m) =>
@@ -234,7 +269,10 @@ export function ChatClient() {
             <textarea
               id="chat-texto"
               value={texto}
-              onChange={(e) => setTexto(e.target.value)}
+              maxLength={COMENTARIO_MAX_LENGTH}
+              onChange={(e) =>
+                setTexto(e.target.value.slice(0, COMENTARIO_MAX_LENGTH))
+              }
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -243,8 +281,11 @@ export function ChatClient() {
               }}
               placeholder="Comentario"
               rows={3}
-              className="mb-3 w-full resize-none rounded-[1.25rem] border border-white/50 bg-slate-400/50 px-4 py-3 text-sm font-bold text-sky-950 placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-sky-300/60"
+              className="mb-1 w-full resize-none rounded-[1.25rem] border border-white/50 bg-slate-400/50 px-4 py-3 text-sm font-bold text-sky-950 placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-sky-300/60"
             />
+            <p className="mb-3 text-right text-[10px] font-semibold text-sky-100/90">
+              {texto.length}/{COMENTARIO_MAX_LENGTH}
+            </p>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
               <button
@@ -256,7 +297,7 @@ export function ChatClient() {
               </button>
               <button
                 type="button"
-                disabled={enviando || (!texto.trim() && !imagenPreview)}
+                disabled={enviando || (!texto.trim() && !imagenArchivo)}
                 onClick={onEnviar}
                 className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] transition hover:brightness-105 disabled:opacity-60"
               >

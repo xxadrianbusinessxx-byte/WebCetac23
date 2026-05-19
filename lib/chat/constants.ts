@@ -1,6 +1,8 @@
+import { TABLA_COMENTARIOS } from "@/lib/escolar/tables";
 import type { ChatOrigen } from "./types";
 
-export const MENSAJES_CHAT_TABLE = "mensajes_chat";
+/** Tabla global de mensajes del chat (nombre literal en Supabase). */
+export const MENSAJES_CHAT_TABLE = TABLA_COMENTARIOS;
 
 export const CHAT_ORIGEN_NAV: Record<
   ChatOrigen,

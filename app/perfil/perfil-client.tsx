@@ -1,19 +1,29 @@
 "use client";
 
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import {
-  actionActualizarEstatusDirectivo,
-  actionActualizarEtiquetasPersonales,
+  actionGuardarComentarioPersonal,
+  actionGuardarEtiquetasPersonales,
   actionObtenerVistaMateria,
+  actionSubirFotoPerfil,
 } from "@/app/actions/escolar";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
-import {
-  etiquetasEstatusDesdeFila,
-  etiquetasPersonalesDesdeFila,
-} from "@/lib/escolar/etiquetas";
 import { nombreCompletoAlumno } from "@/lib/escolar/alumnos";
+import {
+  comentarioPersonalDesdeFila,
+  titulosEtiquetasPersonales,
+  valoresEtiquetasPersonales,
+} from "@/lib/escolar/etiquetas";
+import {
+  STATUS_FILAS_MATERIAS,
+  STATUS_FILAS_PROMEDIO,
+} from "@/lib/escolar/etiquetas-schema";
+import type { VistaEstatusAlumno } from "@/lib/escolar/etiquetas-status";
+import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
+import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type {
   AlumnoRow,
   ComentarioRow,
@@ -75,38 +85,37 @@ function MainTabButton({
   );
 }
 
-const estatusCol1 = [
-  "Promedio",
-  "Promedio 2do",
-  "Promedio 3ro",
-  "Promedio 4to",
-  "Promedio 5to",
-  "Promedio 6to",
-];
-const estatusCol2 = [
-  "Materias reprobadas",
-  "Materia 1",
-  "Materia 2",
-  "Materia 3",
-  "Materia 4",
-  "Materia 5 etc.",
-];
-
 type PerfilDatos = {
   alumno: AlumnoRow | null;
   etiquetas: EtiquetasPersonalesRow | null;
+  estatus: VistaEstatusAlumno;
   comentarios: ComentarioRow[];
-  puedeEditarEstatus: boolean;
+  puedeEditarEtiquetas: boolean;
+  fotoPerfilUrl: string | null;
 };
 
 type Props = {
   materias: readonly string[];
   modoDirectivo: boolean;
+  urlRegreso: string;
   datos: PerfilDatos;
 };
 
-export function PerfilClient({ materias, modoDirectivo, datos }: Props) {
-  const { alumno, etiquetas, comentarios, puedeEditarEstatus } = datos;
+export function PerfilClient({
+  materias,
+  modoDirectivo,
+  urlRegreso,
+  datos,
+}: Props) {
+  const {
+    alumno,
+    etiquetas,
+    estatus,
+    comentarios,
+    puedeEditarEtiquetas,
+    fotoPerfilUrl,
+  } = datos;
+  const curp = alumno?.CURP ?? "";
   const nombreMostrar = alumno ? nombreCompletoAlumno(alumno) : "Nombre";
   const [tab, setTab] = useState<MainTab>("materia");
   const [materiaSub, setMateriaSub] = useState<MateriaSub>("asignaturas");
@@ -116,12 +125,63 @@ export function PerfilClient({ materias, modoDirectivo, datos }: Props) {
   const [vistaMateria, setVistaMateria] = useState<MateriaTablaVista | null>(
     null,
   );
-  const [e1, setE1] = useState(etiquetasEstatusDesdeFila(etiquetas)[0]);
-  const [e2, setE2] = useState(etiquetasEstatusDesdeFila(etiquetas)[1]);
-  const [e3, setE3] = useState(etiquetasEstatusDesdeFila(etiquetas)[2]);
-  const [p1, setP1] = useState(etiquetasPersonalesDesdeFila(etiquetas)[0]);
-  const [p2, setP2] = useState(etiquetasPersonalesDesdeFila(etiquetas)[1]);
-  const [p3, setP3] = useState(etiquetasPersonalesDesdeFila(etiquetas)[2]);
+  const [titulos, setTitulos] = useState(() =>
+    titulosEtiquetasPersonales(etiquetas),
+  );
+  const [valores, setValores] = useState(() =>
+    valoresEtiquetasPersonales(etiquetas),
+  );
+  const [comentarioPersonal, setComentarioPersonal] = useState(() =>
+    comentarioPersonalDesdeFila(etiquetas),
+  );
+  const [guardando, setGuardando] = useState(false);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [fotoUrl, setFotoUrl] = useState<string | null>(fotoPerfilUrl);
+  const [fotoRota, setFotoRota] = useState(false);
+
+  useEffect(() => {
+    setFotoUrl(fotoPerfilUrl);
+    setFotoRota(false);
+  }, [fotoPerfilUrl]);
+
+  useEffect(() => {
+    setTitulos(titulosEtiquetasPersonales(etiquetas));
+    setValores(valoresEtiquetasPersonales(etiquetas));
+    setComentarioPersonal(comentarioPersonalDesdeFila(etiquetas));
+  }, [etiquetas]);
+
+  const guardarEtiquetas = async () => {
+    if (!curp || !puedeEditarEtiquetas) return;
+    setGuardando(true);
+    setMensaje(null);
+    const r = await actionGuardarEtiquetasPersonales(curp, titulos, valores);
+    setGuardando(false);
+    setMensaje(r.ok ? "Etiquetas guardadas." : r.error);
+  };
+
+  const guardarComentario = async () => {
+    if (!curp || !puedeEditarEtiquetas) return;
+    setGuardando(true);
+    setMensaje(null);
+    const r = await actionGuardarComentarioPersonal(curp, comentarioPersonal);
+    setGuardando(false);
+    setMensaje(r.ok ? "Comentario guardado." : r.error);
+  };
+
+  const onFotoSeleccionada = async (file: File | undefined) => {
+    if (!file || !puedeEditarEtiquetas) return;
+    setGuardando(true);
+    setMensaje(null);
+    const comprimida = await comprimirImagenSiPosible(file);
+    const fd = new FormData();
+    fd.set("archivo", comprimida);
+    const r = await actionSubirFotoPerfil(fd);
+    setGuardando(false);
+    if (r.ok) {
+      setFotoUrl(r.url);
+      setFotoRota(false);
+    } else setMensaje(r.error);
+  };
 
   const refrescarMateria = useCallback(async (nombre: string) => {
     const vista = await actionObtenerVistaMateria(nombre);
@@ -136,10 +196,20 @@ export function PerfilClient({ materias, modoDirectivo, datos }: Props) {
     <FrutigerBackdrop>
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 lg:max-w-6xl lg:px-8 lg:pt-8">
         {modoDirectivo && (
-          <div className="mb-4 rounded-2xl border border-amber-400/60 bg-amber-100/90 px-4 py-3 text-center text-sm font-bold text-amber-950 shadow-md">
-            Modo directivo
-            {nombreMostrar !== "Nombre" ? `: ${nombreMostrar}` : ""} — puedes editar
-            contenido sensible (información personal, estatus y boleta).
+          <div className="mb-4 flex flex-col items-center gap-3 rounded-2xl border border-amber-400/60 bg-amber-100/90 px-4 py-3 text-center text-sm font-bold text-amber-950 shadow-md">
+            <p>
+              Modo directivo
+              {nombreMostrar !== "Nombre" ? `: ${nombreMostrar}` : ""} — puedes
+              editar contenido sensible (información personal, estatus y boleta).
+            </p>
+            <Link
+              href={urlRegreso}
+              className="rounded-full border border-amber-600/50 bg-white/90 px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-amber-950 shadow-sm transition hover:bg-white"
+            >
+              {urlRegreso === "/directivo"
+                ? "Regresar al panel directivo"
+                : "Regresar a mi perfil"}
+            </Link>
           </div>
         )}
         {/* Barra Perfil / Chat */}
@@ -153,17 +223,39 @@ export function PerfilClient({ materias, modoDirectivo, datos }: Props) {
         {/* Cabecera avatar + nombre */}
         <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-center">
           <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-[1.75rem] border-[3px] border-sky-900/70 bg-white/75 p-2 shadow-[0_10px_28px_rgba(14,165,233,0.2),inset_0_2px_0_rgba(255,255,255,0.95)] backdrop-blur-md sm:h-32 sm:w-32">
-            <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-linear-to-b from-sky-100/90 to-sky-300/50">
-              <GlossyPersonIcon
-                uid="perfil-main"
-                genero="masculino"
-                className="h-[82%] w-[82%] drop-shadow-[0_6px_12px_rgba(2,132,199,0.4)]"
-              />
+            <label
+              className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-linear-to-b from-sky-100/90 to-sky-300/50 ${puedeEditarEtiquetas ? "cursor-pointer" : ""}`}
+            >
+              {fotoUrl && !fotoRota ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={fotoUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  onError={() => setFotoRota(true)}
+                />
+              ) : (
+                <GlossyPersonIcon
+                  uid={curp || "perfil-main"}
+                  genero="masculino"
+                  className="h-[82%] w-[82%] drop-shadow-[0_6px_12px_rgba(2,132,199,0.4)]"
+                />
+              )}
               <div
                 className="pointer-events-none absolute inset-x-2 top-1 h-[40%] rounded-b-[100%] bg-linear-to-b from-white/60 to-transparent"
                 aria-hidden
               />
-            </div>
+              {puedeEditarEtiquetas && (
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) =>
+                    void onFotoSeleccionada(e.target.files?.[0])
+                  }
+                />
+              )}
+            </label>
           </div>
 
           <div className="flex min-h-[4.5rem] min-w-0 flex-1 items-stretch overflow-hidden rounded-full border-[3px] border-sky-900/70 bg-linear-to-r from-sky-900 via-sky-900 to-sky-900/90 shadow-[0_8px_24px_rgba(2,6,23,0.12)] backdrop-blur-sm sm:min-h-[5.5rem]">
@@ -183,6 +275,11 @@ export function PerfilClient({ materias, modoDirectivo, datos }: Props) {
           </div>
         </div>
 
+          {mensaje && (
+            <p className="mb-4 rounded-xl border border-sky-300/60 bg-white/90 px-4 py-2 text-center text-xs font-bold text-sky-900">
+              {mensaje}
+            </p>
+          )}
         {/* Contenedor principal con pestañas */}
         <div className="relative flex flex-1 flex-col overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
           <div
@@ -290,8 +387,79 @@ export function PerfilClient({ materias, modoDirectivo, datos }: Props) {
                         <BubblePill key={l} className="min-h-[2.75rem]">{l}: {v ?? "—"}</BubblePill>
                       ))}
                     </div>
-                    <div className="rounded-full border border-white/75 bg-white/90 px-5 py-4 text-center text-sm font-bold text-sky-900 shadow-[inset_0_2px_0_rgba(255,255,255,1)]">
-                      Comentarios del alumno acerca de él
+                    <div className="flex flex-col gap-3">
+                      <p className="text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
+                        Etiquetas personales (ETIQUETAS PERSONALES)
+                      </p>
+                      {[0, 1, 2].map((i) => (
+                        <div key={`etiq-${i}`} className="grid gap-2 sm:grid-cols-2">
+                          <input
+                            type="text"
+                            value={titulos[i]}
+                            disabled={!puedeEditarEtiquetas}
+                            onChange={(e) => {
+                              const next = [...titulos] as [string, string, string];
+                              next[i] = e.target.value;
+                              setTitulos(next);
+                            }}
+                            className="rounded-full border border-white/70 bg-white/95 px-4 py-2 text-center text-xs font-bold text-sky-900 disabled:opacity-70"
+                            placeholder={`Etiqueta ${i + 1}`}
+                          />
+                          <input
+                            type="text"
+                            value={valores[i]}
+                            disabled={!puedeEditarEtiquetas}
+                            onChange={(e) => {
+                              const next = [...valores] as [string, string, string];
+                              next[i] = e.target.value;
+                              setValores(next);
+                            }}
+                            className="rounded-full border border-white/60 bg-slate-400/35 px-4 py-2 text-center text-xs font-bold text-sky-900 disabled:opacity-70"
+                            placeholder="Valor"
+                          />
+                        </div>
+                      ))}
+                      {puedeEditarEtiquetas && (
+                        <button
+                          type="button"
+                          disabled={guardando}
+                          onClick={() => void guardarEtiquetas()}
+                          className="mx-auto rounded-full border border-sky-800/40 bg-white/95 px-6 py-2 text-[11px] font-extrabold uppercase tracking-wide text-sky-900 shadow-sm disabled:opacity-60"
+                        >
+                          Guardar etiquetas
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <p className="text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
+                        Comentario personal
+                      </p>
+                      <textarea
+                        value={comentarioPersonal}
+                        disabled={!puedeEditarEtiquetas}
+                        maxLength={COMENTARIO_MAX_LENGTH}
+                        onChange={(e) =>
+                          setComentarioPersonal(
+                            e.target.value.slice(0, COMENTARIO_MAX_LENGTH),
+                          )
+                        }
+                        rows={3}
+                        className="w-full resize-none rounded-2xl border border-white/70 bg-white/95 px-4 py-3 text-sm font-semibold text-sky-900 disabled:opacity-70"
+                        placeholder="Escribe algo sobre ti…"
+                      />
+                      <p className="text-right text-[10px] font-semibold text-slate-600">
+                        {comentarioPersonal.length}/{COMENTARIO_MAX_LENGTH}
+                      </p>
+                      {puedeEditarEtiquetas && (
+                        <button
+                          type="button"
+                          disabled={guardando}
+                          onClick={() => void guardarComentario()}
+                          className="mx-auto rounded-full border border-sky-800/40 bg-white/95 px-6 py-2 text-[11px] font-extrabold uppercase tracking-wide text-sky-900 shadow-sm disabled:opacity-60"
+                        >
+                          Guardar comentario
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -299,16 +467,35 @@ export function PerfilClient({ materias, modoDirectivo, datos }: Props) {
             )}
 
             {tab === "estatus" && (
-              <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0">
-                <div className="grid min-w-[36rem] grid-cols-4 gap-2 sm:min-w-0 sm:gap-3">
-                  {Array.from({ length: 6 }, (_, i) => (
-                    <div key={`estatus-row-${i}`} className="contents">
-                      <BubblePill>{estatusCol1[i]}</BubblePill>
-                      <BubblePill>{estatusCol2[i]}</BubblePill>
-                      <BubblePill>{i === 0 ? e1 : i === 1 ? e2 : "—"}</BubblePill>
-                      <BubblePill>{i === 0 ? p1 : i === 1 ? p2 : p3}</BubblePill>
-                    </div>
-                  ))}
+              <div className="flex flex-col gap-4">
+                <p className="text-center text-xs font-semibold text-slate-700">
+                  ETIQUETAS (STATUS) — promedios y materias por ciclo
+                </p>
+                <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0">
+                  <div className="grid min-w-[36rem] grid-cols-4 gap-2 sm:min-w-0 sm:gap-3">
+                    {STATUS_FILAS_PROMEDIO.map((fila, i) => (
+                      <div key={`prom-${fila}`} className="contents">
+                        <BubblePill>{fila}</BubblePill>
+                        <BubblePill>{estatus.promedios[fila]}</BubblePill>
+                        <BubblePill>{STATUS_FILAS_MATERIAS[i]}</BubblePill>
+                        <BubblePill>
+                          {estatus.materias[STATUS_FILAS_MATERIAS[i]]}
+                        </BubblePill>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="border-t border-white/50 pt-4">
+                  <p className="mb-3 text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
+                    Etiquetas personales vinculadas
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {titulos.map((t, i) => (
+                      <BubblePill key={`est-p-${i}`} className="min-h-[2.5rem]">
+                        {t}: {valores[i] || "—"}
+                      </BubblePill>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

@@ -1,0 +1,281 @@
+================================================================================
+  CONTEXTO DEL PROYECTO — mi-web-escolar (AulaNube / CETAC)
+  Archivo: contexto.feliz
+  Actualizado: mayo 2026
+================================================================================
+
+Este documento resume lo implementado hasta ahora y lo que falta por hacer.
+Referencia de tablas y materias: Name_of_archives_excels_CSVs (en la raíz del proyecto).
+
+
+--------------------------------------------------------------------------------
+1. OBJETIVO GENERAL
+--------------------------------------------------------------------------------
+
+Portal escolar Next.js conectado a Supabase (datos) y Cloudinary (imágenes).
+Los nombres de tablas en Supabase deben ser EXACTOS (con espacios y paréntesis),
+tal como aparecen en el archivo de referencia — no usar snake_case.
+
+Roles: alumno, maestro/profesor, directivo.
+
+
+--------------------------------------------------------------------------------
+2. TABLAS SUPABASE (nombres literales)
+--------------------------------------------------------------------------------
+
+  ALUMNOS
+    - CURP, P_APELLIDO, S_APELLIDO, NOMBRE, CLAVE
+    - Login alumno: matrícula/clave según flujo portal
+
+  PROFESORES
+    - NOMBRE/PROFESOR/DIRECTIVO, CLAVE, Permisos (Profesor | Directivo)
+    - Login: nombre completo + clave (se busca aquí antes que en ALUMNOS)
+
+  COMENTARIOS
+    - CURP (quien envía en chat / alumno en comentarios de perfil)
+    - COMENTARIO (máx. 200 caracteres)
+    - FECHA
+    - NOTA: ya NO se usa la tabla mensajes_chat; todo el chat va aquí.
+
+  COMENTARIOS PROFESORES
+    - PROFESOR/DIRECTIVO, COMENTARIO, NOMBRE/ALUMNO
+
+  ETIQUETAS PERSONALES
+    - CURP, GENERO, GRADO, GRUPO, CORREO, CELULAR, TIPO DE SANGRE, ALERGIAS,
+      LENTES, ENFERMEDAD CRONICA, SALUD MENTAL, NECESIDAD PSICOLOGICA,
+      PESO, TALLA, VACUNACION, CARRERA
+    - EMPTY1, EMPTY2, EMPTY3 → títulos editables (default: Etiqueta 1, 2, 3)
+    - EMPTY4, EMPTY5, EMPTY6 → valores de esas etiquetas
+    - COMENTARIO PERSONAL → comentario del alumno sobre sí (máx. 200 chars)
+
+  ETIQUETAS (STATUS)
+    - Propósito: promedios por ciclo y materias reprobadas (alumnos estrella + pestaña Estatus)
+    - Columnas esperadas en Excel/código (aún NO todas existen en Supabase):
+        CURP
+        Promedio, Promedio 2do, Promedio 3ro, Promedio 4to, Promedio 5to, Promedio 6to
+        Materias reprobadas, Materia 1, Materia 2, Materia 3, Materia 4, Materia 5 etc.
+    - ESTADO ACTUAL EN SUPABASE (verificado): solo id, created_at
+      → Hay que migrar/añadir columnas y cargar datos para que estrella y estatus funcionen.
+
+  BOLETA
+    - No existe aún en Supabase; UI con placeholder en perfil.
+
+  MATERIAS (241 tablas)
+    - Una tabla por materia, nombre exacto ej. "1RO A CONCIENCIA HISTORICA"
+    - columnas: id, columna1, columna2, created_at
+    - Lista generada en: lib/escolar/materias-list.ts (script gen-materias-list.mjs)
+
+
+--------------------------------------------------------------------------------
+3. VARIABLES DE ENTORNO
+--------------------------------------------------------------------------------
+
+  .env.local / Vercel:
+    NEXT_PUBLIC_SUPABASE_URL
+    NEXT_PUBLIC_SUPABASE_ANON_KEY
+    SUPABASE_SERVICE_ROLE_KEY (scripts / admin)
+    CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+
+  Referencia de claves (NO commitear): Name_of_archives_excels_CSVs líneas 252-260
+  Carpeta Cloudinary: cetac23 (constante CLOUDINARY_FOLDER)
+  NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME (mismo valor que CLOUDINARY_CLOUD_NAME, para URLs)
+
+  Librerías útiles instaladas/sugeridas:
+  - cloudinary (servidor, subida)
+  - browser-image-compression (comprimir antes de subir)
+  - xlsx (CSV/Excel materias)
+  - next/image (decoraciones y fotos optimizadas)
+  Opcional futuro: next-cloudinary (componentes CldImage), clsx (clases CSS)
+
+
+--------------------------------------------------------------------------------
+4. LO QUE YA ESTÁ IMPLEMENTADO
+--------------------------------------------------------------------------------
+
+4.1 AUTENTICACIÓN Y LOGIN
+  - lib/auth/portal-login.ts: nombre completo + clave
+  - Orden: PROFESORES primero (rol por Permisos), luego ALUMNOS
+  - app/components/home-login-form.tsx + app/actions/login.ts
+  - Sesión en cookie: lib/auth/session-server.ts, lib/auth/session.ts
+
+4.2 PANTALLA DE INICIO (app/page.tsx)
+  - Formulario de login integrado
+  - Alumnos estrella: actionAlumnosEstrella → AlumnosEstrellaPanel
+  - Promedio desde ETIQUETAS (STATUS) por CURP (no desde materias)
+  - lib/escolar/alumnos-estrella.ts, lib/escolar/etiquetas-status.ts
+
+4.3 SUBIDA DE ARCHIVOS / MATERIAS
+  - Solo .csv o conversión .xlsx/.xls → CSV (lib/escolar/csv.ts)
+  - Reemplaza TODO el contenido de la tabla de esa materia (borra + inserta)
+  - lib/escolar/materias.ts → reemplazarContenidoMateriaDesdeArchivo
+  - app/actions/escolar.ts → actionSubirMateriaExcel
+  - UI: profesor-client.tsx y directivo-client.tsx (accept .csv,.xlsx,.xls)
+  - Selector scroll: MateriaScrollPicker + 241 materias en materias-list.ts
+
+4.4 PERFIL (app/perfil/)
+  - Pestañas: Materia | Estatus | Comentarios | Boleta
+  - Materia: vista tabla Supabase + subpestaña Información personal
+  - Estatus: lee ETIQUETAS (STATUS) + muestra etiquetas personales vinculadas
+  - Información personal: campos de ETIQUETAS PERSONALES
+  - Edición: EMPTY1-3 (títulos), EMPTY4-6 (valores), COMENTARIO PERSONAL (200)
+  - Guardar: actionGuardarEtiquetasPersonales, actionGuardarComentarioPersonal
+  - Foto: actionSubirFotoPerfil → Cloudinary carpeta cetac23 (clic en avatar)
+  - Modo directivo: ?modo=directivo&curp=... + botón "Regresar a mi perfil"
+
+4.5 CHAT (app/chat/)
+  - Tabla COMENTARIOS (lib/chat/constants.ts → MENSAJES_CHAT_TABLE)
+  - lib/chat/storage.ts: CURP, COMENTARIO, FECHA
+  - Límite 200 caracteres en textarea + contador
+  - Sesión real del portal (no solo demo)
+  - Pendiente menor: botón "Subir imagen" en UI (COMENTARIOS no guarda imágenes)
+
+4.6 PROFESOR / DIRECTIVO
+  - Subida CSV/Excel por materia
+  - Comentarios a alumnos → COMENTARIOS / COMENTARIOS PROFESORES
+  - Directivo: ver perfil de alumno por CURP
+
+4.7 CLOUDINARY
+  - lib/cloudinary/config.ts, upload.ts
+  - Carpeta cetac23 para fotos de perfil
+
+4.8 CAPA DE DATOS (lib/escolar/)
+  - tables.ts, types.ts, alumnos.ts, profesores.ts, comentarios.ts
+  - etiquetas.ts, etiquetas-status.ts, etiquetas-schema.ts
+  - parse-hoja.ts, csv.ts, nombres.ts
+  - promedio.ts (legacy: cálculo desde materias; ya no usado para estrella)
+
+
+--------------------------------------------------------------------------------
+5. ARCHIVOS CLAVE POR FUNCIÓN
+--------------------------------------------------------------------------------
+
+  Acciones servidor:     app/actions/escolar.ts, login.ts, home.ts, chat.ts
+  Perfil UI:             app/perfil/perfil-client.tsx, page.tsx
+  Chat UI:               app/chat/chat-client.tsx, page.tsx
+  Inicio:                app/page.tsx, app/components/alumnos-estrella.tsx
+  Auth:                  lib/auth/portal-login.ts
+  Supabase client:       lib/supabase/server.ts, client.ts
+  Scripts diagnóstico:   scripts/probe-*.mjs, gen-materias-list.mjs
+
+
+--------------------------------------------------------------------------------
+6. LO QUE FALTA POR IMPLEMENTAR
+--------------------------------------------------------------------------------
+
+6.1 CRÍTICO — SUPABASE ETIQUETAS (STATUS)
+  [ ] Añadir en Supabase las columnas del Excel (CURP, Promedio, Promedio 2do…,
+      Materias reprobadas, Materia 1… etc.)
+  [ ] Poblar datos (import CSV o carga manual)
+  Sin esto: alumnos estrella vacíos y pestaña Estatus muestra "—"
+  AJUSTAR TABLAS DE DATOS A PURO TEXTO PLANO Y SIN RESTRICCIONES PARA PODER EDITARLAS
+
+6.2 BOLETA
+  [ ] Crear tabla BOLETA en Supabase cuando exista el diseño
+  [ ] Conectar pestaña Boleta del perfil (ahora placeholder)
+
+6.3 SUBIDA CSV ETIQUETAS (STATUS) — OPCIONAL PERO RECOMENDADO
+  [ ] Acción similar a materias: subir CSV y reemplazar contenido de
+      ETIQUETAS (STATUS) desde panel directivo
+  [ ] Misma lógica csv.ts / validación .csv y .xlsx
+
+6.4 CHAT
+  [x] Subir imagen a Cloudinary y mostrar en conversación (ver 6.5b)
+
+6.5 FOTO DE PERFIL
+  [x] Persistencia: Cloudinary (public_id perfil_CURP) + respaldo en CARRERA (__FOTO__url)
+  [x] Carga al refrescar: actionObtenerPerfilAlumno → fotoPerfilUrl
+  [x] Compresión cliente: browser-image-compression
+
+6.5b CHAT CON IMAGEN
+  [x] Subir imagen → Cloudinary (cetac23/chat_…)
+  [x] Guardar en COMENTARIOS codificado [img]url[/img]texto (≤200 chars)
+  [x] Mostrar imagen al listar mensajes
+
+6.5c DECORACIONES DE FONDO
+  [x] Componente DecoracionFondo en FrutigerBackdrop (todas las páginas)
+  [ ] Copiar carpeta local "decoraciones imagenes" y ejecutar: npm run sync:decoraciones
+      (copia a public/decoraciones-imagenes y genera imagenes-generadas.ts)
+
+6.6 ETIQUETAS (STATUS) — EDICIÓN
+  [ ] Si el directivo debe editar promedios desde la web: acciones PATCH en
+      ETIQUETAS (STATUS) (hoy pestaña Estatus es solo lectura)
+
+6.7 BUILD / DESPLIEGUE
+  [ ] npm run build falla en /_global-error (bug Next.js 16 "Expected workStore")
+      — tsc --noEmit pasa; dev funciona
+  [ ] Replicar .env.local en Vercel (Supabase + Cloudinary)
+  [ ] Rotar claves si Name_of_archives_excels_CSVs fue expuesto en repo público
+
+6.8 LIMPIEZA / DEUDA TÉCNICA
+  [ ] Eliminar o archivar lib/escolar/promedio.ts si ya no se usa
+  [ ] Unificar demo-profiles vs sesión real en todas las rutas
+  [ ] Revisar RLS/políticas Supabase para anon key en producción
+  [ ] Scripts probe-*.mjs son solo desarrollo; no necesarios en producción
+
+6.9 UX / PULIDO
+  [ ] Mensajes de error más claros cuando STATUS sin columnas
+  [ ] Validar que directivo en perfil ajeno pueda editar lo permitido
+  [ ] Scroll gui / textos demo eliminados del home (hecho en page.tsx)
+
+
+--------------------------------------------------------------------------------
+7. FLUJOS DE USUARIO (resumen)
+--------------------------------------------------------------------------------
+
+  ALUMNO
+    Login (nombre/clave) → /perfil
+    Ver materias, estatus (STATUS), comentarios de profesores (COMENTARIOS)
+    Editar etiquetas personales y comentario personal
+    Chat global → COMENTARIOS
+
+  PROFESOR
+    Login → /profesor
+    Subir CSV/Excel por materia (reemplaza tabla)
+    Comentar alumno por nombre
+
+  DIRECTIVO
+    Login → /directivo
+    Igual que profesor + ver perfil alumno (?modo=directivo&curp=)
+    Botón regresar a su perfil
+
+  VISITANTE / INICIO
+    Ver alumnos estrella (top 4 por Promedio en STATUS)
+    Login desde home
+
+
+--------------------------------------------------------------------------------
+8. CONVENCIONES DE CÓDIGO
+--------------------------------------------------------------------------------
+
+  - Tablas Supabase: strings literales con espacios, ej. "ETIQUETAS (STATUS)"
+  - Comentarios máx. 200: COMENTARIO_MAX_LENGTH en tables.ts
+  - No commitear .env.local ni claves del archivo Name_of_archives_excels_CSVs
+  - PowerShell: usar ";" en lugar de "&&" entre comandos
+  - JSX: cuidado con typos </motionlessScroll> → usar <motionlessScroll>; script fix-div-tags.js
+
+
+--------------------------------------------------------------------------------
+9. COMANDOS ÚTILES
+--------------------------------------------------------------------------------
+
+  cd mi-web-escolar
+  npm run dev
+  npx tsc --noEmit
+  node scripts/gen-materias-list.mjs
+  node scripts/probe-openapi.mjs          # ver columnas reales en Supabase
+  node scripts/probe-etiquetas2.mjs       # probar PERSONALES y STATUS
+
+
+--------------------------------------------------------------------------------
+10. PRÓXIMO PASO RECOMENDADO
+--------------------------------------------------------------------------------
+
+  1. En Supabase SQL Editor: alterar "ETIQUETAS (STATUS)" con columnas CURP +
+     Promedio… + Materias reprobadas… (nombres exactos del Excel).
+  2. Importar CSV de ETIQUETAS (STATUS).
+  3. Verificar alumnos estrella en home y pestaña Estatus en perfil.
+  4. (Opcional) Implementar subida CSV de STATUS desde directivo.
+
+================================================================================
+  Fin de contexto.feliz
+================================================================================
