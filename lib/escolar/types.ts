@@ -29,6 +29,7 @@ export type EtiquetasPersonalesRow = {
   EMPTY4: string | null;
   EMPTY5: string | null;
   EMPTY6: string | null;
+  "COMENTARIO PERSONAL": string | null;
 };
 
 export type ComentarioRow = {

@@ -41,6 +41,49 @@
   }
 }
 
+/* Decoraciones flotantes (smooth) */
+@keyframes decor-drift-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translate3d(10px, -16px, 0) rotate(3deg) scale(1.04);
+  }
+}
+
+@keyframes decor-drift-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  40% {
+    transform: translate3d(-12px, -10px, 0) rotate(-2deg) scale(1.03);
+  }
+  70% {
+    transform: translate3d(6px, 8px, 0) rotate(1deg) scale(0.98);
+  }
+}
+
+@keyframes decor-drift-c {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  33% {
+    transform: translate3d(8px, 12px, 0) rotate(-3deg);
+  }
+  66% {
+    transform: translate3d(-6px, -14px, 0) rotate(2deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [style*="decor-drift"] {
+    animation: none !important;
+  }
+}
+
 html {
   color-scheme: light;
 }

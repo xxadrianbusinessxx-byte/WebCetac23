@@ -9,6 +9,12 @@ import {
   actionObtenerVistaMateria,
   actionSubirMateriaExcel,
 } from "@/app/actions/escolar";
+import {
+  actionObtenerNoticiasInicio,
+  actionPublicarNoticiaInicio,
+} from "@/app/actions/noticias";
+import type { NoticiaInicioSlot } from "@/lib/cloudinary/noticias";
+import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { MATERIAS_ESCOLAR } from "@/lib/escolar/materias-list";
@@ -100,6 +106,9 @@ export function DirectivoClient({ sesion }: Props) {
   const [archivoPublicacion, setArchivoPublicacion] = useState<File | null>(
     null,
   );
+  const [slotNoticia, setSlotNoticia] = useState<NoticiaInicioSlot>(1);
+  const [previewNoticia, setPreviewNoticia] = useState<string | null>(null);
+  const [publicandoNoticia, setPublicandoNoticia] = useState(false);
   const [mensajePublicacion, setMensajePublicacion] = useState<string | null>(
     null,
   );
@@ -165,21 +174,48 @@ export function DirectivoClient({ sesion }: Props) {
   function onPublicacionElegida(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
     setArchivoPublicacion(file);
+    if (previewNoticia?.startsWith("blob:")) URL.revokeObjectURL(previewNoticia);
+    setPreviewNoticia(file ? URL.createObjectURL(file) : null);
     setMensajePublicacion(
-      file ? `Listo para publicar: ${file.name}` : null,
+      file ? `Listo para publicar en evento ${slotNoticia}` : null,
     );
     event.target.value = "";
   }
 
-  function onPublicar() {
+  async function onPublicar() {
     if (!archivoPublicacion) {
       inputPublicacionRef.current?.click();
       return;
     }
-    setMensajePublicacion(
-      "Vista previa lista. La publicación en el portal se conectará con Supabase.",
-    );
+    setPublicandoNoticia(true);
+    setMensajePublicacion(null);
+    const comprimida = await comprimirImagenSiPosible(archivoPublicacion);
+    const fd = new FormData();
+    fd.set("archivo", comprimida);
+    const r = await actionPublicarNoticiaInicio(slotNoticia, fd);
+    setPublicandoNoticia(false);
+    if (r.ok) {
+      setMensajePublicacion(
+        `Noticia publicada en inicio de sesión (evento ${slotNoticia}) vía Cloudinary.`,
+      );
+      setArchivoPublicacion(null);
+      if (previewNoticia?.startsWith("blob:")) URL.revokeObjectURL(previewNoticia);
+      setPreviewNoticia(r.url);
+    } else {
+      setMensajePublicacion(r.error);
+    }
   }
+
+  useEffect(() => {
+    let activo = true;
+    actionObtenerNoticiasInicio().then((urls) => {
+      if (!activo) return;
+      setPreviewNoticia(urls[slotNoticia]);
+    });
+    return () => {
+      activo = false;
+    };
+  }, [slotNoticia]);
 
   async function onEnviarComentario() {
     if (!alumnoNombre.trim() || !comentario.trim()) return;
@@ -208,6 +244,7 @@ export function DirectivoClient({ sesion }: Props) {
     const params = new URLSearchParams({
       modo: "directivo",
       curp: alumno.CURP,
+      desde: "directivo",
     });
     router.push(`/perfil?${params.toString()}`);
   }
@@ -306,7 +343,7 @@ export function DirectivoClient({ sesion }: Props) {
               <input
                 ref={inputCalificacionesRef}
                 type="file"
-                accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                accept=".csv,.xlsx,.xls,text/csv"
                 className="sr-only"
                 onChange={onCalificacionesElegidas}
                 aria-label="Seleccionar archivo de calificaciones"
@@ -369,17 +406,43 @@ export function DirectivoClient({ sesion }: Props) {
             className="relative overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
             aria-label="Publicar contenido"
           >
-            <div className="relative z-[1] flex flex-wrap gap-2 px-1 pb-2">
+            <div className="relative z-[1] flex flex-wrap items-center gap-2 px-1 pb-2">
               <GreyActionPill onClick={() => inputPublicacionRef.current?.click()}>
-                Subir archivo
+                Subir imagen
               </GreyActionPill>
-              <GreyActionPill onClick={onPublicar}>Publicar</GreyActionPill>
+              <GreyActionPill onClick={onPublicar} disabled={publicandoNoticia}>
+                {publicandoNoticia ? "Publicando…" : "Publicar"}
+              </GreyActionPill>
+              <div className="flex gap-1 rounded-full border border-white/60 bg-white/50 p-1">
+                {([1, 2] as const).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setSlotNoticia(n)}
+                    className={`rounded-full px-3 py-1 text-[10px] font-extrabold uppercase ${
+                      slotNoticia === n ? "bg-sky-800 text-white" : "text-sky-900"
+                    }`}
+                  >
+                    Evento {n}
+                  </button>
+                ))}
+              </div>
             </div>
+            <p className="relative z-[1] px-2 pb-2 text-center text-[10px] font-semibold text-sky-900/90">
+              Noticias en la pantalla de inicio de sesión (Cloudinary, cetac23)
+            </p>
             <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-              <PreviewPanel>
-                {archivoPublicacion
-                  ? archivoPublicacion.name
-                  : "Vista previa"}
+              <PreviewPanel className="min-h-[160px] overflow-hidden p-2">
+                {previewNoticia ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={previewNoticia}
+                    alt="Vista previa noticia"
+                    className="max-h-[200px] w-full rounded-xl object-contain"
+                  />
+                ) : (
+                  <>Vista previa — evento {slotNoticia}</>
+                )}
               </PreviewPanel>
               {mensajePublicacion && (
                 <p className="mt-2 text-center text-xs font-semibold text-sky-900">
@@ -390,7 +453,7 @@ export function DirectivoClient({ sesion }: Props) {
             <input
               ref={inputPublicacionRef}
               type="file"
-              accept="image/*,.pdf,.doc,.docx"
+              accept="image/*"
               className="sr-only"
               onChange={onPublicacionElegida}
               aria-label="Seleccionar archivo para publicar"
