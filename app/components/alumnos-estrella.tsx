@@ -39,7 +39,8 @@ export function AlumnosEstrellaPanel({
   if (!alumnos.length) {
     return (
       <p className="text-center text-xs font-semibold text-sky-800/80">
-        Sin datos de promedio aún. Carga la tabla ETIQUETAS (STATUS) en Supabase
+        Sin datos de promedio aún. Carga los registros de calificaciones finales
+        por grupo en Supabase
         con la columna CURP y los promedios por ciclo.
       </p>
     );

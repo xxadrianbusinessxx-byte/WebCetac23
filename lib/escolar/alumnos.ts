@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { pareceCurp } from "./buscar-en-filas";
 import { nombresCoinciden, normalizarNombre } from "./nombres";
 import { TABLA_ALUMNOS } from "./tables";
 import type { AlumnoRow } from "./types";
@@ -69,4 +70,18 @@ export async function buscarAlumnoPorNombre(
     }
   }
   return null;
+}
+
+/**
+ * CURP primero: si el texto parece CURP, solo busca por CURP.
+ * Si no, solo por nombre (sin mezclar ambos criterios).
+ */
+export async function buscarAlumnoPorTexto(
+  supabase: SupabaseClient,
+  texto: string,
+): Promise<AlumnoRow | null> {
+  const t = texto.trim();
+  if (!t) return null;
+  if (pareceCurp(t)) return buscarAlumnoPorCurp(supabase, t);
+  return buscarAlumnoPorNombre(supabase, t);
 }

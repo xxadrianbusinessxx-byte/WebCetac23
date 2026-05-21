@@ -17,11 +17,7 @@ import {
   titulosEtiquetasPersonales,
   valoresEtiquetasPersonales,
 } from "@/lib/escolar/etiquetas";
-import {
-  STATUS_FILAS_MATERIAS,
-  STATUS_FILAS_PROMEDIO,
-} from "@/lib/escolar/etiquetas-schema";
-import type { VistaEstatusAlumno } from "@/lib/escolar/etiquetas-status";
+import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type {
@@ -88,7 +84,7 @@ function MainTabButton({
 type PerfilDatos = {
   alumno: AlumnoRow | null;
   etiquetas: EtiquetasPersonalesRow | null;
-  estatus: VistaEstatusAlumno;
+  registro: VistaRegistroAlumno;
   comentarios: ComentarioRow[];
   puedeEditarEtiquetas: boolean;
   fotoPerfilUrl: string | null;
@@ -110,7 +106,7 @@ export function PerfilClient({
   const {
     alumno,
     etiquetas,
-    estatus,
+    registro,
     comentarios,
     puedeEditarEtiquetas,
     fotoPerfilUrl,
@@ -119,9 +115,7 @@ export function PerfilClient({
   const nombreMostrar = alumno ? nombreCompletoAlumno(alumno) : "Nombre";
   const [tab, setTab] = useState<MainTab>("materia");
   const [materiaSub, setMateriaSub] = useState<MateriaSub>("asignaturas");
-  const [materiaSeleccionada, setMateriaSeleccionada] = useState(
-    materias[0] ?? "",
-  );
+  const [materiaSeleccionada, setMateriaSeleccionada] = useState("");
   const [vistaMateria, setVistaMateria] = useState<MateriaTablaVista | null>(
     null,
   );
@@ -175,7 +169,7 @@ export function PerfilClient({
     const comprimida = await comprimirImagenSiPosible(file);
     const fd = new FormData();
     fd.set("archivo", comprimida);
-    const r = await actionSubirFotoPerfil(fd);
+    const r = await actionSubirFotoPerfil(fd, curp || null);
     setGuardando(false);
     if (r.ok) {
       setFotoUrl(r.url);
@@ -189,8 +183,19 @@ export function PerfilClient({
   }, []);
 
   useEffect(() => {
+    const primera = materias[0] ?? "";
+    setMateriaSeleccionada((prev) =>
+      prev && materias.includes(prev) ? prev : primera,
+    );
+  }, [materias]);
+
+  useEffect(() => {
     if (materiaSeleccionada) void refrescarMateria(materiaSeleccionada);
   }, [materiaSeleccionada, refrescarMateria]);
+
+  const tieneGrupo = Boolean(
+    etiquetas?.GRADO?.trim() && etiquetas?.GRUPO?.trim(),
+  );
 
   return (
     <FrutigerBackdrop>
@@ -328,13 +333,20 @@ export function PerfilClient({
             {tab === "materia" && (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
-                    <MateriaScrollPicker
-                      materias={materias}
-                      seleccionada={materiaSeleccionada}
-                      onSeleccionar={setMateriaSeleccionada}
-                    />
-                  </div>
+                  {materias.length > 1 && (
+                    <div className="flex flex-wrap gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
+                      <MateriaScrollPicker
+                        materias={materias}
+                        seleccionada={materiaSeleccionada}
+                        onSeleccionar={setMateriaSeleccionada}
+                      />
+                    </div>
+                  )}
+                  {materias.length === 1 && (
+                    <p className="rounded-full border border-white/70 bg-white/90 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-sky-900">
+                      {materias[0]}
+                    </p>
+                  )}
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -363,10 +375,18 @@ export function PerfilClient({
 
                 {materiaSub === "asignaturas" ? (
                   <div className="flex min-h-[220px] flex-1 items-center justify-center rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-6 py-16 text-center text-sm font-semibold text-slate-700 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:min-h-[280px]">
-                    <MateriaTablaVistaPanel
-                      vista={vistaMateria}
-                      materiaNombre={materiaSeleccionada}
-                    />
+                    {!tieneGrupo || materias.length === 0 ? (
+                      <p className="max-w-md px-4">
+                        {!tieneGrupo
+                          ? "Aún no se detecta tu grado y grupo. Aparecerán tus materias cuando tu nombre figure en un registro o materia del plantel."
+                          : "No hay materias cargadas para tu grado, grupo y carrera."}
+                      </p>
+                    ) : (
+                      <MateriaTablaVistaPanel
+                        vista={vistaMateria}
+                        materiaNombre={materiaSeleccionada}
+                      />
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4">
@@ -469,34 +489,49 @@ export function PerfilClient({
             {tab === "estatus" && (
               <div className="flex flex-col gap-4">
                 <p className="text-center text-xs font-semibold text-slate-700">
-                  ETIQUETAS (STATUS) — promedios y materias por ciclo
+                  Registro de calificaciones finales
+                  {registro.nombreTabla ? ` — ${registro.nombreTabla}` : ""}
                 </p>
-                <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0">
-                  <div className="grid min-w-[36rem] grid-cols-4 gap-2 sm:min-w-0 sm:gap-3">
-                    {STATUS_FILAS_PROMEDIO.map((fila, i) => (
-                      <div key={`prom-${fila}`} className="contents">
-                        <BubblePill>{fila}</BubblePill>
-                        <BubblePill>{estatus.promedios[fila]}</BubblePill>
-                        <BubblePill>{STATUS_FILAS_MATERIAS[i]}</BubblePill>
-                        <BubblePill>
-                          {estatus.materias[STATUS_FILAS_MATERIAS[i]]}
-                        </BubblePill>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="border-t border-white/50 pt-4">
-                  <p className="mb-3 text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
-                    Etiquetas personales vinculadas
+                {(registro.grado || registro.grupo || registro.carrera) && (
+                  <p className="text-center text-[11px] font-bold uppercase tracking-wide text-sky-900">
+                    {registro.grado} · Grupo {registro.grupo}
+                    {registro.carrera ? ` · ${registro.carrera}` : ""}
                   </p>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {titulos.map((t, i) => (
-                      <BubblePill key={`est-p-${i}`} className="min-h-[2.5rem]">
-                        {t}: {valores[i] || "—"}
-                      </BubblePill>
-                    ))}
-                  </div>
-                </div>
+                )}
+                {!tieneGrupo ? (
+                  <p className="text-center text-sm font-semibold text-slate-600">
+                    Sin grado y grupo asignados. El estatus aparecerá cuando el
+                    sistema te ubique en un registro del plantel.
+                  </p>
+                ) : (
+                  <>
+                    {registro.mensaje && (
+                      <p className="text-center text-xs font-semibold text-amber-900">
+                        {registro.mensaje}
+                      </p>
+                    )}
+                    {registro.alumnoEncontrado &&
+                      registro.filaAlumnoIndice >= 0 && (
+                        <p className="text-center text-[10px] font-bold uppercase tracking-wide text-sky-800">
+                          Tu fila está resaltada (primeras 5 del grupo)
+                        </p>
+                      )}
+                    <MateriaTablaVistaPanel
+                      vista={
+                        registro.filas.length
+                          ? {
+                              encabezados: registro.encabezados,
+                              filas: registro.filas,
+                            }
+                          : null
+                      }
+                      materiaNombre={
+                        registro.nombreTabla ?? "Registro de calificaciones"
+                      }
+                      filaDestacada={registro.filaAlumnoIndice}
+                    />
+                  </>
+                )}
               </div>
             )}
 

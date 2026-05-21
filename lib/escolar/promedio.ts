@@ -1,12 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { nombreCompletoAlumno } from "./alumnos";
 import type { AlumnoRow } from "./types";
-import { normalizarNombre } from "./nombres";
+import { CURP_ALUMNO_RE, filaCoincideAlumno } from "./buscar-en-filas";
 import { obtenerVistaMateria } from "./materias";
 import { MATERIAS_ESCOLAR } from "./materias-list";
-
-const CURP_ALUMNO_RE =
-  /^[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A-Z]\d$/i;
 
 function numerosDeFila(fila: string[]): number[] {
   const nums: number[] = [];
@@ -19,28 +16,15 @@ function numerosDeFila(fila: string[]): number[] {
   return nums;
 }
 
-function filaCoincideAlumno(
-  fila: string[],
-  curp: string,
-  nombreNorm: string,
-): boolean {
-  const curpU = curp.toUpperCase();
-  for (const celda of fila) {
-    const c = String(celda ?? "").trim();
-    if (!c) continue;
-    if (c.toUpperCase() === curpU) return true;
-    if (normalizarNombre(c) === nombreNorm) return true;
-    if (normalizarNombre(c).includes(nombreNorm)) return true;
-  }
-  return false;
-}
-
 /** Promedio a partir de calificaciones en tablas de materias (0 si no hay datos). */
 export async function calcularPromedioAlumno(
   supabase: SupabaseClient,
   alumno: AlumnoRow,
 ): Promise<number> {
-  const nombreNorm = normalizarNombre(nombreCompletoAlumno(alumno));
+  const criterio = {
+    curp: alumno.CURP,
+    nombreCompleto: nombreCompletoAlumno(alumno),
+  };
   const muestra = MATERIAS_ESCOLAR.slice(0, 40);
   let suma = 0;
   let cuenta = 0;
@@ -50,7 +34,7 @@ export async function calcularPromedioAlumno(
     if (!vista?.filas.length) continue;
 
     for (const fila of vista.filas) {
-      if (!filaCoincideAlumno(fila, alumno.CURP, nombreNorm)) continue;
+      if (!filaCoincideAlumno(fila, criterio)) continue;
       const nums = numerosDeFila(fila);
       for (const n of nums) {
         suma += n;

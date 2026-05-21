@@ -7,7 +7,9 @@ import {
   actionBuscarAlumnoPorNombre,
   actionEnviarComentarioAlumno,
   actionObtenerVistaMateria,
+  actionObtenerVistaRegistro,
   actionSubirMateriaExcel,
+  actionSubirRegistroExcel,
 } from "@/app/actions/escolar";
 import {
   actionObtenerNoticiasInicio,
@@ -17,7 +19,6 @@ import type { NoticiaInicioSlot } from "@/lib/cloudinary/noticias";
 import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
-import { MATERIAS_ESCOLAR } from "@/lib/escolar/materias-list";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 import type { PortalSessionPayload } from "@/lib/auth/types";
@@ -82,13 +83,27 @@ function PreviewPanel({
   );
 }
 
-type Props = { sesion: PortalSessionPayload | null };
+type Props = {
+  sesion: PortalSessionPayload | null;
+  materias: readonly string[];
+  registros: readonly string[];
+};
 
-export function DirectivoClient({ sesion }: Props) {
+export function DirectivoClient({ sesion, materias, registros }: Props) {
   const router = useRouter();
   const [materiaSeleccionada, setMateriaSeleccionada] = useState<string>(
-    MATERIAS_ESCOLAR[0] ?? "",
+    materias[0] ?? "",
   );
+  const [registroSeleccionado, setRegistroSeleccionado] = useState<string>(
+    registros[0] ?? "",
+  );
+  const [vistaRegistro, setVistaRegistro] = useState<MateriaTablaVista | null>(
+    null,
+  );
+  const [cargandoVistaRegistro, setCargandoVistaRegistro] = useState(false);
+  const [archivoRegistro, setArchivoRegistro] = useState<File | null>(null);
+  const [subiendoRegistro, setSubiendoRegistro] = useState(false);
+  const [mensajeRegistro, setMensajeRegistro] = useState<string | null>(null);
   const [vistaMateria, setVistaMateria] = useState<MateriaTablaVista | null>(
     null,
   );
@@ -114,6 +129,7 @@ export function DirectivoClient({ sesion }: Props) {
   );
   const [busquedaAlumno, setBusquedaAlumno] = useState("");
   const inputCalificacionesRef = useRef<HTMLInputElement>(null);
+  const inputRegistroRef = useRef<HTMLInputElement>(null);
   const inputPublicacionRef = useRef<HTMLInputElement>(null);
 
   const nombreDirectivo = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
@@ -129,6 +145,17 @@ export function DirectivoClient({ sesion }: Props) {
     if (materiaSeleccionada) void refrescarVista(materiaSeleccionada);
   }, [materiaSeleccionada, refrescarVista]);
 
+  const refrescarVistaRegistro = useCallback(async (nombre: string) => {
+    setCargandoVistaRegistro(true);
+    const vista = await actionObtenerVistaRegistro(nombre);
+    setVistaRegistro(vista);
+    setCargandoVistaRegistro(false);
+  }, []);
+
+  useEffect(() => {
+    if (registroSeleccionado) void refrescarVistaRegistro(registroSeleccionado);
+  }, [registroSeleccionado, refrescarVistaRegistro]);
+
   function abrirSelectorCalificaciones() {
     inputCalificacionesRef.current?.click();
   }
@@ -140,6 +167,38 @@ export function DirectivoClient({ sesion }: Props) {
     setArchivoSeleccionado(file);
     setMensajeArchivo(file ? `Archivo listo: ${file.name}` : null);
     event.target.value = "";
+  }
+
+  function onRegistroElegido(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    setArchivoRegistro(file);
+    setMensajeRegistro(file ? `Archivo listo: ${file.name}` : null);
+    event.target.value = "";
+  }
+
+  async function onSubirRegistro() {
+    if (!archivoRegistro) {
+      inputRegistroRef.current?.click();
+      return;
+    }
+    setSubiendoRegistro(true);
+    setMensajeRegistro(null);
+    const formData = new FormData();
+    formData.set("archivo", archivoRegistro);
+    const resultado = await actionSubirRegistroExcel(
+      registroSeleccionado,
+      formData,
+    );
+    setSubiendoRegistro(false);
+    if (resultado.ok) {
+      setMensajeRegistro(
+        `Registro «${registroSeleccionado}» reemplazado (${resultado.filas} filas).`,
+      );
+      setArchivoRegistro(null);
+      void refrescarVistaRegistro(registroSeleccionado);
+    } else {
+      setMensajeRegistro(resultado.error);
+    }
   }
 
   async function onSubirExcel() {
@@ -290,6 +349,9 @@ export function DirectivoClient({ sesion }: Props) {
 
         {/* Calificaciones por materia */}
         <div className="relative flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
+          <PanelTab className="mx-auto w-fit">
+            Sube calificaciones por materia (Excel o CSV)
+          </PanelTab>
           <div
             className="pointer-events-none absolute inset-0 z-0 rounded-[2rem] opacity-[0.12]"
             aria-hidden
@@ -301,7 +363,7 @@ export function DirectivoClient({ sesion }: Props) {
           <div className="relative z-[1] flex flex-col gap-4">
             <div className="flex flex-wrap gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
               <MateriaScrollPicker
-                materias={MATERIAS_ESCOLAR}
+                materias={materias}
                 seleccionada={materiaSeleccionada}
                 onSeleccionar={setMateriaSeleccionada}
               />
@@ -352,11 +414,70 @@ export function DirectivoClient({ sesion }: Props) {
           </div>
         </div>
 
+        {/* Registros de calificaciones finales por grupo */}
+        <div className="relative mt-6 flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
+          <PanelTab className="mx-auto w-fit">
+            Sube el registro de calificaciones finales del grupo
+          </PanelTab>
+          <div className="relative z-[1] flex flex-col gap-4">
+            <div className="flex flex-wrap gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
+              <MateriaScrollPicker
+                materias={registros}
+                seleccionada={registroSeleccionado}
+                onSeleccionar={setRegistroSeleccionado}
+              />
+            </div>
+            <div className="flex min-h-[200px] flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[260px] sm:p-6">
+              <PreviewPanel className="min-h-[160px] sm:min-h-[200px]">
+                {cargandoVistaRegistro ? (
+                  <p>Cargando…</p>
+                ) : (
+                  <MateriaTablaVistaPanel
+                    vista={vistaRegistro}
+                    materiaNombre={registroSeleccionado}
+                  />
+                )}
+              </PreviewPanel>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <GreyActionPill
+                  onClick={onSubirRegistro}
+                  className={subiendoRegistro ? "opacity-70" : ""}
+                >
+                  {subiendoRegistro
+                    ? "Subiendo…"
+                    : archivoRegistro
+                      ? "Subir y reemplazar registro"
+                      : "Cargar Excel del registro"}
+                </GreyActionPill>
+                {mensajeRegistro && (
+                  <p
+                    className={`text-xs font-semibold ${mensajeRegistro.includes("reemplazado") ? "text-sky-900" : "text-red-700"}`}
+                    role="status"
+                  >
+                    {mensajeRegistro}
+                  </p>
+                )}
+              </div>
+              <input
+                ref={inputRegistroRef}
+                type="file"
+                accept=".csv,.xlsx,.xls,text/csv"
+                className="sr-only"
+                onChange={onRegistroElegido}
+                aria-label="Seleccionar registro de calificaciones finales"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Comentarios a alumnos */}
         <section
           className="relative mt-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
           aria-label="Comentarios a alumnos"
         >
+          <PanelTab className="mx-auto mb-2 w-fit">
+            Envía un comentario a un alumno por nombre
+          </PanelTab>
           <div className="relative z-[1] flex flex-wrap items-end justify-between gap-2 px-1 pb-2">
             <div className="flex flex-wrap gap-2">
               <label className="sr-only" htmlFor="dir-alumno-nombre">
@@ -374,7 +495,6 @@ export function DirectivoClient({ sesion }: Props) {
                 Enviar
               </GreyActionPill>
             </div>
-            <PanelTab>Envía un comentario a un alumno</PanelTab>
           </div>
 
           <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:p-6">
@@ -406,6 +526,9 @@ export function DirectivoClient({ sesion }: Props) {
             className="relative overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
             aria-label="Publicar contenido"
           >
+            <PanelTab className="mx-auto mb-2 w-fit">
+              Sube la próxima noticia para la pantalla de inicio
+            </PanelTab>
             <div className="relative z-[1] flex flex-wrap items-center gap-2 px-1 pb-2">
               <GreyActionPill onClick={() => inputPublicacionRef.current?.click()}>
                 Subir imagen

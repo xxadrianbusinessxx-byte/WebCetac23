@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { actionListarMateriasSupabase } from "@/app/actions/tablas";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { ProfesorClient } from "./profesor-client";
 
@@ -9,6 +10,9 @@ export const metadata: Metadata = {
 };
 
 export default async function ProfesorPage() {
-  const sesion = await obtenerSesionPortal();
-  return <ProfesorClient sesion={sesion} />;
+  const [sesion, materias] = await Promise.all([
+    obtenerSesionPortal(),
+    actionListarMateriasSupabase(),
+  ]);
+  return <ProfesorClient sesion={sesion} materias={materias} />;
 }
