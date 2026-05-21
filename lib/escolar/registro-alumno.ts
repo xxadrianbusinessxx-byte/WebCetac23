@@ -61,7 +61,12 @@ export async function obtenerVistaRegistroAlumno(
   );
 
   if (!nombreTabla) {
-    return vacio();
+    return {
+      ...vacio(),
+      mensaje: carrera
+        ? `No se encontró el registro de calificaciones para ${grado} · grupo ${grupo} · ${carrera}.`
+        : `No se encontró el registro de calificaciones para ${grado} · grupo ${grupo}.`,
+    };
   }
 
   const estatus = await leerVistaRegistroEstatus(

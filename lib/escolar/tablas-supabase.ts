@@ -37,7 +37,7 @@ export async function listarTablasDesdeSupabase(): Promise<string[]> {
       apikey: cfg.key,
       Authorization: `Bearer ${cfg.key}`,
     },
-    next: { revalidate: 300 },
+    cache: "no-store",
   });
 
   if (!r.ok) return [];

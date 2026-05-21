@@ -29,7 +29,7 @@ export async function listarColumnasTabla(
       apikey: cfg.key,
       Authorization: `Bearer ${cfg.key}`,
     },
-    next: { revalidate: 0 },
+    cache: "no-store",
   });
 
   if (!r.ok) return ["id", "alumno_nombre", "datos", "actualizado"];
@@ -87,4 +87,21 @@ export async function sincronizarColumnasTabla(
 /** Columnas de datos para vista (orden de la tabla en Supabase, sin id/actualizado/datos). */
 export function columnasParaVista(columnasDb: string[]): string[] {
   return columnasDb.filter((c) => !COLUMNAS_SISTEMA.has(c.toLowerCase()));
+}
+
+/** Si OpenAPI falla en producción, deduce columnas desde las filas devueltas por PostgREST. */
+export function columnasDesdeFilasDb(
+  columnasOpenApi: string[],
+  filas: Record<string, unknown>[],
+): string[] {
+  const desdeApi = columnasParaVista(columnasOpenApi);
+  if (desdeApi.length > 1) return desdeApi;
+
+  const keys = new Set<string>();
+  for (const row of filas.slice(0, 8)) {
+    for (const k of Object.keys(row)) {
+      if (!COLUMNAS_SISTEMA.has(k.toLowerCase())) keys.add(k);
+    }
+  }
+  return keys.size ? [...keys] : desdeApi;
 }

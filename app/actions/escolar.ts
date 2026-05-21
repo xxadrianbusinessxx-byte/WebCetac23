@@ -47,6 +47,7 @@ import {
   obtenerFotoPerfilAlumno,
 } from "@/lib/escolar/foto-perfil";
 import { createClient } from "@/lib/supabase/server";
+import { clienteLecturaEscolar } from "@/lib/supabase/service";
 
 export async function actionObtenerPerfilAlumno(
   curpConsulta?: string | null,
@@ -92,10 +93,11 @@ export async function actionObtenerPerfilAlumno(
 
   const alumno = await buscarAlumnoPorCurp(supabase, curp);
   const nombreCompleto = alumno ? nombreCompletoAlumno(alumno) : "";
-  const etiquetas = await obtenerEtiquetasPersonales(supabase, curp);
+  const supabaseLectura = await clienteLecturaEscolar(supabase);
+  const etiquetas = await obtenerEtiquetasPersonales(supabaseLectura, curp);
   const carrera = carreraEscolarDesdeEtiquetas(etiquetas);
   const registro = await obtenerVistaRegistroAlumno(
-    supabase,
+    supabaseLectura,
     curp,
     nombreCompleto,
     etiquetas,

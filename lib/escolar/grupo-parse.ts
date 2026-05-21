@@ -1,5 +1,5 @@
 import { normalizarNombre } from "./nombres";
-import { listarTablasRegistrosDesdeSupabase } from "./tablas-supabase";
+import { listarRegistrosCompletos } from "./tablas-supabase";
 
 const SUFIJO_REGISTRO = " REGISTRO DE CALIFICACIONES FINALES";
 
@@ -23,27 +23,65 @@ export function parseGrupoDesdeNombreTabla(nombreTabla: string): {
   return { grado, grupo, carrera };
 }
 
+function carreraCoincideConTabla(
+  carreraEtiqueta: string,
+  parsedCarrera: string,
+  nombreTabla: string,
+): boolean {
+  const c = carreraEtiqueta.trim().toUpperCase();
+  if (!c) return true;
+
+  const p = parsedCarrera.toUpperCase();
+  const tabla = nombreTabla.toUpperCase();
+
+  if (p && (p === c || p.includes(c) || c.includes(p))) return true;
+  if (tabla.includes(c)) return true;
+
+  const tokens = c.split(/\s+/).filter((t) => t.length > 2);
+  if (tokens.length >= 2 && tokens.every((t) => tabla.includes(t))) return true;
+
+  return false;
+}
+
+/**
+ * Nombre exacto de la tabla REGISTRO en Supabase.
+ * Usa lista generada + OpenAPI (Vercel a veces no devuelve OpenAPI).
+ */
 export async function nombreTablaRegistroDesdeGrupo(
   grado: string,
   grupo: string,
   carrera: string,
 ): Promise<string | null> {
-  const REGISTROS_ESCOLAR = await listarTablasRegistrosDesdeSupabase();
+  const registros = await listarRegistrosCompletos();
   const g = grado.trim().toUpperCase();
   const gr = grupo.trim().toUpperCase();
   const c = carrera.trim().toUpperCase();
-  if (!g || !gr) return null;
+  if (!g || !gr || !registros.length) return null;
 
   const candidatos = c
     ? [`${g} ${gr} ${c}${SUFIJO_REGISTRO}`, `${g} ${gr}${SUFIJO_REGISTRO}`]
     : [`${g} ${gr}${SUFIJO_REGISTRO}`];
 
   for (const candidato of candidatos) {
-    const exacta = REGISTROS_ESCOLAR.find((r) => r === candidato);
+    const exacta = registros.find((r) => r === candidato);
     if (exacta) return exacta;
     const norm = normalizarNombre(candidato);
-    const porNorm = REGISTROS_ESCOLAR.find((r) => normalizarNombre(r) === norm);
+    const porNorm = registros.find((r) => normalizarNombre(r) === norm);
     if (porNorm) return porNorm;
   }
-  return null;
+
+  const flexibles = registros.filter((nombreTabla) => {
+    const parsed = parseGrupoDesdeNombreTabla(nombreTabla);
+    if (!parsed || parsed.grado !== g || parsed.grupo !== gr) return false;
+    return carreraCoincideConTabla(c, parsed.carrera, nombreTabla);
+  });
+
+  if (flexibles.length === 1) return flexibles[0]!;
+  if (flexibles.length > 1 && c) {
+    const conCarreraEnNombre = flexibles.find((t) =>
+      t.toUpperCase().includes(c),
+    );
+    if (conCarreraEnNombre) return conCarreraEnNombre;
+  }
+  return flexibles[0] ?? null;
 }
