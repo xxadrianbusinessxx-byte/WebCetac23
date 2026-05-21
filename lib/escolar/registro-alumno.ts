@@ -1,10 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CriterioAlumnoEnFila } from "./buscar-en-filas";
-import { identificarGrupoAlumno } from "./buscar-grupo";
-import {
-  nombreTablaRegistroDesdeGrupo,
-  parseGrupoDesdeNombreTabla,
-} from "./grupo-parse";
+import { carreraEscolarDesdeEtiquetas } from "./informacion-personal";
+import { nombreTablaRegistroDesdeGrupo } from "./grupo-parse";
 import { leerVistaRegistroEstatus } from "./registro-estatus";
 import type { EtiquetasPersonalesRow } from "./types";
 
@@ -30,19 +27,6 @@ function criterioDesdeAlumno(
   };
 }
 
-/** @deprecated Usar identificarGrupoAlumno */
-export async function identificarGrupoAlumnoEnRegistros(
-  supabase: SupabaseClient,
-  criterio: CriterioAlumnoEnFila,
-): Promise<{
-  grado: string;
-  grupo: string;
-  carrera: string;
-  nombreTabla: string;
-} | null> {
-  return identificarGrupoAlumno(supabase, criterio);
-}
-
 export async function obtenerVistaRegistroAlumno(
   supabase: SupabaseClient,
   curp: string | null | undefined,
@@ -51,7 +35,7 @@ export async function obtenerVistaRegistroAlumno(
 ): Promise<VistaRegistroAlumno> {
   const grado = etiquetas?.GRADO?.trim() ?? "";
   const grupo = etiquetas?.GRUPO?.trim() ?? "";
-  const carrera = etiquetas?.CARRERA?.trim() ?? "";
+  const carrera = carreraEscolarDesdeEtiquetas(etiquetas);
   const criterio = criterioDesdeAlumno(curp, nombreCompleto);
 
   const vacio = (): VistaRegistroAlumno => ({
@@ -105,8 +89,7 @@ export async function obtenerVistaRegistroAlumno(
     filaAlumnoIndice: estatus.filaAlumnoIndice,
     mensaje: estatus.alumnoEncontrado
       ? null
-      : `No apareces en «${nombreTabla}». Revisa CURP o nombre en el registro.`,
+      : `No se encontró tu nombre ni CURP en ninguna celda de «${nombreTabla}».`,
   };
 }
 
-export { parseGrupoDesdeNombreTabla };

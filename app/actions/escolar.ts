@@ -27,7 +27,7 @@ import {
 import { filtrarMateriasPorGrupo } from "@/lib/escolar/materias-alumno";
 import { obtenerVistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
-import { sincronizarGrupoAlumno } from "@/lib/escolar/sincronizar-grupo";
+import { carreraEscolarDesdeEtiquetas } from "@/lib/escolar/informacion-personal";
 import { listarMateriasCompletas } from "@/lib/escolar/tablas-supabase";
 import {
   obtenerVistaMateria,
@@ -92,11 +92,8 @@ export async function actionObtenerPerfilAlumno(
 
   const alumno = await buscarAlumnoPorCurp(supabase, curp);
   const nombreCompleto = alumno ? nombreCompletoAlumno(alumno) : "";
-  const etiquetasSync = alumno
-    ? await sincronizarGrupoAlumno(supabase, curp, nombreCompleto)
-    : null;
-  const etiquetas =
-    etiquetasSync ?? (await obtenerEtiquetasPersonales(supabase, curp));
+  const etiquetas = await obtenerEtiquetasPersonales(supabase, curp);
+  const carrera = carreraEscolarDesdeEtiquetas(etiquetas);
   const registro = await obtenerVistaRegistroAlumno(
     supabase,
     curp,
@@ -114,7 +111,7 @@ export async function actionObtenerPerfilAlumno(
           todasMaterias,
           etiquetas?.GRADO ?? "",
           etiquetas?.GRUPO ?? "",
-          etiquetas?.CARRERA ?? "",
+          carrera,
         )
       : [...todasMaterias];
   const comentarios = await listarComentariosAlumno(supabase, curp);
@@ -276,7 +273,7 @@ export async function actionObtenerVistaMateria(
       todas,
       etiquetas?.GRADO ?? "",
       etiquetas?.GRUPO ?? "",
-      etiquetas?.CARRERA ?? "",
+      carreraEscolarDesdeEtiquetas(etiquetas),
     );
     if (!permitidas.includes(nombreMateria.trim())) return null;
   }

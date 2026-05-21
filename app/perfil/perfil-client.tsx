@@ -2,21 +2,20 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   actionGuardarComentarioPersonal,
-  actionGuardarEtiquetasPersonales,
   actionObtenerVistaMateria,
   actionSubirFotoPerfil,
 } from "@/app/actions/escolar";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { nombreCompletoAlumno } from "@/lib/escolar/alumnos";
+import { comentarioPersonalDesdeFila } from "@/lib/escolar/etiquetas";
 import {
-  comentarioPersonalDesdeFila,
-  titulosEtiquetasPersonales,
-  valoresEtiquetasPersonales,
-} from "@/lib/escolar/etiquetas";
+  etiquetasVaciasDesdeFila,
+  informacionPersonalDesdeEtiquetas,
+} from "@/lib/escolar/informacion-personal";
 import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
@@ -119,12 +118,6 @@ export function PerfilClient({
   const [vistaMateria, setVistaMateria] = useState<MateriaTablaVista | null>(
     null,
   );
-  const [titulos, setTitulos] = useState(() =>
-    titulosEtiquetasPersonales(etiquetas),
-  );
-  const [valores, setValores] = useState(() =>
-    valoresEtiquetasPersonales(etiquetas),
-  );
   const [comentarioPersonal, setComentarioPersonal] = useState(() =>
     comentarioPersonalDesdeFila(etiquetas),
   );
@@ -139,19 +132,17 @@ export function PerfilClient({
   }, [fotoPerfilUrl]);
 
   useEffect(() => {
-    setTitulos(titulosEtiquetasPersonales(etiquetas));
-    setValores(valoresEtiquetasPersonales(etiquetas));
     setComentarioPersonal(comentarioPersonalDesdeFila(etiquetas));
   }, [etiquetas]);
 
-  const guardarEtiquetas = async () => {
-    if (!curp || !puedeEditarEtiquetas) return;
-    setGuardando(true);
-    setMensaje(null);
-    const r = await actionGuardarEtiquetasPersonales(curp, titulos, valores);
-    setGuardando(false);
-    setMensaje(r.ok ? "Etiquetas guardadas." : r.error);
-  };
+  const camposPersonales = useMemo(
+    () => informacionPersonalDesdeEtiquetas(etiquetas),
+    [etiquetas],
+  );
+  const etiquetasVacias = useMemo(
+    () => etiquetasVaciasDesdeFila(etiquetas),
+    [etiquetas],
+  );
 
   const guardarComentario = async () => {
     if (!curp || !puedeEditarEtiquetas) return;
@@ -378,7 +369,7 @@ export function PerfilClient({
                     {!tieneGrupo || materias.length === 0 ? (
                       <p className="max-w-md px-4">
                         {!tieneGrupo
-                          ? "Aún no se detecta tu grado y grupo. Aparecerán tus materias cuando tu nombre figure en un registro o materia del plantel."
+                          ? "En ETIQUETAS PERSONALES aún no hay grado y grupo. Cuando se actualicen, verás aquí solo las materias de tu carrera."
                           : "No hay materias cargadas para tu grado, grupo y carrera."}
                       </p>
                     ) : (
@@ -391,65 +382,51 @@ export function PerfilClient({
                 ) : (
                   <div className="flex flex-col gap-4">
                     <div className="inline-flex w-fit rounded-full border border-white/70 bg-white/90 px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-sky-900 shadow-sm">
-                      Información personal
+                      ETIQUETAS PERSONALES
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-                      {[
-                        ["CURP", alumno?.CURP],
-                        ["Nombre", alumno?.NOMBRE],
-                        ["Apellido P", alumno?.P_APELLIDO],
-                        ["Apellido M", alumno?.S_APELLIDO],
-                        ["Clave", alumno?.CLAVE],
-                        ["Género", etiquetas?.GENERO],
-                        ["Grado", etiquetas?.GRADO],
-                        ["Grupo", etiquetas?.GRUPO],
-                      ].map(([l, v]) => (
-                        <BubblePill key={l} className="min-h-[2.75rem]">{l}: {v ?? "—"}</BubblePill>
-                      ))}
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      <p className="text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
-                        Etiquetas personales (ETIQUETAS PERSONALES)
+                    {!etiquetas ? (
+                      <p className="text-center text-sm font-semibold text-slate-600">
+                        Sin registro en ETIQUETAS PERSONALES para este CURP.
                       </p>
-                      {[0, 1, 2].map((i) => (
-                        <div key={`etiq-${i}`} className="grid gap-2 sm:grid-cols-2">
-                          <input
-                            type="text"
-                            value={titulos[i]}
-                            disabled={!puedeEditarEtiquetas}
-                            onChange={(e) => {
-                              const next = [...titulos] as [string, string, string];
-                              next[i] = e.target.value;
-                              setTitulos(next);
-                            }}
-                            className="rounded-full border border-white/70 bg-white/95 px-4 py-2 text-center text-xs font-bold text-sky-900 disabled:opacity-70"
-                            placeholder={`Etiqueta ${i + 1}`}
-                          />
-                          <input
-                            type="text"
-                            value={valores[i]}
-                            disabled={!puedeEditarEtiquetas}
-                            onChange={(e) => {
-                              const next = [...valores] as [string, string, string];
-                              next[i] = e.target.value;
-                              setValores(next);
-                            }}
-                            className="rounded-full border border-white/60 bg-slate-400/35 px-4 py-2 text-center text-xs font-bold text-sky-900 disabled:opacity-70"
-                            placeholder="Valor"
-                          />
+                    ) : (
+                      <>
+                        <p className="text-center text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                          Datos del plantel (solo lectura). Grado, grupo y carrera
+                          definen tus materias.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+                          {camposPersonales.map((c) => {
+                            const destacado =
+                              c.clave === "GRADO" ||
+                              c.clave === "GRUPO" ||
+                              c.clave === "CARRERA";
+                            return (
+                              <BubblePill
+                                key={c.etiqueta}
+                                className={`min-h-[2.75rem] ${destacado ? "border-sky-500/50 bg-sky-100/90 font-extrabold" : ""}`}
+                              >
+                                {c.etiqueta}: {c.valor}
+                              </BubblePill>
+                            );
+                          })}
                         </div>
-                      ))}
-                      {puedeEditarEtiquetas && (
-                        <button
-                          type="button"
-                          disabled={guardando}
-                          onClick={() => void guardarEtiquetas()}
-                          className="mx-auto rounded-full border border-sky-800/40 bg-white/95 px-6 py-2 text-[11px] font-extrabold uppercase tracking-wide text-sky-900 shadow-sm disabled:opacity-60"
-                        >
-                          Guardar etiquetas
-                        </button>
-                      )}
-                    </div>
+                        {etiquetasVacias.length > 0 && (
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            {etiquetasVacias.map((e, i) => (
+                              <BubblePill key={`vacia-${i}`} className="min-h-[2.5rem]">
+                                {e.titulo}: {e.valor}
+                              </BubblePill>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {alumno && (
+                      <p className="text-center text-[10px] font-semibold text-slate-500">
+                        Alumnos: {nombreMostrar}
+                        {alumno.CLAVE ? ` · Clave ${alumno.CLAVE}` : ""}
+                      </p>
+                    )}
                     <div className="flex flex-col gap-2">
                       <p className="text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
                         Comentario personal
@@ -500,8 +477,8 @@ export function PerfilClient({
                 )}
                 {!tieneGrupo ? (
                   <p className="text-center text-sm font-semibold text-slate-600">
-                    Sin grado y grupo asignados. El estatus aparecerá cuando el
-                    sistema te ubique en un registro del plantel.
+                    Sin grado y grupo en ETIQUETAS PERSONALES. El estatus
+                    aparecerá cuando esos campos estén actualizados.
                   </p>
                 ) : (
                   <>
@@ -513,7 +490,8 @@ export function PerfilClient({
                     {registro.alumnoEncontrado &&
                       registro.filaAlumnoIndice >= 0 && (
                         <p className="text-center text-[10px] font-bold uppercase tracking-wide text-sky-800">
-                          Tu fila está resaltada (primeras 5 del grupo)
+                          Debajo del encabezado: tu nombre y calificaciones por
+                          parcial
                         </p>
                       )}
                     <MateriaTablaVistaPanel
