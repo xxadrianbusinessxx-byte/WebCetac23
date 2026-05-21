@@ -62,3 +62,19 @@ export async function listarTablasRegistrosDesdeSupabase(): Promise<string[]> {
   const todas = await listarTablasDesdeSupabase();
   return todas.filter((t) => /REGISTRO DE CALIFICACIONES FINALES/i.test(t));
 }
+
+/** Lista completa para carga de archivos (directivo / profesor). */
+export async function listarMateriasCompletas(): Promise<string[]> {
+  const { MATERIAS_ESCOLAR } = await import("./materias-list");
+  const desdeDb = await listarTablasMateriasDesdeSupabase();
+  if (desdeDb.length > 0) return desdeDb;
+  return [...MATERIAS_ESCOLAR];
+}
+
+/** Lista completa de registros finales por grupo. */
+export async function listarRegistrosCompletos(): Promise<string[]> {
+  const { REGISTROS_ESCOLAR } = await import("./registros-list");
+  const desdeDb = await listarTablasRegistrosDesdeSupabase();
+  if (desdeDb.length > 0) return desdeDb;
+  return [...REGISTROS_ESCOLAR];
+}

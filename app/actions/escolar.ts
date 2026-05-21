@@ -28,7 +28,7 @@ import { filtrarMateriasPorGrupo } from "@/lib/escolar/materias-alumno";
 import { obtenerVistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import { sincronizarGrupoAlumno } from "@/lib/escolar/sincronizar-grupo";
-import { listarTablasMateriasDesdeSupabase } from "@/lib/escolar/tablas-supabase";
+import { listarMateriasCompletas } from "@/lib/escolar/tablas-supabase";
 import {
   obtenerVistaMateria,
   reemplazarContenidoMateriaDesdeArchivo,
@@ -103,13 +103,20 @@ export async function actionObtenerPerfilAlumno(
     nombreCompleto,
     etiquetas,
   );
-  const todasMaterias = await listarTablasMateriasDesdeSupabase();
-  const materias = filtrarMateriasPorGrupo(
-    todasMaterias,
-    etiquetas?.GRADO ?? "",
-    etiquetas?.GRUPO ?? "",
-    etiquetas?.CARRERA ?? "",
+  const todasMaterias = await listarMateriasCompletas();
+  const consultaOtroAlumno = Boolean(
+    curpConsulta?.trim() &&
+      curpConsulta.trim().toUpperCase() !== sesion?.curp?.trim().toUpperCase(),
   );
+  const materias =
+    sesion?.rol === "alumno" || consultaOtroAlumno
+      ? filtrarMateriasPorGrupo(
+          todasMaterias,
+          etiquetas?.GRADO ?? "",
+          etiquetas?.GRUPO ?? "",
+          etiquetas?.CARRERA ?? "",
+        )
+      : [...todasMaterias];
   const comentarios = await listarComentariosAlumno(supabase, curp);
   const fotoPerfilUrl = await obtenerFotoPerfilAlumno(supabase, curp);
   const puedeEditarEtiquetas =
@@ -264,7 +271,7 @@ export async function actionObtenerVistaMateria(
 
   if (sesion?.rol === "alumno" && sesion.curp) {
     const etiquetas = await obtenerEtiquetasPersonales(supabase, sesion.curp);
-    const todas = await listarTablasMateriasDesdeSupabase();
+    const todas = await listarMateriasCompletas();
     const permitidas = filtrarMateriasPorGrupo(
       todas,
       etiquetas?.GRADO ?? "",
