@@ -3,7 +3,10 @@ import {
   buscarAlumnoEnMatriz,
   type CriterioAlumnoEnFila,
 } from "./buscar-en-filas";
-import { columnasParaVista, listarColumnasTabla } from "./schema-tabla";
+import {
+  columnasDesdeFilasDb,
+  listarColumnasTabla,
+} from "./schema-tabla";
 import type { MateriaTablaVista } from "./types";
 
 const MARCAS_HOJA = new Set(["__HOJA__", "__ENCABEZADOS__"]);
@@ -50,10 +53,6 @@ export async function leerVistaRegistroEstatus(
 ): Promise<VistaRegistroEstatus | null> {
   const tabla = nombreTabla.trim();
   const columnasDb = await listarColumnasTabla(tabla);
-  const colsDatos = columnasParaVista(columnasDb);
-  if (!colsDatos.length) return null;
-
-  const encabezados = colsDatos.map((c, i) => encabezadoColumna(c, i));
 
   const { data: todas, error } = await supabase
     .from(tabla)
@@ -61,6 +60,14 @@ export async function leerVistaRegistroEstatus(
     .order("id", { ascending: true });
 
   if (error || !todas?.length) return null;
+
+  const colsDatos = columnasDesdeFilasDb(
+    columnasDb,
+    todas as Record<string, unknown>[],
+  );
+  if (!colsDatos.length) return null;
+
+  const encabezados = colsDatos.map((c, i) => encabezadoColumna(c, i));
 
   const filasCeldas: string[][] = [];
   for (const row of todas) {

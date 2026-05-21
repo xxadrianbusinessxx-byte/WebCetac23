@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+
+export const dynamic = "force-dynamic";
 import { actionObtenerPerfilAlumno } from "@/app/actions/escolar";
 import { PerfilClient } from "./perfil-client";
 
