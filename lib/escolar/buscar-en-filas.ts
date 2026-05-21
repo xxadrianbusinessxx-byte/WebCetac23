@@ -38,15 +38,30 @@ export function filaCoincideAlumno(
   const nombre = criterio.nombreCompleto?.trim() ?? "";
   if (!nombre) return false;
 
-  const objetivo = normalizarNombre(nombre);
   for (const celda of fila) {
-    const c = String(celda ?? "").trim();
-    if (!c || pareceCurp(c)) continue;
-    if (nombresCoinciden(c, nombre)) return true;
-    const norm = normalizarNombre(c);
-    if (norm.includes(objetivo) || objetivo.includes(norm)) return true;
+    if (celdaContieneNombreAlumno(String(celda ?? ""), nombre)) return true;
   }
   return false;
+}
+
+/** Evita falsos positivos (ej. celda «A» de GRUPO dentro del nombre del alumno). */
+export function celdaContieneNombreAlumno(
+  celda: string,
+  nombreCompleto: string,
+): boolean {
+  const c = celda.trim();
+  if (!c || pareceCurp(c)) return false;
+  if (nombresCoinciden(c, nombreCompleto)) return true;
+
+  const norm = normalizarNombre(c);
+  const objetivo = normalizarNombre(nombreCompleto);
+  if (norm.length < 8 || objetivo.length < 8) return false;
+
+  const partes = objetivo.split(" ").filter((p) => p.length > 2);
+  if (partes.length < 2) return false;
+
+  const coinciden = partes.filter((p) => norm.includes(p));
+  return coinciden.length >= 2;
 }
 
 /** Índice de la primera fila que coincide (una pasada, sin doble validación). */
@@ -58,4 +73,45 @@ export function buscarIndiceFilaAlumno(
     if (filaCoincideAlumno(filas[i]!, criterio)) return i;
   }
   return -1;
+}
+
+/** Índice de la celda dentro de la fila donde aparece el alumno (CURP o nombre). */
+export function buscarIndiceCeldaAlumno(
+  fila: string[],
+  criterio: CriterioAlumnoEnFila,
+): number {
+  const curpU = criterio.curp?.trim() ? normalizarCurp(criterio.curp) : "";
+
+  if (curpU) {
+    for (let j = 0; j < fila.length; j++) {
+      const c = String(fila[j] ?? "").trim().toUpperCase();
+      if (c === curpU) return j;
+    }
+  }
+
+  const nombre = criterio.nombreCompleto?.trim() ?? "";
+  if (!nombre) return -1;
+
+  for (let j = 0; j < fila.length; j++) {
+    if (celdaContieneNombreAlumno(String(fila[j] ?? ""), nombre)) return j;
+  }
+  return -1;
+}
+
+export type PosicionAlumnoEnMatriz = {
+  filaIdx: number;
+  celdaIdx: number;
+};
+
+/** Busca al alumno en cualquier celda de cualquier fila. */
+export function buscarAlumnoEnMatriz(
+  filas: string[][],
+  criterio: CriterioAlumnoEnFila,
+  desdeFila = 0,
+): PosicionAlumnoEnMatriz {
+  for (let i = desdeFila; i < filas.length; i++) {
+    const celdaIdx = buscarIndiceCeldaAlumno(filas[i]!, criterio);
+    if (celdaIdx >= 0) return { filaIdx: i, celdaIdx };
+  }
+  return { filaIdx: -1, celdaIdx: -1 };
 }
