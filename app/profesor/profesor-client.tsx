@@ -9,7 +9,6 @@ import {
 } from "@/app/actions/escolar";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
-import { MATERIAS_ESCOLAR } from "@/lib/escolar/materias-list";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 import type { PortalSessionPayload } from "@/lib/auth/types";
@@ -39,11 +38,14 @@ function GreyActionPill({
   );
 }
 
-type Props = { sesion: PortalSessionPayload | null };
+type Props = {
+  sesion: PortalSessionPayload | null;
+  materias: readonly string[];
+};
 
-export function ProfesorClient({ sesion }: Props) {
+export function ProfesorClient({ sesion, materias }: Props) {
   const [materiaSeleccionada, setMateriaSeleccionada] = useState<string>(
-    MATERIAS_ESCOLAR[0] ?? "",
+    materias[0] ?? "",
   );
   const [vistaMateria, setVistaMateria] = useState<MateriaTablaVista | null>(
     null,
@@ -186,7 +188,7 @@ export function ProfesorClient({ sesion }: Props) {
           <div className="relative z-[1] flex flex-col gap-4">
             <div className="flex flex-wrap gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
               <MateriaScrollPicker
-                materias={MATERIAS_ESCOLAR}
+                materias={materias}
                 seleccionada={materiaSeleccionada}
                 onSeleccionar={setMateriaSeleccionada}
               />

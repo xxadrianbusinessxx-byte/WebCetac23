@@ -45,10 +45,7 @@ export type ComentarioProfesorRow = {
 };
 
 export type MateriaContenidoRow = {
-  id: number;
-  columna1: string | null;
-  columna2: string | null;
-  created_at?: string;
+  contenido: string | null;
 };
 
 export type MateriaTablaVista = {

@@ -9,7 +9,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "sync:decoraciones": "node scripts/sync-decoraciones.mjs"
+    "sync:decoraciones": "node scripts/sync-decoraciones.mjs",
+    "gen:materias": "node scripts/gen-materias-list.mjs",
+    "gen:registros": "node scripts/gen-registros-list.mjs",
+    "gen:tablas": "node scripts/gen-tablas-desde-supabase.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

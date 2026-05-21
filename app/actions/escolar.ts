@@ -5,6 +5,7 @@ import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import {
   buscarAlumnoPorCurp,
   buscarAlumnoPorNombre,
+  buscarAlumnoPorTexto,
   nombreCompletoAlumno,
 } from "@/lib/escolar/alumnos";
 import {
@@ -14,27 +15,25 @@ import {
 import {
   actualizarEtiquetasPersonales,
   comentarioPersonalDesdeFila,
-  etiquetasEstatusDesdeFila,
   etiquetasPersonalesDesdeFila,
   obtenerEtiquetasPersonales,
   patchComentarioPersonal,
-  patchSoloEstatus,
   patchSoloPersonales,
   patchTitulosEtiquetas,
   patchValoresEtiquetas,
   titulosEtiquetasPersonales,
   valoresEtiquetasPersonales,
 } from "@/lib/escolar/etiquetas";
-import {
-  obtenerEtiquetasStatusPorCurp,
-  vistaEstatusDesdeFila,
-} from "@/lib/escolar/etiquetas-status";
+import { filtrarMateriasPorGrupo } from "@/lib/escolar/materias-alumno";
+import { obtenerVistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
+import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
+import { sincronizarGrupoAlumno } from "@/lib/escolar/sincronizar-grupo";
+import { listarTablasMateriasDesdeSupabase } from "@/lib/escolar/tablas-supabase";
 import {
   obtenerVistaMateria,
   reemplazarContenidoMateriaDesdeArchivo,
 } from "@/lib/escolar/materias";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
-import type { VistaEstatusAlumno } from "@/lib/escolar/etiquetas-status";
 import type {
   AlumnoRow,
   ComentarioRow,
@@ -54,7 +53,8 @@ export async function actionObtenerPerfilAlumno(
 ): Promise<{
   alumno: AlumnoRow | null;
   etiquetas: EtiquetasPersonalesRow | null;
-  estatus: VistaEstatusAlumno;
+  registro: VistaRegistroAlumno;
+  materias: string[];
   comentarios: ComentarioRow[];
   puedeEditarEtiquetas: boolean;
   fotoPerfilUrl: string | null;
@@ -72,7 +72,18 @@ export async function actionObtenerPerfilAlumno(
     return {
       alumno: null,
       etiquetas: null,
-      estatus: vistaEstatusDesdeFila(null),
+      registro: {
+        encabezados: [],
+        filas: [],
+        nombreTabla: null,
+        grado: "",
+        grupo: "",
+        carrera: "",
+        alumnoEncontrado: false,
+        filaAlumnoIndice: -1,
+        mensaje: null,
+      },
+      materias: [],
       comentarios: [],
       puedeEditarEtiquetas: false,
       fotoPerfilUrl: null,
@@ -80,9 +91,25 @@ export async function actionObtenerPerfilAlumno(
   }
 
   const alumno = await buscarAlumnoPorCurp(supabase, curp);
-  const etiquetas = await obtenerEtiquetasPersonales(supabase, curp);
-  const filaStatus = await obtenerEtiquetasStatusPorCurp(supabase, curp);
-  const estatus = vistaEstatusDesdeFila(filaStatus);
+  const nombreCompleto = alumno ? nombreCompletoAlumno(alumno) : "";
+  const etiquetasSync = alumno
+    ? await sincronizarGrupoAlumno(supabase, curp, nombreCompleto)
+    : null;
+  const etiquetas =
+    etiquetasSync ?? (await obtenerEtiquetasPersonales(supabase, curp));
+  const registro = await obtenerVistaRegistroAlumno(
+    supabase,
+    curp,
+    nombreCompleto,
+    etiquetas,
+  );
+  const todasMaterias = await listarTablasMateriasDesdeSupabase();
+  const materias = filtrarMateriasPorGrupo(
+    todasMaterias,
+    etiquetas?.GRADO ?? "",
+    etiquetas?.GRUPO ?? "",
+    etiquetas?.CARRERA ?? "",
+  );
   const comentarios = await listarComentariosAlumno(supabase, curp);
   const fotoPerfilUrl = await obtenerFotoPerfilAlumno(supabase, curp);
   const puedeEditarEtiquetas =
@@ -91,7 +118,8 @@ export async function actionObtenerPerfilAlumno(
   return {
     alumno,
     etiquetas,
-    estatus,
+    registro,
+    materias,
     comentarios,
     puedeEditarEtiquetas,
     fotoPerfilUrl,
@@ -180,6 +208,10 @@ export async function actionSubirMateriaExcel(
     return { ok: false, error: "No tienes permiso para subir calificaciones." };
   }
 
+  if (!nombreMateria.trim()) {
+    return { ok: false, error: "Selecciona una materia en la lista." };
+  }
+
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) {
     return { ok: false, error: "Selecciona un archivo válido." };
@@ -189,10 +221,59 @@ export async function actionSubirMateriaExcel(
   return reemplazarContenidoMateriaDesdeArchivo(supabase, nombreMateria, archivo);
 }
 
+export async function actionSubirRegistroExcel(
+  nombreRegistro: string,
+  formData: FormData,
+): Promise<{ ok: true; filas: number } | { ok: false; error: string }> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return {
+      ok: false,
+      error: "Solo directivos pueden subir registros de calificaciones finales.",
+    };
+  }
+
+  if (!nombreRegistro.trim()) {
+    return { ok: false, error: "Selecciona un registro de grupo en la lista." };
+  }
+
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { ok: false, error: "Selecciona un archivo válido." };
+  }
+
+  const supabase = await createClient();
+  return reemplazarContenidoMateriaDesdeArchivo(supabase, nombreRegistro, archivo);
+}
+
+export async function actionObtenerVistaRegistro(
+  nombreRegistro: string,
+): Promise<MateriaTablaVista | null> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") return null;
+  if (!nombreRegistro.trim()) return null;
+  const supabase = await createClient();
+  return obtenerVistaMateria(supabase, nombreRegistro);
+}
+
 export async function actionObtenerVistaMateria(
   nombreMateria: string,
 ): Promise<MateriaTablaVista | null> {
   const supabase = await createClient();
+  const sesion = await obtenerSesionPortal();
+
+  if (sesion?.rol === "alumno" && sesion.curp) {
+    const etiquetas = await obtenerEtiquetasPersonales(supabase, sesion.curp);
+    const todas = await listarTablasMateriasDesdeSupabase();
+    const permitidas = filtrarMateriasPorGrupo(
+      todas,
+      etiquetas?.GRADO ?? "",
+      etiquetas?.GRUPO ?? "",
+      etiquetas?.CARRERA ?? "",
+    );
+    if (!permitidas.includes(nombreMateria.trim())) return null;
+  }
+
   return obtenerVistaMateria(supabase, nombreMateria);
 }
 
@@ -213,7 +294,7 @@ export async function actionEnviarComentarioAlumno(
   }
 
   const supabase = await createClient();
-  const alumno = await buscarAlumnoPorNombre(supabase, nombreAlumno);
+  const alumno = await buscarAlumnoPorTexto(supabase, nombreAlumno);
   if (!alumno) {
     return { ok: false, error: "No se encontró al alumno por nombre." };
   }
@@ -234,11 +315,12 @@ export async function actionBuscarAlumnoPorNombre(
   nombre: string,
 ): Promise<AlumnoRow | null> {
   const supabase = await createClient();
-  return buscarAlumnoPorNombre(supabase, nombre);
+  return buscarAlumnoPorTexto(supabase, nombre);
 }
 
 export async function actionSubirFotoPerfil(
   formData: FormData,
+  curpConsulta?: string | null,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   const sesion = await obtenerSesionPortal();
   if (!sesion) return { ok: false, error: "Sesión no válida." };
@@ -251,17 +333,36 @@ export async function actionSubirFotoPerfil(
     return { ok: false, error: "Solo se permiten imágenes." };
   }
 
-  const curp =
-    sesion.curp?.trim().toUpperCase() ??
-    (await (async () => {
-      const supabase = await createClient();
-      const { buscarAlumnoPorClave } = await import("@/lib/escolar/alumnos");
-      const a = await buscarAlumnoPorClave(supabase, sesion.matricula);
-      return a?.CURP ?? "";
-    })());
+  let curp = curpConsulta?.trim().toUpperCase() ?? "";
+
+  if (!curp && sesion.rol === "alumno") {
+    curp =
+      sesion.curp?.trim().toUpperCase() ??
+      (await (async () => {
+        const supabase = await createClient();
+        const { buscarAlumnoPorClave } = await import("@/lib/escolar/alumnos");
+        const a = await buscarAlumnoPorClave(supabase, sesion.matricula);
+        return a?.CURP ?? "";
+      })());
+  }
+
+  if (!curp && sesion.rol === "directivo") {
+    return {
+      ok: false,
+      error: "No se indicó el CURP del alumno para guardar la foto.",
+    };
+  }
 
   if (!curp) {
     return { ok: false, error: "No se encontró CURP del alumno." };
+  }
+
+  if (
+    sesion.rol === "alumno" &&
+    sesion.curp &&
+    sesion.curp.toUpperCase() !== curp
+  ) {
+    return { ok: false, error: "No puedes cambiar la foto de otro alumno." };
   }
 
   const buffer = Buffer.from(await archivo.arrayBuffer());
@@ -281,14 +382,10 @@ export async function actionSubirFotoPerfil(
 export async function actionEtiquetasResumen(curp: string) {
   const supabase = await createClient();
   const row = await obtenerEtiquetasPersonales(supabase, curp);
-  const filaStatus = await obtenerEtiquetasStatusPorCurp(supabase, curp);
   return {
     titulos: titulosEtiquetasPersonales(row),
     valores: valoresEtiquetasPersonales(row),
     comentarioPersonal: comentarioPersonalDesdeFila(row),
-    estatus: vistaEstatusDesdeFila(filaStatus),
-    /** @deprecated */
-    estatusLegacy: etiquetasEstatusDesdeFila(row),
     personales: etiquetasPersonalesDesdeFila(row),
   };
 }

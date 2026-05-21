@@ -7,7 +7,9 @@ const materias = [];
 for (const line of lines) {
   const t = line.trim();
   if (!t || t.startsWith("Name of") || t.startsWith('"CLAVES')) break;
-  if (t === "Name of CSV of students") break;
+  if (t === "BOLETAS NOMBRES" || t === "Name of CSV of students") break;
+  if (t === "Names of everymatery on school with groups") continue;
+  if (!/^\d/.test(t)) continue;
   materias.push(t);
 }
 

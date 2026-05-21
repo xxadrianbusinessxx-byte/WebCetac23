@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { actionObtenerPerfilAlumno } from "@/app/actions/escolar";
-import { MATERIAS_ESCOLAR } from "@/lib/escolar/materias-list";
 import { PerfilClient } from "./perfil-client";
 
 export const metadata: Metadata = {
@@ -29,7 +28,7 @@ export default async function PerfilPage({ searchParams }: Props) {
   return (
     <Suspense fallback={null}>
       <PerfilClient
-        materias={MATERIAS_ESCOLAR}
+        materias={datos.materias}
         modoDirectivo={modoDirectivo}
         urlRegreso={urlRegreso}
         datos={datos}

@@ -1,4 +1,4 @@
-import { CARPETA_DECORACIONES_PUBLIC } from "./config";
+import { CARPETA_DECORACIONES_PUBLIC, LOGO_ESQUINAS_ARCHIVO } from "./config";
 import { DECORACIONES_GENERADAS } from "./imagenes-generadas";
 
 export const ARCHIVO_FONDO = "BACKGROUND.jpg";
@@ -22,6 +22,7 @@ export function separarCapasDecoracion(): DecoracionCapas {
   const stickers: CapaDecoracion[] = [];
 
   for (const nombre of DECORACIONES_GENERADAS) {
+    if (nombre === LOGO_ESQUINAS_ARCHIVO) continue;
     const capa: CapaDecoracion = {
       nombre,
       src: `${CARPETA_DECORACIONES_PUBLIC}/${nombre}`,

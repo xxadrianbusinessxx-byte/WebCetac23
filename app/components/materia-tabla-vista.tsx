@@ -5,9 +5,12 @@ import type { MateriaTablaVista } from "@/lib/escolar/types";
 export function MateriaTablaVistaPanel({
   vista,
   materiaNombre,
+  filaDestacada = -1,
 }: {
   vista: MateriaTablaVista | null;
   materiaNombre: string;
+  /** Índice de fila a resaltar (p. ej. fila del alumno en estatus). */
+  filaDestacada?: number;
 }) {
   if (!vista || !vista.filas.length) {
     return (
@@ -32,7 +35,14 @@ export function MateriaTablaVistaPanel({
         </thead>
         <tbody>
           {vista.filas.map((fila, ri) => (
-            <tr key={`r-${ri}`} className="border-b border-white/30">
+            <tr
+              key={`r-${ri}`}
+              className={`border-b border-white/30 ${
+                ri === filaDestacada
+                  ? "bg-sky-200/55 ring-1 ring-inset ring-sky-500/40"
+                  : ""
+              }`}
+            >
               {fila.map((celda, ci) => (
                 <td key={`c-${ri}-${ci}`} className="px-2 py-1.5 font-medium">
                   {celda}
