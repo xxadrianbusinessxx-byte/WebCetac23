@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { pareceCurp } from "./buscar-en-filas";
-import { nombresCoinciden, normalizarNombre } from "./nombres";
+import { nombresCoinciden, normalizarNombre, variantesNombreCompleto } from "./nombres";
 import { TABLA_ALUMNOS } from "./tables";
 import type { AlumnoRow } from "./types";
 
@@ -9,6 +9,22 @@ export function nombreCompletoAlumno(row: AlumnoRow): string {
     .filter(Boolean)
     .join(" ")
     .trim();
+}
+
+/** Todas las formas del nombre para buscar en Excel (orden distinto). */
+export function variantesNombreAlumno(row: AlumnoRow | null): string[] {
+  if (!row) return [];
+  const n = row.NOMBRE?.trim() ?? "";
+  const p = row.P_APELLIDO?.trim() ?? "";
+  const m = row.S_APELLIDO?.trim() ?? "";
+  const base = nombreCompletoAlumno(row);
+  const unicas = new Set<string>([base, ...variantesNombreCompleto(base)]);
+  if (p && m && n) {
+    unicas.add(`${p} ${m} ${n}`);
+    unicas.add(`${p} ${n} ${m}`);
+  }
+  if (p && n) unicas.add(`${p} ${n}`);
+  return [...unicas].filter(Boolean);
 }
 
 export async function buscarAlumnoPorClave(

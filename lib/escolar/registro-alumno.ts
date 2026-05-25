@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CriterioAlumnoEnFila } from "./buscar-en-filas";
+import { variantesNombreCompleto } from "./nombres";
 import { carreraEscolarDesdeEtiquetas } from "./informacion-personal";
 import { nombreTablaRegistroDesdeGrupo } from "./grupo-parse";
 import { leerVistaRegistroEstatus } from "./registro-estatus";
@@ -20,10 +21,17 @@ export type VistaRegistroAlumno = {
 function criterioDesdeAlumno(
   curp: string | null | undefined,
   nombreCompleto: string,
+  nombresAlternativos: readonly string[] = [],
 ): CriterioAlumnoEnFila {
+  const nombre = nombreCompleto.trim();
+  const alt = new Set<string>([
+    ...nombresAlternativos,
+    ...(nombre ? variantesNombreCompleto(nombre) : []),
+  ]);
   return {
     curp: curp?.trim() || null,
-    nombreCompleto: nombreCompleto.trim() || null,
+    nombreCompleto: nombre || null,
+    nombresAlternativos: [...alt],
   };
 }
 
@@ -32,11 +40,16 @@ export async function obtenerVistaRegistroAlumno(
   curp: string | null | undefined,
   nombreCompleto: string,
   etiquetas: EtiquetasPersonalesRow | null,
+  nombresAlternativos: readonly string[] = [],
 ): Promise<VistaRegistroAlumno> {
   const grado = etiquetas?.GRADO?.trim() ?? "";
   const grupo = etiquetas?.GRUPO?.trim() ?? "";
   const carrera = carreraEscolarDesdeEtiquetas(etiquetas);
-  const criterio = criterioDesdeAlumno(curp, nombreCompleto);
+  const criterio = criterioDesdeAlumno(
+    curp,
+    nombreCompleto,
+    nombresAlternativos,
+  );
 
   const vacio = (): VistaRegistroAlumno => ({
     encabezados: [],

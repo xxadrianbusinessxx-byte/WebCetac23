@@ -1,6 +1,9 @@
-import { parseGrupoDesdeNombreTabla } from "./grupo-parse";
+import {
+  carreraCoincideConTabla,
+  parseGrupoDesdeNombreTabla,
+} from "./grupo-parse";
 
-/** Materias que coinciden con grado, grupo y carrera del alumno. Sin grupo → ninguna. */
+/** Materias que coinciden con grado, grupo y carrera (ETIQUETAS PERSONALES). */
 export function filtrarMateriasPorGrupo(
   materias: readonly string[],
   grado: string,
@@ -17,8 +20,8 @@ export function filtrarMateriasPorGrupo(
     const parsed = parseGrupoDesdeNombreTabla(nombre);
     if (!parsed) return false;
     if (parsed.grado !== g || parsed.grupo !== gr) return false;
-    if (c && parsed.carrera && parsed.carrera !== c) return false;
-    return true;
+    if (!c) return true;
+    return carreraCoincideConTabla(c, parsed.carrera, nombre);
   });
 }
 

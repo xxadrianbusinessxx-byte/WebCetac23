@@ -23,7 +23,7 @@ export function parseGrupoDesdeNombreTabla(nombreTabla: string): {
   return { grado, grupo, carrera };
 }
 
-function carreraCoincideConTabla(
+export function carreraCoincideConTabla(
   carreraEtiqueta: string,
   parsedCarrera: string,
   nombreTabla: string,

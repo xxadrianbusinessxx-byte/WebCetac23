@@ -17,7 +17,7 @@ import {
   informacionPersonalDesdeEtiquetas,
 } from "@/lib/escolar/informacion-personal";
 import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
-import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
+import { prepararFormDataImagen } from "@/lib/imagen/comprimir";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type {
   AlumnoRow,
@@ -157,9 +157,7 @@ export function PerfilClient({
     if (!file || !puedeEditarEtiquetas) return;
     setGuardando(true);
     setMensaje(null);
-    const comprimida = await comprimirImagenSiPosible(file);
-    const fd = new FormData();
-    fd.set("archivo", comprimida);
+    const fd = await prepararFormDataImagen(file);
     const r = await actionSubirFotoPerfil(fd, curp || null);
     setGuardando(false);
     if (r.ok) {
@@ -168,10 +166,13 @@ export function PerfilClient({
     } else setMensaje(r.error);
   };
 
-  const refrescarMateria = useCallback(async (nombre: string) => {
-    const vista = await actionObtenerVistaMateria(nombre);
-    setVistaMateria(vista);
-  }, []);
+  const refrescarMateria = useCallback(
+    async (nombre: string) => {
+      const vista = await actionObtenerVistaMateria(nombre, curp || null);
+      setVistaMateria(vista);
+    },
+    [curp],
+  );
 
   useEffect(() => {
     const primera = materias[0] ?? "";
@@ -373,10 +374,20 @@ export function PerfilClient({
                           : "No hay materias cargadas para tu grado, grupo y carrera."}
                       </p>
                     ) : (
-                      <MateriaTablaVistaPanel
-                        vista={vistaMateria}
-                        materiaNombre={materiaSeleccionada}
-                      />
+                      <>
+                        {vistaMateria?.encabezados.length &&
+                          !vistaMateria.filas.length && (
+                            <p className="mb-4 max-w-md text-center text-sm font-semibold text-amber-900">
+                              No apareces en «{materiaSeleccionada}». Revisa
+                              que tu nombre o CURP esté en el archivo de esta
+                              materia.
+                            </p>
+                          )}
+                        <MateriaTablaVistaPanel
+                          vista={vistaMateria}
+                          materiaNombre={materiaSeleccionada}
+                        />
+                      </>
                     )}
                   </div>
                 ) : (

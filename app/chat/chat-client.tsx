@@ -8,7 +8,7 @@ import {
   actionSubirImagenChat,
 } from "@/app/actions/chat";
 import { imagenAClaveGuardado } from "@/lib/chat/comentario-codigo";
-import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
+import { prepararFormDataImagen } from "@/lib/imagen/comprimir";
 import { demoProfilePorOrigen } from "@/lib/auth/demo-profiles";
 import type { PortalSessionPayload } from "@/lib/auth/types";
 import { CHAT_ORIGEN_NAV } from "@/lib/chat/constants";
@@ -66,6 +66,8 @@ function MensajeFila({ mensaje }: { mensaje: MensajeChat }) {
             <img
               src={mensaje.imagenUrl}
               alt=""
+              loading="eager"
+              decoding="async"
               className="mt-2 max-h-40 rounded-xl object-contain"
             />
           )}
@@ -154,9 +156,7 @@ export function ChatClient({ sesion }: Props) {
 
     let urlCloudinary: string | null = null;
     if (imagenArchivo) {
-      const comprimida = await comprimirImagenSiPosible(imagenArchivo);
-      const fd = new FormData();
-      fd.set("archivo", comprimida);
+      const fd = await prepararFormDataImagen(imagenArchivo);
       const subida = await actionSubirImagenChat(fd);
       if (!subida.ok) {
         setEnviando(false);

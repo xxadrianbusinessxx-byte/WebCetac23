@@ -22,6 +22,8 @@ function EventoImagen({
         src={url}
         alt={label}
         fill
+        priority
+        loading="eager"
         className="object-cover"
         sizes="(max-width: 1024px) 100vw, 33vw"
         unoptimized

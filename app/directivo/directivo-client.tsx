@@ -16,7 +16,7 @@ import {
   actionPublicarNoticiaInicio,
 } from "@/app/actions/noticias";
 import type { NoticiaInicioSlot } from "@/lib/cloudinary/noticias";
-import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
+import { prepararFormDataImagen } from "@/lib/imagen/comprimir";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
@@ -248,9 +248,7 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
     }
     setPublicandoNoticia(true);
     setMensajePublicacion(null);
-    const comprimida = await comprimirImagenSiPosible(archivoPublicacion);
-    const fd = new FormData();
-    fd.set("archivo", comprimida);
+    const fd = await prepararFormDataImagen(archivoPublicacion);
     const r = await actionPublicarNoticiaInicio(slotNoticia, fd);
     setPublicandoNoticia(false);
     if (r.ok) {

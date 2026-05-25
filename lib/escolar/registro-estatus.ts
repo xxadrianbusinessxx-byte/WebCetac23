@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  buscarAlumnoEnMatriz,
+  buscarIndiceRegistroAlumno,
+  criterioTieneBusqueda,
+  registroDbACeldasParaBusqueda,
+  tokenBusquedaNombreEnTabla,
   type CriterioAlumnoEnFila,
 } from "./buscar-en-filas";
 import {
@@ -31,7 +34,7 @@ function registroDbACeldas(
   row: Record<string, unknown>,
   columnas: string[],
 ): string[] {
-  return columnas.map((col) => String(row[col] ?? "").trim());
+  return registroDbACeldasParaBusqueda(row, columnas);
 }
 
 export type VistaRegistroEstatus = {
@@ -54,25 +57,43 @@ export async function leerVistaRegistroEstatus(
   const tabla = nombreTabla.trim();
   const columnasDb = await listarColumnasTabla(tabla);
 
-  const { data: todas, error } = await supabase
-    .from(tabla)
-    .select("*")
-    .order("id", { ascending: true });
+  const token = tokenBusquedaNombreEnTabla(criterio);
+  let query = supabase.from(tabla).select("*").order("id", { ascending: true });
 
-  if (error || !todas?.length) return null;
+  if (token && columnasDb.some((c) => c.toLowerCase() === "alumno_nombre")) {
+    query = query.ilike("alumno_nombre", `%${token}%`);
+  }
 
-  const colsDatos = columnasDesdeFilasDb(
-    columnasDb,
-    todas as Record<string, unknown>[],
-  );
+  const { data: candidatas, error } = await query;
+
+  let todas: Record<string, unknown>[] = (candidatas ??
+    []) as Record<string, unknown>[];
+
+  if (error || !todas.length) {
+    const { data: todasDb, error: err2 } = await supabase
+      .from(tabla)
+      .select("*")
+      .order("id", { ascending: true });
+    if (err2 || !todasDb?.length) return null;
+    todas = todasDb as Record<string, unknown>[];
+  }
+
+  const colsDatos = columnasDesdeFilasDb(columnasDb, todas);
   if (!colsDatos.length) return null;
 
-  const encabezados = colsDatos.map((c, i) => encabezadoColumna(c, i));
+  const encabezados = [
+    "Alumno",
+    ...colsDatos.map((c, i) => encabezadoColumna(c, i)),
+  ];
 
+  const filasDb: Record<string, unknown>[] = [];
   const filasCeldas: string[][] = [];
   for (const row of todas) {
-    const celdas = registroDbACeldas(row as Record<string, unknown>, colsDatos);
-    if (filaTieneDatos(celdas)) filasCeldas.push(celdas);
+    const celdas = registroDbACeldas(row, colsDatos);
+    if (filaTieneDatos(celdas)) {
+      filasDb.push(row);
+      filasCeldas.push(celdas);
+    }
   }
   if (!filasCeldas.length) return null;
 
@@ -83,15 +104,41 @@ export async function leerVistaRegistroEstatus(
   let filaAlumnoIndice = -1;
   let alumnoEncontrado = false;
 
-  const tieneCriterio =
-    Boolean(criterio.curp?.trim()) || Boolean(criterio.nombreCompleto?.trim());
-
-  if (tieneCriterio && filasCeldas.length > FILAS_ENCABEZADO_REGISTRO) {
-    const { filaIdx } = buscarAlumnoEnMatriz(
-      filasCeldas,
+  if (
+    criterioTieneBusqueda(criterio) &&
+    filasDb.length > FILAS_ENCABEZADO_REGISTRO
+  ) {
+    let filaIdx = buscarIndiceRegistroAlumno(
+      filasDb,
+      colsDatos,
       criterio,
       FILAS_ENCABEZADO_REGISTRO,
     );
+
+    if (filaIdx < 0 && token) {
+      const { data: todasDb, error: errFull } = await supabase
+        .from(tabla)
+        .select("*")
+        .order("id", { ascending: true });
+      if (!errFull && todasDb?.length) {
+        todas = todasDb as Record<string, unknown>[];
+        filasDb.length = 0;
+        filasCeldas.length = 0;
+        for (const row of todas) {
+          const celdas = registroDbACeldas(row, colsDatos);
+          if (filaTieneDatos(celdas)) {
+            filasDb.push(row);
+            filasCeldas.push(celdas);
+          }
+        }
+        filaIdx = buscarIndiceRegistroAlumno(
+          filasDb,
+          colsDatos,
+          criterio,
+          FILAS_ENCABEZADO_REGISTRO,
+        );
+      }
+    }
 
     if (filaIdx >= FILAS_ENCABEZADO_REGISTRO) {
       alumnoEncontrado = true;

@@ -7,6 +7,7 @@ import {
   buscarAlumnoPorNombre,
   buscarAlumnoPorTexto,
   nombreCompletoAlumno,
+  variantesNombreAlumno,
 } from "@/lib/escolar/alumnos";
 import {
   guardarComentarioAlumno,
@@ -29,6 +30,7 @@ import { obtenerVistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import { carreraEscolarDesdeEtiquetas } from "@/lib/escolar/informacion-personal";
 import { listarMateriasCompletas } from "@/lib/escolar/tablas-supabase";
+import { leerVistaMateriaAlumno } from "@/lib/escolar/materia-vista-alumno";
 import {
   obtenerVistaMateria,
   reemplazarContenidoMateriaDesdeArchivo,
@@ -101,6 +103,7 @@ export async function actionObtenerPerfilAlumno(
     curp,
     nombreCompleto,
     etiquetas,
+    variantesNombreAlumno(alumno),
   );
   const todasMaterias = await listarMateriasCompletas();
   const consultaOtroAlumno = Boolean(
@@ -264,23 +267,51 @@ export async function actionObtenerVistaRegistro(
 
 export async function actionObtenerVistaMateria(
   nombreMateria: string,
+  curpConsulta?: string | null,
 ): Promise<MateriaTablaVista | null> {
-  const supabase = await createClient();
+  const supabaseSesion = await createClient();
+  const supabase = await clienteLecturaEscolar(supabaseSesion);
   const sesion = await obtenerSesionPortal();
+  const tabla = nombreMateria.trim();
+  if (!tabla) return null;
 
-  if (sesion?.rol === "alumno" && sesion.curp) {
-    const etiquetas = await obtenerEtiquetasPersonales(supabase, sesion.curp);
+  let curp =
+    curpConsulta?.trim().toUpperCase() ??
+    sesion?.curp?.trim().toUpperCase() ??
+    "";
+
+  if (!curp && sesion?.rol === "alumno" && sesion.matricula) {
+    const { buscarAlumnoPorClave } = await import("@/lib/escolar/alumnos");
+    const a = await buscarAlumnoPorClave(supabase, sesion.matricula);
+    curp = a?.CURP ?? "";
+  }
+
+  const vistaSoloAlumno =
+    sesion?.rol === "alumno" || Boolean(curpConsulta?.trim());
+
+  if (vistaSoloAlumno && curp) {
+    const etiquetas = await obtenerEtiquetasPersonales(supabase, curp);
+    const carrera = carreraEscolarDesdeEtiquetas(etiquetas);
     const todas = await listarMateriasCompletas();
     const permitidas = filtrarMateriasPorGrupo(
       todas,
       etiquetas?.GRADO ?? "",
       etiquetas?.GRUPO ?? "",
-      carreraEscolarDesdeEtiquetas(etiquetas),
+      carrera,
     );
-    if (!permitidas.includes(nombreMateria.trim())) return null;
+    if (!permitidas.includes(tabla)) return null;
+
+    const alumno = await buscarAlumnoPorCurp(supabase, curp);
+    const nombreCompleto = alumno ? nombreCompletoAlumno(alumno) : "";
+    const nombresAlternativos = variantesNombreAlumno(alumno);
+    return leerVistaMateriaAlumno(supabase, tabla, {
+      curp,
+      nombreCompleto,
+      nombresAlternativos,
+    });
   }
 
-  return obtenerVistaMateria(supabase, nombreMateria);
+  return obtenerVistaMateria(supabase, tabla);
 }
 
 export async function actionEnviarComentarioAlumno(
