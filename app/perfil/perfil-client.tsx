@@ -26,6 +26,7 @@ import type {
   EtiquetasPersonalesRow,
   MateriaTablaVista,
 } from "@/lib/escolar/types";
+import { EventosPerfil } from "../components/eventos-perfil";
 import { ImagenEager } from "../components/imagen-eager";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
@@ -298,6 +299,17 @@ export function PerfilClient({
               {mensaje}
             </p>
           )}
+
+        <section
+          className="mb-6 overflow-hidden rounded-[1.75rem] border-[3px] border-sky-800/45 bg-sky-100/35 p-4 shadow-[0_8px_28px_rgba(56,189,248,0.12),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl"
+          aria-label="Eventos del plantel"
+        >
+          <p className="mb-3 text-center text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+            Eventos y noticias
+          </p>
+          <EventosPerfil />
+        </section>
+
         {/* Contenedor principal con pestañas */}
         <div className="relative flex flex-1 flex-col overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
           <div

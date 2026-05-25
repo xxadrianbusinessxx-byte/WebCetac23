@@ -1,23 +1,39 @@
 import "server-only";
 
+import {
+  EVENTOS_INICIO_SLOTS,
+  MAX_EVENTOS_INICIO,
+  esSlotEventoValido,
+  type EventoInicioSlot,
+  type UrlsEventosInicio,
+} from "@/lib/escolar/eventos-inicio";
 import { CLOUDINARY_FOLDER } from "@/lib/escolar/tables";
 import { cloudinaryConfigurado, getCloudinary } from "./config";
 import { asegurarHttps } from "@/lib/urls/seguras";
 import { urlCloudinaryDesdePublicId } from "./urls";
 
-export const NOTICIAS_INICIO_SLOTS = [1, 2] as const;
-export type NoticiaInicioSlot = (typeof NOTICIAS_INICIO_SLOTS)[number];
+export {
+  EVENTOS_INICIO_SLOTS,
+  EVENTOS_INICIO_SLOTS as NOTICIAS_INICIO_SLOTS,
+  MAX_EVENTOS_INICIO,
+  esSlotEventoValido,
+  type EventoInicioSlot,
+  type EventoInicioSlot as NoticiaInicioSlot,
+  type UrlsEventosInicio,
+};
 
-export function publicIdNoticiaInicio(slot: NoticiaInicioSlot): string {
+export { eventosConImagen } from "@/lib/escolar/eventos-inicio";
+
+export function publicIdNoticiaInicio(slot: EventoInicioSlot): string {
   return `noticia_inicio_${slot}`;
 }
 
-export function claveNoticiaInicio(slot: NoticiaInicioSlot): string {
+export function claveNoticiaInicio(slot: EventoInicioSlot): string {
   return `${CLOUDINARY_FOLDER}/${publicIdNoticiaInicio(slot)}`;
 }
 
 export async function urlNoticiaInicioSiExiste(
-  slot: NoticiaInicioSlot,
+  slot: EventoInicioSlot,
 ): Promise<string | null> {
   if (!cloudinaryConfigurado()) return null;
   const clave = claveNoticiaInicio(slot);
@@ -30,12 +46,12 @@ export async function urlNoticiaInicioSiExiste(
   }
 }
 
-export async function listarUrlsNoticiasInicio(): Promise<
-  Record<NoticiaInicioSlot, string | null>
-> {
-  const [n1, n2] = await Promise.all([
-    urlNoticiaInicioSiExiste(1),
-    urlNoticiaInicioSiExiste(2),
-  ]);
-  return { 1: n1, 2: n2 };
+export async function listarUrlsNoticiasInicio(): Promise<UrlsEventosInicio> {
+  const pares = await Promise.all(
+    EVENTOS_INICIO_SLOTS.map(
+      async (slot) =>
+        [slot, await urlNoticiaInicioSiExiste(slot)] as const,
+    ),
+  );
+  return Object.fromEntries(pares) as UrlsEventosInicio;
 }

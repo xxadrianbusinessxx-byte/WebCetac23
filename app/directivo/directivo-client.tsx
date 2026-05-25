@@ -11,7 +11,10 @@ import {
 } from "@/app/actions/escolar";
 import { actionPublicarNoticiaInicio } from "@/app/actions/noticias";
 import { fetchAppJson } from "@/lib/client/fetch-app";
-import type { NoticiaInicioSlot } from "@/lib/cloudinary/noticias";
+import {
+  EVENTOS_INICIO_SLOTS,
+  type EventoInicioSlot,
+} from "@/lib/escolar/eventos-inicio";
 import { asegurarHttps, asegurarHttpsEnUrlsNoticias } from "@/lib/urls/seguras";
 import { prepararFormDataImagen } from "@/lib/imagen/form-data-cliente";
 import {
@@ -123,14 +126,14 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
   const [archivoPublicacion, setArchivoPublicacion] = useState<File | null>(
     null,
   );
-  const [slotNoticia, setSlotNoticia] = useState<NoticiaInicioSlot>(1);
+  const [slotNoticia, setSlotNoticia] = useState<EventoInicioSlot>(1);
   const [previewNoticia, setPreviewNoticia] = useState<string | null>(null);
   const [publicandoNoticia, setPublicandoNoticia] = useState(false);
   const [mensajePublicacion, setMensajePublicacion] = useState<string | null>(
     null,
   );
   const [urlsNoticias, setUrlsNoticias] = useState<Record<
-    NoticiaInicioSlot,
+    EventoInicioSlot,
     string | null
   > | null>(null);
   const [cargandoNoticias, setCargandoNoticias] = useState(false);
@@ -141,7 +144,6 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
   const inputPublicacionRef = useRef<HTMLInputElement>(null);
   const materiaAnteriorRef = useRef("");
   const registroAnteriorRef = useRef("");
-  const slotNoticiaAnteriorRef = useRef<NoticiaInicioSlot | null>(null);
 
   const nombreDirectivo = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
 
@@ -151,7 +153,7 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
     setCargandoNoticias(true);
     setErrorNoticias(null);
 
-    void fetchAppJson<Record<NoticiaInicioSlot, string | null>>(
+    void fetchAppJson<Record<EventoInicioSlot, string | null>>(
       "/api/noticias-inicio",
     )
       .then((urls) => {
@@ -179,11 +181,9 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- carga inicial única
   }, []);
 
-  /** Al cambiar slot, solo actualiza preview (sin nuevo fetch). */
+  /** Al cambiar evento, muestra la imagen ya publicada en ese slot (sin nuevo fetch). */
   useEffect(() => {
-    if (!urlsNoticias || archivoPublicacion) return;
-    if (slotNoticia === slotNoticiaAnteriorRef.current) return;
-    slotNoticiaAnteriorRef.current = slotNoticia;
+    if (archivoPublicacion || !urlsNoticias) return;
     setPreviewNoticia(asegurarHttps(urlsNoticias[slotNoticia]));
   }, [slotNoticia, urlsNoticias, archivoPublicacion]);
 
@@ -192,7 +192,7 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
     setErrorNoticias(null);
     try {
       const urls = asegurarHttpsEnUrlsNoticias(
-        await fetchAppJson<Record<NoticiaInicioSlot, string | null>>(
+        await fetchAppJson<Record<EventoInicioSlot, string | null>>(
           "/api/noticias-inicio",
         ),
       );
@@ -696,17 +696,22 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
               <GreyActionPill onClick={onPublicar} disabled={publicandoNoticia}>
                 {publicandoNoticia ? "Publicando…" : "Publicar"}
               </GreyActionPill>
-              <div className="flex gap-1 rounded-full border border-white/60 bg-white/50 p-1">
-                {([1, 2] as const).map((n) => (
+              <div className="flex max-w-full flex-wrap gap-1 rounded-full border border-white/60 bg-white/50 p-1">
+                {EVENTOS_INICIO_SLOTS.map((n) => (
                   <button
                     key={n}
                     type="button"
                     onClick={() => setSlotNoticia(n)}
-                    className={`rounded-full px-3 py-1 text-[10px] font-extrabold uppercase ${
+                    title={
+                      urlsNoticias?.[n]
+                        ? "Tiene imagen — al publicar se reemplaza"
+                        : "Sin imagen aún"
+                    }
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase ${
                       slotNoticia === n ? "bg-sky-800 text-white" : "text-sky-900"
-                    }`}
+                    } ${urlsNoticias?.[n] ? "ring-1 ring-sky-600/40" : ""}`}
                   >
-                    Evento {n}
+                    Ev. {n}
                   </button>
                 ))}
               </div>
