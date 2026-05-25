@@ -11,9 +11,8 @@ import {
 } from "@/app/actions/escolar";
 import { actionPublicarNoticiaInicio } from "@/app/actions/noticias";
 import { fetchAppJson } from "@/lib/client/fetch-app";
-import { useCargaUnica } from "@/lib/client/use-carga-unica";
 import type { NoticiaInicioSlot } from "@/lib/cloudinary/noticias";
-import { asegurarHttps } from "@/lib/urls/seguras";
+import { asegurarHttps, asegurarHttpsEnUrlsNoticias } from "@/lib/urls/seguras";
 import { prepararFormDataImagen } from "@/lib/imagen/form-data-cliente";
 import {
   archivoAPreviewDataUrl,
@@ -130,92 +129,191 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
   const [mensajePublicacion, setMensajePublicacion] = useState<string | null>(
     null,
   );
+  const [urlsNoticias, setUrlsNoticias] = useState<Record<
+    NoticiaInicioSlot,
+    string | null
+  > | null>(null);
+  const [cargandoNoticias, setCargandoNoticias] = useState(false);
+  const [errorNoticias, setErrorNoticias] = useState<string | null>(null);
   const [busquedaAlumno, setBusquedaAlumno] = useState("");
   const inputCalificacionesRef = useRef<HTMLInputElement>(null);
   const inputRegistroRef = useRef<HTMLInputElement>(null);
   const inputPublicacionRef = useRef<HTMLInputElement>(null);
-  const vistaMateriaSeqRef = useRef(0);
-  const vistaRegistroSeqRef = useRef(0);
+  const materiaAnteriorRef = useRef("");
+  const registroAnteriorRef = useRef("");
+  const slotNoticiaAnteriorRef = useRef<NoticiaInicioSlot | null>(null);
 
   const nombreDirectivo = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
 
-  const refrescarVista = useCallback(async (nombre: string) => {
-    if (!nombre.trim()) return;
-    const seq = ++vistaMateriaSeqRef.current;
+  /** Noticias: una sola petición al montar la página. */
+  useEffect(() => {
+    let cancelado = false;
+    setCargandoNoticias(true);
+    setErrorNoticias(null);
+
+    void fetchAppJson<Record<NoticiaInicioSlot, string | null>>(
+      "/api/noticias-inicio",
+    )
+      .then((urls) => {
+        if (cancelado) return;
+        const seguras = asegurarHttpsEnUrlsNoticias(urls);
+        setUrlsNoticias(seguras);
+        if (!archivoPublicacion) {
+          setPreviewNoticia(asegurarHttps(seguras[slotNoticia]));
+        }
+      })
+      .catch((e) => {
+        if (cancelado) return;
+        setUrlsNoticias(null);
+        setErrorNoticias(
+          e instanceof Error ? e.message : "No se pudieron cargar las noticias.",
+        );
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoNoticias(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carga inicial única
+  }, []);
+
+  /** Al cambiar slot, solo actualiza preview (sin nuevo fetch). */
+  useEffect(() => {
+    if (!urlsNoticias || archivoPublicacion) return;
+    if (slotNoticia === slotNoticiaAnteriorRef.current) return;
+    slotNoticiaAnteriorRef.current = slotNoticia;
+    setPreviewNoticia(asegurarHttps(urlsNoticias[slotNoticia]));
+  }, [slotNoticia, urlsNoticias, archivoPublicacion]);
+
+  const recargarNoticias = useCallback(async () => {
+    setCargandoNoticias(true);
+    setErrorNoticias(null);
+    try {
+      const urls = asegurarHttpsEnUrlsNoticias(
+        await fetchAppJson<Record<NoticiaInicioSlot, string | null>>(
+          "/api/noticias-inicio",
+        ),
+      );
+      setUrlsNoticias(urls);
+      if (!archivoPublicacion) {
+        setPreviewNoticia(asegurarHttps(urls[slotNoticia]));
+      }
+    } catch (e) {
+      setErrorNoticias(
+        e instanceof Error ? e.message : "No se pudieron cargar las noticias.",
+      );
+    } finally {
+      setCargandoNoticias(false);
+    }
+  }, [archivoPublicacion, slotNoticia]);
+
+  const cargarVistaMateria = useCallback(async (nombre: string, forzar = false) => {
+    const clave = nombre.trim();
+    if (!clave) return;
+    if (!forzar && clave === materiaAnteriorRef.current) return;
+    materiaAnteriorRef.current = clave;
+
     setCargandoVista(true);
     try {
-      const params = new URLSearchParams({ nombre });
+      const params = new URLSearchParams({ nombre: clave });
       const vista = await fetchAppJson<MateriaTablaVista | null>(
         `/api/vista-materia?${params}`,
       );
-      if (vistaMateriaSeqRef.current !== seq) return;
       setVistaMateria(vista);
     } catch (e) {
-      if (vistaMateriaSeqRef.current !== seq) return;
       setVistaMateria(null);
       setMensajeArchivo(
         e instanceof Error ? e.message : "No se pudo cargar la vista de materia.",
       );
     } finally {
-      if (vistaMateriaSeqRef.current === seq) setCargandoVista(false);
+      setCargandoVista(false);
     }
   }, []);
 
   useEffect(() => {
-    if (materiaSeleccionada) void refrescarVista(materiaSeleccionada);
-    return () => {
-      vistaMateriaSeqRef.current += 1;
-    };
-  }, [materiaSeleccionada, refrescarVista]);
+    const nombre = materiaSeleccionada.trim();
+    if (!nombre || nombre === materiaAnteriorRef.current) return;
 
-  const refrescarVistaRegistro = useCallback(async (nombre: string) => {
-    if (!nombre.trim()) return;
-    const seq = ++vistaRegistroSeqRef.current;
+    let cancelado = false;
+    setCargandoVista(true);
+
+    const params = new URLSearchParams({ nombre });
+    void fetchAppJson<MateriaTablaVista | null>(`/api/vista-materia?${params}`)
+      .then((vista) => {
+        if (cancelado) return;
+        materiaAnteriorRef.current = nombre;
+        setVistaMateria(vista);
+      })
+      .catch((e) => {
+        if (cancelado) return;
+        setVistaMateria(null);
+        setMensajeArchivo(
+          e instanceof Error ? e.message : "No se pudo cargar la vista de materia.",
+        );
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoVista(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [materiaSeleccionada]);
+
+  const cargarVistaRegistro = useCallback(async (nombre: string, forzar = false) => {
+    const clave = nombre.trim();
+    if (!clave) return;
+    if (!forzar && clave === registroAnteriorRef.current) return;
+    registroAnteriorRef.current = clave;
+
     setCargandoVistaRegistro(true);
     try {
-      const params = new URLSearchParams({ nombre });
+      const params = new URLSearchParams({ nombre: clave });
       const vista = await fetchAppJson<MateriaTablaVista | null>(
         `/api/vista-registro?${params}`,
       );
-      if (vistaRegistroSeqRef.current !== seq) return;
       setVistaRegistro(vista);
     } catch (e) {
-      if (vistaRegistroSeqRef.current !== seq) return;
       setVistaRegistro(null);
       setMensajeRegistro(
         e instanceof Error ? e.message : "No se pudo cargar el registro.",
       );
     } finally {
-      if (vistaRegistroSeqRef.current === seq) setCargandoVistaRegistro(false);
+      setCargandoVistaRegistro(false);
     }
   }, []);
 
   useEffect(() => {
-    if (registroSeleccionado) void refrescarVistaRegistro(registroSeleccionado);
+    const nombre = registroSeleccionado.trim();
+    if (!nombre || nombre === registroAnteriorRef.current) return;
+
+    let cancelado = false;
+    setCargandoVistaRegistro(true);
+
+    const params = new URLSearchParams({ nombre });
+    void fetchAppJson<MateriaTablaVista | null>(`/api/vista-registro?${params}`)
+      .then((vista) => {
+        if (cancelado) return;
+        registroAnteriorRef.current = nombre;
+        setVistaRegistro(vista);
+      })
+      .catch((e) => {
+        if (cancelado) return;
+        setVistaRegistro(null);
+        setMensajeRegistro(
+          e instanceof Error ? e.message : "No se pudo cargar el registro.",
+        );
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoVistaRegistro(false);
+      });
+
     return () => {
-      vistaRegistroSeqRef.current += 1;
+      cancelado = true;
     };
-  }, [registroSeleccionado, refrescarVistaRegistro]);
-
-  const {
-    datos: urlsNoticias,
-    cargando: cargandoNoticias,
-    error: errorNoticias,
-    recargar: recargarNoticias,
-  } = useCargaUnica(
-    `noticias-slot-${slotNoticia}`,
-    () =>
-      fetchAppJson<Record<NoticiaInicioSlot, string | null>>(
-        "/api/noticias-inicio",
-      ),
-    true,
-  );
-
-  useEffect(() => {
-    if (!urlsNoticias || archivoPublicacion) return;
-    const remota = asegurarHttps(urlsNoticias[slotNoticia]);
-    if (remota) setPreviewNoticia(remota);
-  }, [urlsNoticias, slotNoticia, archivoPublicacion]);
+  }, [registroSeleccionado]);
 
   function abrirSelectorCalificaciones() {
     inputCalificacionesRef.current?.click();
@@ -256,7 +354,7 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
         `Registro «${registroSeleccionado}» reemplazado (${resultado.filas} filas).`,
       );
       setArchivoRegistro(null);
-      void refrescarVistaRegistro(registroSeleccionado);
+      void cargarVistaRegistro(registroSeleccionado, true);
     } else {
       setMensajeRegistro(resultado.error);
     }
@@ -285,7 +383,7 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
         `Contenido de ${materiaSeleccionada} reemplazado (${resultado.filas} filas).`,
       );
       setArchivoSeleccionado(null);
-      void refrescarVista(materiaSeleccionada);
+      void cargarVistaMateria(materiaSeleccionada, true);
     } else {
       setMensajeArchivo(resultado.error);
     }

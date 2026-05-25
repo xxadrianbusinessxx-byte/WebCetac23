@@ -22,6 +22,8 @@ export function useCargaUnica<T>(
   const [error, setError] = useState<string | null>(null);
   const seqRef = useRef(0);
   const enCursoRef = useRef(false);
+  const cargarRef = useRef(cargar);
+  cargarRef.current = cargar;
 
   const ejecutar = useCallback(() => {
     if (!activo || !clave) return;
@@ -33,7 +35,8 @@ export function useCargaUnica<T>(
     setCargando(true);
     setError(null);
 
-    void cargar()
+    void cargarRef
+      .current()
       .then((resultado) => {
         if (seqRef.current !== seq) return;
         setDatos(resultado);
@@ -49,7 +52,7 @@ export function useCargaUnica<T>(
           enCursoRef.current = false;
         }
       });
-  }, [activo, clave, cargar]);
+  }, [activo, clave]);
 
   useEffect(() => {
     ejecutar();
