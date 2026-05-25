@@ -10,11 +10,12 @@ import { ImagenEager } from "@/app/components/imagen-eager";
 import { fetchAppJson } from "@/lib/client/fetch-app";
 import {
   EVENTOS_INICIO_SLOTS,
-  eventosConImagen,
   type EventoInicioSlot,
   type UrlsEventosInicio,
 } from "@/lib/escolar/eventos-inicio";
 import {
+  actualizarVersionesTrasUrls,
+  eventosConImagenConCache,
   resolverUrlPreviewEvento,
   slotTieneImagenPublicada,
 } from "@/lib/escolar/preview-evento";
@@ -23,18 +24,7 @@ import {
   archivoAPreviewDataUrl,
   revocarPreviewSiBlob,
 } from "@/lib/imagen/preview-cliente";
-import { asegurarHttps, asegurarHttpsEnUrlsNoticias } from "@/lib/urls/seguras";
-
-function versionesInicialesDesdeUrls(
-  urls: UrlsEventosInicio,
-): Partial<Record<EventoInicioSlot, number>> {
-  const t = Date.now();
-  const out: Partial<Record<EventoInicioSlot, number>> = {};
-  for (const slot of EVENTOS_INICIO_SLOTS) {
-    if (urls[slot]) out[slot] = t;
-  }
-  return out;
-}
+import { asegurarHttpsEnUrlsNoticias } from "@/lib/urls/seguras";
 
 function PanelTab({ children }: { children: React.ReactNode }) {
   return (
@@ -89,24 +79,31 @@ export function PublicacionEventosDirectivo() {
   const inputRef = useRef<HTMLInputElement>(null);
   const cargaInicialHecha = useRef(false);
 
-  const cargarUrls = useCallback(async () => {
-    setCargando(true);
-    setError(null);
-    try {
-      const urls = asegurarHttpsEnUrlsNoticias(
-        await fetchAppJson<UrlsEventosInicio>("/api/noticias-inicio"),
-      );
-      setUrlsPublicadas(urls);
-      setVersionPorSlot(versionesInicialesDesdeUrls(urls));
-    } catch (e) {
-      setUrlsPublicadas(null);
-      setError(
-        e instanceof Error ? e.message : "No se pudieron cargar los eventos.",
-      );
-    } finally {
-      setCargando(false);
-    }
-  }, []);
+  const cargarUrls = useCallback(
+    async (opts?: { forzarVersionSlot?: EventoInicioSlot; silencioso?: boolean }) => {
+      if (!opts?.silencioso) setCargando(true);
+      setError(null);
+      try {
+        const urls = asegurarHttpsEnUrlsNoticias(
+          await fetchAppJson<UrlsEventosInicio>(
+            `/api/noticias-inicio?_=${Date.now()}`,
+          ),
+        );
+        setUrlsPublicadas(urls);
+        setVersionPorSlot((prev) =>
+          actualizarVersionesTrasUrls(urls, prev, opts?.forzarVersionSlot),
+        );
+      } catch (e) {
+        setUrlsPublicadas(null);
+        setError(
+          e instanceof Error ? e.message : "No se pudieron cargar los eventos.",
+        );
+      } finally {
+        if (!opts?.silencioso) setCargando(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (cargaInicialHecha.current) return;
@@ -195,14 +192,8 @@ export function PublicacionEventosDirectivo() {
       return;
     }
 
-    const url = asegurarHttps(r.url);
-    const t = Date.now();
-    setUrlsPublicadas((prev) => ({
-      ...(prev ?? ({} as UrlsEventosInicio)),
-      [slot]: url,
-    }));
-    setVersionPorSlot((prev) => ({ ...prev, [slot]: t }));
     limpiarBorrador();
+    await cargarUrls({ forzarVersionSlot: slot, silencioso: true });
     setMensaje(
       tienePublicada
         ? `Imagen del evento ${slot} reemplazada correctamente.`
@@ -233,13 +224,17 @@ export function PublicacionEventosDirectivo() {
       delete next[slot];
       return next;
     });
+    await cargarUrls({ silencioso: true });
     setMensaje(`Imagen del evento ${slot} eliminada de Cloudinary.`);
-    void cargarUrls();
   }
 
-  const eventosCarrusel = urlsPublicadas
-    ? eventosConImagen(urlsPublicadas)
-    : [];
+  const eventosCarrusel = useMemo(
+    () =>
+      urlsPublicadas
+        ? eventosConImagenConCache(urlsPublicadas, versionPorSlot)
+        : [],
+    [urlsPublicadas, versionPorSlot],
+  );
 
   return (
     <div className="mt-6 grid gap-6 lg:grid-cols-2">

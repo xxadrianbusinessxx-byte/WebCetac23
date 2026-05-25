@@ -36,11 +36,12 @@ export function EventosCarrusel({ eventos, compacto = false }: Props) {
     >
       {eventos.map(({ slot, url }) => (
         <article
-          key={slot}
+          key={`${slot}-${url}`}
           className={`${ancho} shrink-0 snap-center overflow-hidden rounded-[1.35rem] border border-sky-950/25 shadow-[0_8px_24px_rgba(2,6,23,0.25)] ${alto}`}
         >
           <div className="relative h-full w-full">
             <ImagenEager
+              key={url}
               src={url}
               alt={`Evento ${slot}`}
               fetchPriority={slot === eventos[0]?.slot ? "high" : "auto"}
