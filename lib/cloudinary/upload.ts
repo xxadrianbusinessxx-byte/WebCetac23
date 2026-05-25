@@ -1,5 +1,6 @@
 import "server-only";
 
+import { comprimirBufferImagen } from "@/lib/imagen/comprimir-servidor";
 import { CLOUDINARY_FOLDER, getCloudinary } from "./config";
 
 export async function subirImagenCloudinary(
@@ -9,6 +10,7 @@ export async function subirImagenCloudinary(
   { ok: true; url: string; clave: string } | { ok: false; error: string }
 > {
   try {
+    const payload = await comprimirBufferImagen(buffer);
     const sanitized = publicId.replace(/[^a-zA-Z0-9_-]/g, "_");
     const clave = `${CLOUDINARY_FOLDER}/${sanitized}`;
     const cld = getCloudinary();
@@ -20,13 +22,14 @@ export async function subirImagenCloudinary(
             public_id: sanitized,
             overwrite: true,
             resource_type: "image",
+            format: "jpg",
           },
           (err, res) => {
             if (err) reject(err);
             else resolve(res ?? {});
           },
         );
-        stream.end(buffer);
+        stream.end(payload);
       },
     );
 

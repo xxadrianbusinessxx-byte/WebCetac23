@@ -6,6 +6,7 @@ import { enviarMensajeChat, listarMensajesChat } from "@/lib/chat/storage";
 import type { EnviarMensajeInput } from "@/lib/chat/types";
 import { subirImagenCloudinary } from "@/lib/cloudinary/upload";
 import { publicIdChatUpload } from "@/lib/cloudinary/urls";
+import { bufferImagenDesdeFormData } from "@/lib/imagen/leer-archivo-form";
 import { createClient } from "@/lib/supabase/server";
 
 export async function actionListarMensajesChat() {
@@ -21,20 +22,17 @@ export async function actionSubirImagenChat(
   const sesion = await obtenerSesionPortal();
   if (!sesion) return { ok: false, error: "Sesión no válida." };
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona una imagen." };
-  }
-  if (!archivo.type.startsWith("image/")) {
-    return { ok: false, error: "Solo se permiten imágenes." };
-  }
+  const leido = await bufferImagenDesdeFormData(formData);
+  if (!leido.ok) return leido;
 
   const curp =
     sesion.curp?.replace(/[^a-zA-Z0-9]/g, "_") ??
     sesion.matricula.replace(/[^a-zA-Z0-9]/g, "_");
   const unique = `${Date.now()}`;
-  const buffer = Buffer.from(await archivo.arrayBuffer());
-  return subirImagenCloudinary(buffer, publicIdChatUpload(curp, unique));
+  return subirImagenCloudinary(
+    leido.buffer,
+    publicIdChatUpload(curp, unique),
+  );
 }
 
 export async function actionEnviarMensajeChat(input: EnviarMensajeInput) {

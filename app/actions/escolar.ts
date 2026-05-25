@@ -44,6 +44,7 @@ import type {
 } from "@/lib/escolar/types";
 import { subirImagenCloudinary } from "@/lib/cloudinary/upload";
 import { publicIdPerfilUpload } from "@/lib/cloudinary/urls";
+import { bufferImagenDesdeFormData } from "@/lib/imagen/leer-archivo-form";
 import {
   guardarUrlFotoPerfil,
   obtenerFotoPerfilAlumno,
@@ -362,13 +363,8 @@ export async function actionSubirFotoPerfil(
   const sesion = await obtenerSesionPortal();
   if (!sesion) return { ok: false, error: "Sesión no válida." };
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona una imagen." };
-  }
-  if (!archivo.type.startsWith("image/")) {
-    return { ok: false, error: "Solo se permiten imágenes." };
-  }
+  const leido = await bufferImagenDesdeFormData(formData);
+  if (!leido.ok) return leido;
 
   let curp = curpConsulta?.trim().toUpperCase() ?? "";
 
@@ -402,9 +398,8 @@ export async function actionSubirFotoPerfil(
     return { ok: false, error: "No puedes cambiar la foto de otro alumno." };
   }
 
-  const buffer = Buffer.from(await archivo.arrayBuffer());
   const subida = await subirImagenCloudinary(
-    buffer,
+    leido.buffer,
     publicIdPerfilUpload(curp),
   );
   if (!subida.ok) return subida;
