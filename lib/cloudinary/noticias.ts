@@ -2,6 +2,7 @@ import "server-only";
 
 import { CLOUDINARY_FOLDER } from "@/lib/escolar/tables";
 import { cloudinaryConfigurado, getCloudinary } from "./config";
+import { asegurarHttps } from "@/lib/urls/seguras";
 import { urlCloudinaryDesdePublicId } from "./urls";
 
 export const NOTICIAS_INICIO_SLOTS = [1, 2] as const;
@@ -23,7 +24,7 @@ export async function urlNoticiaInicioSiExiste(
   try {
     const cld = getCloudinary();
     await cld.api.resource(clave, { resource_type: "image" });
-    return urlCloudinaryDesdePublicId(claveNoticiaInicio(slot));
+    return asegurarHttps(urlCloudinaryDesdePublicId(claveNoticiaInicio(slot)));
   } catch {
     return null;
   }

@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   actionGuardarComentarioPersonal,
-  actionObtenerVistaMateria,
   actionSubirFotoPerfil,
 } from "@/app/actions/escolar";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
@@ -17,7 +16,9 @@ import {
   informacionPersonalDesdeEtiquetas,
 } from "@/lib/escolar/informacion-personal";
 import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
+import { fetchAppJson } from "@/lib/client/fetch-app";
 import { prepararFormDataImagen } from "@/lib/imagen/form-data-cliente";
+import { asegurarHttps } from "@/lib/urls/seguras";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type {
   AlumnoRow,
@@ -124,11 +125,14 @@ export function PerfilClient({
   );
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
-  const [fotoUrl, setFotoUrl] = useState<string | null>(fotoPerfilUrl);
+  const [fotoUrl, setFotoUrl] = useState<string | null>(
+    asegurarHttps(fotoPerfilUrl),
+  );
+  const materiaSeqRef = useRef(0);
   const [fotoRota, setFotoRota] = useState(false);
 
   useEffect(() => {
-    setFotoUrl(fotoPerfilUrl);
+    setFotoUrl(asegurarHttps(fotoPerfilUrl));
     setFotoRota(false);
   }, [fotoPerfilUrl]);
 
@@ -162,15 +166,27 @@ export function PerfilClient({
     const r = await actionSubirFotoPerfil(fd, curp || null);
     setGuardando(false);
     if (r.ok) {
-      setFotoUrl(r.url);
+      setFotoUrl(asegurarHttps(r.url));
       setFotoRota(false);
     } else setMensaje(r.error);
   };
 
   const refrescarMateria = useCallback(
     async (nombre: string) => {
-      const vista = await actionObtenerVistaMateria(nombre, curp || null);
-      setVistaMateria(vista);
+      if (!nombre.trim()) return;
+      const seq = ++materiaSeqRef.current;
+      try {
+        const params = new URLSearchParams({ nombre });
+        if (curp) params.set("curp", curp);
+        const vista = await fetchAppJson<MateriaTablaVista | null>(
+          `/api/vista-materia?${params}`,
+        );
+        if (materiaSeqRef.current !== seq) return;
+        setVistaMateria(vista);
+      } catch {
+        if (materiaSeqRef.current !== seq) return;
+        setVistaMateria(null);
+      }
     },
     [curp],
   );
@@ -184,6 +200,9 @@ export function PerfilClient({
 
   useEffect(() => {
     if (materiaSeleccionada) void refrescarMateria(materiaSeleccionada);
+    return () => {
+      materiaSeqRef.current += 1;
+    };
   }, [materiaSeleccionada, refrescarMateria]);
 
   const tieneGrupo = Boolean(

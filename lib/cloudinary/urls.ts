@@ -1,4 +1,5 @@
 import { CLOUDINARY_FOLDER } from "@/lib/escolar/tables";
+import { asegurarHttps } from "@/lib/urls/seguras";
 
 /** Solo URLs e IDs; sin SDK de Cloudinary (seguro en Client Components). */
 
@@ -30,7 +31,11 @@ export function urlCloudinaryDesdePublicId(publicId: string): string {
   const id = limpio.includes("/")
     ? limpio
     : `${CLOUDINARY_FOLDER}/${limpio}`;
-  return `https://res.cloudinary.com/${cloud}/image/upload/f_auto,q_auto/${id}`;
+  return (
+    asegurarHttps(
+      `https://res.cloudinary.com/${cloud}/image/upload/f_auto,q_auto/${id}`,
+    ) ?? ""
+  );
 }
 
 export function urlFotoPerfil(curp: string): string {

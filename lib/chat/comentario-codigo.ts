@@ -1,5 +1,6 @@
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import { urlCloudinaryDesdePublicId } from "@/lib/cloudinary/urls";
+import { asegurarHttps } from "@/lib/urls/seguras";
 
 const IMG_OPEN = "[img]";
 const IMG_CLOSE = "[/img]";
@@ -30,7 +31,7 @@ export function imagenAClaveGuardado(urlOrClave: string): string {
 export function claveAUrlImagen(clave: string): string {
   const c = clave.trim();
   if (!c) return "";
-  if (c.startsWith("http")) return c;
+  if (c.startsWith("http")) return asegurarHttps(c) ?? "";
   return urlCloudinaryDesdePublicId(c);
 }
 

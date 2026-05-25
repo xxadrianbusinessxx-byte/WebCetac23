@@ -6,16 +6,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   actionBuscarAlumnoPorNombre,
   actionEnviarComentarioAlumno,
-  actionObtenerVistaMateria,
-  actionObtenerVistaRegistro,
   actionSubirMateriaExcel,
   actionSubirRegistroExcel,
 } from "@/app/actions/escolar";
-import {
-  actionObtenerNoticiasInicio,
-  actionPublicarNoticiaInicio,
-} from "@/app/actions/noticias";
+import { actionPublicarNoticiaInicio } from "@/app/actions/noticias";
+import { fetchAppJson } from "@/lib/client/fetch-app";
+import { useCargaUnica } from "@/lib/client/use-carga-unica";
 import type { NoticiaInicioSlot } from "@/lib/cloudinary/noticias";
+import { asegurarHttps } from "@/lib/urls/seguras";
 import { prepararFormDataImagen } from "@/lib/imagen/form-data-cliente";
 import {
   archivoAPreviewDataUrl,
@@ -136,30 +134,88 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
   const inputCalificacionesRef = useRef<HTMLInputElement>(null);
   const inputRegistroRef = useRef<HTMLInputElement>(null);
   const inputPublicacionRef = useRef<HTMLInputElement>(null);
+  const vistaMateriaSeqRef = useRef(0);
+  const vistaRegistroSeqRef = useRef(0);
 
   const nombreDirectivo = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
 
   const refrescarVista = useCallback(async (nombre: string) => {
+    if (!nombre.trim()) return;
+    const seq = ++vistaMateriaSeqRef.current;
     setCargandoVista(true);
-    const vista = await actionObtenerVistaMateria(nombre);
-    setVistaMateria(vista);
-    setCargandoVista(false);
+    try {
+      const params = new URLSearchParams({ nombre });
+      const vista = await fetchAppJson<MateriaTablaVista | null>(
+        `/api/vista-materia?${params}`,
+      );
+      if (vistaMateriaSeqRef.current !== seq) return;
+      setVistaMateria(vista);
+    } catch (e) {
+      if (vistaMateriaSeqRef.current !== seq) return;
+      setVistaMateria(null);
+      setMensajeArchivo(
+        e instanceof Error ? e.message : "No se pudo cargar la vista de materia.",
+      );
+    } finally {
+      if (vistaMateriaSeqRef.current === seq) setCargandoVista(false);
+    }
   }, []);
 
   useEffect(() => {
     if (materiaSeleccionada) void refrescarVista(materiaSeleccionada);
+    return () => {
+      vistaMateriaSeqRef.current += 1;
+    };
   }, [materiaSeleccionada, refrescarVista]);
 
   const refrescarVistaRegistro = useCallback(async (nombre: string) => {
+    if (!nombre.trim()) return;
+    const seq = ++vistaRegistroSeqRef.current;
     setCargandoVistaRegistro(true);
-    const vista = await actionObtenerVistaRegistro(nombre);
-    setVistaRegistro(vista);
-    setCargandoVistaRegistro(false);
+    try {
+      const params = new URLSearchParams({ nombre });
+      const vista = await fetchAppJson<MateriaTablaVista | null>(
+        `/api/vista-registro?${params}`,
+      );
+      if (vistaRegistroSeqRef.current !== seq) return;
+      setVistaRegistro(vista);
+    } catch (e) {
+      if (vistaRegistroSeqRef.current !== seq) return;
+      setVistaRegistro(null);
+      setMensajeRegistro(
+        e instanceof Error ? e.message : "No se pudo cargar el registro.",
+      );
+    } finally {
+      if (vistaRegistroSeqRef.current === seq) setCargandoVistaRegistro(false);
+    }
   }, []);
 
   useEffect(() => {
     if (registroSeleccionado) void refrescarVistaRegistro(registroSeleccionado);
+    return () => {
+      vistaRegistroSeqRef.current += 1;
+    };
   }, [registroSeleccionado, refrescarVistaRegistro]);
+
+  const {
+    datos: urlsNoticias,
+    cargando: cargandoNoticias,
+    error: errorNoticias,
+    recargar: recargarNoticias,
+  } = useCargaUnica(
+    `noticias-slot-${slotNoticia}`,
+    () =>
+      fetchAppJson<Record<NoticiaInicioSlot, string | null>>(
+        "/api/noticias-inicio",
+      ),
+    true,
+  );
+
+  useEffect(() => {
+    if (!urlsNoticias || archivoPublicacion) return;
+    const remota = asegurarHttps(urlsNoticias[slotNoticia]);
+    if (remota) setPreviewNoticia(remota);
+  }, [urlsNoticias, slotNoticia, archivoPublicacion]);
 
   function abrirSelectorCalificaciones() {
     inputCalificacionesRef.current?.click();
@@ -275,22 +331,12 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
       );
       setArchivoPublicacion(null);
       revocarPreviewSiBlob(previewNoticia);
-      setPreviewNoticia(r.url);
+      setPreviewNoticia(asegurarHttps(r.url));
+      recargarNoticias();
     } else {
       setMensajePublicacion(r.error);
     }
   }
-
-  useEffect(() => {
-    let activo = true;
-    actionObtenerNoticiasInicio().then((urls) => {
-      if (!activo) return;
-      setPreviewNoticia(urls[slotNoticia]);
-    });
-    return () => {
-      activo = false;
-    };
-  }, [slotNoticia]);
 
   async function onEnviarComentario() {
     if (!alumnoNombre.trim() || !comentario.trim()) return;
@@ -583,9 +629,11 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
                   <>Vista previa — evento {slotNoticia}</>
                 )}
               </PreviewPanel>
-              {mensajePublicacion && (
+              {(cargandoNoticias || mensajePublicacion || errorNoticias) && (
                 <p className="mt-2 text-center text-xs font-semibold text-sky-900">
-                  {mensajePublicacion}
+                  {cargandoNoticias
+                    ? "Cargando vista previa…"
+                    : (mensajePublicacion ?? errorNoticias)}
                 </p>
               )}
             </div>

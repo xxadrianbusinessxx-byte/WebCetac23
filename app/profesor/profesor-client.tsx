@@ -4,9 +4,9 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   actionEnviarComentarioAlumno,
-  actionObtenerVistaMateria,
   actionSubirMateriaExcel,
 } from "@/app/actions/escolar";
+import { fetchAppJson } from "@/lib/client/fetch-app";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
@@ -63,18 +63,37 @@ export function ProfesorClient({ sesion, materias }: Props) {
     null,
   );
   const inputArchivoRef = useRef<HTMLInputElement>(null);
+  const vistaSeqRef = useRef(0);
 
   const nombreProfesor = sesion?.nombre ?? sesion?.matricula ?? "Profesor";
 
   const refrescarVista = useCallback(async (nombre: string) => {
+    if (!nombre.trim()) return;
+    const seq = ++vistaSeqRef.current;
     setCargandoVista(true);
-    const vista = await actionObtenerVistaMateria(nombre);
-    setVistaMateria(vista);
-    setCargandoVista(false);
+    try {
+      const params = new URLSearchParams({ nombre });
+      const vista = await fetchAppJson<MateriaTablaVista | null>(
+        `/api/vista-materia?${params}`,
+      );
+      if (vistaSeqRef.current !== seq) return;
+      setVistaMateria(vista);
+    } catch (e) {
+      if (vistaSeqRef.current !== seq) return;
+      setVistaMateria(null);
+      setMensajeArchivo(
+        e instanceof Error ? e.message : "No se pudo cargar la vista.",
+      );
+    } finally {
+      if (vistaSeqRef.current === seq) setCargandoVista(false);
+    }
   }, []);
 
   useEffect(() => {
     if (materiaSeleccionada) void refrescarVista(materiaSeleccionada);
+    return () => {
+      vistaSeqRef.current += 1;
+    };
   }, [materiaSeleccionada, refrescarVista]);
 
   function abrirSelectorArchivo() {

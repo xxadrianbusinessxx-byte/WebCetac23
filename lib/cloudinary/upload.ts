@@ -1,6 +1,7 @@
 import "server-only";
 
 import { comprimirBufferImagen } from "@/lib/imagen/comprimir-servidor";
+import { asegurarHttps } from "@/lib/urls/seguras";
 import { cloudinaryConfigurado, CLOUDINARY_FOLDER, getCloudinary } from "./config";
 
 export async function subirImagenCloudinary(
@@ -52,7 +53,11 @@ export async function subirImagenCloudinary(
         error: result.error?.message ?? "No se pudo subir la imagen.",
       };
     }
-    return { ok: true, url: result.secure_url, clave };
+    const url = asegurarHttps(result.secure_url);
+    if (!url) {
+      return { ok: false, error: "Cloudinary no devolvió una URL válida." };
+    }
+    return { ok: true, url, clave };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Error al subir imagen.";
     return { ok: false, error: msg };
