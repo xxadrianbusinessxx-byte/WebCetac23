@@ -33,9 +33,7 @@ export async function comprimirBufferImagen(buffer: Buffer): Promise<Buffer> {
     }
 
     let calidad = CALIDAD_INICIAL;
-    let salida = await pipeline
-      .jpeg({ quality: calidad, mozjpeg: true })
-      .toBuffer();
+    let salida = await pipeline.jpeg({ quality: calidad }).toBuffer();
 
     while (salida.length > MAX_BYTES_SALIDA && calidad > CALIDAD_MINIMA) {
       calidad -= 10;
@@ -45,7 +43,7 @@ export async function comprimirBufferImagen(buffer: Buffer): Promise<Buffer> {
           fit: "inside",
           withoutEnlargement: true,
         })
-        .jpeg({ quality: calidad, mozjpeg: true })
+        .jpeg({ quality: calidad })
         .toBuffer();
     }
 

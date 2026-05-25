@@ -1,7 +1,7 @@
 import "server-only";
 
 import { comprimirBufferImagen } from "@/lib/imagen/comprimir-servidor";
-import { CLOUDINARY_FOLDER, getCloudinary } from "./config";
+import { cloudinaryConfigurado, CLOUDINARY_FOLDER, getCloudinary } from "./config";
 
 export async function subirImagenCloudinary(
   buffer: Buffer,
@@ -9,8 +9,21 @@ export async function subirImagenCloudinary(
 ): Promise<
   { ok: true; url: string; clave: string } | { ok: false; error: string }
 > {
+  if (!cloudinaryConfigurado()) {
+    return {
+      ok: false,
+      error:
+        "Cloudinary no está configurado en el servidor (revisa variables en Vercel).",
+    };
+  }
+
   try {
-    const payload = await comprimirBufferImagen(buffer);
+    let payload: Buffer;
+    try {
+      payload = await comprimirBufferImagen(buffer);
+    } catch {
+      payload = buffer;
+    }
     const sanitized = publicId.replace(/[^a-zA-Z0-9_-]/g, "_");
     const clave = `${CLOUDINARY_FOLDER}/${sanitized}`;
     const cld = getCloudinary();

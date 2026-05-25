@@ -16,7 +16,11 @@ import {
   actionPublicarNoticiaInicio,
 } from "@/app/actions/noticias";
 import type { NoticiaInicioSlot } from "@/lib/cloudinary/noticias";
-import { prepararFormDataImagen } from "@/lib/imagen/comprimir";
+import { prepararFormDataImagen } from "@/lib/imagen/form-data-cliente";
+import {
+  archivoAPreviewDataUrl,
+  revocarPreviewSiBlob,
+} from "@/lib/imagen/preview-cliente";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
@@ -230,14 +234,27 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
     }
   }
 
-  function onPublicacionElegida(event: React.ChangeEvent<HTMLInputElement>) {
+  async function onPublicacionElegida(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
     const file = event.target.files?.[0] ?? null;
     setArchivoPublicacion(file);
-    if (previewNoticia?.startsWith("blob:")) URL.revokeObjectURL(previewNoticia);
-    setPreviewNoticia(file ? URL.createObjectURL(file) : null);
-    setMensajePublicacion(
-      file ? `Listo para publicar en evento ${slotNoticia}` : null,
-    );
+    revocarPreviewSiBlob(previewNoticia);
+    if (!file) {
+      setPreviewNoticia(null);
+      setMensajePublicacion(null);
+      event.target.value = "";
+      return;
+    }
+    try {
+      setPreviewNoticia(await archivoAPreviewDataUrl(file));
+      setMensajePublicacion(`Listo para publicar en evento ${slotNoticia}`);
+    } catch (e) {
+      setPreviewNoticia(null);
+      setMensajePublicacion(
+        e instanceof Error ? e.message : "No se pudo previsualizar.",
+      );
+    }
     event.target.value = "";
   }
 
@@ -248,7 +265,7 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
     }
     setPublicandoNoticia(true);
     setMensajePublicacion(null);
-    const fd = await prepararFormDataImagen(archivoPublicacion);
+    const fd = prepararFormDataImagen(archivoPublicacion);
     const r = await actionPublicarNoticiaInicio(slotNoticia, fd);
     setPublicandoNoticia(false);
     if (r.ok) {
@@ -256,7 +273,7 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
         `Noticia publicada en inicio de sesión (evento ${slotNoticia}) vía Cloudinary.`,
       );
       setArchivoPublicacion(null);
-      if (previewNoticia?.startsWith("blob:")) URL.revokeObjectURL(previewNoticia);
+      revocarPreviewSiBlob(previewNoticia);
       setPreviewNoticia(r.url);
     } else {
       setMensajePublicacion(r.error);
@@ -559,6 +576,8 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
                   <img
                     src={previewNoticia}
                     alt="Vista previa noticia"
+                    loading="eager"
+                    decoding="sync"
                     className="max-h-[200px] w-full rounded-xl object-contain"
                   />
                 ) : (

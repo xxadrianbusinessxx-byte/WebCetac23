@@ -17,7 +17,7 @@ import {
   informacionPersonalDesdeEtiquetas,
 } from "@/lib/escolar/informacion-personal";
 import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
-import { prepararFormDataImagen } from "@/lib/imagen/comprimir";
+import { prepararFormDataImagen } from "@/lib/imagen/form-data-cliente";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type {
   AlumnoRow,
@@ -157,7 +157,7 @@ export function PerfilClient({
     if (!file || !puedeEditarEtiquetas) return;
     setGuardando(true);
     setMensaje(null);
-    const fd = await prepararFormDataImagen(file);
+    const fd = prepararFormDataImagen(file);
     const r = await actionSubirFotoPerfil(fd, curp || null);
     setGuardando(false);
     if (r.ok) {
@@ -228,6 +228,9 @@ export function PerfilClient({
                 <img
                   src={fotoUrl}
                   alt=""
+                  loading="eager"
+                  decoding="sync"
+                  fetchPriority="high"
                   className="h-full w-full object-cover"
                   onError={() => setFotoRota(true)}
                 />

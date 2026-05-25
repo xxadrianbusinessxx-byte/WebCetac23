@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { actionObtenerNoticiasInicio } from "@/app/actions/noticias";
 
 function EventoImagen({
@@ -18,15 +17,15 @@ function EventoImagen({
 
   return (
     <div className="relative min-h-[140px] flex-1 overflow-hidden rounded-[1.35rem] border border-sky-950/25 shadow-[0_8px_24px_rgba(2,6,23,0.25)]">
-      <Image
+      {/* img nativo: evita lazy-load del optimizador de next/image en producción */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
         src={url}
         alt={label}
-        fill
-        priority
         loading="eager"
-        className="object-cover"
-        sizes="(max-width: 1024px) 100vw, 33vw"
-        unoptimized
+        decoding="sync"
+        fetchPriority="high"
+        className="absolute inset-0 h-full w-full object-cover"
       />
     </div>
   );

@@ -8,7 +8,11 @@ import {
   actionSubirImagenChat,
 } from "@/app/actions/chat";
 import { imagenAClaveGuardado } from "@/lib/chat/comentario-codigo";
-import { prepararFormDataImagen } from "@/lib/imagen/comprimir";
+import { prepararFormDataImagen } from "@/lib/imagen/form-data-cliente";
+import {
+  archivoAPreviewDataUrl,
+  revocarPreviewSiBlob,
+} from "@/lib/imagen/preview-cliente";
 import { demoProfilePorOrigen } from "@/lib/auth/demo-profiles";
 import type { PortalSessionPayload } from "@/lib/auth/types";
 import { CHAT_ORIGEN_NAV } from "@/lib/chat/constants";
@@ -128,17 +132,24 @@ export function ChatClient({ sesion }: Props) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [mensajes]);
 
-  function onImagenElegida(event: React.ChangeEvent<HTMLInputElement>) {
+  async function onImagenElegida(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (imagenPreview?.startsWith("blob:")) URL.revokeObjectURL(imagenPreview);
+    revocarPreviewSiBlob(imagenPreview);
     setImagenArchivo(file);
-    setImagenPreview(URL.createObjectURL(file));
+    try {
+      setImagenPreview(await archivoAPreviewDataUrl(file));
+      setError(null);
+    } catch (e) {
+      setImagenArchivo(null);
+      setImagenPreview(null);
+      setError(e instanceof Error ? e.message : "No se pudo previsualizar.");
+    }
     event.target.value = "";
   }
 
   function limpiarBorradorImagen() {
-    if (imagenPreview?.startsWith("blob:")) URL.revokeObjectURL(imagenPreview);
+    revocarPreviewSiBlob(imagenPreview);
     setImagenPreview(null);
     setImagenArchivo(null);
   }
@@ -156,7 +167,7 @@ export function ChatClient({ sesion }: Props) {
 
     let urlCloudinary: string | null = null;
     if (imagenArchivo) {
-      const fd = await prepararFormDataImagen(imagenArchivo);
+      const fd = prepararFormDataImagen(imagenArchivo);
       const subida = await actionSubirImagenChat(fd);
       if (!subida.ok) {
         setEnviando(false);
@@ -251,6 +262,8 @@ export function ChatClient({ sesion }: Props) {
                 <img
                   src={imagenPreview}
                   alt="Vista previa"
+                  loading="eager"
+                  decoding="sync"
                   className="max-h-20 rounded-xl border border-white/40 object-cover"
                 />
                 <button
