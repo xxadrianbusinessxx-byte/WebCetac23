@@ -93,3 +93,8 @@ body {
   min-height: 100dvh;
   font-family: var(--font-nunito), system-ui, sans-serif;
 }
+
+/* Evita placeholders por lazy-load del navegador en fotos de contenido */
+img[data-imagen-eager] {
+  content-visibility: visible;
+}

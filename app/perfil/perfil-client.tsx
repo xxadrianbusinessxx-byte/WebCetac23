@@ -25,6 +25,7 @@ import type {
   EtiquetasPersonalesRow,
   MateriaTablaVista,
 } from "@/lib/escolar/types";
+import { ImagenEager } from "../components/imagen-eager";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
@@ -224,13 +225,11 @@ export function PerfilClient({
               className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-linear-to-b from-sky-100/90 to-sky-300/50 ${puedeEditarEtiquetas ? "cursor-pointer" : ""}`}
             >
               {fotoUrl && !fotoRota ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <ImagenEager
                   src={fotoUrl}
                   alt=""
-                  loading="eager"
-                  decoding="sync"
                   fetchPriority="high"
+                  decoding="sync"
                   className="h-full w-full object-cover"
                   onError={() => setFotoRota(true)}
                 />

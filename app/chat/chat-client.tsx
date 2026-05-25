@@ -18,6 +18,7 @@ import type { PortalSessionPayload } from "@/lib/auth/types";
 import { CHAT_ORIGEN_NAV } from "@/lib/chat/constants";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { ChatOrigen, MensajeChat } from "@/lib/chat/types";
+import { ImagenEager } from "../components/imagen-eager";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
@@ -66,12 +67,9 @@ function MensajeFila({ mensaje }: { mensaje: MensajeChat }) {
         <div className="relative overflow-hidden rounded-full border border-white/60 bg-slate-400/40 px-4 py-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-sm">
           <p className="text-sm font-bold text-sky-950">{mensaje.texto}</p>
           {mensaje.imagenUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <ImagenEager
               src={mensaje.imagenUrl}
               alt=""
-              loading="eager"
-              decoding="async"
               className="mt-2 max-h-40 rounded-xl object-contain"
             />
           )}
@@ -258,11 +256,9 @@ export function ChatClient({ sesion }: Props) {
 
             {imagenPreview && (
               <div className="mb-3 flex items-center gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <ImagenEager
                   src={imagenPreview}
                   alt="Vista previa"
-                  loading="eager"
                   decoding="sync"
                   className="max-h-20 rounded-xl border border-white/40 object-cover"
                 />

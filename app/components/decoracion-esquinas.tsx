@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { ImagenEager } from "@/app/components/imagen-eager";
 import { LOGO_ESQUINAS_SRC } from "@/lib/decoraciones/config";
 
 export function DecoracionEsquinas() {
@@ -15,12 +15,12 @@ export function DecoracionEsquinas() {
           animation: "decor-drift-a 11s ease-in-out infinite",
         }}
       >
-        <Image
+        <ImagenEager
           src={LOGO_ESQUINAS_SRC}
           alt=""
           width={160}
           height={160}
-          unoptimized
+          fetchPriority="high"
           className="h-auto w-[min(22vw,150px)] max-w-[150px] opacity-[0.42] drop-shadow-[0_6px_20px_rgba(0,0,0,0.12)] sm:w-[min(18vw,160px)] sm:max-w-[160px] sm:opacity-45"
         />
       </div>

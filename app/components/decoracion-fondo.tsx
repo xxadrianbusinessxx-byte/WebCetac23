@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useMemo } from "react";
+import { ImagenEager, ImagenEagerFill } from "@/app/components/imagen-eager";
 import {
   separarCapasDecoracion,
   STICKER_LAYOUT,
@@ -19,13 +19,9 @@ export function DecoracionFondo() {
     >
       {fondo && (
         <div className="absolute inset-0">
-          <Image
+          <ImagenEagerFill
             src={fondo.src}
             alt=""
-            fill
-            priority
-            quality={92}
-            sizes="100vw"
             className="object-cover object-center"
           />
         </div>
@@ -35,13 +31,13 @@ export function DecoracionFondo() {
         const layout = STICKER_LAYOUT[i % STICKER_LAYOUT.length];
         const usarDerecha = layout.left === "right";
         return (
-          <Image
+          <ImagenEager
             key={capa.nombre}
             src={capa.src}
             alt=""
             width={400}
             height={400}
-            unoptimized={capa.nombre.endsWith(".png")}
+            fetchPriority="high"
             className="absolute h-auto drop-shadow-[0_10px_28px_rgba(0,0,0,0.4)] will-change-transform transition-opacity duration-500"
             style={{
               left: usarDerecha ? undefined : layout.left,

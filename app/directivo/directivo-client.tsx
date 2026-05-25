@@ -26,6 +26,7 @@ import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 import type { PortalSessionPayload } from "@/lib/auth/types";
+import { ImagenEager } from "../components/imagen-eager";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
@@ -572,11 +573,9 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
             <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
               <PreviewPanel className="min-h-[160px] overflow-hidden p-2">
                 {previewNoticia ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <ImagenEager
                     src={previewNoticia}
                     alt="Vista previa noticia"
-                    loading="eager"
                     decoding="sync"
                     className="max-h-[200px] w-full rounded-xl object-contain"
                   />
