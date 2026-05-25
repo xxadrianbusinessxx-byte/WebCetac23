@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import {
   eliminarNoticiaInicioEnCloudinary,
@@ -10,6 +11,12 @@ import {
 } from "@/lib/cloudinary/noticias";
 import { subirImagenCloudinary } from "@/lib/cloudinary/upload";
 import { bufferImagenDesdeFormData } from "@/lib/imagen/leer-archivo-form";
+
+function revalidarVistasConEventos() {
+  revalidatePath("/");
+  revalidatePath("/perfil");
+  revalidatePath("/directivo");
+}
 
 export async function actionObtenerNoticiasInicio() {
   return listarUrlsNoticiasInicio();
@@ -36,7 +43,12 @@ export async function actionPublicarNoticiaInicio(
   // Borra la anterior (mismo public_id) y sube la nueva → reemplazo real + menos residuos en CDN
   await eliminarNoticiaInicioEnCloudinary(slotValido);
 
-  return subirImagenCloudinary(leido.buffer, publicIdNoticiaInicio(slotValido));
+  const subida = await subirImagenCloudinary(
+    leido.buffer,
+    publicIdNoticiaInicio(slotValido),
+  );
+  if (subida.ok) revalidarVistasConEventos();
+  return subida;
 }
 
 export async function actionEliminarNoticiaInicio(
@@ -49,5 +61,9 @@ export async function actionEliminarNoticiaInicio(
   if (!esSlotEventoValido(slot)) {
     return { ok: false, error: "Número de evento no válido." };
   }
-  return eliminarNoticiaInicioEnCloudinary(slot as NoticiaInicioSlot);
+  const resultado = await eliminarNoticiaInicioEnCloudinary(
+    slot as NoticiaInicioSlot,
+  );
+  if (resultado.ok) revalidarVistasConEventos();
+  return resultado;
 }

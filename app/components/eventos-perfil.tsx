@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EventosCarrusel } from "@/app/components/eventos-carrusel";
 import { fetchAppJson } from "@/lib/client/fetch-app";
 import {
@@ -8,36 +8,62 @@ import {
   type EventoInicioConImagen,
   type UrlsEventosInicio,
 } from "@/lib/escolar/eventos-inicio";
+import { urlEventoConCache } from "@/lib/escolar/preview-evento";
 import { asegurarHttpsEnUrlsNoticias } from "@/lib/urls/seguras";
+
+/** Versión en la URL de Cloudinary (/v123/) o timestamp de subida. */
+function versionDesdeUrlCloudinary(url: string): number {
+  const m = url.match(/\/v(\d+)\//);
+  if (m) return Number(m[1]);
+  const updated = url.match(/[?&]v=(\d+)/);
+  if (updated) return Number(updated[1]);
+  return Date.now();
+}
+
+function eventosDesdeUrls(urls: UrlsEventosInicio): EventoInicioConImagen[] {
+  return eventosConImagen(urls).map((ev) => ({
+    slot: ev.slot,
+    url:
+      urlEventoConCache(ev.url, versionDesdeUrlCloudinary(ev.url)) ?? ev.url,
+  }));
+}
 
 export function EventosPerfil() {
   const [eventos, setEventos] = useState<EventoInicioConImagen[]>([]);
   const [cargando, setCargando] = useState(true);
-  const cargadoRef = useRef(false);
+
+  const cargarEventos = useCallback(async (silencioso = false) => {
+    if (!silencioso) setCargando(true);
+    try {
+      const urls = asegurarHttpsEnUrlsNoticias(
+        await fetchAppJson<UrlsEventosInicio>(
+          `/api/noticias-inicio?_=${Date.now()}`,
+        ),
+      );
+      setEventos(eventosDesdeUrls(urls));
+    } catch {
+      setEventos([]);
+    } finally {
+      if (!silencioso) setCargando(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (cargadoRef.current) return;
-    cargadoRef.current = true;
-
     let cancelado = false;
-    setCargando(true);
+    void (async () => {
+      await cargarEventos();
+      if (cancelado) return;
+    })();
 
-    void fetchAppJson<UrlsEventosInicio>("/api/noticias-inicio")
-      .then((urls) => {
-        if (cancelado) return;
-        setEventos(eventosConImagen(asegurarHttpsEnUrlsNoticias(urls)));
-      })
-      .catch(() => {
-        if (!cancelado) setEventos([]);
-      })
-      .finally(() => {
-        if (!cancelado) setCargando(false);
-      });
-
+    const alEnfocar = () => {
+      if (!cancelado) void cargarEventos(true);
+    };
+    window.addEventListener("focus", alEnfocar);
     return () => {
       cancelado = true;
+      window.removeEventListener("focus", alEnfocar);
     };
-  }, []);
+  }, [cargarEventos]);
 
   if (cargando) {
     return (

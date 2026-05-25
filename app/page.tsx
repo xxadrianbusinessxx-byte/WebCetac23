@@ -5,6 +5,8 @@ import { EventosInicio } from "@/app/components/eventos-inicio";
 import { FrutigerBackdrop } from "./components/frutiger-backdrop";
 import { HomeLoginForm } from "./components/home-login-form";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "AulaNube — Inicio de sesión",
   description: "Acceso a la plataforma escolar.",

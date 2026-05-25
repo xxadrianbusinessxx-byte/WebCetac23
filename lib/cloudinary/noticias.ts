@@ -39,8 +39,12 @@ export async function urlNoticiaInicioSiExiste(
   const clave = claveNoticiaInicio(slot);
   try {
     const cld = getCloudinary();
-    await cld.api.resource(clave, { resource_type: "image" });
-    return asegurarHttps(urlCloudinaryDesdePublicId(claveNoticiaInicio(slot)));
+    const resource = (await cld.api.resource(clave, {
+      resource_type: "image",
+    })) as { secure_url?: string };
+    // secure_url incluye /v{version}/ → el navegador no reutiliza la imagen anterior
+    const url = asegurarHttps(resource.secure_url);
+    return url ?? asegurarHttps(urlCloudinaryDesdePublicId(claveNoticiaInicio(slot)));
   } catch {
     return null;
   }
