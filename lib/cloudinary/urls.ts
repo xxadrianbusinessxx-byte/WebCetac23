@@ -21,11 +21,18 @@ export function publicIdChatUpload(curp: string, unique: string): string {
   return `chat_${sanitizarId(curp)}_${unique}`;
 }
 
-/** URL pública optimizada (Next/Image o <img>). */
-export function urlCloudinaryDesdePublicId(publicId: string): string {
+function cloudNamePublico(): string {
   const cloud =
     process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME?.trim() ||
-    process.env.CLOUDINARY_CLOUD_NAME?.trim();
+    process.env.CLOUDINARY_CLOUD_NAME?.trim() ||
+    "";
+  if (!cloud || /CLOUDINARY_URL|cloudinary:\/\//i.test(cloud)) return "";
+  return cloud;
+}
+
+/** URL pública optimizada (Next/Image o <img>). */
+export function urlCloudinaryDesdePublicId(publicId: string): string {
+  const cloud = cloudNamePublico();
   if (!cloud) return "";
   const limpio = publicId.replace(/^\/+/, "");
   const id = limpio.includes("/")
