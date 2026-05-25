@@ -9,24 +9,13 @@ import {
   actionSubirMateriaExcel,
   actionSubirRegistroExcel,
 } from "@/app/actions/escolar";
-import { actionPublicarNoticiaInicio } from "@/app/actions/noticias";
 import { fetchAppJson } from "@/lib/client/fetch-app";
-import {
-  EVENTOS_INICIO_SLOTS,
-  type EventoInicioSlot,
-} from "@/lib/escolar/eventos-inicio";
-import { asegurarHttps, asegurarHttpsEnUrlsNoticias } from "@/lib/urls/seguras";
-import { prepararFormDataImagen } from "@/lib/imagen/form-data-cliente";
-import {
-  archivoAPreviewDataUrl,
-  revocarPreviewSiBlob,
-} from "@/lib/imagen/preview-cliente";
+import { PublicacionEventosDirectivo } from "@/app/components/publicacion-eventos-directivo";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 import type { PortalSessionPayload } from "@/lib/auth/types";
-import { ImagenEager } from "../components/imagen-eager";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
@@ -123,91 +112,13 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
   );
   const [alumnoNombre, setAlumnoNombre] = useState("");
   const [comentario, setComentario] = useState("");
-  const [archivoPublicacion, setArchivoPublicacion] = useState<File | null>(
-    null,
-  );
-  const [slotNoticia, setSlotNoticia] = useState<EventoInicioSlot>(1);
-  const [previewNoticia, setPreviewNoticia] = useState<string | null>(null);
-  const [publicandoNoticia, setPublicandoNoticia] = useState(false);
-  const [mensajePublicacion, setMensajePublicacion] = useState<string | null>(
-    null,
-  );
-  const [urlsNoticias, setUrlsNoticias] = useState<Record<
-    EventoInicioSlot,
-    string | null
-  > | null>(null);
-  const [cargandoNoticias, setCargandoNoticias] = useState(false);
-  const [errorNoticias, setErrorNoticias] = useState<string | null>(null);
   const [busquedaAlumno, setBusquedaAlumno] = useState("");
   const inputCalificacionesRef = useRef<HTMLInputElement>(null);
   const inputRegistroRef = useRef<HTMLInputElement>(null);
-  const inputPublicacionRef = useRef<HTMLInputElement>(null);
   const materiaAnteriorRef = useRef("");
   const registroAnteriorRef = useRef("");
 
   const nombreDirectivo = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
-
-  /** Noticias: una sola petición al montar la página. */
-  useEffect(() => {
-    let cancelado = false;
-    setCargandoNoticias(true);
-    setErrorNoticias(null);
-
-    void fetchAppJson<Record<EventoInicioSlot, string | null>>(
-      "/api/noticias-inicio",
-    )
-      .then((urls) => {
-        if (cancelado) return;
-        const seguras = asegurarHttpsEnUrlsNoticias(urls);
-        setUrlsNoticias(seguras);
-        if (!archivoPublicacion) {
-          setPreviewNoticia(asegurarHttps(seguras[slotNoticia]));
-        }
-      })
-      .catch((e) => {
-        if (cancelado) return;
-        setUrlsNoticias(null);
-        setErrorNoticias(
-          e instanceof Error ? e.message : "No se pudieron cargar las noticias.",
-        );
-      })
-      .finally(() => {
-        if (!cancelado) setCargandoNoticias(false);
-      });
-
-    return () => {
-      cancelado = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- carga inicial única
-  }, []);
-
-  /** Al cambiar evento, muestra la imagen ya publicada en ese slot (sin nuevo fetch). */
-  useEffect(() => {
-    if (archivoPublicacion || !urlsNoticias) return;
-    setPreviewNoticia(asegurarHttps(urlsNoticias[slotNoticia]));
-  }, [slotNoticia, urlsNoticias, archivoPublicacion]);
-
-  const recargarNoticias = useCallback(async () => {
-    setCargandoNoticias(true);
-    setErrorNoticias(null);
-    try {
-      const urls = asegurarHttpsEnUrlsNoticias(
-        await fetchAppJson<Record<EventoInicioSlot, string | null>>(
-          "/api/noticias-inicio",
-        ),
-      );
-      setUrlsNoticias(urls);
-      if (!archivoPublicacion) {
-        setPreviewNoticia(asegurarHttps(urls[slotNoticia]));
-      }
-    } catch (e) {
-      setErrorNoticias(
-        e instanceof Error ? e.message : "No se pudieron cargar las noticias.",
-      );
-    } finally {
-      setCargandoNoticias(false);
-    }
-  }, [archivoPublicacion, slotNoticia]);
 
   const cargarVistaMateria = useCallback(async (nombre: string, forzar = false) => {
     const clave = nombre.trim();
@@ -386,53 +297,6 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
       void cargarVistaMateria(materiaSeleccionada, true);
     } else {
       setMensajeArchivo(resultado.error);
-    }
-  }
-
-  async function onPublicacionElegida(
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) {
-    const file = event.target.files?.[0] ?? null;
-    setArchivoPublicacion(file);
-    revocarPreviewSiBlob(previewNoticia);
-    if (!file) {
-      setPreviewNoticia(null);
-      setMensajePublicacion(null);
-      event.target.value = "";
-      return;
-    }
-    try {
-      setPreviewNoticia(await archivoAPreviewDataUrl(file));
-      setMensajePublicacion(`Listo para publicar en evento ${slotNoticia}`);
-    } catch (e) {
-      setPreviewNoticia(null);
-      setMensajePublicacion(
-        e instanceof Error ? e.message : "No se pudo previsualizar.",
-      );
-    }
-    event.target.value = "";
-  }
-
-  async function onPublicar() {
-    if (!archivoPublicacion) {
-      inputPublicacionRef.current?.click();
-      return;
-    }
-    setPublicandoNoticia(true);
-    setMensajePublicacion(null);
-    const fd = prepararFormDataImagen(archivoPublicacion);
-    const r = await actionPublicarNoticiaInicio(slotNoticia, fd);
-    setPublicandoNoticia(false);
-    if (r.ok) {
-      setMensajePublicacion(
-        `Noticia publicada en inicio de sesión (evento ${slotNoticia}) vía Cloudinary.`,
-      );
-      setArchivoPublicacion(null);
-      revocarPreviewSiBlob(previewNoticia);
-      setPreviewNoticia(asegurarHttps(r.url));
-      recargarNoticias();
-    } else {
-      setMensajePublicacion(r.error);
     }
   }
 
@@ -680,88 +544,7 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
           </div>
         </section>
 
-        {/* Publicación + Noticias */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <section
-            className="relative overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
-            aria-label="Publicar contenido"
-          >
-            <PanelTab className="mx-auto mb-2 w-fit">
-              Sube la próxima noticia para la pantalla de inicio
-            </PanelTab>
-            <div className="relative z-[1] flex flex-wrap items-center gap-2 px-1 pb-2">
-              <GreyActionPill onClick={() => inputPublicacionRef.current?.click()}>
-                Subir imagen
-              </GreyActionPill>
-              <GreyActionPill onClick={onPublicar} disabled={publicandoNoticia}>
-                {publicandoNoticia ? "Publicando…" : "Publicar"}
-              </GreyActionPill>
-              <div className="flex max-w-full flex-wrap gap-1 rounded-full border border-white/60 bg-white/50 p-1">
-                {EVENTOS_INICIO_SLOTS.map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setSlotNoticia(n)}
-                    title={
-                      urlsNoticias?.[n]
-                        ? "Tiene imagen — al publicar se reemplaza"
-                        : "Sin imagen aún"
-                    }
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase ${
-                      slotNoticia === n ? "bg-sky-800 text-white" : "text-sky-900"
-                    } ${urlsNoticias?.[n] ? "ring-1 ring-sky-600/40" : ""}`}
-                  >
-                    Ev. {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className="relative z-[1] px-2 pb-2 text-center text-[10px] font-semibold text-sky-900/90">
-              Noticias en la pantalla de inicio de sesión (Cloudinary, cetac23)
-            </p>
-            <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-              <PreviewPanel className="min-h-[160px] overflow-hidden p-2">
-                {previewNoticia ? (
-                  <ImagenEager
-                    src={previewNoticia}
-                    alt="Vista previa noticia"
-                    decoding="sync"
-                    className="max-h-[200px] w-full rounded-xl object-contain"
-                  />
-                ) : (
-                  <>Vista previa — evento {slotNoticia}</>
-                )}
-              </PreviewPanel>
-              {(cargandoNoticias || mensajePublicacion || errorNoticias) && (
-                <p className="mt-2 text-center text-xs font-semibold text-sky-900">
-                  {cargandoNoticias
-                    ? "Cargando vista previa…"
-                    : (mensajePublicacion ?? errorNoticias)}
-                </p>
-              )}
-            </div>
-            <input
-              ref={inputPublicacionRef}
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={onPublicacionElegida}
-              aria-label="Seleccionar archivo para publicar"
-            />
-          </section>
-
-          <section
-            className="relative overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
-            aria-label="Noticias recientes"
-          >
-            <div className="relative z-[1] flex justify-center px-1 pb-2">
-              <PanelTab>Noticias recientes</PanelTab>
-            </div>
-            <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-              <PreviewPanel>Vista previa</PreviewPanel>
-            </div>
-          </section>
-        </div>
+        <PublicacionEventosDirectivo />
 
         {/* Entrar al perfil del alumno */}
         <section

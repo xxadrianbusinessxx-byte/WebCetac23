@@ -2,6 +2,7 @@
 
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import {
+  eliminarNoticiaInicioEnCloudinary,
   esSlotEventoValido,
   listarUrlsNoticiasInicio,
   publicIdNoticiaInicio,
@@ -30,6 +31,23 @@ export async function actionPublicarNoticiaInicio(
   const leido = await bufferImagenDesdeFormData(formData);
   if (!leido.ok) return leido;
 
-  // Mismo public_id por slot → reemplaza la imagen anterior en Cloudinary
-  return subirImagenCloudinary(leido.buffer, publicIdNoticiaInicio(slot));
+  const slotValido = slot as NoticiaInicioSlot;
+
+  // Borra la anterior (mismo public_id) y sube la nueva → reemplazo real + menos residuos en CDN
+  await eliminarNoticiaInicioEnCloudinary(slotValido);
+
+  return subirImagenCloudinary(leido.buffer, publicIdNoticiaInicio(slotValido));
+}
+
+export async function actionEliminarNoticiaInicio(
+  slot: number,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return { ok: false, error: "Solo directivos pueden eliminar noticias." };
+  }
+  if (!esSlotEventoValido(slot)) {
+    return { ok: false, error: "Número de evento no válido." };
+  }
+  return eliminarNoticiaInicioEnCloudinary(slot as NoticiaInicioSlot);
 }

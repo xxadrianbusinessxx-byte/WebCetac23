@@ -55,3 +55,24 @@ export async function listarUrlsNoticiasInicio(): Promise<UrlsEventosInicio> {
   );
   return Object.fromEntries(pares) as UrlsEventosInicio;
 }
+
+/** Quita la imagen del slot en Cloudinary (libera espacio; permite subir de nuevo). */
+export async function eliminarNoticiaInicioEnCloudinary(
+  slot: EventoInicioSlot,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!cloudinaryConfigurado()) {
+    return { ok: false, error: "Cloudinary no está configurado." };
+  }
+  try {
+    const cld = getCloudinary();
+    const publicId = claveNoticiaInicio(slot);
+    await cld.uploader.destroy(publicId, {
+      resource_type: "image",
+      invalidate: true,
+    });
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "No se pudo eliminar la imagen.";
+    return { ok: false, error: msg };
+  }
+}
