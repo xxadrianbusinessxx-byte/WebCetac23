@@ -12,6 +12,8 @@ import {
 
 } from "./comentario-codigo";
 
+import { validarLenguajeChat } from "./filtro-lenguaje";
+
 import { MENSAJES_CHAT_TABLE } from "./constants";
 
 import type { EnviarMensajeInput, MensajeChat } from "./types";
@@ -125,6 +127,9 @@ export async function enviarMensajeChat(
   const texto = input.texto.trim();
   const imagen =
     input.imagenClave?.trim() || input.imagenUrl?.trim() || null;
+
+  const errLenguaje = validarLenguajeChat(texto);
+  if (errLenguaje) return { ok: false, error: errLenguaje };
 
   const errLen = validarLongitudComentarioChat(texto, imagen);
   if (errLen) return { ok: false, error: errLen };

@@ -2,6 +2,7 @@
 
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { validarLongitudComentarioChat } from "@/lib/chat/comentario-codigo";
+import { validarLenguajeChat } from "@/lib/chat/filtro-lenguaje";
 import { enviarMensajeChat, listarMensajesChat } from "@/lib/chat/storage";
 import type { EnviarMensajeInput } from "@/lib/chat/types";
 import { subirImagenCloudinary } from "@/lib/cloudinary/upload";
@@ -41,6 +42,11 @@ export async function actionEnviarMensajeChat(input: EnviarMensajeInput) {
     input.imagenClave?.trim() ||
     input.imagenUrl?.trim() ||
     null;
+
+  const errLenguaje = validarLenguajeChat(texto);
+  if (errLenguaje) {
+    return { ok: false as const, error: errLenguaje };
+  }
 
   const errLen = validarLongitudComentarioChat(texto, imagenClave);
   if (errLen) {

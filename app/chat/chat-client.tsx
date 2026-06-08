@@ -8,6 +8,7 @@ import {
   actionSubirImagenChat,
 } from "@/app/actions/chat";
 import { imagenAClaveGuardado } from "@/lib/chat/comentario-codigo";
+import { validarLenguajeChat } from "@/lib/chat/filtro-lenguaje";
 import { prepararFormDataImagen } from "@/lib/imagen/form-data-cliente";
 import {
   archivoAPreviewDataUrl,
@@ -159,6 +160,12 @@ export function ChatClient({ sesion }: Props) {
   async function onEnviar() {
     const contenido = texto.trim();
     if (!contenido && !imagenArchivo) return;
+
+    const errLenguaje = validarLenguajeChat(contenido);
+    if (errLenguaje) {
+      setError(errLenguaje);
+      return;
+    }
 
     setEnviando(true);
     setError(null);
