@@ -1,0 +1,278 @@
+================================================================================
+  FUNCIONES ESENCIALES — mi-web-escolar (AulaNube / CETAC)
+  Flujo de trabajo, restricciones y estructura de datos
+  Actualizado: junio 2026
+================================================================================
+
+Este archivo resume las funciones más importantes del proyecto para entender
+cómo opera el portal y en qué orden se ejecutan los pasos críticos.
+
+
+--------------------------------------------------------------------------------
+1. FLUJO DE TRABAJO GENERAL
+--------------------------------------------------------------------------------
+
+  VISITANTE
+    actionAlumnosEstrella() → muestra top 4 alumnos (promedio en ETIQUETAS STATUS)
+    loginWithNombreCompleto() → cookie de sesión → redirige por rol
+
+  ALUMNO  → /perfil
+    actionObtenerPerfilAlumno() carga alumno, etiquetas, registro, materias, foto
+    Edita etiquetas personales y comentario personal
+    actionSubirFotoPerfil() → Cloudinary + respaldo en Supabase
+
+  PROFESOR  → /profesor
+    actionSubirMateriaExcel() → reemplaza tabla de materia + sync etiquetas
+    actionEnviarComentarioAlumno() → guarda en COMENTARIOS
+
+  DIRECTIVO  → /directivo
+    Igual que profesor + actionSubirRegistroExcel() (registros finales)
+    Ver/editar perfil ajeno: ?modo=directivo&curp=...
+    actionPublicarNoticiaInicio() → imágenes de eventos en Cloudinary
+
+
+--------------------------------------------------------------------------------
+2. AUTENTICACIÓN
+--------------------------------------------------------------------------------
+
+  FUNCIÓN: validarAccesoPortal()
+  ARCHIVO: lib/auth/portal-login.ts
+  ACCIÓN:  loginWithNombreCompleto() en app/actions/login.ts
+
+  DESCRIPCIÓN:
+    Valida nombre completo + clave. Busca primero en PROFESORES, luego en ALUMNOS.
+    El rol del profesor sale del campo Permisos (Profesor | Directivo).
+
+  RESTRICCIONES:
+    - Requiere nombre completo y clave no vacíos.
+    - Comparación de clave con timingSafeEqual (case-insensitive como respaldo).
+    - Redirección: alumno → /perfil, maestro → /profesor, directivo → /directivo.
+
+  ESTRUCTURA SESIÓN (cookie):
+    matricula, rol, curp (solo alumno), nombre
+
+
+--------------------------------------------------------------------------------
+3. SUBIDA DE EXCEL / CSV (MATERIAS Y REGISTROS)  ★ CRÍTICO
+--------------------------------------------------------------------------------
+
+  CADENA DE EJECUCIÓN (en orden):
+
+    1) actionSubirMateriaExcel()          app/actions/escolar.ts
+       o actionSubirRegistroExcel()        app/actions/escolar.ts
+    2) reemplazarContenidoMateriaDesdeArchivo()   lib/escolar/materias.ts
+    3) archivoCsvAFilas()                 lib/escolar/csv.ts
+    4) reemplazarHojaEnTabla()            lib/escolar/hoja-tabla.ts
+    5) prepararYConstruirFilas()          lib/escolar/excel-a-registros.ts
+    6) sincronizarColumnasTabla()         lib/escolar/schema-tabla.ts
+       → RPC escolar_sync_columns en Supabase
+    7) DELETE + INSERT por lotes de 100 filas
+    8) ejecutarActualizarEtiquetasDesdeMaterias()   lib/escolar/actualizar-etiquetas-materias.ts
+       → RPC «Actualizar etiquetas personales desde materias» en Supabase
+
+  DESCRIPCIÓN:
+    Cada materia o registro final es UNA tabla en Supabase con nombre literal
+    (ej. "1RO A CONCIENCIA HISTORICA"). Al subir un archivo se REEMPLAZA todo
+    el contenido: se borran las filas existentes y se insertan las nuevas.
+    Después de guardar, se ejecuta automáticamente la query de Supabase que
+    actualiza ETIQUETAS PERSONALES a partir de los datos de las materias.
+
+  PERMISOS:
+    - actionSubirMateriaExcel: rol maestro o directivo
+    - actionSubirRegistroExcel: solo directivo
+
+  FORMATOS ACEPTADOS:
+    - .csv (texto directo)
+    - .xlsx / .xls (se convierten a CSV con librería xlsx; solo la primera hoja)
+
+  RESTRICCIONES Y LÍMITES:
+    - Archivo vacío → error
+    - Sin filas de datos (solo encabezados) → error
+    - Formato distinto a csv/xlsx/xls → error
+    - Nombre de materia/registro obligatorio (selector en UI)
+    - Reemplazo total: no es merge ni append
+    - Inserción en lotes de 100 filas (TAMANO_LOTE)
+    - Fila 0 del Excel = encabezados → nombres de columnas en Supabase
+    - Columnas de nombre (nombre, apellido, alumno…) se fusionan en alumno_nombre
+    - Columnas sistema preservadas: id, alumno_nombre, actualizado
+    - Columnas que ya no vienen en el Excel se ELIMINAN de la tabla (RPC sync)
+    - Requiere función escolar_sync_columns en Supabase (ver supabase/escolar_sync_columns.sql)
+    - Requiere función «Actualizar etiquetas personales desde materias» en Supabase
+
+  ESTRUCTURA DEL EXCEL:
+    Fila 0: encabezados (Nombre, Apellido, Calificación, etc.)
+    Fila 1+: un registro por alumno
+    → En Supabase cada fila se guarda como:
+        alumno_nombre + una columna text por cada encabezado (excepto nombres sueltos)
+
+  UI:
+    app/profesor/profesor-client.tsx   → subida por materia
+    app/directivo/directivo-client.tsx → materia + registro final
+    accept=".csv,.xlsx,.xls"
+
+
+--------------------------------------------------------------------------------
+4. PERFIL DEL ALUMNO
+--------------------------------------------------------------------------------
+
+  FUNCIÓN: actionObtenerPerfilAlumno()
+  ARCHIVO: app/actions/escolar.ts
+
+  DESCRIPCIÓN:
+    Carga en una sola llamada: datos del alumno, etiquetas personales, vista del
+    registro de calificaciones finales, lista de materias, comentarios y foto.
+
+  RESTRICCIONES:
+    - Alumno solo ve materias filtradas por GRADO + GRUPO + CARRERA
+    - Directivo/profesor ven todas las materias
+    - puedeEditarEtiquetas: alumno o directivo
+    - Comentario personal máx. 200 caracteres (COMENTARIO_MAX_LENGTH)
+
+  FUNCIONES RELACIONADAS:
+    actionGuardarEtiquetasPersonales()  → EMPTY1-3 (títulos), EMPTY4-6 (valores)
+    actionGuardarComentarioPersonal()   → COMENTARIO PERSONAL
+    actionSubirFotoPerfil()             → Cloudinary cetac23 + guardar URL
+    obtenerVistaRegistroAlumno()        lib/escolar/registro-alumno.ts
+    leerVistaMateriaAlumno()            lib/escolar/materia-vista-alumno.ts
+
+
+--------------------------------------------------------------------------------
+5. ETIQUETAS PERSONALES Y STATUS
+--------------------------------------------------------------------------------
+
+  TABLA: ETIQUETAS PERSONALES
+  FUNCIONES: lib/escolar/etiquetas.ts
+
+    obtenerEtiquetasPersonales(curp)
+    actualizarEtiquetasPersonales(curp, patch)
+
+  COLUMNAS PRINCIPALES:
+    CURP, GENERO, GRADO, GRUPO, CORREO, CELULAR, TIPO DE SANGRE, ALERGIAS,
+    LENTES, ENFERMEDAD CRONICA, SALUD MENTAL, NECESIDAD PSICOLOGICA,
+    PESO, TALLA, VACUNACION, CARRERA
+    EMPTY1, EMPTY2, EMPTY3  → títulos editables (default: Etiqueta 1, 2, 3)
+    EMPTY4, EMPTY5, EMPTY6  → valores de esas etiquetas
+    COMENTARIO PERSONAL     → máx. 200 caracteres
+
+  TABLA: ETIQUETAS (STATUS)
+  FUNCIONES: lib/escolar/etiquetas-status.ts, lib/escolar/alumnos-estrella.ts
+
+  DESCRIPCIÓN:
+    Promedios por ciclo y materias reprobadas. Alimenta alumnos estrella en inicio
+    y pestaña Estatus del perfil. Los promedios NO se calculan desde materias en
+    tiempo real; vienen de esta tabla.
+
+  SYNC AUTOMÁTICO TRAS SUBIR EXCEL:
+    ejecutarActualizarEtiquetasDesdeMaterias()
+    RPC: «Actualizar etiquetas personales desde materias»
+    Se ejecuta al terminar cada subida exitosa de Excel/CSV (materia o registro).
+
+
+--------------------------------------------------------------------------------
+6. COMENTARIOS Y CHAT
+--------------------------------------------------------------------------------
+
+  COMENTARIOS DE PROFESOR → ALUMNO
+    actionEnviarComentarioAlumno()     app/actions/escolar.ts
+    guardarComentarioAlumno()          lib/escolar/comentarios.ts
+    Tabla: COMENTARIOS (CURP, COMENTARIO, FECHA)
+    Máx. 200 caracteres; prefijo [autor] si hay profesor
+
+  CHAT GLOBAL
+    actionEnviarMensajeChat()          app/actions/chat.ts
+    actionSubirImagenChat()            → Cloudinary, codifica [img]url[/img]
+    listarMensajesChat()               lib/chat/storage.ts
+    Tabla: COMENTARIOS (misma tabla, filtro por formato de mensaje)
+    Máx. 200 caracteres en texto (incluye código de imagen)
+
+
+--------------------------------------------------------------------------------
+7. LISTADO DE TABLAS SUPABASE
+--------------------------------------------------------------------------------
+
+  FUNCIÓN: listarMateriasCompletas() / listarRegistrosCompletos()
+  ARCHIVO: lib/escolar/tablas-supabase.ts
+  ACCIONES: actionListarMateriasSupabase(), actionListarRegistrosSupabase()
+
+  DESCRIPCIÓN:
+    Obtiene nombres de tablas vía OpenAPI de PostgREST. Excluye tablas de
+    sistema (ALUMNOS, PROFESORES, COMENTARIOS, ETIQUETAS…).
+    Materias: todo lo que NO es sistema ni "REGISTRO DE CALIFICACIONES FINALES".
+    Registros: tablas cuyo nombre contiene "REGISTRO DE CALIFICACIONES FINALES".
+
+  FALLBACK:
+    Si OpenAPI falla, usa listas estáticas en materias-list.ts y registros-list.ts
+    (~241 materias generadas desde Name_of_archives_excels_CSVs).
+
+
+--------------------------------------------------------------------------------
+8. NOTICIAS / EVENTOS (DIRECTIVO)
+--------------------------------------------------------------------------------
+
+  actionPublicarNoticiaInicio(slot, formData)   app/actions/noticias.ts
+  actionEliminarNoticiaInicio(slot)
+  actionObtenerNoticiasInicio()
+
+  RESTRICCIONES:
+    - Solo rol directivo
+    - Slots válidos definidos en lib/cloudinary/noticias.ts
+    - Reemplaza imagen anterior en Cloudinary (mismo public_id)
+
+
+--------------------------------------------------------------------------------
+9. CLIENTES SUPABASE
+--------------------------------------------------------------------------------
+
+  createClient()              lib/supabase/server.ts   → sesión del usuario (Server Actions)
+  createServiceClient()       lib/supabase/service.ts  → service role (omite RLS)
+  clienteLecturaEscolar()     → prefiere service role para lecturas escolares
+
+  RPC REQUERIDAS EN SUPABASE:
+    escolar_sync_columns(nombre_tabla, nombres_columnas)
+      → supabase/escolar_sync_columns.sql
+
+    Actualizar etiquetas personales desde materias()
+      → debe existir en SQL Editor (query guardada como función pública)
+      → se llama tras cada subida de Excel/CSV
+
+
+--------------------------------------------------------------------------------
+10. TABLAS DE SISTEMA (nombres literales, con espacios)
+--------------------------------------------------------------------------------
+
+  ALUMNOS                    CURP, P_APELLIDO, S_APELLIDO, NOMBRE, CLAVE
+  PROFESORES                 NOMBRE/PROFESOR/DIRECTIVO, CLAVE, Permisos
+  COMENTARIOS                CURP, COMENTARIO (200), FECHA
+  COMENTARIOS PROFESORES     PROFESOR/DIRECTIVO, COMENTARIO, NOMBRE/ALUMNO
+  ETIQUETAS PERSONALES       ver sección 5
+  ETIQUETAS (STATUS)         CURP, Promedio, Promedio 2do…, Materias reprobadas…
+  MATERIAS (~241 tablas)     id, alumno_nombre, columnas dinámicas text, created_at
+  REGISTROS FINALES          mismo esquema; nombre contiene "REGISTRO DE CALIFICACIONES FINALES"
+
+
+--------------------------------------------------------------------------------
+11. VARIABLES DE ENTORNO NECESARIAS
+--------------------------------------------------------------------------------
+
+  NEXT_PUBLIC_SUPABASE_URL
+  NEXT_PUBLIC_SUPABASE_ANON_KEY
+  SUPABASE_SERVICE_ROLE_KEY   (recomendado en producción para RPC y lecturas)
+  CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+  NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+
+
+--------------------------------------------------------------------------------
+12. ORDEN RECOMENDADO AL OPERAR EL PORTAL
+--------------------------------------------------------------------------------
+
+  1. Verificar que existan en Supabase las funciones RPC (sync columnas + etiquetas).
+  2. Cargar alumnos y etiquetas personales base (CSV o manual).
+  3. Profesor/directivo sube Excel por materia → tabla se reemplaza → etiquetas se actualizan solas.
+  4. Directivo sube registros finales por grupo (mismo flujo + sync etiquetas).
+  5. Alumnos consultan perfil; directivo revisa con ?modo=directivo&curp=...
+  6. Mantener ETIQUETAS (STATUS) actualizada para alumnos estrella y pestaña Estatus.
+
+
+================================================================================
+  Fin de funciones-esenciales.txt
+================================================================================

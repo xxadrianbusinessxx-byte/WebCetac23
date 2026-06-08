@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ejecutarActualizarEtiquetasDesdeMaterias } from "./actualizar-etiquetas-materias";
 import { contenidoTextoAVista } from "./contenido-tabla";
 import { parseCsvTexto } from "./csv";
 import {
@@ -144,6 +145,9 @@ export async function reemplazarHojaEnTabla(
       };
     }
   }
+
+  const syncEtiquetas = await ejecutarActualizarEtiquetasDesdeMaterias(supabase);
+  if (!syncEtiquetas.ok) return syncEtiquetas;
 
   return { ok: true, filas: preparado.count };
 }
