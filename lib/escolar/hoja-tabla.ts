@@ -61,6 +61,67 @@ function filasDbDatosJsonAVista(filas: FilaHojaDb[]): MateriaTablaVista | null {
 }
 
 const TAMANO_LOTE = 100;
+const PAUSA_REINTENTO_MS = 500;
+const MAX_REINTENTOS_INSERT = 3;
+
+function errorPareceCacheColumnas(mensaje: string): boolean {
+  return /schema cache|could not find the '.+' column|column .+ does not exist/i.test(
+    mensaje,
+  );
+}
+
+async function esperar(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function insertarFilasConReintento(
+  supabase: SupabaseClient,
+  tabla: string,
+  filas: Record<string, string>[],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  let ultimoError = "";
+
+  for (let intento = 0; intento < MAX_REINTENTOS_INSERT; intento++) {
+    if (intento > 0) {
+      await esperar(PAUSA_REINTENTO_MS * intento);
+      const errVaciar = await vaciarTabla(supabase, tabla);
+      if (errVaciar) {
+        return {
+          ok: false,
+          error: `No se pudo reintentar en «${tabla}»: ${errVaciar}`,
+        };
+      }
+    }
+
+    let fallo = false;
+    for (let i = 0; i < filas.length; i += TAMANO_LOTE) {
+      const lote = filas.slice(i, i + TAMANO_LOTE);
+      const { error: insError } = await supabase.from(tabla).insert(lote);
+      if (insError) {
+        ultimoError = insError.message;
+        fallo = true;
+        break;
+      }
+    }
+
+    if (!fallo) return { ok: true };
+
+    if (
+      !errorPareceCacheColumnas(ultimoError) ||
+      intento === MAX_REINTENTOS_INSERT - 1
+    ) {
+      return {
+        ok: false,
+        error: `Error al guardar en «${tabla}»: ${ultimoError}`,
+      };
+    }
+  }
+
+  return {
+    ok: false,
+    error: `Error al guardar en «${tabla}»: ${ultimoError || "desconocido"}`,
+  };
+}
 
 async function vaciarTabla(
   supabase: SupabaseClient,
@@ -114,7 +175,10 @@ export async function reemplazarHojaEnTabla(
   nombreTabla: string,
   matriz: string[][],
   csvTexto?: string,
-): Promise<{ ok: true; filas: number } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; filas: number; advertencia?: string }
+  | { ok: false; error: string }
+> {
   const tabla = nombreTabla.trim();
   if (!tabla) return { ok: false, error: "Selecciona una tabla en la lista." };
 
@@ -138,19 +202,14 @@ export async function reemplazarHojaEnTabla(
 
   const { filas } = preparado;
 
-  for (let i = 0; i < filas.length; i += TAMANO_LOTE) {
-    const lote = filas.slice(i, i + TAMANO_LOTE);
-    const { error: insError } = await supabase.from(tabla).insert(lote);
-    if (insError) {
-      return {
-        ok: false,
-        error: `Error al guardar en «${tabla}»: ${insError.message}`,
-      };
-    }
-  }
+  const insertado = await insertarFilasConReintento(supabase, tabla, filas);
+  if (!insertado.ok) return insertado;
 
   const syncEtiquetas = await ejecutarActualizarEtiquetasDesdeMaterias(supabase);
-  if (!syncEtiquetas.ok) return syncEtiquetas;
 
-  return { ok: true, filas: preparado.count };
+  return {
+    ok: true,
+    filas: preparado.count,
+    advertencia: syncEtiquetas.ok ? undefined : syncEtiquetas.error,
+  };
 }

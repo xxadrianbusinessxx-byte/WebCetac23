@@ -212,7 +212,10 @@ export async function actionGuardarComentarioPersonal(
 export async function actionSubirMateriaExcel(
   nombreMateria: string,
   formData: FormData,
-): Promise<{ ok: true; filas: number } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; filas: number; advertencia?: string }
+  | { ok: false; error: string }
+> {
   const sesion = await obtenerSesionPortal();
   if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
     return { ok: false, error: "No tienes permiso para subir calificaciones." };
@@ -234,7 +237,10 @@ export async function actionSubirMateriaExcel(
 export async function actionSubirRegistroExcel(
   nombreRegistro: string,
   formData: FormData,
-): Promise<{ ok: true; filas: number } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; filas: number; advertencia?: string }
+  | { ok: false; error: string }
+> {
   const sesion = await obtenerSesionPortal();
   if (sesion?.rol !== "directivo") {
     return {

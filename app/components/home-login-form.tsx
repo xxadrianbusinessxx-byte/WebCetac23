@@ -3,6 +3,15 @@
 import { useActionState } from "react";
 import { loginWithNombreCompleto, type LoginFormState } from "@/app/actions/login";
 
+import { GuiPasos } from "@/app/components/gui-pasos";
+
+const PASOS_LOGIN = [
+  "Escribe tu nombre completo (tal como aparece en el plantel).",
+  "Escribe tu clave en el segundo campo.",
+  "Pulsa «Entrar».",
+  "Alumnos van a su perfil; profesores y directivos a su panel correspondiente.",
+] as const;
+
 function BubbleField({
   label,
   variant,
@@ -43,7 +52,9 @@ export function HomeLoginForm() {
   );
 
   return (
-    <form className="mx-auto flex max-w-sm flex-col gap-4" action={formAction} noValidate>
+    <div className="mx-auto flex max-w-sm flex-col gap-4">
+      <GuiPasos titulo="¿Cómo iniciar sesión?" pasos={PASOS_LOGIN} />
+      <form className="flex flex-col gap-4" action={formAction} noValidate>
       <BubbleField label="Nombre completo" variant="nombreCompleto" />
       <BubbleField label="Clave" variant="clave" />
       {state.error ? (
@@ -61,6 +72,7 @@ export function HomeLoginForm() {
       >
         {pending ? "Entrando…" : "Entrar"}
       </button>
-    </form>
+      </form>
+    </div>
   );
 }

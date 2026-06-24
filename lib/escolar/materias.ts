@@ -11,7 +11,10 @@ export async function reemplazarContenidoMateriaDesdeArchivo(
   supabase: SupabaseClient,
   nombreMateria: string,
   file: File,
-): Promise<{ ok: true; filas: number } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; filas: number; advertencia?: string }
+  | { ok: false; error: string }
+> {
   try {
     const { filas, csvTexto } = await archivoCsvAFilas(file);
     return reemplazarContenidoMateria(supabase, nombreMateria, filas, csvTexto);
@@ -26,7 +29,10 @@ export async function reemplazarContenidoMateria(
   nombreMateria: string,
   filas: string[][],
   csvTexto?: string,
-): Promise<{ ok: true; filas: number } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; filas: number; advertencia?: string }
+  | { ok: false; error: string }
+> {
   return reemplazarHojaEnTabla(supabase, nombreMateria, filas, csvTexto);
 }
 

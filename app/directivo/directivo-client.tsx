@@ -11,8 +11,9 @@ import {
 } from "@/app/actions/escolar";
 import { fetchAppJson } from "@/lib/client/fetch-app";
 import { PublicacionEventosDirectivo } from "@/app/components/publicacion-eventos-directivo";
+import { SubidaTablaEscolar } from "@/app/components/subida-tabla-escolar";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
-import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
+import { mensajeArchivoSubido } from "@/lib/escolar/mensajes-subida";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 import type { PortalSessionPayload } from "@/lib/auth/types";
@@ -61,22 +62,6 @@ function PanelTab({
   );
 }
 
-function PreviewPanel({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`flex min-h-[120px] flex-1 items-center justify-center rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-4 py-8 text-center text-sm font-semibold text-slate-700 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
-
 type Props = {
   sesion: PortalSessionPayload | null;
   materias: readonly string[];
@@ -115,119 +100,81 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
   const [busquedaAlumno, setBusquedaAlumno] = useState("");
   const inputCalificacionesRef = useRef<HTMLInputElement>(null);
   const inputRegistroRef = useRef<HTMLInputElement>(null);
-  const materiaAnteriorRef = useRef("");
-  const registroAnteriorRef = useRef("");
+  const vistaMateriaSeqRef = useRef(0);
+  const vistaRegistroSeqRef = useRef(0);
 
   const nombreDirectivo = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
 
-  const cargarVistaMateria = useCallback(async (nombre: string, forzar = false) => {
-    const clave = nombre.trim();
-    if (!clave) return;
-    if (!forzar && clave === materiaAnteriorRef.current) return;
-    materiaAnteriorRef.current = clave;
-
+  const refrescarVistaMateria = useCallback(async (nombre: string) => {
+    if (!nombre.trim()) return;
+    const seq = ++vistaMateriaSeqRef.current;
     setCargandoVista(true);
     try {
-      const params = new URLSearchParams({ nombre: clave });
+      const params = new URLSearchParams({
+        nombre,
+        _: String(Date.now()),
+      });
       const vista = await fetchAppJson<MateriaTablaVista | null>(
         `/api/vista-materia?${params}`,
       );
+      if (vistaMateriaSeqRef.current !== seq) return;
       setVistaMateria(vista);
     } catch (e) {
+      if (vistaMateriaSeqRef.current !== seq) return;
       setVistaMateria(null);
       setMensajeArchivo(
         e instanceof Error ? e.message : "No se pudo cargar la vista de materia.",
       );
     } finally {
-      setCargandoVista(false);
+      if (vistaMateriaSeqRef.current === seq) setCargandoVista(false);
     }
   }, []);
 
   useEffect(() => {
-    const nombre = materiaSeleccionada.trim();
-    if (!nombre || nombre === materiaAnteriorRef.current) return;
-
-    let cancelado = false;
-    setCargandoVista(true);
-
-    const params = new URLSearchParams({ nombre });
-    void fetchAppJson<MateriaTablaVista | null>(`/api/vista-materia?${params}`)
-      .then((vista) => {
-        if (cancelado) return;
-        materiaAnteriorRef.current = nombre;
-        setVistaMateria(vista);
-      })
-      .catch((e) => {
-        if (cancelado) return;
-        setVistaMateria(null);
-        setMensajeArchivo(
-          e instanceof Error ? e.message : "No se pudo cargar la vista de materia.",
-        );
-      })
-      .finally(() => {
-        if (!cancelado) setCargandoVista(false);
-      });
-
+    if (materiaSeleccionada) void refrescarVistaMateria(materiaSeleccionada);
     return () => {
-      cancelado = true;
+      vistaMateriaSeqRef.current += 1;
     };
-  }, [materiaSeleccionada]);
+  }, [materiaSeleccionada, refrescarVistaMateria]);
 
-  const cargarVistaRegistro = useCallback(async (nombre: string, forzar = false) => {
-    const clave = nombre.trim();
-    if (!clave) return;
-    if (!forzar && clave === registroAnteriorRef.current) return;
-    registroAnteriorRef.current = clave;
-
+  const refrescarVistaRegistro = useCallback(async (nombre: string) => {
+    if (!nombre.trim()) return;
+    const seq = ++vistaRegistroSeqRef.current;
     setCargandoVistaRegistro(true);
     try {
-      const params = new URLSearchParams({ nombre: clave });
+      const params = new URLSearchParams({
+        nombre,
+        _: String(Date.now()),
+      });
       const vista = await fetchAppJson<MateriaTablaVista | null>(
         `/api/vista-registro?${params}`,
       );
+      if (vistaRegistroSeqRef.current !== seq) return;
       setVistaRegistro(vista);
     } catch (e) {
+      if (vistaRegistroSeqRef.current !== seq) return;
       setVistaRegistro(null);
       setMensajeRegistro(
         e instanceof Error ? e.message : "No se pudo cargar el registro.",
       );
     } finally {
-      setCargandoVistaRegistro(false);
+      if (vistaRegistroSeqRef.current === seq) setCargandoVistaRegistro(false);
     }
   }, []);
 
   useEffect(() => {
-    const nombre = registroSeleccionado.trim();
-    if (!nombre || nombre === registroAnteriorRef.current) return;
-
-    let cancelado = false;
-    setCargandoVistaRegistro(true);
-
-    const params = new URLSearchParams({ nombre });
-    void fetchAppJson<MateriaTablaVista | null>(`/api/vista-registro?${params}`)
-      .then((vista) => {
-        if (cancelado) return;
-        registroAnteriorRef.current = nombre;
-        setVistaRegistro(vista);
-      })
-      .catch((e) => {
-        if (cancelado) return;
-        setVistaRegistro(null);
-        setMensajeRegistro(
-          e instanceof Error ? e.message : "No se pudo cargar el registro.",
-        );
-      })
-      .finally(() => {
-        if (!cancelado) setCargandoVistaRegistro(false);
-      });
-
+    if (registroSeleccionado) void refrescarVistaRegistro(registroSeleccionado);
     return () => {
-      cancelado = true;
+      vistaRegistroSeqRef.current += 1;
     };
-  }, [registroSeleccionado]);
+  }, [registroSeleccionado, refrescarVistaRegistro]);
 
   function abrirSelectorCalificaciones() {
     inputCalificacionesRef.current?.click();
+  }
+
+  function abrirSelectorRegistro() {
+    inputRegistroRef.current?.click();
   }
 
   function onCalificacionesElegidas(
@@ -246,13 +193,9 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
     event.target.value = "";
   }
 
-  async function onSubirRegistro() {
-    if (!archivoRegistro) {
-      inputRegistroRef.current?.click();
-      return;
-    }
+  async function onCargarRegistroABase() {
+    if (!archivoRegistro || subiendoRegistro) return;
     setSubiendoRegistro(true);
-    setMensajeRegistro(null);
     const formData = new FormData();
     formData.set("archivo", archivoRegistro);
     const resultado = await actionSubirRegistroExcel(
@@ -262,23 +205,19 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
     setSubiendoRegistro(false);
     if (resultado.ok) {
       setMensajeRegistro(
-        `Registro «${registroSeleccionado}» reemplazado (${resultado.filas} filas).`,
+        mensajeArchivoSubido(resultado.filas, resultado.advertencia),
       );
       setArchivoRegistro(null);
-      void cargarVistaRegistro(registroSeleccionado, true);
+      void refrescarVistaRegistro(registroSeleccionado);
     } else {
       setMensajeRegistro(resultado.error);
     }
   }
 
-  async function onSubirExcel() {
-    if (!archivoSeleccionado) {
-      abrirSelectorCalificaciones();
-      return;
-    }
+  async function onCargarMateriaABase() {
+    if (!archivoSeleccionado || subiendo) return;
 
     setSubiendo(true);
-    setMensajeArchivo(null);
 
     const formData = new FormData();
     formData.set("archivo", archivoSeleccionado);
@@ -291,10 +230,10 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
 
     if (resultado.ok) {
       setMensajeArchivo(
-        `Contenido de ${materiaSeleccionada} reemplazado (${resultado.filas} filas).`,
+        mensajeArchivoSubido(resultado.filas, resultado.advertencia),
       );
       setArchivoSeleccionado(null);
-      void cargarVistaMateria(materiaSeleccionada, true);
+      void refrescarVistaMateria(materiaSeleccionada);
     } else {
       setMensajeArchivo(resultado.error);
     }
@@ -393,46 +332,18 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
               />
             </div>
 
-            <div className="flex min-h-[240px] flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[300px] sm:p-6">
-              <PreviewPanel className="min-h-[200px] sm:min-h-[240px]">
-                {cargandoVista ? (
-                  <p>Cargando…</p>
-                ) : (
-                  <MateriaTablaVistaPanel
-                    vista={vistaMateria}
-                    materiaNombre={materiaSeleccionada}
-                  />
-                )}
-              </PreviewPanel>
-
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <GreyActionPill
-                  onClick={onSubirExcel}
-                  className={subiendo ? "opacity-70" : ""}
-                >
-                  {subiendo
-                    ? "Subiendo…"
-                    : archivoSeleccionado
-                      ? "Subir y reemplazar"
-                      : "Cargar nuevo Excel"}
-                </GreyActionPill>
-                {mensajeArchivo && (
-                  <p
-                    className={`text-xs font-semibold ${mensajeArchivo.includes("reemplazado") ? "text-sky-900" : "text-red-700"}`}
-                    role="status"
-                  >
-                    {mensajeArchivo}
-                  </p>
-                )}
-              </div>
-
-              <input
-                ref={inputCalificacionesRef}
-                type="file"
-                accept=".csv,.tsv,.xlsx,.xls,text/csv"
-                className="sr-only"
-                onChange={onCalificacionesElegidas}
-                aria-label="Seleccionar archivo de calificaciones"
+            <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[300px] sm:p-6">
+              <SubidaTablaEscolar
+                tablaSeleccionada={materiaSeleccionada}
+                vista={vistaMateria}
+                cargandoVista={cargandoVista}
+                archivo={archivoSeleccionado}
+                subiendo={subiendo}
+                mensaje={mensajeArchivo}
+                onElegirArchivo={abrirSelectorCalificaciones}
+                onArchivoElegido={onCalificacionesElegidas}
+                onCargar={onCargarMateriaABase}
+                inputRef={inputCalificacionesRef}
               />
             </div>
           </div>
@@ -451,44 +362,19 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
                 onSeleccionar={setRegistroSeleccionado}
               />
             </div>
-            <div className="flex min-h-[200px] flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[260px] sm:p-6">
-              <PreviewPanel className="min-h-[160px] sm:min-h-[200px]">
-                {cargandoVistaRegistro ? (
-                  <p>Cargando…</p>
-                ) : (
-                  <MateriaTablaVistaPanel
-                    vista={vistaRegistro}
-                    materiaNombre={registroSeleccionado}
-                  />
-                )}
-              </PreviewPanel>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <GreyActionPill
-                  onClick={onSubirRegistro}
-                  className={subiendoRegistro ? "opacity-70" : ""}
-                >
-                  {subiendoRegistro
-                    ? "Subiendo…"
-                    : archivoRegistro
-                      ? "Subir y reemplazar registro"
-                      : "Cargar Excel del registro"}
-                </GreyActionPill>
-                {mensajeRegistro && (
-                  <p
-                    className={`text-xs font-semibold ${mensajeRegistro.includes("reemplazado") ? "text-sky-900" : "text-red-700"}`}
-                    role="status"
-                  >
-                    {mensajeRegistro}
-                  </p>
-                )}
-              </div>
-              <input
-                ref={inputRegistroRef}
-                type="file"
-                accept=".csv,.tsv,.xlsx,.xls,text/csv"
-                className="sr-only"
-                onChange={onRegistroElegido}
-                aria-label="Seleccionar registro de calificaciones finales"
+            <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[260px] sm:p-6">
+              <SubidaTablaEscolar
+                tablaSeleccionada={registroSeleccionado}
+                vista={vistaRegistro}
+                cargandoVista={cargandoVistaRegistro}
+                archivo={archivoRegistro}
+                subiendo={subiendoRegistro}
+                mensaje={mensajeRegistro}
+                onElegirArchivo={abrirSelectorRegistro}
+                onArchivoElegido={onRegistroElegido}
+                onCargar={onCargarRegistroABase}
+                inputRef={inputRegistroRef}
+                vacioTexto={`${registroSeleccionado} — sin datos en este registro. Elige el Excel del grupo y pulsa «Cargar a la base».`}
               />
             </div>
           </div>

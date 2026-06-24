@@ -1,14 +1,14 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   actionEnviarComentarioAlumno,
   actionSubirMateriaExcel,
 } from "@/app/actions/escolar";
+import { SubidaTablaEscolar } from "@/app/components/subida-tabla-escolar";
 import { fetchAppJson } from "@/lib/client/fetch-app";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
-import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
+import { mensajeArchivoSubido } from "@/lib/escolar/mensajes-subida";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 import type { PortalSessionPayload } from "@/lib/auth/types";
@@ -22,7 +22,7 @@ function GreyActionPill({
   onClick,
   type = "button",
 }: {
-  children: ReactNode;
+  children: React.ReactNode;
   className?: string;
   onClick?: () => void;
   type?: "button" | "submit";
@@ -72,7 +72,10 @@ export function ProfesorClient({ sesion, materias }: Props) {
     const seq = ++vistaSeqRef.current;
     setCargandoVista(true);
     try {
-      const params = new URLSearchParams({ nombre });
+      const params = new URLSearchParams({
+        nombre,
+        _: String(Date.now()),
+      });
       const vista = await fetchAppJson<MateriaTablaVista | null>(
         `/api/vista-materia?${params}`,
       );
@@ -109,14 +112,10 @@ export function ProfesorClient({ sesion, materias }: Props) {
     event.target.value = "";
   }
 
-  async function onSubirExcel() {
-    if (!archivoSeleccionado) {
-      abrirSelectorArchivo();
-      return;
-    }
+  async function onCargarABase() {
+    if (!archivoSeleccionado || subiendo) return;
 
     setSubiendo(true);
-    setMensajeArchivo(null);
 
     const formData = new FormData();
     formData.set("archivo", archivoSeleccionado);
@@ -129,7 +128,7 @@ export function ProfesorClient({ sesion, materias }: Props) {
 
     if (resultado.ok) {
       setMensajeArchivo(
-        `Contenido de ${materiaSeleccionada} reemplazado (${resultado.filas} filas).`,
+        mensajeArchivoSubido(resultado.filas, resultado.advertencia),
       );
       setArchivoSeleccionado(null);
       void refrescarVista(materiaSeleccionada);
@@ -213,48 +212,18 @@ export function ProfesorClient({ sesion, materias }: Props) {
               />
             </div>
 
-            <div className="flex min-h-[240px] flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[300px] sm:p-6">
-              <div className="flex flex-1 flex-col rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-4 py-6 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm">
-                {cargandoVista ? (
-                  <p className="text-center text-sm font-semibold text-slate-600">
-                    Cargando…
-                  </p>
-                ) : (
-                  <MateriaTablaVistaPanel
-                    vista={vistaMateria}
-                    materiaNombre={materiaSeleccionada}
-                  />
-                )}
-              </div>
-
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <GreyActionPill
-                  onClick={onSubirExcel}
-                  className={subiendo ? "opacity-70" : ""}
-                >
-                  {subiendo
-                    ? "Subiendo…"
-                    : archivoSeleccionado
-                      ? "Subir y reemplazar"
-                      : "Cargar nuevo Excel"}
-                </GreyActionPill>
-                {mensajeArchivo && (
-                  <p
-                    className={`text-xs font-semibold ${mensajeArchivo.includes("reemplazado") ? "text-sky-900" : "text-red-700"}`}
-                    role="status"
-                  >
-                    {mensajeArchivo}
-                  </p>
-                )}
-              </div>
-
-              <input
-                ref={inputArchivoRef}
-                type="file"
-                accept=".csv,.tsv,.xlsx,.xls,text/csv"
-                className="sr-only"
-                onChange={onArchivoElegido}
-                aria-label="Seleccionar archivo de calificaciones"
+            <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:p-6">
+              <SubidaTablaEscolar
+                tablaSeleccionada={materiaSeleccionada}
+                vista={vistaMateria}
+                cargandoVista={cargandoVista}
+                archivo={archivoSeleccionado}
+                subiendo={subiendo}
+                mensaje={mensajeArchivo}
+                onElegirArchivo={abrirSelectorArchivo}
+                onArchivoElegido={onArchivoElegido}
+                onCargar={onCargarABase}
+                inputRef={inputArchivoRef}
               />
             </div>
           </div>

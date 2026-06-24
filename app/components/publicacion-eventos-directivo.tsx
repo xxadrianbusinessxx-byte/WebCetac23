@@ -5,6 +5,7 @@ import {
   actionEliminarNoticiaInicio,
   actionPublicarNoticiaInicio,
 } from "@/app/actions/noticias";
+import { GuiPasos } from "@/app/components/gui-pasos";
 import { EventosCarrusel } from "@/app/components/eventos-carrusel";
 import { ImagenEager } from "@/app/components/imagen-eager";
 import { fetchAppJson } from "@/lib/client/fetch-app";
@@ -25,6 +26,13 @@ import {
   revocarPreviewSiBlob,
 } from "@/lib/imagen/preview-cliente";
 import { asegurarHttpsEnUrlsNoticias } from "@/lib/urls/seguras";
+
+const PASOS_NOTICIAS = [
+  "Elige el número de evento (1 a 4).",
+  "Pulsa «Elegir imagen» y selecciona una foto.",
+  "Pulsa «Publicar» (primera vez) o «Reemplazar» (si ya hay imagen en ese evento).",
+  "Los alumnos la verán en inicio y en su perfil; pueden tocarla para verla completa.",
+] as const;
 
 function PanelTab({ children }: { children: React.ReactNode }) {
   return (
@@ -156,8 +164,8 @@ export function PublicacionEventosDirectivo() {
       setPreviewLocal(await archivoAPreviewDataUrl(file));
       setMensaje(
         tienePublicada
-          ? `Nueva imagen lista — pulsa «Reemplazar» en evento ${slot}`
-          : `Lista para publicar en evento ${slot}`,
+          ? `Imagen lista — pulsa «Reemplazar» en evento ${slot}`
+          : `Imagen lista — pulsa «Publicar» en evento ${slot}`,
       );
       setError(null);
     } catch (e) {
@@ -175,11 +183,7 @@ export function PublicacionEventosDirectivo() {
   }
 
   async function onPublicarOReemplazar() {
-    if (!archivoNuevo) {
-      abrirSelector();
-      setMensaje("Elige la imagen que quieres publicar o reemplazar.");
-      return;
-    }
+    if (!archivoNuevo) return;
 
     setPublicando(true);
     setMensaje(null);
@@ -243,6 +247,12 @@ export function PublicacionEventosDirectivo() {
         aria-label="Publicar evento"
       >
         <PanelTab>Sube o reemplaza noticias (inicio y perfiles)</PanelTab>
+
+        <GuiPasos
+          titulo="¿Cómo publicar una noticia?"
+          pasos={PASOS_NOTICIAS}
+          className="relative z-[1] mx-1 mb-3"
+        />
 
         <div className="relative z-[1] flex max-w-full flex-wrap items-center gap-2 px-1 pb-2">
           <GreyActionPill onClick={abrirSelector}>
