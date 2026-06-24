@@ -429,7 +429,7 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
               <input
                 ref={inputCalificacionesRef}
                 type="file"
-                accept=".csv,.xlsx,.xls,text/csv"
+                accept=".csv,.tsv,.xlsx,.xls,text/csv"
                 className="sr-only"
                 onChange={onCalificacionesElegidas}
                 aria-label="Seleccionar archivo de calificaciones"
@@ -485,7 +485,7 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
               <input
                 ref={inputRegistroRef}
                 type="file"
-                accept=".csv,.xlsx,.xls,text/csv"
+                accept=".csv,.tsv,.xlsx,.xls,text/csv"
                 className="sr-only"
                 onChange={onRegistroElegido}
                 aria-label="Seleccionar registro de calificaciones finales"

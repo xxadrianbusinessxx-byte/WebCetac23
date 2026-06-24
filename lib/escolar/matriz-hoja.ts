@@ -1,10 +1,17 @@
-/** Tablas de registro final: no recortar columnas ni reestructurar. */
+/** Tablas de registro final: encabezados de columnas en la 5.ª fila del Excel. */
 export function esRegistroCalificacionesFinales(nombreTabla: string): boolean {
   return /REGISTRO DE CALIFICACIONES FINALES/i.test(nombreTabla.trim());
 }
 
+/** Fila fija de encabezados de columnas en registros finales (1-based fila 5). */
+export const INDICE_ENCABEZADOS_REGISTRO = 4;
+
 function celdaVacia(s: string | undefined): boolean {
   return !(s ?? "").trim();
+}
+
+export function filaTieneAlgunaCelda(fila: string[]): boolean {
+  return fila.some((c) => !celdaVacia(c));
 }
 
 /**
@@ -32,12 +39,9 @@ export function eliminarColumnasTotalmenteVacias(matriz: string[][]): string[][]
   );
 }
 
-/** Quita filas de datos que están completamente vacías (conserva la primera fila = encabezados). */
-export function eliminarFilasDatosVacias(matriz: string[][]): string[][] {
-  if (matriz.length <= 1) return matriz;
-  const [head, ...rest] = matriz;
-  const kept = rest.filter((row) => row.some((c) => !celdaVacia(c)));
-  return [head, ...kept];
+/** Quita filas donde todas las celdas están vacías. */
+export function eliminarFilasCompletamenteVacias(matriz: string[][]): string[][] {
+  return matriz.filter((row) => filaTieneAlgunaCelda(row));
 }
 
 /** Alinea ancho de filas al máximo encontrado (relleno con ""). */
@@ -51,17 +55,12 @@ export function normalizarAnchoFilas(matriz: string[][]): string[][] {
   });
 }
 
-export function prepararMatrizMateriaParaGuardar(matriz: string[][]): {
-  encabezados: string[];
-  filas: string[][];
-} {
+/**
+ * Limpia matriz antes de guardar en Supabase:
+ * normaliza ancho, elimina filas/columnas totalmente vacías.
+ */
+export function prepararMatrizParaSupabase(matriz: string[][]): string[][] {
   const norm = normalizarAnchoFilas(matriz);
-  const sinFilasVacias = eliminarFilasDatosVacias(norm);
-  const limpia = eliminarColumnasTotalmenteVacias(sinFilasVacias);
-  if (!limpia.length) return { encabezados: [], filas: [] };
-  const [encabezados, ...filas] = limpia;
-  return {
-    encabezados: encabezados ?? [],
-    filas,
-  };
+  const sinFilasVacias = eliminarFilasCompletamenteVacias(norm);
+  return eliminarColumnasTotalmenteVacias(sinFilasVacias);
 }

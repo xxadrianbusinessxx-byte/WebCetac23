@@ -13,7 +13,7 @@ DECLARE
   col text;
   col_existente text;
   -- Siempre: id, alumno_nombre. actualizado = marca de tiempo automática.
-  preservar constant text[] := ARRAY['id', 'alumno_nombre', 'actualizado'];
+  preservar constant text[] := ARRAY['id', 'alumno_nombre', 'actualizado', 'created_at'];
 BEGIN
   IF nombre_tabla IS NULL OR nombre_tabla = '' THEN
     RETURN;

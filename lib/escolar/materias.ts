@@ -4,8 +4,8 @@ import { leerHojaDesdeTabla, reemplazarHojaEnTabla } from "./hoja-tabla";
 import type { MateriaTablaVista } from "./types";
 
 /**
- * Cada tabla en Supabase (ej. «1RO A CIENCIAS SOCIALES») es el archivo de esa materia.
- * Al subir Excel/CSV: fila 0 = encabezados → columnas en Supabase; cada fila = un registro directo.
+ * Cada tabla en Supabase (materia o registro final) recibe el Excel/CSV completo:
+ * filas y columnas vacías se eliminan; el resto se guarda tal cual en la tabla elegida.
  */
 export async function reemplazarContenidoMateriaDesdeArchivo(
   supabase: SupabaseClient,

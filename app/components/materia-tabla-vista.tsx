@@ -43,9 +43,9 @@ export function MateriaTablaVistaPanel({
                   : ""
               }`}
             >
-              {fila.map((celda, ci) => (
+              {vista.encabezados.map((_, ci) => (
                 <td key={`c-${ri}-${ci}`} className="px-2 py-1.5 font-medium">
-                  {celda}
+                  {fila[ci] ?? ""}
                 </td>
               ))}
             </tr>

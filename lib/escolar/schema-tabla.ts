@@ -4,6 +4,7 @@ const COLUMNAS_SISTEMA = new Set([
   "id",
   "alumno_nombre",
   "actualizado",
+  "created_at",
   "datos",
   "contenido",
 ]);

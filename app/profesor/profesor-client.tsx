@@ -251,7 +251,7 @@ export function ProfesorClient({ sesion, materias }: Props) {
               <input
                 ref={inputArchivoRef}
                 type="file"
-                accept=".csv,.xlsx,.xls,text/csv"
+                accept=".csv,.tsv,.xlsx,.xls,text/csv"
                 className="sr-only"
                 onChange={onArchivoElegido}
                 aria-label="Seleccionar archivo de calificaciones"

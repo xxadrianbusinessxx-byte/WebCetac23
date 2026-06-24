@@ -60,55 +60,51 @@ cómo opera el portal y en qué orden se ejecutan los pasos críticos.
 
     1) actionSubirMateriaExcel()          app/actions/escolar.ts
        o actionSubirRegistroExcel()        app/actions/escolar.ts
+       (mismo flujo interno; solo cambian permisos y nombre de tabla)
     2) reemplazarContenidoMateriaDesdeArchivo()   lib/escolar/materias.ts
-    3) archivoCsvAFilas()                 lib/escolar/csv.ts
-    4) reemplazarHojaEnTabla()            lib/escolar/hoja-tabla.ts
-    5) prepararYConstruirFilas()          lib/escolar/excel-a-registros.ts
+    3) archivoCsvAFilas()                 lib/escolar/csv.ts  (.csv, .tsv, .xlsx, .xls)
+    4) prepararMatrizParaSupabase()       lib/escolar/matriz-hoja.ts
+       → quita filas/columnas totalmente vacías
+    5) matrizAFilasDirectas()             lib/escolar/excel-a-registros.ts
+       → detecta fila de encabezados (fila 5 en registros finales)
+       → cada fila con datos → un registro en Supabase
     6) sincronizarColumnasTabla()         lib/escolar/schema-tabla.ts
        → RPC escolar_sync_columns en Supabase
     7) DELETE + INSERT por lotes de 100 filas
     8) ejecutarActualizarEtiquetasDesdeMaterias()   lib/escolar/actualizar-etiquetas-materias.ts
-       → RPC «Actualizar etiquetas personales desde materias» en Supabase
 
   DESCRIPCIÓN:
-    Cada materia o registro final es UNA tabla en Supabase con nombre literal
-    (ej. "1RO A CONCIENCIA HISTORICA"). Al subir un archivo se REEMPLAZA todo
-    el contenido: se borran las filas existentes y se insertan las nuevas.
-    Después de guardar, se ejecuta automáticamente la query de Supabase que
-    actualiza ETIQUETAS PERSONALES a partir de los datos de las materias.
+    Materias y registros finales usan el MISMO motor (reemplazarHojaEnTabla).
+    El nombre de la tabla en Supabase NO cambia (ej. "1RO A CIENCIAS SOCIALES"
+    o "1RO A REGISTRO DE CALIFICACIONES FINALES").
+    Se traspasa toda la hoja: filas de encabezado del plantel, nombres de columnas
+    y filas de alumnos. Solo se omiten filas/columnas 100% vacías.
 
   PERMISOS:
     - actionSubirMateriaExcel: rol maestro o directivo
     - actionSubirRegistroExcel: solo directivo
 
   FORMATOS ACEPTADOS:
-    - .csv (texto directo)
-    - .xlsx / .xls (se convierten a CSV con librería xlsx; solo la primera hoja)
+    - .csv / .tsv (exportación de Google Sheets)
+    - .xlsx / .xls (primera hoja)
 
-  RESTRICCIONES Y LÍMITES:
-    - Archivo vacío → error
-    - Sin filas de datos (solo encabezados) → error
-    - Formato distinto a csv/xlsx/xls → error
-    - Nombre de materia/registro obligatorio (selector en UI)
-    - Reemplazo total: no es merge ni append
-    - Inserción en lotes de 100 filas (TAMANO_LOTE)
-    - Fila 0 del Excel = encabezados → nombres de columnas en Supabase
-    - Columnas de nombre (nombre, apellido, alumno…) se fusionan en alumno_nombre
-    - Columnas sistema preservadas: id, alumno_nombre, actualizado
-    - Columnas que ya no vienen en el Excel se ELIMINAN de la tabla (RPC sync)
-    - Requiere función escolar_sync_columns en Supabase (ver supabase/escolar_sync_columns.sql)
-    - Requiere función «Actualizar etiquetas personales desde materias» en Supabase
+  REGLAS DE LIMPIEZA:
+    - Fila con al menos una celda con texto → se conserva
+    - Fila totalmente vacía → se elimina
+    - Columna totalmente vacía → se elimina
+    - Columna con datos en alguna fila → se conserva
 
-  ESTRUCTURA DEL EXCEL:
-    Fila 0: encabezados (Nombre, Apellido, Calificación, etc.)
-    Fila 1+: un registro por alumno
-    → En Supabase cada fila se guarda como:
-        alumno_nombre + una columna text por cada encabezado (excepto nombres sueltos)
+  ESTRUCTURA EN SUPABASE (por fila del Excel):
+    alumno_nombre  → nombre del alumno o primera celda (búsqueda)
+    + una columna text por cada encabezado detectado (NOMBRE, PARCIAL 1, etc.)
 
-  UI:
-    app/profesor/profesor-client.tsx   → subida por materia
-    app/directivo/directivo-client.tsx → materia + registro final
-    accept=".csv,.xlsx,.xls"
+  VISTA PREVIA:
+    leerHojaDesdeTabla() → filasDbAVistaDirecta() ordenadas por id
+    MateriaTablaVistaPanel alinea celdas con encabezados
+
+  CÓDIGO ELIMINADO (duplicado / sin uso):
+    lib/calificaciones/* (subía a Storage, no a tablas)
+    lib/escolar/parse-hoja.ts, promedio.ts
 
 
 --------------------------------------------------------------------------------
@@ -230,10 +226,19 @@ cómo opera el portal y en qué orden se ejecutan los pasos críticos.
   RPC REQUERIDAS EN SUPABASE:
     escolar_sync_columns(nombre_tabla, nombres_columnas)
       → supabase/escolar_sync_columns.sql
+      → Si ya la tenías, vuelve a ejecutar el SQL (ahora conserva created_at)
 
     Actualizar etiquetas personales desde materias()
-      → debe existir en SQL Editor (query guardada como función pública)
-      → se llama tras cada subida de Excel/CSV
+      → función pública; se llama tras cada subida exitosa
+
+  COLUMNAS MÍNIMAS POR TABLA DE MATERIA/REGISTRO:
+    id (serial/bigserial), alumno_nombre (text), created_at (timestamptz, opcional)
+    + columnas text dinámicas según el Excel (las crea escolar_sync_columns)
+    Tipos: todo text para evitar errores al importar
+
+  NO HACE FALTA:
+    - Renombrar tablas existentes
+    - Crear tablas nuevas si ya existen con el nombre exacto del selector
 
 
 --------------------------------------------------------------------------------

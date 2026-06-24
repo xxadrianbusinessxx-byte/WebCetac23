@@ -1,8 +1,6 @@
 import { parseCsvTexto } from "./csv";
 import type { MateriaTablaVista } from "./types";
 
-export type FilaContenidoTabla = { contenido: string | null };
-
 /** Versión guardada como JSON (materias / actividades). */
 export const CONTENIDO_TABLA_JSON_VERSION = 2 as const;
 
@@ -47,16 +45,4 @@ export function contenidoTextoAVista(raw: string): MateriaTablaVista | null {
     encabezados: encabezados ?? [],
     filas,
   };
-}
-
-/** @deprecated Usar leerHojaDesdeTabla. Compatibilidad con filas que usaban `contenido`. */
-export function contenidoFilasAVista(
-  rows: FilaContenidoTabla[],
-): MateriaTablaVista | null {
-  if (!rows?.length) return null;
-
-  for (const r of rows) {
-    if (r.contenido?.trim()) return contenidoTextoAVista(r.contenido);
-  }
-  return null;
 }

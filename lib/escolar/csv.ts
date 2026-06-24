@@ -55,9 +55,10 @@ export async function archivoCsvAFilas(
 ): Promise<{ filas: string[][]; csvTexto: string }> {
   const nombre = file.name.toLowerCase();
 
-  if (nombre.endsWith(".csv")) {
+  if (nombre.endsWith(".csv") || nombre.endsWith(".tsv")) {
     const texto = await file.text();
-    const filas = parseCsvTexto(texto);
+    const filas =
+      nombre.endsWith(".tsv") ? parseTsvTexto(texto) : parseCsvTexto(texto);
     return { filas, csvTexto: texto };
   }
 
@@ -78,6 +79,16 @@ export async function archivoCsvAFilas(
   }
 
   throw new Error(
-    "Formato no permitido. Usa CSV o Excel (.xlsx / .xls); Excel se convierte a CSV al subir.",
+    "Formato no permitido. Usa CSV, TSV o Excel (.xlsx / .xls); las hojas de cálculo se convierten al subir.",
   );
+}
+
+function parseTsvTexto(texto: string): string[][] {
+  const lineas = texto.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  const filas: string[][] = [];
+  for (const linea of lineas) {
+    if (!linea.trim()) continue;
+    filas.push(linea.split("\t").map((c) => c.trim()));
+  }
+  return filas;
 }

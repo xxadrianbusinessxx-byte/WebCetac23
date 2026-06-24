@@ -80,7 +80,10 @@ export async function leerHojaDesdeTabla(
   if (!tabla) return null;
 
   const columnasDb = await listarColumnasTabla(tabla);
-  const { data, error } = await supabase.from(tabla).select("*");
+  const { data, error } = await supabase
+    .from(tabla)
+    .select("*")
+    .order("id", { ascending: true });
   if (error || !data?.length) return null;
 
   const filas = data as FilaHojaDb[];
