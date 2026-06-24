@@ -6,10 +6,12 @@ import { loginWithNombreCompleto, type LoginFormState } from "@/app/actions/logi
 import { GuiPasos } from "@/app/components/gui-pasos";
 
 const PASOS_LOGIN = [
-  "Escribe tu nombre completo (tal como aparece en el plantel).",
-  "Escribe tu clave en el segundo campo.",
+"Alumnos — Usuario: tu nombre completo, empezando por nombre y terminando por apellido.",
+  "Alumnos — Clave: igual a tus últimos 6 dígitos de CURP.",
+  "Profesores y directivos — Usuario: tu nombre completo, empezando por apellido y terminando por nombre.",
+  "Profesores y directivos — Clave: la que te asignen en el plantel.",
+  "Escribe usuario y clave en los campos de abajo, en ese orden.",
   "Pulsa «Entrar».",
-  "Alumnos van a su perfil; profesores y directivos a su panel correspondiente.",
 ] as const;
 
 function BubbleField({
