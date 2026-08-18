@@ -11,3 +11,8 @@ export function normalizarNombre(texto: string): string {
 export function nombresCoinciden(a: string, b: string): boolean {
   return normalizarNombre(a) === normalizarNombre(b);
 }
+
+/** Alias semántico: ¿el texto corresponde al mismo alumno? (comparación normalizada). */
+export function nombresMismoAlumno(a: string, b: string): boolean {
+  return nombresCoinciden(a, b);
+}

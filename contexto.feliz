@@ -58,7 +58,12 @@ Roles: alumno, maestro/profesor, directivo.
       → Hay que migrar/añadir columnas y cargar datos para que estrella y estatus funcionen.
 
   BOLETA
-    - No existe aún en Supabase; UI con placeholder en perfil.
+    - No existe aún en Supabase como tabla propia.
+    - La pestaña Boleta del perfil ya está conectada: muestra las calificaciones
+      finales del alumno desde su tabla "REGISTRO DE CALIFICACIONES FINALES"
+      (misma fuente que la pestaña Estatus), con encabezado de boleta
+      (nombre, clave, grado, grupo, carrera).
+    - Pendiente: crear tabla BOLETA propia cuando exista el diseño de columnas.
 
   MATERIAS (241 tablas)
     - Una tabla por materia, nombre exacto ej. "1RO A CONCIENCIA HISTORICA"
@@ -142,7 +147,7 @@ Roles: alumno, maestro/profesor, directivo.
   - tables.ts, types.ts, alumnos.ts, profesores.ts, comentarios.ts
   - etiquetas.ts, etiquetas-status.ts, etiquetas-schema.ts
   - parse-hoja.ts, csv.ts, nombres.ts
-  - promedio.ts (legacy: cálculo desde materias; ya no usado para estrella)
+  - (promedio.ts eliminado: legacy, sin usos)
 
 
 --------------------------------------------------------------------------------
@@ -171,7 +176,8 @@ Roles: alumno, maestro/profesor, directivo.
 
 6.2 BOLETA
   [ ] Crear tabla BOLETA en Supabase cuando exista el diseño
-  [ ] Conectar pestaña Boleta del perfil (ahora placeholder)
+  [x] Conectar pestaña Boleta del perfil (muestra calificaciones finales
+      desde "REGISTRO DE CALIFICACIONES FINALES" con encabezado de boleta)
 
 6.3 SUBIDA CSV ETIQUETAS (STATUS) — OPCIONAL PERO RECOMENDADO
   [ ] Acción similar a materias: subir CSV y reemplazar contenido de
@@ -207,7 +213,7 @@ Roles: alumno, maestro/profesor, directivo.
   [ ] Rotar claves si Name_of_archives_excels_CSVs fue expuesto en repo público
 
 6.8 LIMPIEZA / DEUDA TÉCNICA
-  [ ] Eliminar o archivar lib/escolar/promedio.ts si ya no se usa
+  [x] Eliminado lib/escolar/promedio.ts (legacy, sin usos; tsc --noEmit pasa)
   [ ] Unificar demo-profiles vs sesión real en todas las rutas
   [ ] Revisar RLS/políticas Supabase para anon key en producción
   [ ] Scripts probe-*.mjs son solo desarrollo; no necesarios en producción

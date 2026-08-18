@@ -534,13 +534,57 @@ export function PerfilClient({
             )}
 
             {tab === "boleta" && (
-              <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-[1.5rem] border border-dashed border-white/50 bg-slate-500/15 px-6 py-12 text-center backdrop-blur-sm sm:min-h-[300px]">
-                <p className="text-sm font-extrabold uppercase tracking-widest text-sky-950">
-                  Boleta
-                </p>
-                <p className="max-w-md text-sm font-medium text-slate-700">
-                  Espacio reservado para calificaciones y resumen del ciclo.
-                </p>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col items-center gap-1 rounded-[1.5rem] border border-white/60 bg-white/80 px-4 py-4 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
+                  <p className="text-sm font-extrabold uppercase tracking-widest text-sky-950">
+                    Boleta de calificaciones
+                  </p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-sky-800">
+                    {nombreMostrar}
+                    {alumno?.CLAVE ? ` · Clave ${alumno.CLAVE}` : ""}
+                  </p>
+                  {(registro.grado || registro.grupo || registro.carrera) && (
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-sky-900">
+                      {registro.grado} · Grupo {registro.grupo}
+                      {registro.carrera ? ` · ${registro.carrera}` : ""}
+                    </p>
+                  )}
+                </div>
+
+                {!tieneGrupo ? (
+                  <p className="text-center text-sm font-semibold text-slate-600">
+                    Sin grado y grupo en ETIQUETAS PERSONALES. La boleta
+                    aparecerá cuando esos campos estén actualizados.
+                  </p>
+                ) : (
+                  <>
+                    {registro.mensaje && (
+                      <p className="text-center text-xs font-semibold text-amber-900">
+                        {registro.mensaje}
+                      </p>
+                    )}
+                    {registro.alumnoEncontrado &&
+                      registro.filaAlumnoIndice >= 0 && (
+                        <p className="text-center text-[10px] font-bold uppercase tracking-wide text-sky-800">
+                          Calificaciones finales del ciclo
+                        </p>
+                      )}
+                    <MateriaTablaVistaPanel
+                      vista={
+                        registro.filas.length
+                          ? {
+                              encabezados: registro.encabezados,
+                              filas: registro.filas,
+                            }
+                          : null
+                      }
+                      materiaNombre={
+                        registro.nombreTabla ?? "Registro de calificaciones"
+                      }
+                      filaDestacada={registro.filaAlumnoIndice}
+                    />
+                  </>
+                )}
               </div>
             )}
           </div>

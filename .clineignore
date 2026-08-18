@@ -1,0 +1,44 @@
+# Dependencias y paquetes instalados
+node_modules/
+vendor/
+.venv/
+venv/
+
+# Archivos de compilación y salida estática
+dist/
+build/
+out/
+.next/
+.astro/
+.nuxt/
+
+# Archivos de entorno y credenciales sensibles
+.env
+.env.*
+*.env
+*.pem
+*.key
+
+# Control de versiones y configuraciones de editor
+.git/
+.vscode/
+.cursor/
+.cursorrules
+
+# Bases de datos locales, logs y temporales
+*.log
+*.sqlite
+*.sqlite3
+*.db
+tmp/
+temp/
+coverage/
+
+# Archivos pesados de medios
+*.zip
+*.tar.gz
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.mp4

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { nombreCompletoAlumno } from "./alumnos";
+import { archivoCsvAFilas } from "./csv";
 import {
   STATUS_COL_CURP,
   STATUS_FILAS_MATERIAS,
@@ -150,4 +151,101 @@ export async function listarAlumnosEstrellaDesdeStatus(
 
   resultado.sort((a, b) => b.promedio - a.promedio);
   return resultado.slice(0, limite);
+}
+
+const TAMANO_LOTE_STATUS = 100;
+
+/** Columnas de sistema que nunca se insertan como datos. */
+const COLUMNAS_SISTEMA_STATUS = new Set(["id", "created_at", "actualizado"]);
+
+/**
+ * Reemplaza TODO el contenido de "ETIQUETAS (STATUS)" desde un archivo CSV/Excel.
+ * Fila 0 = encabezados → columnas de la tabla (usa CURP como identificador, NO alumno_nombre).
+ * NO elimina columnas del esquema (a diferencia de la subida de materias).
+ */
+export async function reemplazarContenidoStatusDesdeArchivo(
+  supabase: SupabaseClient,
+  file: File,
+): Promise<{ ok: true; filas: number } | { ok: false; error: string }> {
+  try {
+    const { filas } = await archivoCsvAFilas(file);
+    return reemplazarContenidoStatus(supabase, filas);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "No se pudo leer el archivo.";
+    return { ok: false, error: msg };
+  }
+}
+
+/** Reemplaza el contenido de "ETIQUETAS (STATUS)" desde una matriz de filas. */
+export async function reemplazarContenidoStatus(
+  supabase: SupabaseClient,
+  matriz: string[][],
+): Promise<{ ok: true; filas: number } | { ok: false; error: string }> {
+  const m = matriz.filter((fila) => fila.some((c) => (c ?? "").trim() !== ""));
+  if (m.length < 2) {
+    return { ok: false, error: "El archivo está vacío o solo tiene encabezados." };
+  }
+
+  const [rawHead, ...rawDatos] = m;
+  const encabezados = rawHead.map((h, i) => (h ?? "").trim() || `Col ${i + 1}`);
+
+  const idxCurp = encabezados.findIndex(
+    (h) => h.trim().toUpperCase() === STATUS_COL_CURP,
+  );
+  if (idxCurp < 0) {
+    return {
+      ok: false,
+      error: `El archivo debe incluir una columna «${STATUS_COL_CURP}».`,
+    };
+  }
+
+  const registros: Record<string, string>[] = [];
+
+  for (const fila of rawDatos) {
+    const curp = (fila[idxCurp] ?? "").trim().toUpperCase();
+    if (!curp) continue;
+
+    const registro: Record<string, string> = { [STATUS_COL_CURP]: curp };
+    encabezados.forEach((col, j) => {
+      if (j === idxCurp) return;
+      const nombre = col.trim();
+      if (!nombre) return;
+      if (COLUMNAS_SISTEMA_STATUS.has(nombre.toLowerCase())) return;
+      registro[nombre] = (fila[j] ?? "").trim();
+    });
+
+    registros.push(registro);
+  }
+
+  if (!registros.length) {
+    return { ok: false, error: "No hay filas con CURP en el archivo." };
+  }
+
+  // Vaciar la tabla (sin tocar el esquema)
+  const { error: delError } = await supabase
+    .from(TABLA_ETIQUETAS_STATUS)
+    .delete()
+    .gte("id", 0);
+  if (delError) {
+    return {
+      ok: false,
+      error: `No se pudo vaciar «${TABLA_ETIQUETAS_STATUS}»: ${delError.message}`,
+    };
+  }
+
+  // Insertar por lotes
+  for (let i = 0; i < registros.length; i += TAMANO_LOTE_STATUS) {
+    const lote = registros.slice(i, i + TAMANO_LOTE_STATUS);
+    const { error: insError } = await supabase
+      .from(TABLA_ETIQUETAS_STATUS)
+      .insert(lote);
+    if (insError) {
+      return {
+        ok: false,
+        error: `Error al guardar en «${TABLA_ETIQUETAS_STATUS}»: ${insError.message}`,
+      };
+    }
+  }
+
+  return { ok: true, filas: registros.length };
 }

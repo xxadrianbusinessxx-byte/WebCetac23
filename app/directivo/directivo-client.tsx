@@ -8,6 +8,7 @@ import {
   actionEnviarComentarioAlumno,
   actionObtenerVistaMateria,
   actionObtenerVistaRegistro,
+  actionSubirEtiquetasStatus,
   actionSubirMateriaExcel,
   actionSubirRegistroExcel,
 } from "@/app/actions/escolar";
@@ -128,9 +129,13 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
     null,
   );
   const [busquedaAlumno, setBusquedaAlumno] = useState("");
+  const [archivoStatus, setArchivoStatus] = useState<File | null>(null);
+  const [subiendoStatus, setSubiendoStatus] = useState(false);
+  const [mensajeStatus, setMensajeStatus] = useState<string | null>(null);
   const inputCalificacionesRef = useRef<HTMLInputElement>(null);
   const inputRegistroRef = useRef<HTMLInputElement>(null);
   const inputPublicacionRef = useRef<HTMLInputElement>(null);
+  const inputStatusRef = useRef<HTMLInputElement>(null);
 
   const nombreDirectivo = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
 
@@ -227,6 +232,34 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
       void refrescarVista(materiaSeleccionada);
     } else {
       setMensajeArchivo(resultado.error);
+    }
+  }
+
+  function onStatusElegido(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    setArchivoStatus(file);
+    setMensajeStatus(file ? `Archivo listo: ${file.name}` : null);
+    event.target.value = "";
+  }
+
+  async function onSubirStatus() {
+    if (!archivoStatus) {
+      inputStatusRef.current?.click();
+      return;
+    }
+    setSubiendoStatus(true);
+    setMensajeStatus(null);
+    const formData = new FormData();
+    formData.set("archivo", archivoStatus);
+    const resultado = await actionSubirEtiquetasStatus(formData);
+    setSubiendoStatus(false);
+    if (resultado.ok) {
+      setMensajeStatus(
+        `ETIQUETAS (STATUS) reemplazadas (${resultado.filas} filas).`,
+      );
+      setArchivoStatus(null);
+    } else {
+      setMensajeStatus(resultado.error);
     }
   }
 
@@ -465,6 +498,49 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
                 className="sr-only"
                 onChange={onRegistroElegido}
                 aria-label="Seleccionar registro de calificaciones finales"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ETIQUETAS (STATUS) */}
+        <div className="relative mt-6 flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
+          <PanelTab className="mx-auto w-fit">
+            Sube ETIQUETAS (STATUS) — promedios y materias por alumno
+          </PanelTab>
+          <div className="relative z-[1] flex flex-col gap-4">
+            <div className="flex min-h-[120px] flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:p-6">
+              <p className="mb-3 text-center text-xs font-semibold text-slate-700">
+                El archivo debe incluir una columna «CURP» y las columnas de
+                promedios y materias. Reemplaza todo el contenido de la tabla.
+              </p>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <GreyActionPill
+                  onClick={onSubirStatus}
+                  className={subiendoStatus ? "opacity-70" : ""}
+                >
+                  {subiendoStatus
+                    ? "Subiendo…"
+                    : archivoStatus
+                      ? "Subir y reemplazar STATUS"
+                      : "Cargar Excel/CSV de STATUS"}
+                </GreyActionPill>
+                {mensajeStatus && (
+                  <p
+                    className={`text-xs font-semibold ${mensajeStatus.includes("reemplazadas") ? "text-sky-900" : "text-red-700"}`}
+                    role="status"
+                  >
+                    {mensajeStatus}
+                  </p>
+                )}
+              </div>
+              <input
+                ref={inputStatusRef}
+                type="file"
+                accept=".csv,.xlsx,.xls,text/csv"
+                className="sr-only"
+                onChange={onStatusElegido}
+                aria-label="Seleccionar archivo de ETIQUETAS (STATUS)"
               />
             </div>
           </div>

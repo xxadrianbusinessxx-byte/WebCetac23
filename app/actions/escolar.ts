@@ -27,6 +27,7 @@ import {
 import { filtrarMateriasPorGrupo } from "@/lib/escolar/materias-alumno";
 import { obtenerVistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
+import { reemplazarContenidoStatusDesdeArchivo } from "@/lib/escolar/etiquetas-status";
 import { carreraEscolarDesdeEtiquetas } from "@/lib/escolar/informacion-personal";
 import { listarMateriasCompletas } from "@/lib/escolar/tablas-supabase";
 import {
@@ -394,4 +395,24 @@ export async function actionEtiquetasResumen(curp: string) {
     comentarioPersonal: comentarioPersonalDesdeFila(row),
     personales: etiquetasPersonalesDesdeFila(row),
   };
+}
+
+export async function actionSubirEtiquetasStatus(
+  formData: FormData,
+): Promise<{ ok: true; filas: number } | { ok: false; error: string }> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return {
+      ok: false,
+      error: "Solo directivos pueden subir ETIQUETAS (STATUS).",
+    };
+  }
+
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { ok: false, error: "Selecciona un archivo válido." };
+  }
+
+  const supabase = await createClient();
+  return reemplazarContenidoStatusDesdeArchivo(supabase, archivo);
 }

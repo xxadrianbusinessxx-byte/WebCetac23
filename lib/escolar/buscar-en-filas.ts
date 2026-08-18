@@ -15,7 +15,18 @@ export function normalizarCurp(curp: string): string {
 export type CriterioAlumnoEnFila = {
   curp?: string | null;
   nombreCompleto?: string | null;
+  nombresAlternativos?: string[];
 };
+
+/** Token de búsqueda para filtrar por nombre en la tabla (primera palabra significativa). */
+export function tokenBusquedaNombreEnTabla(
+  criterio: CriterioAlumnoEnFila,
+): string {
+  const nombre = criterio.nombreCompleto?.trim() ?? "";
+  if (!nombre) return "";
+  const partes = normalizarNombre(nombre).split(" ").filter((p) => p.length > 2);
+  return partes[0] ?? "";
+}
 
 /**
  * Busca al alumno en una fila del Excel/CSV subido.
