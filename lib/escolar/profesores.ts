@@ -43,3 +43,19 @@ export async function buscarProfesorPorNombre(
   }
   return null;
 }
+
+/** Lista todos los profesores/directivos (para selector de permisos). */
+export async function listarProfesores(
+  supabase: SupabaseClient,
+): Promise<ProfesorRow[]> {
+  const { data, error } = await supabase
+    .from(TABLA_PROFESORES)
+    .select(SELECT_PROFESOR)
+    .order("NOMBRE/PROFESOR/DIRECTIVO", { ascending: true })
+    .range(0, 4999);
+
+  if (error || !data) return [];
+  return data as ProfesorRow[];
+}
+
+

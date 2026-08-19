@@ -5,6 +5,20 @@ export const TABLA_COMENTARIOS = "COMENTARIOS";
 export const TABLA_COMENTARIOS_PROFESORES = "COMENTARIOS PROFESORES";
 export const TABLA_ETIQUETAS_STATUS = "ETIQUETAS (STATUS)";
 export const TABLA_ETIQUETAS_PERSONALES = "ETIQUETAS PERSONALES";
+export const TABLA_CARPETAS = "CARPETAS";
+export const TABLA_DOCUMENTOS = "DOCUMENTOS";
+export const TABLA_PERMISOS_CARPETAS = "PERMISOS CARPETAS";
+
+/** Bucket de Storage para documentos institucionales. */
+export const BUCKET_DOCUMENTOS = "documentos-institucionales";
+
+/** Niveles de permiso sobre una carpeta (heredados a subcarpetas). */
+export const NIVELES_PERMISO = ["ver", "subir", "eliminar"] as const;
+export type NivelPermiso = (typeof NIVELES_PERMISO)[number];
+
+/** Tamaño máximo por archivo (20MB). */
+export const DOCUMENTO_MAX_BYTES = 20 * 1024 * 1024;
+
 
 export const COMENTARIO_MAX_LENGTH = 200;
 

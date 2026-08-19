@@ -12,9 +12,12 @@ import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 import type { PortalSessionPayload } from "@/lib/auth/types";
+import { actionTieneAccesoDocumentos } from "@/app/actions/documentos";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
+
+
 
 function GreyActionPill({
   children,
@@ -65,6 +68,13 @@ export function ProfesorClient({ sesion, materias }: Props) {
   const inputArchivoRef = useRef<HTMLInputElement>(null);
 
   const nombreProfesor = sesion?.nombre ?? sesion?.matricula ?? "Profesor";
+
+  // ¿El profesor tiene acceso a Documentos? (para mostrar el botón en la barra).
+  const [tieneAccesoDocumentos, setTieneAccesoDocumentos] = useState(false);
+  useEffect(() => {
+    void actionTieneAccesoDocumentos().then(setTieneAccesoDocumentos);
+  }, []);
+
 
   const refrescarVista = useCallback(async (nombre: string) => {
     setCargandoVista(true);
@@ -144,8 +154,12 @@ export function ProfesorClient({ sesion, materias }: Props) {
           <GlossyNavPill href="/profesor" active>
             Profesor
           </GlossyNavPill>
+          {tieneAccesoDocumentos && (
+            <GlossyNavPill href="/documentos">Documentos</GlossyNavPill>
+          )}
           <GlossyNavPill href="/chat?origen=profesor">Chat</GlossyNavPill>
         </div>
+
 
         <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-center">
           <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-[1.75rem] border-[3px] border-sky-900/70 bg-white/75 p-2 shadow-[0_10px_28px_rgba(14,165,233,0.2),inset_0_2px_0_rgba(255,255,255,0.95)] backdrop-blur-md sm:h-32 sm:w-32">
@@ -245,6 +259,8 @@ export function ProfesorClient({ sesion, materias }: Props) {
           className="relative mt-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
           aria-label="Comentarios a alumnos"
         >
+
+
           <div className="relative z-[1] flex flex-wrap items-end justify-between gap-2 px-1 pb-2">
             <div className="flex flex-wrap gap-2">
               <label className="sr-only" htmlFor="alumno-nombre">

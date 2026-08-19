@@ -149,10 +149,101 @@ Roles: alumno, maestro/profesor, directivo.
   - parse-hoja.ts, csv.ts, nombres.ts
   - (promedio.ts eliminado: legacy, sin usos)
 
+4.9 MÓDULO DOCUMENTOS INSTITUCIONALES (FASE 0 + FASE 1 — COMPLETO)
+  - Propósito: repositorio de documentos por carpetas con permisos por profesor.
+  - Tablas Supabase (creadas, verificado):
+      CARPETAS (id, nombre, parent_id, creado_por, created_at)
+      DOCUMENTOS (id, carpeta_id, nombre_original, ruta_storage, tipo,
+                  tamano_bytes, curp_vinculado, subido_por, created_at)
+      PERMISOS_CARPETAS (id, profesor, carpeta_id, nivel, autorizado_por, created_at)
+  - Bucket Supabase: documentos-institucionales (creado, Status 200)
+  - Niveles de permiso: ver < subir < eliminar (herencia hacia la raíz)
+  - SQL de creación: supabase/crear-tablas-documentos.sql
+  - Scripts: scripts/crear-tablas-documentos.mjs, crear-bucket-documentos.mjs,
+            probe-documentos.mjs
+  - Lógica de permisos: lib/escolar/documentos.ts
+      nivelAccesoProfesor (herencia), puedeVer/Subir/Eliminar, nivelMayor
+      CRUD carpetas/documentos/permisos, rutaCarpeta, rutaStorageCarpeta
+  - Server Actions: app/actions/documentos.ts
+      actionObtenerEstadoDocumentos, actionCrearCarpeta, actionRenombrarCarpeta,
+      actionEliminarCarpeta, actionSubirDocumento, actionEliminarDocumento,
+      actionDescargarDocumento, actionAsignarPermiso, actionQuitarPermiso
+  - Constantes: lib/escolar/tables.ts (TABLA_CARPETAS, TABLA_DOCUMENTOS,
+      TABLA_PERMISOS_CARPETAS, BUCKET_DOCUMENTOS, DOCUMENTO_MAX_BYTES=20MB)
+  - Profesores: lib/escolar/profesores.ts (listarProfesores, nombreProfesor)
+  - IMPORTANTE (verificado con código): el "nombre" de la sesión del profesor
+      es el valor de NOMBRE/PROFESOR/DIRECTIVO con .trim(); la comparación de
+      permisos usa normalizarNombre en ambos lados → robusta a mayúsculas/espacios.
+  - Build verificado: npx next build compila sin errores (FASE 1 OK).
+  - FASE 2 (UI) COMPLETA: DocumentosPanel (app/components/documentos-panel.tsx)
+      integrado en /profesor y /directivo con breadcrumb, subir/descargar/
+      eliminar y GUI de permisos (solo directivo). Build verificado (FASE 2 OK).
+  - FASE 3 (GUI PERMISOS) COMPLETA: sub-vista "🔐 Permisos" dentro del panel
+      (botón visible solo para directivo) con:
+        · Selector de profesor (reutiliza listarProfesores)
+        · Árbol de carpetas aplanado con indentación (selector de carpeta raíz)
+        · Selector de nivel: Ver / Ver y subir / Control total
+        · Botón "Otorgar acceso" (actionAsignarPermiso sobre la carpeta elegida)
+        · Lista de "Accesos actuales" agrupados por profesor con botón Revocar
+          (actionQuitarPermiso) y ruta completa de cada carpeta
+      Build verificado (FASE 3 OK).
+  - FASE 4 (VERIFICACIÓN) COMPLETA: npx tsc --noEmit sin errores y
+      npx next build compila correctamente (todas las rutas OK).
+      Prueba manual sugerida: crear carpeta anidada 2-3 niveles, subir/descargar
+      archivo, otorgar permiso sobre carpeta raíz y confirmar que el profesor ve
+      toda la rama (incluidas subcarpetas) pero nada más; revocar y confirmar
+      que deja de verla.
+  - FIX RLS (escrituras con service role): las operaciones de ESCRITURA
+      (subir/eliminar documento, crear/renombrar/eliminar carpeta, asignar/
+      quitar permiso) usan ahora `escritura = createServiceClient() ?? supabase`
+      (service role, omite RLS) en lugar del cliente anon/publishable.
+      Las LECTURAS y la verificación de permisos siguen con `lectura`
+      (clienteLecturaEscolar). Esto corrige el error
+      "new row violates row-level security policy" al subir archivos.
+      Build verificado (tsc --noEmit + next build OK).
+  - FIX "Invalid key" (sanitización de nombres en Storage): Supabase Storage
+      no acepta caracteres no-ASCII (acentos, ñ, ü, etc.) en la ruta/key del
+      objeto. Se añadió `sanitizarNombreArchivo(nombre)` en
+      lib/escolar/documentos.ts que: reemplaza ñ→n/Ñ→N, normaliza NFD para
+      quitar acentos, y sustituye por "_" cualquier carácter que no sea letra
+      ASCII/número/guion/guion bajo/punto/paréntesis, conservando la extensión.
+      Se usa SOLO para construir la key física de Storage:
+        · `rutaStorageCarpeta` sanitiza cada nombre de carpeta de la ruta.
+        · `actionSubirDocumento` usa `sanitizarNombreArchivo(archivo.name)`
+          para `rutaStorage`/`nombreUnico`.
+      `nombre_original` en la tabla DOCUMENTOS conserva el nombre real con
+      acentos (es lo que se muestra en la UI). Build verificado (tsc + build OK).
+  - FASE 2 REFACTOR (pestaña DOCUMENTOS como ruta propia): el módulo de
+      documentos ya NO se incrusta dentro de /profesor y /directivo. Ahora
+      vive en su propia ruta /documentos (app/documentos/page.tsx +
+      documentos-client.tsx) con su propia barra de navegación (Directivo/
+      Profesor · Documentos · Chat) y su tarjeta de identidad.
+      · En la barra de /directivo se añadió el botón "Documentos" (siempre
+        visible, el directivo tiene acceso total).
+      · En la barra de /profesor el botón "Documentos" aparece SOLO si el
+        profesor tiene al menos un permiso otorgado (actionTieneAccesoDocumentos).
+      · Se eliminó el <DocumentosPanel /> de profesor-client.tsx y
+        directivo-client.tsx.
+      · EstadoDocumentos ahora incluye `tieneAcceso` (bool).
+      Build verificado (tsc --noEmit + next build OK, ruta /documentos OK).
+  - FIX lista de profesores en permisos: la lista de profesores asignables
+      (selector de permisos y botón "Actualizar lista") EXCLUYE a los
+      directivos (rolDesdePermisos !== "directivo"), porque los directivos ya
+      tienen acceso total por diseño y no deben ser asignables/revocables.
+      · Se añadió actionListarProfesoresPermisos() (recarga bajo demanda) y
+        el botón "Actualizar lista" en la sub-vista de Permisos.
+      Build verificado (tsc --noEmit + next build OK).
+
+
+
+
+
 
 --------------------------------------------------------------------------------
 5. ARCHIVOS CLAVE POR FUNCIÓN
+
 --------------------------------------------------------------------------------
+
 
   Acciones servidor:     app/actions/escolar.ts, login.ts, home.ts, chat.ts
   Perfil UI:             app/perfil/perfil-client.tsx, page.tsx
@@ -161,6 +252,12 @@ Roles: alumno, maestro/profesor, directivo.
   Auth:                  lib/auth/portal-login.ts
   Supabase client:       lib/supabase/server.ts, client.ts
   Scripts diagnóstico:   scripts/probe-*.mjs, gen-materias-list.mjs
+  Documentos (FASE 1):   app/actions/documentos.ts, lib/escolar/documentos.ts,
+                         lib/escolar/profesores.ts, lib/escolar/tables.ts
+  SQL/scripts doc:       supabase/crear-tablas-documentos.sql,
+                         scripts/crear-tablas-documentos.mjs,
+                         scripts/crear-bucket-documentos.mjs, probe-documentos.mjs
+
 
 
 --------------------------------------------------------------------------------
@@ -223,10 +320,25 @@ Roles: alumno, maestro/profesor, directivo.
   [ ] Validar que directivo en perfil ajeno pueda editar lo permitido
   [ ] Scroll gui / textos demo eliminados del home (hecho en page.tsx)
 
+6.10 MÓDULO DOCUMENTOS — FASE 2 (UI) — COMPLETO
+  [x] Componente UI "DocumentosPanel" (estilo XP Aero) que consume
+      las Server Actions de app/actions/documentos.ts
+      → app/components/documentos-panel.tsx
+  [x] Integrada la pestaña DOCUMENTOS en /profesor y /directivo
+      (profesor-client.tsx y directivo-client.tsx)
+  [x] Navegación por carpetas (breadcrumb), subir/descargar/eliminar archivos
+  [x] GUI de administración de permisos (solo directivo): asignar/quitar
+      permisos por carpeta a profesores
+  [x] Build verificado (npx next build compila sin errores, todas las rutas OK)
+  NOTA: El DocumentosPanel ya estaba implementado e integrado; se verificó
+  el build completo (tsc --noEmit sin errores + next build OK).
+
+
 
 --------------------------------------------------------------------------------
 7. FLUJOS DE USUARIO (resumen)
 --------------------------------------------------------------------------------
+
 
   ALUMNO
     Login (nombre/clave) → /perfil
