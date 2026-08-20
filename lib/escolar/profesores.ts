@@ -54,7 +54,10 @@ export async function listarProfesores(
     .order("NOMBRE/PROFESOR/DIRECTIVO", { ascending: true })
     .range(0, 4999);
 
-  if (error || !data) return [];
+  if (error || !data) {
+    console.error("ERROR PROFESORES:", error);
+    return [];
+  }
   return data as ProfesorRow[];
 }
 
