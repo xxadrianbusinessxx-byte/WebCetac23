@@ -233,6 +233,19 @@ Roles: alumno, maestro/profesor, directivo.
       · Se añadió actionListarProfesoresPermisos() (recarga bajo demanda) y
         el botón "Actualizar lista" en la sub-vista de Permisos.
       Build verificado (tsc --noEmit + next build OK).
+  - FIX lista de profesores vacía en producción (error PGRST100): la consulta
+      de listarProfesores() usaba .order("NOMBRE/PROFESOR/DIRECTIVO") y
+      PostgREST no puede parsear el "/" dentro del nombre de columna en el
+      parámetro order (aunque el mismo nombre sí funciona en select() porque
+      ahí va entre comillas). El error se silenciaba (if (error || !data)
+      return []) y profesores llegaba vacío sin error visible en el navegador.
+      · Se QUITÓ el .order() de la consulta (los datos vienen sin ordenar).
+      · Se ordena el arreglo en JavaScript con localeCompare(..., "es") antes
+        de devolverlo.
+      · Se eliminó el console.error temporal de diagnóstico.
+      · Se revisó el resto del código: ningún otro .order() usa una columna
+        con "/" en el nombre (solo FECHA, nombre, created_at, id — todos OK).
+      Build verificado (tsc --noEmit + next build OK).
 
 
 

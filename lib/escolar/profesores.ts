@@ -51,14 +51,21 @@ export async function listarProfesores(
   const { data, error } = await supabase
     .from(TABLA_PROFESORES)
     .select(SELECT_PROFESOR)
-    .order("NOMBRE/PROFESOR/DIRECTIVO", { ascending: true })
     .range(0, 4999);
 
-  if (error || !data) {
-    console.error("ERROR PROFESORES:", error);
-    return [];
-  }
-  return data as ProfesorRow[];
+  if (error || !data) return [];
+
+  // Ordenar en JS en vez de en la consulta: PostgREST no puede parsear el "/"
+  // dentro del nombre de columna en el parámetro order (error PGRST100),
+  // aunque el mismo nombre sí funciona en select() porque ahí va entre comillas.
+  const filas = data as ProfesorRow[];
+  filas.sort((a, b) =>
+    String(a["NOMBRE/PROFESOR/DIRECTIVO"] ?? "").localeCompare(
+      String(b["NOMBRE/PROFESOR/DIRECTIVO"] ?? ""),
+      "es",
+    ),
+  );
+  return filas;
 }
 
 
