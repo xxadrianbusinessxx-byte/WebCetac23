@@ -67,10 +67,16 @@ export const CAMPO_ROSTER_ALIASES: Record<CampoRoster, string[]> = {
   ],
 };
 
-/** Normaliza un encabezado para comparar: trim, mayúsculas, sin acentos, espacios simples. */
+/**
+ * Normaliza un encabezado de columna para comparar: trim, mayúsculas, sin
+ * acentos, espacios simples y tratando `_` y `-` como separadores equivalentes
+ * al espacio. Así "P_APELLIDO", "P-APELLIDO" y "P APELLIDO" se consideran el
+ * mismo encabezado.
+ */
 export function normalizarEncabezadoColumna(encabezado: string): string {
-  return normalizarNombre(encabezado);
+  return normalizarNombre(encabezado.replace(/[_\-]+/g, " "));
 }
+
 
 /**
  * Detecta a qué campo del roster corresponde un encabezado (o null si no coincide).

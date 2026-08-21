@@ -466,7 +466,52 @@ sigue usando secciones numeradas (1-10). Si hubo trabajo anterior que nunca se
 registró aquí, conviene revisarlo y documentarlo por separado.
 
 
+
+--------------------------------------------------------------------------------
+Bloque 3 — Estado: completado — Mejora de la sincronización de alumnos con
+previsualización y completado de campos vacíos. Se refactorizó la lógica de
+sincronización en lib/escolar/alumnos.ts para separar el ANÁLISIS (analizarRoster,
+sin escribir) de la ESCRITURA (sincronizarAlumnosDesdeArchivo), y se añadió
+previsualizarSincronizacionAlumnos (no escribe nada). Cambios clave:
+  · Semántica: SOLO AGREGA alumnos nuevos y COMPLETA campos vacíos de alumnos
+    existentes (update mínimo por CURP). NUNCA borra, reemplaza ni sobrescribe
+    datos ya presentes; la CLAVE nunca se modifica en un existente.
+  · Consulta de existentes paginada (traerAlumnosExistentes, 1000 por página)
+    para no depender del límite por defecto de Supabase (5000).
+  · Resumen detallado: agregados, completados, yaExistentesSinCambios, omitidos,
+    duplicados, con detalle de campos completados y de omitidos.
+  · Server Action nueva actionPrevisualizarSincronizacionAlumnos (solo directivo)
+    que devuelve el resumen SIN escribir, para mostrarlo antes de confirmar.
+  · En app/actions/escolar.ts, si el mapeo se envía explícito y es inválido se
+    devuelve error (ya NO se sustituye silenciosamente por detección automática).
+  · En lib/escolar/mapeo-columnas.ts, normalizarEncabezadoColumna ahora trata
+    "_" y "-" como separadores equivalentes al espacio (P_APELLIDO, P-APELLIDO y
+    P APELLIDO se consideran el mismo encabezado).
+  · En app/configuracion/configuracion-client.tsx: vista previa real de las
+    primeras 5 filas del archivo, botón "Previsualizar resultado" que muestra el
+    resumen antes de confirmar, y resumen final ampliado (agregados, completados,
+    existentes sin cambios, omitidos, duplicados, con detalles desplegables).
+Build verificado (tsc --noEmit + next build OK, ruta /configuracion OK).
+  Rutas exactas de archivos cambiados:
+    - lib/escolar/alumnos.ts (analizarRoster, previsualizarSincronizacionAlumnos,
+      sincronizarAlumnosDesdeArchivo con completado de vacíos y paginación)
+    - lib/escolar/mapeo-columnas.ts (normalizarEncabezadoColumna con "_"/"-")
+    - app/actions/escolar.ts (actionPrevisualizarSincronizacionAlumnos nueva;
+      validación estricta del mapeo en actionSincronizarAlumnosDesdeArchivo)
+    - app/configuracion/configuracion-client.tsx (preview de filas, botón
+      previsualizar, resumen ampliado)
+
+NOTA DE COHERENCIA (actualizada): ahora existen 3 bloques con formato "Bloque N"
+(Bloque 1, Bloque 2 y Bloque 3). El Bloque 1 documenta la sincronización
+incremental básica; el Bloque 2 añade el mapeo visual de columnas; el Bloque 3
+añade la previsualización y el completado de campos vacíos. El resto del
+documento sigue usando secciones numeradas (1-10). Si hubo trabajo anterior que
+nunca se registró aquí, conviene revisarlo y documentarlo por separado.
+
+
+
   Fin de contexto.feliz
+
 
 ================================================================================
   Fin de contexto.feliz

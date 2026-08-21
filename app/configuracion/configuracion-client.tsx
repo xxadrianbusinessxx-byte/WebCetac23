@@ -2,7 +2,11 @@
 
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
-import { actionSincronizarAlumnosDesdeArchivo } from "@/app/actions/escolar";
+import {
+  actionPrevisualizarSincronizacionAlumnos,
+  actionSincronizarAlumnosDesdeArchivo,
+} from "@/app/actions/escolar";
+
 import type { PortalSessionPayload } from "@/lib/auth/types";
 import { archivoCsvAFilas } from "@/lib/escolar/csv";
 import {
@@ -64,11 +68,15 @@ type Resultado =
   | {
       ok: true;
       agregados: number;
-      yaExistentes: number;
+      completados: number;
+      yaExistentesSinCambios: number;
       omitidos: number;
       omitidosDetalle: string[];
+      duplicados: number;
+      completadosDetalle: string[];
     }
   | { ok: false; error: string };
+
 
 const CAMPOS_ROSTER: { campo: CampoRoster; etiqueta: string }[] = [
   { campo: "curp", etiqueta: "CURP" },
@@ -81,18 +89,23 @@ export function ConfiguracionClient({ sesion }: Props) {
   const nombre = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
   const [archivo, setArchivo] = useState<File | null>(null);
   const [encabezados, setEncabezados] = useState<string[]>([]);
+  const [filasDatos, setFilasDatos] = useState<string[][]>([]);
   const [mapeo, setMapeo] = useState<MapeoRoster | null>(null);
   const [sincronizando, setSincronizando] = useState(false);
+  const [previsualizando, setPrevisualizando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  const [preview, setPreview] = useState<Resultado | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function onArchivoElegido(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
     setResultado(null);
+    setPreview(null);
     setMensaje(null);
     setMapeo(null);
     setEncabezados([]);
+    setFilasDatos([]);
     event.target.value = "";
 
     if (!file) {
@@ -114,10 +127,11 @@ export function ConfiguracionClient({ sesion }: Props) {
       }
       const head = filas[0].map((h, i) => (h ?? "").trim() || `Col ${i + 1}`);
       setEncabezados(head);
+      setFilasDatos(filas.slice(1));
       const detectado = detectarColumnasRoster(head);
       setMapeo(detectado);
       setMensaje(
-        `Archivo listo: ${file.name}. Revisa el mapeo de columnas y sincroniza.`,
+        `Archivo listo: ${file.name}. Revisa el mapeo de columnas y previsualiza antes de sincronizar.`,
       );
     } catch (e) {
       const msg =
@@ -125,6 +139,7 @@ export function ConfiguracionClient({ sesion }: Props) {
       setMensaje(msg);
     }
   }
+
 
   function onCambiarCampo(campo: CampoRoster, indice: number) {
     if (!mapeo) return;
@@ -145,6 +160,31 @@ export function ConfiguracionClient({ sesion }: Props) {
     return mapeo.curp >= 0;
   }
 
+  async function onPrevisualizar() {
+    if (!archivo) return;
+    if (!mapeo || !mapeoCompleto()) {
+      setMensaje("Asigna la columna CURP antes de previsualizar.");
+      return;
+    }
+    setPrevisualizando(true);
+    setMensaje(null);
+    setPreview(null);
+    const fd = new FormData();
+    fd.set("archivo", archivo);
+    fd.set("mapeo", JSON.stringify(mapeo));
+    const res = await actionPrevisualizarSincronizacionAlumnos(fd);
+    setPrevisualizando(false);
+    if (res.ok) {
+      setPreview(res);
+      setMensaje(
+        "Previsualización lista. Revisa el resumen y confirma para sincronizar.",
+      );
+    } else {
+      setPreview(res);
+      setMensaje(res.error);
+    }
+  }
+
   async function onSincronizar() {
     if (!archivo) {
       inputRef.current?.click();
@@ -157,6 +197,7 @@ export function ConfiguracionClient({ sesion }: Props) {
     setSincronizando(true);
     setMensaje(null);
     setResultado(null);
+    setPreview(null);
     const fd = new FormData();
     fd.set("archivo", archivo);
     fd.set("mapeo", JSON.stringify(mapeo));
@@ -170,11 +211,13 @@ export function ConfiguracionClient({ sesion }: Props) {
       setArchivo(null);
       setMapeo(null);
       setEncabezados([]);
+      setFilasDatos([]);
     } else {
       setResultado(res);
       setMensaje(res.error);
     }
   }
+
 
   return (
     <FrutigerBackdrop>
@@ -317,6 +360,96 @@ export function ConfiguracionClient({ sesion }: Props) {
                     Asigna la columna CURP para poder sincronizar.
                   </p>
                 )}
+
+                {/* Preview real de las primeras filas del archivo */}
+                {filasDatos.length > 0 && (
+                  <div className="mt-4 rounded-2xl border border-white/50 bg-white/50 p-3">
+                    <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                      Vista previa del archivo ({filasDatos.length} fila(s) de
+                      datos)
+                    </p>
+                    <div className="max-h-44 overflow-auto rounded-xl bg-white/70 p-2">
+                      <table className="w-full text-left text-[11px] font-semibold text-slate-700">
+                        <thead>
+                          <tr>
+                            {encabezados.map((enc, i) => (
+                              <th
+                                key={i}
+                                className="sticky top-0 bg-sky-100 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-sky-900"
+                              >
+                                {enc}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filasDatos.slice(0, 5).map((fila, fi) => (
+                            <tr key={fi} className="border-t border-sky-100">
+                              {encabezados.map((_, ci) => (
+                                <td key={ci} className="px-2 py-1">
+                                  {fila[ci] ?? ""}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
+                  <GreyActionPill
+                    onClick={onPrevisualizar}
+                    disabled={!mapeoCompleto() || previsualizando}
+                    className={previsualizando ? "opacity-70" : ""}
+                  >
+                    {previsualizando
+                      ? "Previsualizando…"
+                      : "Previsualizar resultado"}
+                  </GreyActionPill>
+                </div>
+              </div>
+            )}
+
+
+            {/* Preview del resultado (antes de confirmar) */}
+            {preview?.ok && (
+              <div className="rounded-3xl border border-sky-400/50 bg-sky-100/70 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
+                <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                  Previsualización (aún no se guarda nada)
+                </p>
+                <ul className="flex flex-col gap-1 text-sm font-semibold text-sky-900">
+                  <li>➕ Se agregarán: {preview.agregados}</li>
+                  <li>✏️ Se completarán campos vacíos: {preview.completados}</li>
+                  <li>⏭️ Ya existentes (sin cambios): {preview.yaExistentesSinCambios}</li>
+                  <li>⚠️ Omitidos: {preview.omitidos}</li>
+                  <li>🔁 Duplicados en el archivo: {preview.duplicados}</li>
+                </ul>
+                {preview.completadosDetalle.length > 0 && (
+                  <details className="mt-3">
+                    <summary className="cursor-pointer text-xs font-extrabold uppercase tracking-wide text-sky-900">
+                      Ver detalle de campos a completar
+                    </summary>
+                    <ul className="mt-2 flex max-h-40 flex-col gap-1 overflow-y-auto rounded-xl bg-white/60 p-2 text-xs font-semibold text-slate-700">
+                      {preview.completadosDetalle.map((d, i) => (
+                        <li key={i}>{d}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+                {preview.omitidosDetalle.length > 0 && (
+                  <details className="mt-3">
+                    <summary className="cursor-pointer text-xs font-extrabold uppercase tracking-wide text-sky-900">
+                      Ver detalle de omitidos
+                    </summary>
+                    <ul className="mt-2 flex max-h-40 flex-col gap-1 overflow-y-auto rounded-xl bg-white/60 p-2 text-xs font-semibold text-slate-700">
+                      {preview.omitidosDetalle.map((d, i) => (
+                        <li key={i}>{d}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
               </div>
             )}
 
@@ -327,9 +460,23 @@ export function ConfiguracionClient({ sesion }: Props) {
                 </p>
                 <ul className="flex flex-col gap-1 text-sm font-semibold text-emerald-900">
                   <li>✅ Alumnos agregados: {resultado.agregados}</li>
-                  <li>⏭️ Ya existentes (sin tocar): {resultado.yaExistentes}</li>
-                  <li>⚠️ Omitidos (CURP inválido/incompleto): {resultado.omitidos}</li>
+                  <li>✏️ Campos completados en existentes: {resultado.completados}</li>
+                  <li>⏭️ Ya existentes (sin cambios): {resultado.yaExistentesSinCambios}</li>
+                  <li>⚠️ Omitidos: {resultado.omitidos}</li>
+                  <li>🔁 Duplicados en el archivo: {resultado.duplicados}</li>
                 </ul>
+                {resultado.completadosDetalle.length > 0 && (
+                  <details className="mt-3">
+                    <summary className="cursor-pointer text-xs font-extrabold uppercase tracking-wide text-emerald-800">
+                      Ver detalle de campos completados
+                    </summary>
+                    <ul className="mt-2 flex max-h-40 flex-col gap-1 overflow-y-auto rounded-xl bg-white/60 p-2 text-xs font-semibold text-slate-700">
+                      {resultado.completadosDetalle.map((d, i) => (
+                        <li key={i}>{d}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
                 {resultado.omitidosDetalle.length > 0 && (
                   <details className="mt-3">
                     <summary className="cursor-pointer text-xs font-extrabold uppercase tracking-wide text-emerald-800">
@@ -344,6 +491,7 @@ export function ConfiguracionClient({ sesion }: Props) {
                 )}
               </div>
             )}
+
           </div>
         </div>
       </div>

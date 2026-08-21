@@ -7,8 +7,10 @@ import {
   buscarAlumnoPorNombre,
   buscarAlumnoPorTexto,
   nombreCompletoAlumno,
+  previsualizarSincronizacionAlumnos,
   sincronizarAlumnosDesdeArchivo,
 } from "@/lib/escolar/alumnos";
+
 import {
   mapeoRosterValido,
   type MapeoRoster,
@@ -426,8 +428,9 @@ export async function actionSubirEtiquetasStatus(
 
 /**
  * Sincronización INCREMENTAL del roster de alumnos (CSV/Excel) contra la tabla
- * ALUMNOS. SOLO AGREGA alumnos nuevos; nunca borra ni reemplaza los existentes.
- * Solo directivos pueden ejecutarla.
+ * ALUMNOS. SOLO AGREGA alumnos nuevos y COMPLETA campos vacíos de existentes;
+ * nunca borra, reemplaza ni sobrescribe datos existentes. Solo directivos
+ * pueden ejecutarla.
  */
 export async function actionSincronizarAlumnosDesdeArchivo(
   formData: FormData,
@@ -435,9 +438,12 @@ export async function actionSincronizarAlumnosDesdeArchivo(
   | {
       ok: true;
       agregados: number;
-      yaExistentes: number;
+      completados: number;
+      yaExistentesSinCambios: number;
       omitidos: number;
       omitidosDetalle: string[];
+      duplicados: number;
+      completadosDetalle: string[];
     }
   | { ok: false; error: string }
 > {
@@ -454,24 +460,95 @@ export async function actionSincronizarAlumnosDesdeArchivo(
     return { ok: false, error: "Selecciona un archivo válido." };
   }
 
-  // Mapeo de columnas opcional (etapa visual). Se valida en servidor; si no
-  // viene o es inválido, la sincronización usa la detección automática.
+  // Mapeo de columnas (etapa visual). Si el usuario envió un mapeo explícito,
+  // debe ser válido; si es inválido se devuelve error (NO se sustituye
+  // silenciosamente por detección automática). Solo se usa detección
+  // automática cuando el mapeo NO fue enviado.
   let mapeo: MapeoRoster | undefined;
   const mapeoRaw = formData.get("mapeo");
   if (typeof mapeoRaw === "string" && mapeoRaw.trim()) {
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(mapeoRaw) as unknown;
-      if (mapeoRosterValido(parsed, 100)) {
-        mapeo = parsed as MapeoRoster;
-      }
+      parsed = JSON.parse(mapeoRaw);
     } catch {
-      // JSON inválido: se ignora y se usa detección automática.
+      return {
+        ok: false,
+        error: "El mapeo de columnas enviado no es válido. Reintenta.",
+      };
     }
+    if (!mapeoRosterValido(parsed, 100)) {
+      return {
+        ok: false,
+        error: "El mapeo de columnas enviado no es válido. Revisa la asignación.",
+      };
+    }
+    mapeo = parsed as MapeoRoster;
   }
 
   const supabase = await createClient();
   return sincronizarAlumnosDesdeArchivo(supabase, archivo, mapeo);
 }
+
+/**
+ * Previsualiza la sincronización del roster SIN escribir en Supabase. Devuelve
+ * el resumen de lo que ocurriría (nuevos, completados, existentes sin cambios,
+ * omitidos, duplicados) para mostrarlo antes de confirmar. Solo directivos.
+ */
+export async function actionPrevisualizarSincronizacionAlumnos(
+  formData: FormData,
+): Promise<
+  | {
+      ok: true;
+      agregados: number;
+      completados: number;
+      yaExistentesSinCambios: number;
+      omitidos: number;
+      omitidosDetalle: string[];
+      duplicados: number;
+      completadosDetalle: string[];
+    }
+  | { ok: false; error: string }
+> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return {
+      ok: false,
+      error: "Solo directivos pueden previsualizar el roster de alumnos.",
+    };
+  }
+
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { ok: false, error: "Selecciona un archivo válido." };
+  }
+
+  // Mapeo de columnas (etapa visual). Si se envía explícito debe ser válido.
+  let mapeo: MapeoRoster | undefined;
+  const mapeoRaw = formData.get("mapeo");
+  if (typeof mapeoRaw === "string" && mapeoRaw.trim()) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(mapeoRaw);
+    } catch {
+      return {
+        ok: false,
+        error: "El mapeo de columnas enviado no es válido. Reintenta.",
+      };
+    }
+    if (!mapeoRosterValido(parsed, 100)) {
+      return {
+        ok: false,
+        error: "El mapeo de columnas enviado no es válido. Revisa la asignación.",
+      };
+    }
+    mapeo = parsed as MapeoRoster;
+  }
+
+  const supabase = await createClient();
+  return previsualizarSincronizacionAlumnos(supabase, archivo, mapeo);
+}
+
+
 
 
 
