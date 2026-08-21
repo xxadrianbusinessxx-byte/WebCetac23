@@ -2,8 +2,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { archivoCsvAFilas } from "./csv";
 import { pareceCurp } from "./buscar-en-filas";
 import { nombresCoinciden, normalizarNombre } from "./nombres";
+import {
+  detectarColumnasRoster,
+  mapeoRosterValido,
+  type MapeoRoster,
+} from "./mapeo-columnas";
 import { TABLA_ALUMNOS } from "./tables";
 import type { AlumnoRow } from "./types";
+
 
 export function nombreCompletoAlumno(row: AlumnoRow): string {
   return [row.NOMBRE, row.P_APELLIDO, row.S_APELLIDO]
@@ -116,19 +122,24 @@ const TAMANO_LOTE_ALUMNOS = 100;
 
 /**
  * Sincronización INCREMENTAL del roster de alumnos contra la tabla ALUMNOS.
-
+ *
  * SOLO AGREGA alumnos cuyo CURP no exista todavía. NUNCA borra ni reemplaza.
  *
- * Formato esperado del archivo (CSV o Excel): una fila de encabezados con
- * columnas CURP, P_APELLIDO, S_APELLIDO, NOMBRE (el orden no importa).
- * La CLAVE se deriva siempre de los últimos 6 caracteres del CURP.
+ * El archivo (CSV o Excel) se parsea con el parser existente (archivoCsvAFilas).
+ * El mapeo de columnas puede venir explícito (etapa visual de mapeo) o, si no
+ * se provee, se detecta automáticamente por aliases (incluye los nombres
+ * exactos CURP, P_APELLIDO, S_APELLIDO, NOMBRE, por lo que los archivos que ya
+ * funcionaban siguen funcionando igual).
  *
+ * La CLAVE se deriva siempre de los últimos 6 caracteres del CURP.
  * Las filas con CURP inválido/incompleto se reportan como omitidas en el
- * resumen, sin romper el proceso.
+ * resumen, sin romper el proceso. No se insertan duplicados dentro del mismo
+ * archivo (se mantiene un Set de CURP vistos durante la importación).
  */
 export async function sincronizarAlumnosDesdeArchivo(
   supabase: SupabaseClient,
   file: File,
+  mapeo?: MapeoRoster,
 ): Promise<ResultadoSincronizacionAlumnos | ErrorSincronizacionAlumnos> {
   let filas: string[][];
   try {
@@ -150,18 +161,18 @@ export async function sincronizarAlumnosDesdeArchivo(
   const [rawHead, ...rawDatos] = m;
   const encabezados = rawHead.map((h, i) => (h ?? "").trim() || `Col ${i + 1}`);
 
-  const idxCurp = encabezados.findIndex(
-    (h) => h.trim().toUpperCase() === "CURP",
-  );
-  const idxP = encabezados.findIndex(
-    (h) => h.trim().toUpperCase() === "P_APELLIDO",
-  );
-  const idxS = encabezados.findIndex(
-    (h) => h.trim().toUpperCase() === "S_APELLIDO",
-  );
-  const idxN = encabezados.findIndex(
-    (h) => h.trim().toUpperCase() === "NOMBRE",
-  );
+  // Mapeo explícito (validado) o detección automática por aliases.
+  let mapeoFinal: MapeoRoster;
+  if (mapeo && mapeoRosterValido(mapeo, encabezados.length)) {
+    mapeoFinal = mapeo;
+  } else {
+    mapeoFinal = detectarColumnasRoster(encabezados);
+  }
+
+  const idxCurp = mapeoFinal.curp;
+  const idxP = mapeoFinal.pApellido;
+  const idxS = mapeoFinal.sApellido;
+  const idxN = mapeoFinal.nombre;
 
   if (idxCurp < 0) {
     return {
@@ -191,6 +202,7 @@ export async function sincronizarAlumnosDesdeArchivo(
 
   const aInsertar: Record<string, string>[] = [];
   const omitidosDetalle: string[] = [];
+  const curpsVistos = new Set<string>();
   let yaExistentes = 0;
 
   for (const fila of rawDatos) {
@@ -207,6 +219,13 @@ export async function sincronizarAlumnosDesdeArchivo(
       yaExistentes++;
       continue;
     }
+
+    // Evitar duplicados dentro del mismo archivo.
+    if (curpsVistos.has(curp)) {
+      omitidosDetalle.push(`CURP duplicado en el archivo: «${curp}»`);
+      continue;
+    }
+    curpsVistos.add(curp);
 
     const pApellido = idxP >= 0 ? (fila[idxP] ?? "").trim() : "";
     const sApellido = idxS >= 0 ? (fila[idxS] ?? "").trim() : "";
@@ -245,5 +264,6 @@ export async function sincronizarAlumnosDesdeArchivo(
     omitidosDetalle,
   };
 }
+
 
 

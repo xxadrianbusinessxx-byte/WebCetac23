@@ -435,6 +435,39 @@ posibles bloques previos; si hubo trabajo anterior que nunca se registró aquí,
 conviene revisarlo y documentarlo por separado.
 
 
+
+--------------------------------------------------------------------------------
+Bloque 2 — Estado: completado — Mejora del flujo de sincronización de alumnos
+con mapeo visual de columnas. Se añadió un módulo reutilizable de detección y
+mapeo de columnas (lib/escolar/mapeo-columnas.ts) que identifica por aliases
+normalizados qué columna del archivo corresponde a CURP, apellido paterno,
+apellido materno y nombre(s). La GUI de /configuracion ahora, al elegir el
+archivo, lo parsea con el parser existente (archivoCsvAFilas), detecta
+automáticamente las columnas y muestra una etapa de "Mapeo de columnas" con
+selects para que el directivo confirme/corrija la asignación antes de
+sincronizar. La columna CURP es obligatoria; las demás son opcionales. El
+mapeo se envía como JSON en el FormData y se valida en servidor
+(mapeoRosterValido) dentro de actionSincronizarAlumnosDesdeArchivo; si no
+viene o es inválido, la sincronización usa la detección automática (por lo que
+los archivos que ya funcionaban con encabezados exactos CURP/P_APELLIDO/
+S_APELLIDO/NOMBRE siguen funcionando igual). Se añadió además protección
+contra CURP duplicados dentro del mismo archivo (se reportan como omitidos).
+Build verificado (tsc --noEmit + next build OK, ruta /configuracion OK).
+  Rutas exactas de archivos cambiados:
+    - lib/escolar/mapeo-columnas.ts (nuevo: detección/mapeo de columnas)
+    - lib/escolar/alumnos.ts (sincronizarAlumnosDesdeArchivo acepta mapeo)
+    - app/actions/escolar.ts (actionSincronizarAlumnosDesdeArchivo lee/valida mapeo)
+    - app/configuracion/configuracion-client.tsx (etapa visual de mapeo)
+
+NOTA DE COHERENCIA (actualizada): ahora existen 2 bloques con formato "Bloque N"
+(Bloque 1 y Bloque 2). El Bloque 1 documenta la sincronización incremental
+básica; el Bloque 2 añade el mapeo visual de columnas. El resto del documento
+sigue usando secciones numeradas (1-10). Si hubo trabajo anterior que nunca se
+registró aquí, conviene revisarlo y documentarlo por separado.
+
+
+  Fin de contexto.feliz
+
 ================================================================================
   Fin de contexto.feliz
 ================================================================================

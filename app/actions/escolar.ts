@@ -9,6 +9,11 @@ import {
   nombreCompletoAlumno,
   sincronizarAlumnosDesdeArchivo,
 } from "@/lib/escolar/alumnos";
+import {
+  mapeoRosterValido,
+  type MapeoRoster,
+} from "@/lib/escolar/mapeo-columnas";
+
 
 import {
   guardarComentarioAlumno,
@@ -449,8 +454,24 @@ export async function actionSincronizarAlumnosDesdeArchivo(
     return { ok: false, error: "Selecciona un archivo válido." };
   }
 
+  // Mapeo de columnas opcional (etapa visual). Se valida en servidor; si no
+  // viene o es inválido, la sincronización usa la detección automática.
+  let mapeo: MapeoRoster | undefined;
+  const mapeoRaw = formData.get("mapeo");
+  if (typeof mapeoRaw === "string" && mapeoRaw.trim()) {
+    try {
+      const parsed = JSON.parse(mapeoRaw) as unknown;
+      if (mapeoRosterValido(parsed, 100)) {
+        mapeo = parsed as MapeoRoster;
+      }
+    } catch {
+      // JSON inválido: se ignora y se usa detección automática.
+    }
+  }
+
   const supabase = await createClient();
-  return sincronizarAlumnosDesdeArchivo(supabase, archivo);
+  return sincronizarAlumnosDesdeArchivo(supabase, archivo, mapeo);
 }
+
 
 

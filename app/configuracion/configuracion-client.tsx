@@ -4,6 +4,13 @@ import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { actionSincronizarAlumnosDesdeArchivo } from "@/app/actions/escolar";
 import type { PortalSessionPayload } from "@/lib/auth/types";
+import { archivoCsvAFilas } from "@/lib/escolar/csv";
+import {
+  detectarColumnasRoster,
+  type CampoRoster,
+  type MapeoRoster,
+} from "@/lib/escolar/mapeo-columnas";
+
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
@@ -63,20 +70,79 @@ type Resultado =
     }
   | { ok: false; error: string };
 
+const CAMPOS_ROSTER: { campo: CampoRoster; etiqueta: string }[] = [
+  { campo: "curp", etiqueta: "CURP" },
+  { campo: "pApellido", etiqueta: "Apellido paterno" },
+  { campo: "sApellido", etiqueta: "Apellido materno" },
+  { campo: "nombre", etiqueta: "Nombre(s)" },
+];
+
 export function ConfiguracionClient({ sesion }: Props) {
   const nombre = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
   const [archivo, setArchivo] = useState<File | null>(null);
+  const [encabezados, setEncabezados] = useState<string[]>([]);
+  const [mapeo, setMapeo] = useState<MapeoRoster | null>(null);
   const [sincronizando, setSincronizando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  function onArchivoElegido(event: React.ChangeEvent<HTMLInputElement>) {
+  async function onArchivoElegido(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
-    setArchivo(file);
     setResultado(null);
-    setMensaje(file ? `Archivo listo: ${file.name}` : null);
+    setMensaje(null);
+    setMapeo(null);
+    setEncabezados([]);
     event.target.value = "";
+
+    if (!file) {
+      setArchivo(null);
+      return;
+    }
+
+    setArchivo(file);
+    setMensaje(`Leyendo «${file.name}»…`);
+
+    try {
+      const parsed = await archivoCsvAFilas(file);
+      const filas = parsed.filas.filter((fila) =>
+        fila.some((c) => (c ?? "").trim() !== ""),
+      );
+      if (filas.length < 1) {
+        setMensaje("El archivo está vacío o no se pudo leer.");
+        return;
+      }
+      const head = filas[0].map((h, i) => (h ?? "").trim() || `Col ${i + 1}`);
+      setEncabezados(head);
+      const detectado = detectarColumnasRoster(head);
+      setMapeo(detectado);
+      setMensaje(
+        `Archivo listo: ${file.name}. Revisa el mapeo de columnas y sincroniza.`,
+      );
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "No se pudo leer el archivo.";
+      setMensaje(msg);
+    }
+  }
+
+  function onCambiarCampo(campo: CampoRoster, indice: number) {
+    if (!mapeo) return;
+    setMapeo((prev) => {
+      if (!prev) return prev;
+      const siguiente: MapeoRoster = { ...prev, [campo]: indice };
+      // Evitar que dos campos usen la misma columna.
+      for (const c of CAMPOS_ROSTER.map((x) => x.campo)) {
+        if (c === campo) continue;
+        if (siguiente[c] === indice) siguiente[c] = -1;
+      }
+      return siguiente;
+    });
+  }
+
+  function mapeoCompleto(): boolean {
+    if (!mapeo) return false;
+    return mapeo.curp >= 0;
   }
 
   async function onSincronizar() {
@@ -84,11 +150,16 @@ export function ConfiguracionClient({ sesion }: Props) {
       inputRef.current?.click();
       return;
     }
+    if (!mapeo || !mapeoCompleto()) {
+      setMensaje("Asigna la columna CURP antes de sincronizar.");
+      return;
+    }
     setSincronizando(true);
     setMensaje(null);
     setResultado(null);
     const fd = new FormData();
     fd.set("archivo", archivo);
+    fd.set("mapeo", JSON.stringify(mapeo));
     const res = await actionSincronizarAlumnosDesdeArchivo(fd);
     setSincronizando(false);
     if (res.ok) {
@@ -97,6 +168,8 @@ export function ConfiguracionClient({ sesion }: Props) {
         `Sincronización completada: ${res.agregados} alumno(s) agregado(s).`,
       );
       setArchivo(null);
+      setMapeo(null);
+      setEncabezados([]);
     } else {
       setResultado(res);
       setMensaje(res.error);
@@ -161,8 +234,9 @@ export function ConfiguracionClient({ sesion }: Props) {
             <div className="flex min-h-[120px] flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:p-6">
               <p className="mb-3 text-center text-xs font-semibold text-slate-700">
                 Sube el archivo (CSV o Excel) con el roster completo de
-                estudiantes. Debe incluir columnas{" "}
-                <span className="font-extrabold text-sky-900">CURP</span>,{" "}
+                estudiantes. Debe incluir una columna{" "}
+                <span className="font-extrabold text-sky-900">CURP</span> y,
+                opcionalmente,{" "}
                 <span className="font-extrabold text-sky-900">P_APELLIDO</span>,{" "}
                 <span className="font-extrabold text-sky-900">S_APELLIDO</span> y{" "}
                 <span className="font-extrabold text-sky-900">NOMBRE</span>.
@@ -198,6 +272,53 @@ export function ConfiguracionClient({ sesion }: Props) {
                 aria-label="Seleccionar archivo del roster de alumnos"
               />
             </div>
+
+            {/* Etapa de mapeo de columnas */}
+            {archivo && encabezados.length > 0 && mapeo && (
+              <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:p-6">
+                <p className="mb-3 text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
+                  Mapeo de columnas
+                </p>
+                <p className="mb-4 text-center text-xs font-semibold text-slate-700">
+                  Confirma qué columna del archivo corresponde a cada campo. La
+                  columna CURP es obligatoria.
+                </p>
+                <div className="flex flex-col gap-3">
+                  {CAMPOS_ROSTER.map(({ campo, etiqueta }) => (
+                    <label
+                      key={campo}
+                      className="flex flex-col gap-1 rounded-2xl border border-white/50 bg-white/50 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <span className="text-xs font-extrabold uppercase tracking-wide text-slate-700">
+                        {etiqueta}
+                        {campo === "curp" && (
+                          <span className="ml-1 text-red-600">*</span>
+                        )}
+                      </span>
+                      <select
+                        value={mapeo[campo]}
+                        onChange={(e) =>
+                          onCambiarCampo(campo, Number(e.target.value))
+                        }
+                        className="rounded-xl border border-sky-800/40 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-inner outline-none focus:border-sky-600"
+                      >
+                        <option value={-1}>— No usar —</option>
+                        {encabezados.map((enc, i) => (
+                          <option key={i} value={i}>
+                            {enc}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+                {!mapeoCompleto() && (
+                  <p className="mt-3 text-center text-xs font-bold text-red-700">
+                    Asigna la columna CURP para poder sincronizar.
+                  </p>
+                )}
+              </div>
+            )}
 
             {resultado?.ok && (
               <div className="rounded-3xl border border-emerald-400/50 bg-emerald-100/70 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
