@@ -7,7 +7,9 @@ import {
   buscarAlumnoPorNombre,
   buscarAlumnoPorTexto,
   nombreCompletoAlumno,
+  sincronizarAlumnosDesdeArchivo,
 } from "@/lib/escolar/alumnos";
+
 import {
   guardarComentarioAlumno,
   listarComentariosAlumno,
@@ -416,3 +418,39 @@ export async function actionSubirEtiquetasStatus(
   const supabase = await createClient();
   return reemplazarContenidoStatusDesdeArchivo(supabase, archivo);
 }
+
+/**
+ * Sincronización INCREMENTAL del roster de alumnos (CSV/Excel) contra la tabla
+ * ALUMNOS. SOLO AGREGA alumnos nuevos; nunca borra ni reemplaza los existentes.
+ * Solo directivos pueden ejecutarla.
+ */
+export async function actionSincronizarAlumnosDesdeArchivo(
+  formData: FormData,
+): Promise<
+  | {
+      ok: true;
+      agregados: number;
+      yaExistentes: number;
+      omitidos: number;
+      omitidosDetalle: string[];
+    }
+  | { ok: false; error: string }
+> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return {
+      ok: false,
+      error: "Solo directivos pueden sincronizar el roster de alumnos.",
+    };
+  }
+
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { ok: false, error: "Selecciona un archivo válido." };
+  }
+
+  const supabase = await createClient();
+  return sincronizarAlumnosDesdeArchivo(supabase, archivo);
+}
+
+

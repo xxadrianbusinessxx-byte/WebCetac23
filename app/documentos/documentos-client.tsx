@@ -27,7 +27,11 @@ export function DocumentosClient({ sesion }: Props) {
             Documentos
           </GlossyNavPill>
           <GlossyNavPill href={`/chat?origen=${origen}`}>Chat</GlossyNavPill>
+          {esDirectivo && (
+            <GlossyNavPill href="/configuracion">Configuración</GlossyNavPill>
+          )}
         </div>
+
 
         <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-center">
           <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-[1.75rem] border-[3px] border-sky-900/70 bg-white/75 p-2 shadow-[0_10px_28px_rgba(14,165,233,0.2),inset_0_2px_0_rgba(255,255,255,0.95)] backdrop-blur-md sm:h-32 sm:w-32">

@@ -352,7 +352,9 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
           </GlossyNavPill>
           <GlossyNavPill href="/documentos">Documentos</GlossyNavPill>
           <GlossyNavPill href="/chat?origen=directivo">Chat</GlossyNavPill>
+          <GlossyNavPill href="/configuracion">Configuración</GlossyNavPill>
         </div>
+
 
 
         <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-center">

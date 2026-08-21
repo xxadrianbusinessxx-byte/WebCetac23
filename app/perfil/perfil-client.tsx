@@ -214,7 +214,11 @@ export function PerfilClient({
             Perfil
           </GlossyNavPill>
           <GlossyNavPill href="/chat?origen=perfil">Chat</GlossyNavPill>
+          {modoDirectivo && (
+            <GlossyNavPill href="/configuracion">Configuración</GlossyNavPill>
+          )}
         </div>
+
 
         {/* Cabecera avatar + nombre */}
         <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-center">

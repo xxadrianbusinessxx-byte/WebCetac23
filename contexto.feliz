@@ -407,6 +407,34 @@ Roles: alumno, maestro/profesor, directivo.
   3. Verificar alumnos estrella en home y pestaña Estatus en perfil.
   4. (Opcional) Implementar subida CSV de STATUS desde directivo.
 
+
+
+--------------------------------------------------------------------------------
+Bloque 1 — Estado: completado — Sincronización incremental del roster de
+alumnos (CSV/Excel) contra la tabla ALUMNOS de Supabase, SOLO AGREGANDO
+alumnos nuevos (nunca borra ni reemplaza). Se añadió la ruta /configuracion
+con su propia barra de navegación (Directivo · Documentos · Chat ·
+Configuración) y una GUI para que el directivo suba el archivo del roster.
+La clave de cada alumno se calcula como los últimos 6 caracteres de su CURP
+(claveDesdeCurp, centralizada en lib/escolar/alumnos.ts). Las filas con CURP
+inválido/incompleto se reportan como omitidas en un resumen, sin romper el
+proceso. Build verificado (tsc --noEmit + next build OK, ruta /configuracion OK).
+  Rutas exactas de archivos cambiados:
+    - lib/escolar/alumnos.ts (claveDesdeCurp, sincronizarAlumnosDesdeArchivo)
+    - app/actions/escolar.ts (actionSincronizarAlumnosDesdeArchivo)
+    - app/configuracion/page.tsx (nuevo)
+    - app/configuracion/configuracion-client.tsx (nuevo)
+    - app/directivo/directivo-client.tsx (nav + Configuración)
+    - app/documentos/documentos-client.tsx (nav + Configuración, solo directivo)
+    - app/perfil/perfil-client.tsx (nav + Configuración, solo modo directivo)
+
+NOTA DE COHERENCIA: contexto.feliz usa secciones numeradas (1-10), no bloques
+"Bloque N". Este es el primer bloque con ese formato. Además, el documento NO
+documenta aún el trabajo de sincronización de alumnos (este bloque) ni otros
+posibles bloques previos; si hubo trabajo anterior que nunca se registró aquí,
+conviene revisarlo y documentarlo por separado.
+
+
 ================================================================================
   Fin de contexto.feliz
 ================================================================================
