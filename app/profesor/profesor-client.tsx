@@ -13,9 +13,11 @@ import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 import type { PortalSessionPayload } from "@/lib/auth/types";
 import { actionTieneAccesoDocumentos } from "@/app/actions/documentos";
+import { AsistenciasPanel } from "../components/asistencias-panel";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
+
 
 
 
@@ -255,10 +257,13 @@ export function ProfesorClient({ sesion, materias }: Props) {
           </div>
         </div>
 
+        <AsistenciasPanel />
+
         <section
           className="relative mt-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
           aria-label="Comentarios a alumnos"
         >
+
 
 
           <div className="relative z-[1] flex flex-wrap items-end justify-between gap-2 px-1 pb-2">

@@ -15,9 +15,11 @@ import {
   type MapeoRoster,
 } from "@/lib/escolar/mapeo-columnas";
 
+import { CalendarioEscolarPanel } from "../components/calendario-escolar-panel";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
+
 
 function GreyActionPill({
   children,
@@ -494,7 +496,12 @@ export function ConfiguracionClient({ sesion }: Props) {
 
           </div>
         </div>
+
+        {/* Calendario escolar */}
+        <CalendarioEscolarPanel />
       </div>
     </FrutigerBackdrop>
   );
 }
+
+

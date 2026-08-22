@@ -508,9 +508,181 @@ añade la previsualización y el completado de campos vacíos. El resto del
 documento sigue usando secciones numeradas (1-10). Si hubo trabajo anterior que
 nunca se registró aquí, conviene revisarlo y documentarlo por separado.
 
+--------------------------------------------------------------------------------
+Bloque 4 — Estado: completado — Sistema de ASISTENCIAS (base de datos + dominio).
+Se diseñó e implementó la infraestructura de asistencias del profesor, con
+calendario escolar como fuente de verdad. Cambios clave:
+  · SQL (supabase/crear-tablas-asistencias.sql): tablas nuevas
+      - calendario_escolar (ciclo, fecha, tipo: clase|festivo|mantenimiento|descanso)
+      - clases_impartidas (profesor_clave, grado, grupo, carrera, fecha, clases)
+      - asistencia_alumnos (profesor_clave, curp, grado, grupo, carrera, nombre,
+        fecha, clases_asistidas)
+    Todas con UNIQUE para que el UPSERT NO acumule (re-subir actualiza, no suma).
+    NO se almacenan datos derivados (totales, porcentajes): se calculan con SUM().
+  · lib/escolar/calendario.ts: obtenerCalendarioEscolar, listarCiclosEscolares,
+    diaSemanaDesdeFecha (fecha → día de la semana real).
+  · lib/escolar/asistencias.ts: listarGruposAsistencia (desde ETIQUETAS
+    PERSONALES, sin hardcodear grados/grupos/carreras), obtenerAlumnosDelGrupo
+    (CURP desde ETIQUETAS PERSONALES + nombre desde ALUMNOS), generarPlantilla
+    (solo días tipo 'clase'), analizar/previsualizar/confirmar (UPSERT).
+  · app/actions/asistencias.ts: Server Actions con seguridad por rol
+    (maestro/directivo) y profesor_clave SIEMPRE desde sesion.matricula.
+  · app/components/asistencias-panel.tsx: UI en /profesor (descargar plantilla,
+    subir, previsualizar, confirmar).
+  · app/actions/calendario.ts + app/components/calendario-escolar-panel.tsx:
+    gestión del calendario escolar en /configuracion (directivo).
+  · app/configuracion/configuracion-client.tsx: sección "Calendario escolar".
+  · lib/escolar/tables.ts: constantes TABLA_CALENDARIO_ESCOLAR,
+    TABLA_CLASES_IMPARTIDAS, TABLA_ASISTENCIA_ALUMNOS.
+  · app/profesor/profesor-client.tsx: renderiza <AsistenciasPanel/>.
+  · SQL (supabase/migrar-asistencia-profesor.sql): migración para añadir
+    profesor_clave a asistencia_alumnos (identidad del profesor por sesión).
+  · SQL (supabase/crear-configuracion-clases-profesor.sql): tabla
+    configuracion_clases_profesor (lunes..viernes) para auto-rellenar la fila
+    CLASES de la plantilla según el día real de cada fecha.
+
+--------------------------------------------------------------------------------
+Bloque 5C — Estado: completado — Configuración semanal de clases del profesor.
+Se añadió la configuración de cuántas clases imparte cada profesor por día de la
+semana, para que la plantilla de asistencias se genere automáticamente con la
+fila CLASES rellena según el día REAL de cada fecha del calendario. Cambios:
+  · SQL (supabase/crear-configuracion-clases-profesor.sql): tabla
+    configuracion_clases_profesor (profesor_clave UNIQUE, lunes..viernes con
+    CHECK >= 0). UPSERT por profesor_clave: guardar de nuevo actualiza, no duplica.
+  · lib/escolar/tables.ts: constante TABLA_CONFIGURACION_CLASES_PROFESOR.
+  · lib/escolar/asistencias.ts:
+      - tipos ConfiguracionClasesProfesor, configuracionVacia,
+        obtenerConfiguracionClasesProfesor, guardarConfiguracionClasesProfesor
+        (UPSERT), clasesDelProfesorParaFecha (fecha → día real → columna).
+      - generarPlantillaAsistencia ahora auto-rellena la fila CLASES con
+        clasesDelProfesorParaFecha(config, fecha) para cada fecha del calendario.
+  · app/actions/asistencias.ts: actionObtenerConfiguracionClasesProfesor y
+    actionGuardarConfiguracionClasesProfesor (rol maestro/directivo, identidad
+    desde sesion.matricula).
+  · app/components/asistencias-panel.tsx: sección "Configuración de clases por
+    día" (inputs Lunes..Viernes + Guardar), con aviso si aún no está configurada.
+  · La configuración es OPCIONAL: si no existe, la fila CLASES queda vacía y la
+    UI indica que debe configurarse. La asistencia real del alumno es un
+    concepto DISTINTO de las clases impartidas.
+Build verificado (tsc --noEmit OK). Rutas exactas de archivos cambiados:
+    - supabase/crear-configuracion-clases-profesor.sql (nuevo)
+    - lib/escolar/tables.ts (TABLA_CONFIGURACION_CLASES_PROFESOR)
+    - lib/escolar/asistencias.ts (config + auto-relleno de CLASES)
+    - app/actions/asistencias.ts (2 Server Actions nuevas)
+    - app/components/asistencias-panel.tsx (sección de configuración)
+
+
+
+--------------------------------------------------------------------------------
+Bloque 5D — Estado: completado — Asistencias: archivos incompletos + estados
+derivados (asistió/falta/pendiente/sin_clase) + configuración semanal como
+fuente de verdad de CLASES. NO requiere cambios de esquema (las tablas de los
+Bloques 5A/5B/5C ya lo soportan). Cambios clave:
+  · FUENTE DE VERDAD DE "CLASES": la cantidad de clases del profesor por día se
+    obtiene SIEMPRE de la configuración semanal (configuracion_clases_profesor +
+    clasesDelProfesorParaFecha). La fila CLASES del archivo es SOLO informativa:
+    si difiere de la configuración se muestra una DISCREPANCIA en el preview y se
+    usa la configuración como valor oficial. NUNCA se modifica la configuración
+    automáticamente ni se duplica el dato.
+  · ARCHIVOS INCOMPLETOS: una celda de asistencia VACÍA ≠ 0. Vacío = sin registro
+    = PENDIENTE (no se escribe nada, no es error). Un 0 explícito = FALTA (sí se
+    escribe). Un número > 0 = ASISTIÓ. La fila CLASES con celdas vacías se omite
+    (no se fuerza).
+  · PENDIENTE (definición refinada): día que pertenece al calendario, es
+    tipo='clase', el profesor tiene clases ese día según su configuración
+    (oficial > 0), el alumno pertenece al grupo, pero NO existe registro de
+    asistencia. Los días festivo/mantenimiento/descanso y sábado/domingo son
+    SIN_CLASE, nunca pendiente.
+  · ESTADOS DERIVADOS (no se almacenan): nuevas funciones de dominio en
+    lib/escolar/asistencias.ts:
+      - estadoAsistenciaAlumno(...) (pura): resuelve asistio/falta/pendiente/sin_clase.
+      - obtenerEstadosAsistenciaAlumno(...): SOLO 3 consultas (calendario +
+        clases_impartidas + asistencia_alumnos) y resuelve en memoria (sin N+1).
+        Acepta profesorClave opcional (estado por profesor o global del grupo).
+      - calcularPorcentajeAsistencia(...): porcentaje = asistencias/(asistencias+
+        faltas). Los pendientes NO entran al denominador (18+2+5 → 90%).
+  · PREVIEW actualizado: el resumen ahora distingue procesados, actualizados,
+    sinCambios, omitidos, errores, PENDIENTES (días de clase del ciclo que no
+    vienen en el archivo) y DISCREPANCIAS (fila CLASES vs configuración), con sus
+    detalles. Los días ausentes NO son errores.
+  · Server Action nueva actionObtenerEstadosAsistenciaAlumno (reutilizable para
+    la futura visualización del alumno/padre). Devuelve los estados y el
+    porcentaje derivado.
+  · UPSERT conservado: clases_impartidas (profesor_clave,grado,grupo,fecha) y
+    asistencia_alumnos (profesor_clave,curp,grado,grupo,fecha). Re-subir NO
+    acumula (3 → 3, y 3 → 4 si se modifica).
+Build verificado (tsc --noEmit OK + next build OK). Rutas exactas de archivos
+cambiados:
+    - lib/escolar/asistencias.ts (análisis incompletos, discrepancias, estados,
+      porcentaje; import de TipoDiaCalendario)
+    - app/actions/asistencias.ts (actionObtenerEstadosAsistenciaAlumno)
+    - app/components/asistencias-panel.tsx (preview con pendientes/discrepancias)
+
+
+
+--------------------------------------------------------------------------------
+Bloque 5E — Estado: completado — Asistencias: capa canónica de fechas
+(normalización determinista de fechas de Excel/Sheets/CSV). NO requiere cambios
+de esquema. Resuelve el problema de que, al editar una plantilla en Excel, las
+fechas de los encabezados cambian de formato (ISO → regional DD/MM/YYYY o
+MM/DD/YYYY, o serial numérico) y la detección de columnas fallaba. Cambios clave:
+  · NUEVO lib/escolar/fechas.ts: ÚNICA abstracción para convertir a `YYYY-MM-DD`
+    (formato canónico interno) cualquier representación de fecha que pueda
+    producir Excel/Sheets/CSV:
+      - normalizarFechaEscolar(valor): acepta Date, número (serial Excel) o texto
+        en ISO, separadores (2026/08/24, 2026.08.24), regional día primero
+        (24/08/2026, 24-08-2026, 24.08.2026) y mes primero (08/24/2026). Devuelve
+        { ok:true, fecha } o { ok:false, motivo } con motivo "vacio" | "formato" |
+        "fecha_imposible" | "ambigua" (con candidatos). NO usa `new Date(valor)`
+        como mecanismo universal (depende de timezone/locale): es explícito y
+        determinista. NO interpreta una fecha ambigua de forma arbitraria.
+      - serialExcelAFechaISO(serial): convierte el serial de fecha de Excel a ISO
+        (maneja el bug del año 1900; seriales < 61 → inválidos).
+      - detectarColumnasFechaAsistencia(encabezados, calendario, indicesIgnorar):
+        normaliza cada encabezado y lo compara contra el calendario del ciclo
+        (fuente de verdad). Solo considera fecha de asistencia un día
+        tipo='clase'. Reporta columnas ok / no_es_dia_clase / ambigua.
+      - esFechaOk(r): guard de tipo para estrechar el union de resultado.
+  · lib/escolar/csv.ts: NUEVA archivoCsvAFilasConValores(file) que conserva los
+    VALORES CRUDOS (string | number) en lugar de forzar todo a texto. Así los
+    seriales de fecha de Excel llegan como número y se normalizan correctamente.
+    El parser XLSX existente (archivoAFilas) se mantiene intacto para el roster.
+  · lib/escolar/asistencias.ts: analizarPlantillaAsistencia ahora usa
+    detectarColumnasFechaAsistencia para reconocer las columnas de fecha (en vez
+    de un regex ISO estricto). Los encabezados se normalizan a YYYY-MM-DD y se
+    validan contra el calendario. Mensajes de error más útiles: si hay columnas
+    ambiguas se muestran los candidatos; si hay fechas que no son día de clase se
+    muestran ejemplos y se sugiere descargar una plantilla nueva.
+  · Se corrigió un bug de tipo (narrowing) en fechas.ts con el guard esFechaOk y
+    un bug de parsing regional (parámetros de esFechaReal intercambiados) que
+    producía fechas incorrectas (p.ej. 24/08/2026 → 2026-24-08).
+  · NUEVO scripts/test-fechas.mjs: 22 pruebas de la capa de fechas (ISO,
+    separadores, regional día/mes primero, serial Excel, ambigüedad, fechas
+    imposibles, Date, detección contra calendario). Para ejecutarlas hay que
+    compilar fechas.ts a JS primero (ver comentario en el script).
+Build verificado (tsc --noEmit OK + next build OK). Rutas exactas de archivos
+cambiados:
+    - lib/escolar/fechas.ts (nuevo: normalizarFechaEscolar, serialExcelAFechaISO,
+      detectarColumnasFechaAsistencia, esFechaOk)
+    - lib/escolar/csv.ts (archivoCsvAFilasConValores)
+    - lib/escolar/asistencias.ts (detección de columnas de fecha + mensajes)
+    - scripts/test-fechas.mjs (nuevo: pruebas de la capa de fechas)
+  · FIX (fecha canónica en el flujo de análisis): en analizarPlantillaAsistencia
+    se eliminó el uso del encabezado CRUDO del archivo como fecha. Ahora la fecha
+    se toma SIEMPRE de la columna detectada (columna.fecha, ya normalizada a
+    YYYY-MM-DD por detectarColumnasFechaAsistencia). Esto corrige el caso real en
+    que Excel serializa los encabezados de fecha (p.ej. "46259" en vez de
+    "2026-08-24"): antes el flujo comparaba el serial contra el calendario y
+    fallaba con "no es día de clase"; ahora usa la fecha canónica en toda la
+    fila CLASES, clases oficiales, pendientes y filas de alumnos. Verificado con
+    scripts/test-fechas.mjs (22 pasadas, 0 fallidas) + tsc --noEmit + next build.
+
 
 
   Fin de contexto.feliz
+
+
+
 
 
 ================================================================================

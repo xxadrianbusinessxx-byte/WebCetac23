@@ -8,8 +8,24 @@ export const TABLA_ETIQUETAS_PERSONALES = "ETIQUETAS PERSONALES";
 export const TABLA_CARPETAS = "CARPETAS";
 export const TABLA_DOCUMENTOS = "DOCUMENTOS";
 export const TABLA_PERMISOS_CARPETAS = "PERMISOS CARPETAS";
+export const TABLA_CALENDARIO_ESCOLAR = "calendario_escolar";
+export const TABLA_CLASES_IMPARTIDAS = "clases_impartidas";
+export const TABLA_ASISTENCIA_ALUMNOS = "asistencia_alumnos";
+export const TABLA_CONFIGURACION_CLASES_PROFESOR = "configuracion_clases_profesor";
+
+
+/** Tipos de día del calendario escolar (columna `tipo`). */
+export const TIPOS_DIA_CALENDARIO = [
+  "clase",
+  "festivo",
+  "mantenimiento",
+  "descanso",
+] as const;
+export type TipoDiaCalendario = (typeof TIPOS_DIA_CALENDARIO)[number];
+
 
 /** Bucket de Storage para documentos institucionales. */
+
 export const BUCKET_DOCUMENTOS = "documentos-institucionales";
 
 /** Niveles de permiso sobre una carpeta (heredados a subcarpetas). */

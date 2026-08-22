@@ -81,3 +81,58 @@ export async function archivoCsvAFilas(
     "Formato no permitido. Usa CSV o Excel (.xlsx / .xls); Excel se convierte a CSV al subir.",
   );
 }
+
+/**
+ * Lee un archivo CSV/Excel conservando los VALORES CRUDOS de cada celda.
+ *
+ * A diferencia de `archivoCsvAFilas` (que usa `raw: false` y convierte las
+ * fechas de Excel a su texto con formato regional, p. ej. "21/08/2026"), esta
+ * variante usa `raw: true` para que las celdas de fecha de Excel lleguen como
+ * su SERIAL NUMÉRICO (p. ej. 46255). Así la capa de normalización de fechas
+ * (`normalizarFechaEscolar`) puede convertirlas de forma determinista a
+ * `YYYY-MM-DD`, sin depender del locale del equipo que editó la plantilla.
+ *
+ * Para CSV se reutiliza el mismo parser existente (no se duplica lógica).
+ * Para Excel se reutiliza la misma librería XLSX, solo cambia la opción `raw`.
+ *
+ * @returns `filas` con celdas como string (texto) o number (serial de fecha).
+ */
+export async function archivoCsvAFilasConValores(
+  file: File,
+): Promise<{ filas: (string | number)[][]; csvTexto: string }> {
+  const nombre = file.name.toLowerCase();
+
+  if (nombre.endsWith(".csv")) {
+    const texto = await file.text();
+    const filas = parseCsvTexto(texto);
+    return { filas, csvTexto: texto };
+  }
+
+  if (nombre.endsWith(".xlsx") || nombre.endsWith(".xls")) {
+    const buffer = await file.arrayBuffer();
+    const libro = XLSX.read(buffer, { type: "array" });
+    const hoja = libro.Sheets[libro.SheetNames[0]];
+    const matriz = XLSX.utils.sheet_to_json<unknown[]>(hoja, {
+      header: 1,
+      defval: "",
+      raw: true,
+    }) as unknown[][];
+    const filas = matriz.map((fila) =>
+      fila.map((c) => {
+        if (c == null) return "";
+        if (typeof c === "number") return c;
+        return String(c).trim();
+      }),
+    );
+    const csvTexto = matrizACsvTexto(
+      filas.map((fila) => fila.map((c) => String(c))),
+    );
+    return { filas, csvTexto };
+  }
+
+  throw new Error(
+    "Formato no permitido. Usa CSV o Excel (.xlsx / .xls); Excel se convierte a CSV al subir.",
+  );
+}
+
+
