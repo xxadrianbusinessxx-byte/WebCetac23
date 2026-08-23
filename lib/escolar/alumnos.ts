@@ -145,10 +145,14 @@ const ETIQUETA_CAMPO: Record<CampoCompletable, string> = {
  * Trae todos los alumnos existentes (CURP + campos descriptivos) paginando,
  * para no depender del límite por defecto de Supabase (5000) ni hacer una
  * consulta por cada fila del archivo.
+ *
+ * Exportada para reutilizarla en otros dominios (p. ej. generación masiva de
+ * tutores) sin duplicar el patrón de paginación.
  */
-async function traerAlumnosExistentes(
+export async function traerAlumnosExistentes(
   supabase: SupabaseClient,
 ): Promise<AlumnoRow[]> {
+
   const todos: AlumnoRow[] = [];
   let desde = 0;
   // eslint-disable-next-line no-constant-condition

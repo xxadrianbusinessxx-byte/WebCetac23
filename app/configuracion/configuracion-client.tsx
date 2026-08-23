@@ -19,6 +19,7 @@ import { CalendarioEscolarPanel } from "../components/calendario-escolar-panel";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
+import { TutoresPanel } from "../components/tutores-panel";
 
 
 function GreyActionPill({
@@ -499,6 +500,9 @@ export function ConfiguracionClient({ sesion }: Props) {
 
         {/* Calendario escolar */}
         <CalendarioEscolarPanel />
+
+        {/* Tutores / Padres */}
+        <TutoresPanel />
       </div>
     </FrutigerBackdrop>
   );

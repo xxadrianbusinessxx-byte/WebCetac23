@@ -13,13 +13,16 @@ import {
   obtenerConfiguracionClasesProfesor,
   obtenerEstadosAsistenciaAlumno,
   previsualizarAsistencias,
+  profesorImparteEnGrupo,
   type ConfiguracionClasesProfesor,
+
   type DiaEstadoAsistencia,
   type PlanAsistencia,
   type ResumenAsistencia,
 } from "@/lib/escolar/asistencias";
 
-
+import { TABLA_JUSTIFICACIONES_ASISTENCIA } from "@/lib/escolar/tables";
+import { listarCurpsDeTutor } from "@/lib/escolar/tutores";
 
 /**
  * Server Actions de ASISTENCIAS DEL PROFESOR (Bloque 5B).
@@ -231,14 +234,209 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
     return { ok: false, error: "No tienes permiso para consultar asistencias." };
   }
 
+  const curp = input.curp.trim().toUpperCase();
+  if (!curp) {
+    return { ok: false, error: "Indica la CURP del alumno." };
+  }
+
+  // Endurecimiento de permisos por rol:
+  //  - alumno: solo su propia CURP (sesion.curp).
+  //  - tutor: solo CURP de sus alumnos vinculados (relación activa).
+  //  - maestro: solo alumnos de grupos donde imparte clase (según sus propios
+  //    registros de `clases_impartidas`) y SIEMPRE limitado a su profesor_clave.
+  //  - directivo: acceso total (sin restricción de grupo ni profesor).
+  if (sesion.rol === "alumno") {
+    if (!sesion.curp || sesion.curp.trim().toUpperCase() !== curp) {
+      return { ok: false, error: "Solo puedes consultar tu propia asistencia." };
+    }
+  } else if (sesion.rol === "tutor") {
+    const supabase = await createClient();
+    const curps = await listarCurpsDeTutor(supabase, sesion.matricula);
+    if (!curps.includes(curp)) {
+      return { ok: false, error: "No tienes relación con ese alumno." };
+    }
+  } else if (sesion.rol === "maestro") {
+    const supabase = await createClient();
+    const imparte = await profesorImparteEnGrupo(
+      supabase,
+      sesion.matricula,
+      input.grado,
+      input.grupo,
+    );
+    if (!imparte) {
+      return {
+        ok: false,
+        error:
+          "Solo puedes consultar asistencias de los grupos donde impartes clase.",
+      };
+    }
+    // Un maestro SIEMPRE consulta su propio aporte (nunca el global ni el de
+    // otro profesor).
+    input.profesorClave = sesion.matricula;
+  } else if (sesion.rol !== "directivo") {
+    return { ok: false, error: "No tienes permiso para consultar asistencias." };
+  }
+
   const supabase = await createClient();
-  const dias = await obtenerEstadosAsistenciaAlumno(supabase, input);
+  const dias = await obtenerEstadosAsistenciaAlumno(supabase, {
+    ...input,
+    curp,
+  });
+
   return {
     ok: true,
     dias,
     porcentaje: calcularPorcentajeAsistencia(dias),
   };
 }
+
+/**
+ * Obtiene el contexto de un alumno (grado/grupo/carrera/nombre) para que un
+ * TUTOR pueda visualizar su asistencia. El tutor solo puede consultar alumnos
+ * con los que tenga una relación activa (tutor_alumnos).
+ */
+export async function actionObtenerContextoAlumnoParaTutor(input: {
+  curp: string;
+}): Promise<
+  | {
+      ok: true;
+      alumno: {
+        curp: string;
+        nombre: string;
+        grado: string;
+        grupo: string;
+        carrera: string;
+      };
+    }
+  | { ok: false; error: string }
+> {
+  const sesion = await obtenerSesionPortal();
+  if (!sesion || sesion.rol !== "tutor") {
+    return { ok: false, error: "No tienes permiso para consultar alumnos." };
+  }
+
+  const curp = input.curp.trim().toUpperCase();
+  if (!curp) {
+    return { ok: false, error: "Indica la CURP del alumno." };
+  }
+
+  const supabase = await createClient();
+
+  // El tutor solo puede consultar alumnos con relación activa.
+  const curps = await listarCurpsDeTutor(supabase, sesion.matricula);
+  if (!curps.includes(curp)) {
+    return { ok: false, error: "No tienes relación con ese alumno." };
+  }
+
+  // Buscar el alumno en ETIQUETAS PERSONALES (fuente real de grado/grupo/carrera).
+  const { data: etiquetas, error: errEtiquetas } = await supabase
+    .from("ETIQUETAS PERSONALES")
+    .select("CURP, GRADO, GRUPO, CARRERA")
+    .eq("CURP", curp)
+    .limit(1)
+    .maybeSingle();
+
+  if (errEtiquetas || !etiquetas) {
+    return { ok: false, error: "No se encontró el alumno en el grupo." };
+  }
+
+  // Nombre completo desde ALUMNOS.
+  const { data: alumno, error: errAlumno } = await supabase
+    .from("ALUMNOS")
+    .select("CURP, NOMBRE, P_APELLIDO, S_APELLIDO")
+    .eq("CURP", curp)
+    .limit(1)
+    .maybeSingle();
+  if (errAlumno || !alumno) {
+    return { ok: false, error: "No se encontró el alumno." };
+  }
+
+  const nombre = [
+    alumno.NOMBRE,
+    alumno.P_APELLIDO,
+    alumno.S_APELLIDO,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return {
+    ok: true,
+    alumno: {
+      curp,
+      nombre,
+      grado: String(etiquetas.GRADO ?? ""),
+      grupo: String(etiquetas.GRUPO ?? ""),
+      carrera: String(etiquetas.CARRERA ?? ""),
+    },
+  };
+}
+
+/**
+ * Registra (UPSERT) una justificación de falta para un alumno en una fecha.
+ * Solo el tutor del alumno (o el propio alumno) puede solicitarla.
+ * Re-solicitar la misma fecha actualiza el motivo, no duplica.
+ */
+export async function actionSolicitarJustificacionAsistencia(input: {
+  curp: string;
+  fecha: string;
+  motivo: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sesion = await obtenerSesionPortal();
+  if (!sesion) {
+    return { ok: false, error: "No tienes permiso para justificar asistencias." };
+  }
+
+  const curp = input.curp.trim().toUpperCase();
+  const fecha = input.fecha.trim();
+  const motivo = input.motivo.trim();
+  if (!curp || !fecha || !motivo) {
+    return { ok: false, error: "Indica CURP, fecha y motivo." };
+  }
+  if (motivo.length > 500) {
+    return { ok: false, error: "El motivo no puede superar 500 caracteres." };
+  }
+
+  const supabase = await createClient();
+
+  // Permisos: tutor (solo sus alumnos) o alumno (solo su propia CURP).
+  let solicitanteTipo: "tutor" | "alumno" = "tutor";
+  let solicitanteId = sesion.matricula;
+  if (sesion.rol === "tutor") {
+    const curps = await listarCurpsDeTutor(supabase, sesion.matricula);
+    if (!curps.includes(curp)) {
+      return { ok: false, error: "No tienes relación con ese alumno." };
+    }
+  } else if (sesion.rol === "alumno") {
+    if (!sesion.curp || sesion.curp.trim().toUpperCase() !== curp) {
+      return { ok: false, error: "Solo puedes justificar tu propia asistencia." };
+    }
+    solicitanteTipo = "alumno";
+  } else {
+    return { ok: false, error: "No tienes permiso para justificar asistencias." };
+  }
+
+  // UPSERT: una justificación por (curp, fecha). Re-solicitar actualiza.
+  const { error } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .upsert(
+      {
+        curp_alumno: curp,
+        fecha,
+        motivo,
+        estado: "pendiente",
+        solicitante_tipo: solicitanteTipo,
+        solicitante_id: solicitanteId,
+      },
+      { onConflict: "curp_alumno,fecha" },
+    );
+
+  if (error) {
+    return { ok: false, error: "No se pudo guardar la justificación." };
+  }
+  return { ok: true };
+}
+
 
 
 

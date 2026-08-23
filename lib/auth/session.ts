@@ -36,7 +36,10 @@ export function decodePortalSession(token: string): PortalSessionPayload | null 
     if (
       parsed &&
       typeof parsed.matricula === "string" &&
-      (parsed.rol === "alumno" || parsed.rol === "maestro" || parsed.rol === "directivo")
+      (parsed.rol === "alumno" ||
+        parsed.rol === "maestro" ||
+        parsed.rol === "directivo" ||
+        parsed.rol === "tutor")
     ) {
       return parsed;
     }

@@ -9,6 +9,12 @@ import {
   nombreProfesor,
   rolDesdePermisos,
 } from "@/lib/escolar/profesores";
+import {
+  buscarTutorPorClaveTutor,
+  buscarTutorPorUsuario,
+  nombreCompletoTutor,
+  verificarContraseñaTutor,
+} from "@/lib/escolar/tutores";
 import type { PortalRole } from "./types";
 
 export type LoginResult = {
@@ -57,6 +63,21 @@ export async function validarAccesoPortal(
       rol: "alumno",
       curp: alumno.CURP,
       nombre: nombreCompletoAlumno(alumno),
+    };
+  }
+
+  // Tutor: el campo "nombre" recibe el `usuario` (o la `clave_tutor`) y el
+  // campo "clave" recibe la contraseña. La contraseña se verifica contra el
+  // hash scrypt almacenado (nunca en texto plano).
+  const tutor =
+    (await buscarTutorPorUsuario(supabase, nombreCompleto)) ??
+    (await buscarTutorPorClaveTutor(supabase, nombreCompleto));
+  if (tutor && tutor.activo && verificarContraseñaTutor(clave, tutor.password_hash)) {
+    return {
+      matricula: tutor.id,
+      rol: "tutor",
+      curp: tutor.curp ?? undefined,
+      nombre: nombreCompletoTutor(tutor),
     };
   }
 

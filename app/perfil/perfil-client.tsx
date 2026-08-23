@@ -8,6 +8,7 @@ import {
   actionObtenerVistaMateria,
   actionSubirFotoPerfil,
 } from "@/app/actions/escolar";
+import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistencia-alumno";
 import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { nombreCompletoAlumno } from "@/lib/escolar/alumnos";
@@ -219,7 +220,6 @@ export function PerfilClient({
           )}
         </div>
 
-
         {/* Cabecera avatar + nombre */}
         <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-center">
           <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-[1.75rem] border-[3px] border-sky-900/70 bg-white/75 p-2 shadow-[0_10px_28px_rgba(14,165,233,0.2),inset_0_2px_0_rgba(255,255,255,0.95)] backdrop-blur-md sm:h-32 sm:w-32">
@@ -275,11 +275,11 @@ export function PerfilClient({
           </div>
         </div>
 
-          {mensaje && (
-            <p className="mb-4 rounded-xl border border-sky-300/60 bg-white/90 px-4 py-2 text-center text-xs font-bold text-sky-900">
-              {mensaje}
-            </p>
-          )}
+        {mensaje && (
+          <p className="mb-4 rounded-xl border border-sky-300/60 bg-white/90 px-4 py-2 text-center text-xs font-bold text-sky-900">
+            {mensaje}
+          </p>
+        )}
         {/* Contenedor principal con pestañas */}
         <div className="relative flex flex-1 flex-col overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
           <div
@@ -513,6 +513,19 @@ export function PerfilClient({
                       filaDestacada={registro.filaAlumnoIndice}
                     />
                   </>
+                )}
+
+                {/* Asistencia del alumno */}
+                {tieneGrupo && curp && (
+                  <div className="mt-2 flex flex-col gap-4 rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+                    <CalendarioAsistenciaAlumno
+                      curp={curp}
+                      grado={etiquetas?.GRADO?.trim() ?? ""}
+                      grupo={etiquetas?.GRUPO?.trim() ?? ""}
+                      carrera={etiquetas?.CARRERA?.trim() || undefined}
+                      nombreAlumno={nombreMostrar}
+                    />
+                  </div>
                 )}
               </div>
             )}

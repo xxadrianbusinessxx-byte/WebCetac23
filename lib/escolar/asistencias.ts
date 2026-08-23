@@ -877,9 +877,42 @@ export function estadoAsistenciaAlumno(input: {
 }
 
 /**
+ * ¿El profesor imparte clase en un grado/grupo?
+ *
+ * Se determina a partir de los registros existentes en `clases_impartidas`
+ * (fuente real de datos): un profesor "imparte" en un grupo si ya registró
+ * clases impartidas en él. NO se crea un mapeo nuevo profesor→grupo; se
+ * reutiliza el modelo actual. Útil para restringir a un `maestro` a consultar
+ * únicamente los grupos donde realmente da clase.
+ */
+export async function profesorImparteEnGrupo(
+  supabase: SupabaseClient,
+  profesorClave: string,
+  grado: string,
+  grupo: string,
+): Promise<boolean> {
+  const clave = norm(profesorClave);
+  const g = norm(grado);
+  const gr = norm(grupo);
+  if (!clave || !g || !gr) return false;
+
+  const { data, error } = await supabase
+    .from(TABLA_CLASES_IMPARTIDAS)
+    .select("profesor_clave")
+    .eq("profesor_clave", clave)
+    .eq("grado", g)
+    .eq("grupo", gr)
+    .limit(1);
+
+  if (error) return false;
+  return (data?.length ?? 0) > 0;
+}
+
+/**
  * Obtiene el calendario de asistencia de un alumno (por CURP) para un ciclo.
  *
  * Realiza SOLO 3 consultas (calendario + clases_impartidas + asistencia_alumnos)
+
  * y resuelve los estados en memoria (sin N+1). Reutilizable para el perfil del
  * alumno, el perfil del padre y el calendario visual futuro.
  *

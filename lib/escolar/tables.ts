@@ -12,6 +12,10 @@ export const TABLA_CALENDARIO_ESCOLAR = "calendario_escolar";
 export const TABLA_CLASES_IMPARTIDAS = "clases_impartidas";
 export const TABLA_ASISTENCIA_ALUMNOS = "asistencia_alumnos";
 export const TABLA_CONFIGURACION_CLASES_PROFESOR = "configuracion_clases_profesor";
+export const TABLA_TUTORES = "tutores";
+export const TABLA_TUTOR_ALUMNOS = "tutor_alumnos";
+export const TABLA_JUSTIFICACIONES_ASISTENCIA = "justificaciones_asistencia";
+
 
 
 /** Tipos de día del calendario escolar (columna `tipo`). */

@@ -18,6 +18,8 @@ function destinationForRole(rol: PortalRole): string {
       return "/profesor";
     case "directivo":
       return "/directivo";
+    case "tutor":
+      return "/tutor";
     default:
       return "/";
   }

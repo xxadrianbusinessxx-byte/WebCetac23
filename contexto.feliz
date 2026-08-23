@@ -679,6 +679,111 @@ cambiados:
 
 
 
+-------------------------------------------------------------------------------
+Bloque 6A — Estado: completado — Sistema de TUTORES / PADRES (base de datos +
+dominio + UI). Se añadió el portal del tutor/padre para que pueda consultar la
+asistencia de sus alumnos a cargo y gestionar sus credenciales. Cambios clave:
+  · SQL (supabase/crear-tablas-tutores.sql): tablas nuevas
+      - tutores (id, clave_tutor TUT-XXXXXXXX, nombre, apellidos, curp, telefono,
+        correo, usuario, password_hash scrypt, debe_cambiar_credenciales, activo)
+      - tutor_alumnos (tutor_id FK → tutores, curp_alumno, tipo_relacion
+        principal|secundario, activo) — relación N:M tutor ↔ alumnos por CURP.
+    UNIQUE sobre clave_tutor y usuario; UNIQUE (tutor_id, curp_alumno). RLS
+    habilitado con política ALL (el control real está en las Server Actions).
+  · lib/escolar/tutores-types.ts: tipos y funciones PURAS del dominio (TutorRow,
+    TutorAlumnoRow, nombreCompletoTutor). Seguro de importar desde client.
+  · lib/escolar/tutores.ts (server-only): hashContraseñaTutor (scrypt con salt),
+    verificarContraseñaTutor, generarClaveTutor, contraseñaInicialTutorDesdeCurp,
+    buscarTutorPorClaveTutor, buscarTutorPorUsuario, buscarTutorPorId,
+    existeClaveTutor, existeUsuarioTutor, generarUsuarioUnico, listarCurpsDeTutor,
+    tutorTieneAlumno, alumnoTieneTutorPrincipal, listarTutores,
+    obtenerTutorConAlumnos, cambiarCredencialesTutor, obtenerTutoresActivosDeAlumnos,
+    desactivarRelacionesDeAlumnos, desactivarTutoresHuerfanos, crearTutorConAlumnos,
+    previsualizarGeneracionTutores, generarTutoresAutomaticos.
+  · app/actions/tutores.ts: Server Actions con seguridad por rol. ESCRITURA y
+    lista de tutores SOLO directivo; el tutor autenticado SOLO lee sus propios
+    datos y cambia sus propias credenciales (sesion.matricula = tutor.id).
+      - actionListarTutores, actionBuscarAlumnoParaTutor, actionCrearTutor,
+        actionObtenerTutorDetalle, actionObtenerDatosTutor,
+        actionCambiarCredencialesTutor, actionListarCurpsDeTutor,
+        actionPrevisualizarGeneracionTutores, actionGenerarTutoresAutomaticos,
+        actionPrevisualizarConsolidacionTutores.
+  · app/components/tutores-panel.tsx: UI en /configuracion (directivo) para
+    crear tutores manualmente (buscar alumno por CURP/nombre, vincular alumnos),
+    generar tutores automáticamente en masa (con previsualización y descarga de
+    CSV de credenciales iniciales) y consolidar hermanos bajo un mismo tutor.
+  · app/tutor/page.tsx + app/tutor/tutor-client.tsx: portal del tutor (ruta
+    /tutor) con cambio forzado de credenciales si debe_cambiar_credenciales,
+    datos del tutor, lista de alumnos a cargo y calendario de asistencia de cada
+    alumno (reutiliza CalendarioAsistenciaAlumno con permitirJustificacion).
+  · AUTH: lib/auth/types.ts añade rol "tutor" a PortalRole; lib/auth/session.ts
+    valida el rol "tutor" al decodificar; lib/auth/portal-login.ts busca al tutor
+    por usuario o clave_tutor y verifica la contraseña contra el hash scrypt;
+    app/actions/login.ts redirige al rol tutor a /tutor.
+  · lib/escolar/tables.ts: constantes TABLA_TUTORES, TABLA_TUTOR_ALUMNOS.
+  · app/configuracion/configuracion-client.tsx: sección "Tutores / Padres".
+  · app/perfil/perfil-client.tsx: muestra el CalendarioAsistenciaAlumno del
+    alumno en su perfil (pestaña de asistencia).
+  · lib/escolar/alumnos.ts: se añadió buscarAlumnoPorTexto (reutilizado por el
+    panel de tutores para buscar alumnos por CURP o nombre).
+Build verificado (tsc --noEmit OK + next build OK).
+
+-------------------------------------------------------------------------------
+Bloque 6B — Estado: completado — JUSTIFICACIONES DE ASISTENCIA. Se añadió la
+posibilidad de que un tutor (o el propio alumno) justifique una FALTA registrada
+de un alumno en una fecha concreta. La justificación NO altera los datos de
+asistencia (asistencia_alumnos): es un registro independiente que documenta el
+motivo de una falta. Cambios clave:
+  · SQL (supabase/crear-tablas-justificaciones.sql): tabla nueva
+      justificaciones_asistencia (id, curp_alumno, fecha, grado, grupo, carrera,
+      motivo, estado pendiente|aprobada|rechazada, solicitante_tipo tutor|alumno,
+      solicitante_id, created_at, updated_at).
+    UNIQUE (curp_alumno, fecha): un alumno solo puede tener UNA justificación
+    activa por fecha; re-solicitar actualiza (UPSERT), no duplica. Índices por
+    curp_alumno y por estado. RLS habilitado con política ALL.
+  · app/actions/asistencias.ts: actionSolicitarJustificacionAsistencia (UPSERT
+    sobre curp_alumno+fecha). Permisos: tutor (solo sus alumnos, vía
+    listarCurpsDeTutor) o alumno (solo su propia CURP). El motivo se limita a
+    500 caracteres. Re-solicitar la misma fecha actualiza el motivo.
+  · app/components/calendario-asistencia-alumno.tsx: prop permitirJustificacion
+    que, en días de estado "falta", muestra un formulario para enviar la
+    justificación (motivo) y confirma el envío.
+  · lib/escolar/tables.ts: constante TABLA_JUSTIFICACIONES_ASISTENCIA.
+  · El tutor la usa desde /tutor (selector de alumno); el alumno la usaría desde
+    su perfil. El directivo podrá aprobar/rechazar más adelante (estado).
+Build verificado (tsc --noEmit OK + next build OK).
+
+-------------------------------------------------------------------------------
+Bloque 6C — Estado: completado — CONSOLIDACIÓN DE HERMANOS bajo un mismo tutor.
+Se añadió la capacidad de vincular varios alumnos (hermanos) a un único tutor,
+desactivando las relaciones previas y los tutores que queden huérfanos. Cambios:
+  · lib/escolar/tutores.ts: desactivarRelacionesDeAlumnos (desactiva las
+    relaciones activas de los CURP seleccionados) y desactivarTutoresHuerfanos
+    (desactiva tutores que se quedan sin alumnos activos). crearTutorConAlumnos
+    acepta `consolidar` para ejecutar la consolidación al crear el tutor.
+  · app/actions/tutores.ts: actionPrevisualizarConsolidacionTutores (indica qué
+    CURP ya tienen tutor y cuáles se asignarían por primera vez) y actionCrearTutor
+    con flag `consolidar` que devuelve los reemplazos y tutores desactivados.
+  · app/components/tutores-panel.tsx: flujo de consolidación de hermanos con
+    previsualización antes de confirmar.
+Build verificado (tsc --noEmit OK + next build OK).
+
+-------------------------------------------------------------------------------
+Bloque 6D — Estado: completado — FIX LOGIN DE TUTORES (mayúsculas/minúsculas).
+Se corrigió un problema de login de tutores causado por una incompatibilidad de
+mayúsculas/minúsculas entre el formulario y la base de datos. Cambios en
+lib/escolar/tutores.ts:
+  · buscarTutorPorUsuario ahora usa ILIKE (insensible a mayúsculas) con escape
+    de comodines (% _ \) para que el valor se compare literalmente. Así, escribir
+    el usuario en mayúsculas o minúsculas encuentra la cuenta.
+  · verificarContraseñaTutor ahora prueba la contraseña tal cual y en mayúsculas
+    (mismo criterio que clavesCoinciden de profesores/alumnos), para que la
+    contraseña inicial derivada del CURP funcione aunque se escriba en minúsculas.
+  · Verificado: tsc --noEmit OK y script de verificación contra Supabase
+    (5/5 tutores activos encontrados al escribir su usuario en MAYÚSCULAS).
+
+
+
   Fin de contexto.feliz
 
 
