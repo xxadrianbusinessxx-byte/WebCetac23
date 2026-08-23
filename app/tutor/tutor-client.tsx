@@ -15,8 +15,41 @@ import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
 import { nombreCompletoTutor, type TutorRow } from "@/lib/escolar/tutores-types";
 
+type MainTab = "datos" | "alumnos" | "asistencia";
 
-function PanelTab({
+function MainTabButton({
+  id,
+  label,
+  selected,
+  onSelect,
+}: {
+  id: MainTab;
+  label: string;
+  selected: boolean;
+  onSelect: (id: MainTab) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={selected}
+      onClick={() => onSelect(id)}
+      className={`min-w-0 flex-1 rounded-t-2xl border border-b-0 px-2 py-3 text-[10px] font-extrabold uppercase tracking-wide transition sm:px-4 sm:text-xs ${
+        selected
+          ? "relative z-[1] border-sky-800/25 bg-white/92 text-sky-800 shadow-[inset_0_2px_0_rgba(255,255,255,1),0_-4px_16px_rgba(14,165,233,0.08)]"
+          : "border-transparent bg-slate-400/75 text-slate-700 shadow-[inset_0_-2px_0_rgba(0,0,0,0.08)] hover:bg-slate-400/90"
+      } ${selected ? "" : "translate-y-px"}`}
+    >
+      <span
+        className={`relative block ${selected ? "before:pointer-events-none before:absolute before:inset-x-1 before:top-0 before:h-[40%] before:rounded-b-[100%] before:bg-linear-to-b before:from-white/55 before:to-transparent" : ""}`}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
+function BubblePill({
   children,
   className = "",
 }: {
@@ -25,7 +58,7 @@ function PanelTab({
 }) {
   return (
     <span
-      className={`rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] sm:text-[11px] ${className}`}
+      className={`inline-flex items-center justify-center rounded-full border border-white/70 bg-white/88 px-3 py-2 text-center text-[10px] font-bold uppercase leading-tight text-sky-900 shadow-[inset_0_2px_0_rgba(255,255,255,0.95),0_2px_8px_rgba(14,165,233,0.12)] sm:text-xs ${className}`}
     >
       {children}
     </span>
@@ -69,6 +102,9 @@ export function TutorClient({ sesion }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
 
+  // Pestaña activa (estructura reutilizada del perfil de alumno).
+  const [tab, setTab] = useState<MainTab>("datos");
+
   // Alumno seleccionado para ver su asistencia.
   const [curpSeleccionada, setCurpSeleccionada] = useState("");
   const [contextoAlumno, setContextoAlumno] = useState<{
@@ -79,7 +115,6 @@ export function TutorClient({ sesion }: Props) {
     carrera: string;
   } | null>(null);
   const [cargandoContexto, setCargandoContexto] = useState(false);
-
 
   // Formulario de cambio de credenciales.
   const [usuario, setUsuario] = useState("");
@@ -128,7 +163,6 @@ export function TutorClient({ sesion }: Props) {
 
   const debeCambiar = tutor?.debe_cambiar_credenciales ?? false;
 
-
   async function onGuardarCredenciales() {
     setError(null);
     setMensaje(null);
@@ -163,6 +197,7 @@ export function TutorClient({ sesion }: Props) {
   return (
     <FrutigerBackdrop>
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 lg:max-w-6xl lg:px-8 lg:pt-8">
+        {/* Barra Perfil / Tutor */}
         <div className="mb-6 flex h-14 items-center justify-center gap-3 rounded-full border-[3px] border-sky-800/55 bg-sky-200/45 px-3 py-2 shadow-[0_8px_28px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl backdrop-saturate-150 sm:mb-8 sm:h-16 sm:justify-between sm:px-6">
           <GlossyNavPill href="/perfil">Perfil</GlossyNavPill>
           <GlossyNavPill href="/tutor" active>
@@ -170,6 +205,7 @@ export function TutorClient({ sesion }: Props) {
           </GlossyNavPill>
         </div>
 
+        {/* Cabecera avatar + nombre (estructura del perfil de alumno) */}
         <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-center">
           <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-[1.75rem] border-[3px] border-sky-900/70 bg-white/75 p-2 shadow-[0_10px_28px_rgba(14,165,233,0.2),inset_0_2px_0_rgba(255,255,255,0.95)] backdrop-blur-md sm:h-32 sm:w-32">
             <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-linear-to-b from-sky-100/90 to-sky-300/50">
@@ -199,144 +235,220 @@ export function TutorClient({ sesion }: Props) {
           </div>
         </div>
 
+        {mensaje && (
+          <p className="mb-4 rounded-xl border border-sky-300/60 bg-white/90 px-4 py-2 text-center text-xs font-bold text-sky-900">
+            {mensaje}
+          </p>
+        )}
+
         {cargando ? (
           <p className="text-center text-sm font-semibold text-slate-600">
             Cargando…
           </p>
         ) : (
-          <div className="relative flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
-            <PanelTab className="mx-auto w-fit">Portal del tutor</PanelTab>
+          <div className="relative flex flex-1 flex-col overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
+            <div
+              className="pointer-events-none absolute inset-0 z-0 rounded-[2rem] opacity-[0.12]"
+              aria-hidden
+              style={{
+                backgroundImage: `radial-gradient(circle at 20% 30%, white 0%, transparent 45%), radial-gradient(circle at 80% 70%, #7dd3fc 0%, transparent 40%)`,
+              }}
+            />
 
-            <div className="relative z-[1] flex flex-col gap-4">
-              {mensaje && (
-                <p
-                  className="text-center text-xs font-semibold text-sky-900"
-                  role="status"
-                >
-                  {mensaje}
-                </p>
-              )}
+            <div
+              role="tablist"
+              aria-label="Secciones del portal del tutor"
+              className="relative z-[1] flex gap-1 px-1 pt-1 sm:gap-2 sm:px-2"
+            >
+              <MainTabButton
+                id="datos"
+                label="Mis datos"
+                selected={tab === "datos"}
+                onSelect={setTab}
+              />
+              <MainTabButton
+                id="alumnos"
+                label="Alumnos"
+                selected={tab === "alumnos"}
+                onSelect={setTab}
+              />
+              <MainTabButton
+                id="asistencia"
+                label="Asistencia"
+                selected={tab === "asistencia"}
+                onSelect={setTab}
+              />
+            </div>
+
+            <div
+              role="tabpanel"
+              className="relative z-[1] mt-0 min-h-[280px] rounded-3xl rounded-tl-none border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[360px] sm:p-6 md:min-h-[400px]"
+            >
               {error && (
                 <p
-                  className="text-center text-xs font-semibold text-red-700"
+                  className="mb-4 text-center text-xs font-semibold text-red-700"
                   role="alert"
                 >
                   {error}
                 </p>
               )}
 
-              {/* Cambio forzado de credenciales */}
-              {debeCambiar && (
-                <div className="rounded-3xl border border-amber-400/60 bg-amber-100/70 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md sm:p-6">
-                  <p className="mb-2 text-center text-xs font-extrabold uppercase tracking-wide text-amber-800">
-                    Cambia tus credenciales para continuar
-                  </p>
-                  <p className="mb-4 text-center text-xs font-semibold text-amber-900">
-                    Por seguridad, debes definir un usuario y una contraseña
-                    propios antes de usar el portal.
-                  </p>
-                  <div className="flex flex-col gap-3">
-                    <input
-                      type="text"
-                      value={usuario}
-                      onChange={(e) => setUsuario(e.target.value)}
-                      placeholder="Nuevo usuario"
-                      className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
-                    />
-                    <input
-                      type="password"
-                      value={contraseña}
-                      onChange={(e) => setContraseña(e.target.value)}
-                      placeholder="Nueva contraseña (mínimo 6 caracteres)"
-                      className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
-                    />
-                    <input
-                      type="password"
-                      value={confirmar}
-                      onChange={(e) => setConfirmar(e.target.value)}
-                      placeholder="Confirmar contraseña"
-                      className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
-                    />
-                    <div className="flex justify-center">
-                      <GreyActionPill
-                        onClick={onGuardarCredenciales}
-                        disabled={guardando}
-                      >
-                        {guardando ? "Guardando…" : "Guardar credenciales"}
-                      </GreyActionPill>
+              {tab === "datos" && (
+                <div className="flex flex-col gap-4">
+                  {/* Cambio forzado de credenciales */}
+                  {debeCambiar && (
+                    <div className="rounded-3xl border border-amber-400/60 bg-amber-100/70 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md sm:p-6">
+                      <p className="mb-2 text-center text-xs font-extrabold uppercase tracking-wide text-amber-800">
+                        Cambia tus credenciales para continuar
+                      </p>
+                      <p className="mb-4 text-center text-xs font-semibold text-amber-900">
+                        Por seguridad, debes definir un usuario y una contraseña
+                        propios antes de usar el portal.
+                      </p>
+                      <div className="flex flex-col gap-3">
+                        <input
+                          type="text"
+                          value={usuario}
+                          onChange={(e) => setUsuario(e.target.value)}
+                          placeholder="Nuevo usuario"
+                          className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                        />
+                        <input
+                          type="password"
+                          value={contraseña}
+                          onChange={(e) => setContraseña(e.target.value)}
+                          placeholder="Nueva contraseña (mínimo 6 caracteres)"
+                          className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                        />
+                        <input
+                          type="password"
+                          value={confirmar}
+                          onChange={(e) => setConfirmar(e.target.value)}
+                          placeholder="Confirmar contraseña"
+                          className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                        />
+                        <div className="flex justify-center">
+                          <GreyActionPill
+                            onClick={onGuardarCredenciales}
+                            disabled={guardando}
+                          >
+                            {guardando ? "Guardando…" : "Guardar credenciales"}
+                          </GreyActionPill>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Datos del tutor */}
+                  {tutor && (
+                    <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:p-6">
+                      <p className="mb-3 text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
+                        Mis datos
+                      </p>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <BubblePill className="min-h-[2.75rem]">
+                          👤 {nombreCompletoTutor(tutor) || "—"}
+                        </BubblePill>
+                        <BubblePill className="min-h-[2.75rem]">
+                          🔑 Clave: {tutor.clave_tutor}
+                        </BubblePill>
+                        <BubblePill className="min-h-[2.75rem]">
+                          👤 Usuario: {tutor.usuario || "—"}
+                        </BubblePill>
+                        {tutor.telefono && (
+                          <BubblePill className="min-h-[2.75rem]">
+                            📞 {tutor.telefono}
+                          </BubblePill>
+                        )}
+                        {tutor.correo && (
+                          <BubblePill className="min-h-[2.75rem]">
+                            ✉️ {tutor.correo}
+                          </BubblePill>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Datos del tutor */}
-              {tutor && (
-                <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:p-6">
-                  <p className="mb-3 text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
-                    Mis datos
+              {tab === "alumnos" && (
+                <div className="flex flex-col gap-4">
+                  <p className="text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
+                    Alumnos a mi cargo ({curps.length})
                   </p>
-                  <ul className="flex flex-col gap-1 text-sm font-semibold text-slate-700">
-                    <li>
-                      👤 Nombre: {nombreCompletoTutor(tutor) || "—"}
-                    </li>
-                    <li>🔑 Clave de tutor: {tutor.clave_tutor}</li>
-                    <li>👤 Usuario: {tutor.usuario || "—"}</li>
-                    {tutor.telefono && <li>📞 Teléfono: {tutor.telefono}</li>}
-                    {tutor.correo && <li>✉️ Correo: {tutor.correo}</li>}
-                  </ul>
-                </div>
-              )}
-
-              {/* Alumnos a cargo */}
-              <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:p-6">
-                <p className="mb-3 text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
-                  Alumnos a mi cargo ({curps.length})
-                </p>
-                {curps.length === 0 ? (
-                  <p className="text-center text-xs font-semibold text-slate-600">
-                    Aún no tienes alumnos vinculados.
-                  </p>
-                ) : (
-                  <ul className="flex flex-col gap-1">
-                    {curps.map((curp) => (
-                      <li key={curp}>
-                        <button
-                          type="button"
-                          onClick={() => setCurpSeleccionada(curp)}
-                          className={`w-full rounded-xl px-3 py-2 text-left text-xs font-semibold transition ${
-                            curpSeleccionada === curp
-                              ? "border border-sky-500/60 bg-sky-100/90 text-sky-900 shadow-sm"
-                              : "bg-white/70 text-slate-700 hover:bg-white/90"
-                          }`}
-                        >
-                          {curp}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              {/* Asistencia del alumno seleccionado */}
-              {curpSeleccionada && (
-                <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:p-6">
-                  {cargandoContexto ? (
-                    <p className="text-center text-sm font-semibold text-slate-600">
-                      Cargando alumno…
-                    </p>
-                  ) : contextoAlumno ? (
-                    <CalendarioAsistenciaAlumno
-                      curp={contextoAlumno.curp}
-                      grado={contextoAlumno.grado}
-                      grupo={contextoAlumno.grupo}
-                      carrera={contextoAlumno.carrera || undefined}
-                      nombreAlumno={contextoAlumno.nombre}
-                      permitirJustificacion
-                    />
-                  ) : (
+                  {curps.length === 0 ? (
                     <p className="text-center text-xs font-semibold text-slate-600">
-                      No se pudo cargar el alumno.
+                      Aún no tienes alumnos vinculados.
                     </p>
+                  ) : (
+                    <ul className="flex flex-col gap-1">
+                      {curps.map((curp) => (
+                        <li key={curp}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCurpSeleccionada(curp);
+                              setTab("asistencia");
+                            }}
+                            className={`w-full rounded-xl px-3 py-2 text-left text-xs font-semibold transition ${
+                              curpSeleccionada === curp
+                                ? "border border-sky-500/60 bg-sky-100/90 text-sky-900 shadow-sm"
+                                : "bg-white/70 text-slate-700 hover:bg-white/90"
+                            }`}
+                          >
+                            {curp}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {tab === "asistencia" && (
+                <div className="flex flex-col gap-4">
+                  {curps.length === 0 ? (
+                    <p className="text-center text-xs font-semibold text-slate-600">
+                      Aún no tienes alumnos vinculados.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap items-center justify-center gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 text-[10px] font-bold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
+                        <label className="text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+                          Alumno
+                        </label>
+                        <select
+                          value={curpSeleccionada}
+                          onChange={(e) => setCurpSeleccionada(e.target.value)}
+                          className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                        >
+                          {curps.map((curp) => (
+                            <option key={curp} value={curp}>
+                              {curp}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {cargandoContexto ? (
+                        <p className="text-center text-sm font-semibold text-slate-600">
+                          Cargando alumno…
+                        </p>
+                      ) : contextoAlumno ? (
+                        <CalendarioAsistenciaAlumno
+                          curp={contextoAlumno.curp}
+                          grado={contextoAlumno.grado}
+                          grupo={contextoAlumno.grupo}
+                          carrera={contextoAlumno.carrera || undefined}
+                          nombreAlumno={contextoAlumno.nombre}
+                          permitirJustificacion
+                        />
+                      ) : (
+                        <p className="text-center text-xs font-semibold text-slate-600">
+                          Selecciona un alumno para ver su asistencia.
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -347,5 +459,3 @@ export function TutorClient({ sesion }: Props) {
     </FrutigerBackdrop>
   );
 }
-
-

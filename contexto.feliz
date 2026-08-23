@@ -783,6 +783,32 @@ lib/escolar/tutores.ts:
     (5/5 tutores activos encontrados al escribir su usuario en MAYÚSCULAS).
 
 
+Bloque 6E — Estado: completado — PERFIL DE TUTOR reutiliza la estructura del
+perfil de alumno (pestañas + cabecera Frutiger).
+Se rediseñó app/tutor/tutor-client.tsx para que el portal del tutor/padre use la
+misma arquitectura visual y de navegación que el perfil de alumno (/perfil):
+  · Cabecera con avatar + nombre (FrutigerBackdrop, GlossyNavPill Perfil/Tutor,
+    GlossyPersonIcon) idéntica a la del alumno.
+  · Panel con pestañas (MainTabButton) en lugar del layout anterior de tarjetas
+    apiladas. Pestañas: "Mis datos", "Alumnos" y "Asistencia".
+  · "Mis datos": muestra la información del tutor (nombre, clave_tutor, usuario,
+    teléfono, correo) y conserva el cambio forzado de credenciales cuando
+    debe_cambiar_credenciales = true.
+  · "Alumnos": lista los CURP de los alumnos vinculados (listarCurpsDeTutor).
+  · "Asistencia": selector de alumno + CalendarioAsistenciaAlumno reutilizado
+    (con permitirJustificacion) para que el tutor vea la asistencia de sus
+    alumnos y pueda solicitar justificaciones.
+Reutilización (sin duplicar lógica):
+  · actionObtenerDatosTutor (app/actions/tutores.ts) → tutor + curps.
+  · actionObtenerContextoAlumnoParaTutor (app/actions/asistencias.ts) → contexto
+    grado/grupo/carrera/nombre del alumno seleccionado.
+  · CalendarioAsistenciaAlumno (app/components/calendario-asistencia-alumno.tsx)
+    → calendario visual de asistencia + justificación.
+  · nombreCompletoTutor (lib/escolar/tutores-types.ts) → nombre visible.
+  · Componentes Frutiger (FrutigerBackdrop, GlossyNavPill, GlossyPersonIcon).
+Verificado: next build OK (Compiled successfully, TypeScript OK, /tutor incluida).
+
+
 
   Fin de contexto.feliz
 
