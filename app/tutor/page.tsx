@@ -10,8 +10,19 @@ export const metadata: Metadata = {
 };
 
 export default async function TutorPage() {
+  // [DIAGNÓSTICO TEMPORAL 6J] Log seguro: solo rol y matricula, NUNCA secretos.
   const sesion = await obtenerSesionPortal();
-  if (!sesion) redirect("/login");
-  if (sesion.rol !== "tutor") redirect("/perfil");
+  console.log("[6J-login] /tutor → sesión:", sesion ? `rol=${sesion.rol} matricula=${sesion.matricula}` : "null");
+  if (!sesion) {
+    console.log("[6J-login] /tutor → sin sesión → redirect /login");
+    redirect("/login");
+  }
+  if (sesion.rol !== "tutor") {
+    console.log("[6J-login] /tutor → rol no tutor → redirect /perfil");
+    redirect("/perfil");
+  }
+  console.log("[6J-login] /tutor → renderizando TutorClient");
   return <TutorClient sesion={sesion} />;
 }
+
+

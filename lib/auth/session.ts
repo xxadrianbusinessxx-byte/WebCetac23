@@ -50,6 +50,8 @@ export function decodePortalSession(token: string): PortalSessionPayload | null 
 }
 
 export async function setPortalSessionCookie(payload: PortalSessionPayload): Promise<void> {
+  // [DIAGNÓSTICO TEMPORAL 6J] Log seguro: rol y matricula, NUNCA secretos.
+  console.log("[6J-login] setPortalSessionCookie → rol:", payload.rol, "| matricula:", payload.matricula);
   const store = await cookies();
   store.set(PORTAL_SESSION_COOKIE, encodePortalSession(payload), {
     httpOnly: true,
@@ -58,4 +60,7 @@ export async function setPortalSessionCookie(payload: PortalSessionPayload): Pro
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
   });
+  console.log("[6J-login] cookie", PORTAL_SESSION_COOKIE, "establecida");
 }
+
+

@@ -809,8 +809,40 @@ Reutilización (sin duplicar lógica):
 Verificado: next build OK (Compiled successfully, TypeScript OK, /tutor incluida).
 
 
+Bloque 6H — Estado: completado — DIAGNÓSTICO DEFINITIVO DEL LOGIN DE TUTORES.
+Se investigó a fondo por qué un tutor no podía iniciar sesión y se confirmó que
+la LÓGICA de login es correcta; el problema real es de UX/conocimiento de
+credenciales (el tutor no sabe qué escribir en "Identificador" ni cuál es su
+contraseña inicial). Evidencia obtenida contra Supabase REAL:
+  · Búsqueda por identificador: un tutor activo se encuentra tanto por su
+    `usuario` ("tutor NOMBRE APELLIDO") como por su `clave_tutor` ("TUT-XXXXXXXX").
+  · Verificación de contraseña (scrypt, replicando verificarContraseñaTutor):
+    la contraseña inicial (últimos 8 del CURP del alumno vinculado) es VÁLIDA y
+    una contraseña incorrecta es INVÁLIDA.
+  · Decisión de login (replicando portal-login.ts): LOGIN EXITOSO → se crea
+    sesión y redirige a /tutor. (debe_cambiar_credenciales=true → flujo de
+    cambio de credenciales en el primer acceso.)
+  · El intento de probar el flujo vía HTTP con curl falló con "Failed to find
+    Server Action", pero eso es una limitación del harness (el protocolo de
+    Server Actions de Next.js 16 no se puede replicar con un POST multipart
+    simple), NO un bug de la app. El log del servidor confirma que la Server
+    Action nunca se ejecutó desde curl.
+Conclusión y recomendación:
+  · El login de tutor funciona. El tutor debe usar como "Identificador" su
+    `usuario` (o su `clave_tutor`) y como "Clave" la contraseña inicial
+    (últimos 8 caracteres del CURP del alumno vinculado, en mayúsculas).
+  · Para que el tutor lo sepa, hay que entregarle sus credenciales iniciales
+    (clave_tutor, usuario y contraseña_inicial) que se generan al crear el tutor
+    (ver Bloque 6C / crearTutorConAlumnos) y se exportan en CSV.
+  · Se recomienda mejorar la UX del formulario de login para indicar qué es
+    "Identificador" (usuario o clave_tutor) y recordar que la contraseña inicial
+    deriva del CURP del alumno.
+Verificado: tsc --noEmit OK (0 errores). NO se hizo commit ni push.
+
+
 
   Fin de contexto.feliz
+
 
 
 

@@ -29,18 +29,28 @@ export async function loginWithNombreCompleto(
   _prev: LoginFormState,
   formData: FormData,
 ): Promise<LoginFormState> {
-  const nombreCompleto = String(formData.get("nombreCompleto") ?? "").trim();
+  const identificador = String(formData.get("identificador") ?? "").trim();
   const clave = String(formData.get("clave") ?? "");
 
-  if (!nombreCompleto || !clave) {
-    return { error: "Indica nombre completo y clave." };
+  // [DIAGNÓSTICO TEMPORAL 6J] Log seguro: identificador y longitud de clave,
+  // NUNCA la clave/contraseña ni hashes. Se eliminará al terminar el diagnóstico.
+  console.log("[6J-login] action ejecutada");
+  console.log("[6J-login] identificador recibido:", JSON.stringify(identificador));
+  console.log("[6J-login] longitud de clave:", clave.length);
+
+  if (!identificador || !clave) {
+    console.log("[6J-login] identificador o clave vacíos → error");
+    return { error: "Indica identificador y clave." };
   }
 
   const supabase = await createClient();
-  const user = await validarAccesoPortal(supabase, nombreCompleto, clave);
+  const user = await validarAccesoPortal(supabase, identificador, clave);
   if (!user) {
-    return { error: "Nombre completo o clave incorrectos." };
+    console.log("[6J-login] validarAccesoPortal → null → 'Identificador o clave incorrectos.'");
+    return { error: "Identificador o clave incorrectos." };
   }
+
+  console.log("[6J-login] usuario válido → rol:", user.rol, "| matricula:", user.matricula);
 
   await setPortalSessionCookie({
     matricula: user.matricula,
@@ -48,5 +58,8 @@ export async function loginWithNombreCompleto(
     curp: user.curp,
     nombre: user.nombre,
   });
+  console.log("[6J-login] sesión creada → redirect:", destinationForRole(user.rol));
   redirect(destinationForRole(user.rol));
 }
+
+

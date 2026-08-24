@@ -14,7 +14,9 @@ export const TABLA_ASISTENCIA_ALUMNOS = "asistencia_alumnos";
 export const TABLA_CONFIGURACION_CLASES_PROFESOR = "configuracion_clases_profesor";
 export const TABLA_TUTORES = "tutores";
 export const TABLA_TUTOR_ALUMNOS = "tutor_alumnos";
+export const TABLA_TUTOR_CREDENCIALES_INICIALES = "tutor_credenciales_iniciales";
 export const TABLA_JUSTIFICACIONES_ASISTENCIA = "justificaciones_asistencia";
+
 
 
 

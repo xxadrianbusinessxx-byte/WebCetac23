@@ -7,16 +7,19 @@ import {
   cambiarCredencialesTutor,
   crearTutorConAlumnos,
   generarTutoresAutomaticos,
+  listarCredencialesInicialesDeTutor,
   listarCurpsDeTutor,
   listarTutores,
   obtenerTutorConAlumnos,
   obtenerTutoresActivosDeAlumnos,
   previsualizarGeneracionTutores,
+  type CredencialInicialTutor,
   type PrevisualizacionGeneracionTutores,
   type ResultadoGeneracionTutores,
   type ReemplazoTutor,
   type TutorRow,
 } from "@/lib/escolar/tutores";
+
 
 
 
@@ -43,6 +46,29 @@ export async function actionListarTutores(): Promise<TutorRow[]> {
   const supabase = await createClient();
   return listarTutores(supabase);
 }
+
+/**
+ * Lista todos los tutores con sus credenciales iniciales (solo directivo).
+ * Cada tutor incluye las contraseñas iniciales derivadas del CURP de cada uno
+ * de sus hijos (últimos 8), para mostrarlas en el panel. La contraseña se
+ * RECONSTRUYE desde el CURP (no se expone ningún hash).
+ */
+export async function actionListarTutoresConCredenciales(): Promise<
+  { tutor: TutorRow; credencialesIniciales: CredencialInicialTutor[] }[]
+> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") return [];
+  const supabase = await createClient();
+  const tutores = await listarTutores(supabase);
+  const resultado: { tutor: TutorRow; credencialesIniciales: CredencialInicialTutor[] }[] =
+    [];
+  for (const tutor of tutores) {
+    const credenciales = await listarCredencialesInicialesDeTutor(supabase, tutor.id);
+    resultado.push({ tutor, credencialesIniciales: credenciales });
+  }
+  return resultado;
+}
+
 
 /**
  * Busca un alumno por CURP o nombre para vincularlo a un tutor (solo

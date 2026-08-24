@@ -3,7 +3,12 @@ import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { traerAlumnosExistentes, nombreCompletoAlumno } from "./alumnos";
 import { matrizACsvTexto } from "./csv";
-import { TABLA_TUTORES, TABLA_TUTOR_ALUMNOS } from "./tables";
+import {
+  TABLA_TUTORES,
+  TABLA_TUTOR_ALUMNOS,
+  TABLA_TUTOR_CREDENCIALES_INICIALES,
+} from "./tables";
+
 import {
 
   nombreCompletoTutor,
@@ -97,8 +102,141 @@ export function verificarContraseñaTutor(
 
 
 // ---------------------------------------------------------------------------
+// Credenciales iniciales MULTI-HIJO (Bloque 6L).
+//
+// Un tutor con 2+ hijos puede iniciar sesión con los últimos 8 caracteres del
+// CURP de CUALQUIERA de sus hijos (no solo del alumno de referencia). Para
+// ello se guarda una fila por hijo en `tutor_credenciales_iniciales`, cada una
+// con el hash scrypt de la contraseña derivada de ESE hijo.
+//
+// Reglas:
+//  - La contraseña se guarda SIEMPRE como hash scrypt (nunca texto plano).
+//  - Cuando el tutor cambia sus credenciales (debe_cambiar_credenciales=false),
+//    estas filas se ELIMINAN para que las contraseñas iniciales dejen de ser
+//    válidas.
+// ---------------------------------------------------------------------------
+
+export type CredencialInicialTutor = {
+  curp_alumno: string;
+  contraseñaInicial: string;
+};
+
+/**
+ * Guarda una fila por hijo en `tutor_credenciales_iniciales`, con el hash de
+ * los últimos 8 del CURP de ESE hijo. Se usa al crear un tutor (o al migrar
+ * tutores existentes). No borra filas previas; para reemplazar usa
+ * `reemplazarCredencialesIniciales`.
+ */
+export async function guardarCredencialesIniciales(
+  supabase: SupabaseClient,
+  tutorId: string,
+  curpsAlumnos: string[],
+): Promise<void> {
+  const curps = [...new Set(curpsAlumnos.map((c) => c.trim().toUpperCase()))].filter(
+    Boolean,
+  );
+  if (!tutorId || curps.length === 0) return;
+  const filas = curps
+    .map((curp) => {
+      const contraseña = contraseñaInicialTutorDesdeCurp(curp);
+      if (!contraseña) return null;
+      return {
+        tutor_id: tutorId,
+        curp_alumno: curp,
+        password_hash: hashContraseñaTutor(contraseña),
+      };
+    })
+    .filter((f): f is NonNullable<typeof f> => f !== null);
+  if (filas.length === 0) return;
+  await supabase.from(TABLA_TUTOR_CREDENCIALES_INICIALES).insert(filas);
+}
+
+/**
+ * Reemplaza las credenciales iniciales de un tutor por las de los hijos dados:
+ * borra las filas previas y guarda las nuevas. Se usa al consolidar hermanos
+ * (el tutor nuevo pasa a cubrir a todos los hijos seleccionados).
+ */
+export async function reemplazarCredencialesIniciales(
+  supabase: SupabaseClient,
+  tutorId: string,
+  curpsAlumnos: string[],
+): Promise<void> {
+  if (!tutorId) return;
+  await supabase
+    .from(TABLA_TUTOR_CREDENCIALES_INICIALES)
+    .delete()
+    .eq("tutor_id", tutorId);
+  await guardarCredencialesIniciales(supabase, tutorId, curpsAlumnos);
+}
+
+/**
+ * Elimina TODAS las credenciales iniciales de un tutor. Se llama cuando el
+ * tutor cambia sus credenciales (debe_cambiar_credenciales=false), para que
+ * las contraseñas iniciales derivadas del CURP dejen de ser válidas.
+ */
+export async function eliminarCredencialesIniciales(
+  supabase: SupabaseClient,
+  tutorId: string,
+): Promise<void> {
+  if (!tutorId) return;
+  await supabase
+    .from(TABLA_TUTOR_CREDENCIALES_INICIALES)
+    .delete()
+    .eq("tutor_id", tutorId);
+}
+
+/**
+ * Verifica una contraseña contra TODAS las credenciales iniciales del tutor
+ * (acepta los últimos 8 del CURP de cualquiera de sus hijos). Devuelve true si
+ * coincide con al menos una. Se usa SOLO cuando `debe_cambiar_credenciales`
+ * es true (el tutor aún no ha cambiado su contraseña).
+ */
+export async function verificarContraseñaInicialMultiHijo(
+  supabase: SupabaseClient,
+  tutorId: string,
+  contraseña: string,
+): Promise<boolean> {
+  if (!tutorId || !contraseña) return false;
+  const { data, error } = await supabase
+    .from(TABLA_TUTOR_CREDENCIALES_INICIALES)
+    .select("password_hash")
+    .eq("tutor_id", tutorId);
+  if (error || !data) return false;
+  for (const r of data as { password_hash: string }[]) {
+    if (verificarContraseñaTutor(contraseña, r.password_hash)) return true;
+  }
+  return false;
+}
+
+/**
+ * Lista las credenciales iniciales de un tutor (para mostrarlas al directivo).
+ * Devuelve el CURP del hijo y la contraseña inicial derivada (últimos 8 del
+ * CURP). La contraseña se RECONSTRUYE desde el CURP (no se lee el hash), por
+ * lo que no se expone ningún hash.
+ */
+export async function listarCredencialesInicialesDeTutor(
+  supabase: SupabaseClient,
+  tutorId: string,
+): Promise<CredencialInicialTutor[]> {
+  if (!tutorId) return [];
+  const { data, error } = await supabase
+    .from(TABLA_TUTOR_CREDENCIALES_INICIALES)
+    .select("curp_alumno")
+    .eq("tutor_id", tutorId);
+  if (error || !data) return [];
+  return (data as { curp_alumno: string }[])
+    .map((r) => ({
+      curp_alumno: r.curp_alumno,
+      contraseñaInicial: contraseñaInicialTutorDesdeCurp(r.curp_alumno),
+    }))
+    .filter((c) => c.contraseñaInicial !== "");
+}
+
+
+// ---------------------------------------------------------------------------
 // Generación de clave_tutor (TUT-XXXXXXXX).
 // ---------------------------------------------------------------------------
+
 
 const CARACTERES_CLAVE = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sin 0/O/1/I/L
 const LONGITUD_CLAVE = 8;
@@ -355,8 +493,15 @@ export async function cambiarCredencialesTutor(
     })
     .eq("id", id);
   if (error) return { ok: false, error: `Error al guardar: ${error.message}` };
+
+  // Bloque 6L: al cambiar las credenciales, las contraseñas iniciales
+  // derivadas del CURP dejan de ser válidas. Se eliminan para que el login
+  // solo acepte la nueva contraseña personalizada.
+  await eliminarCredencialesIniciales(supabase, id);
+
   return { ok: true };
 }
+
 
 // ---------------------------------------------------------------------------
 // Creación de tutor con sus alumnos (flujo del directivo).
@@ -598,7 +743,14 @@ export async function crearTutorConAlumnos(
     };
   }
 
+  // Bloque 6L: guardar una credencial inicial por hijo (acepta los últimos 8
+  // del CURP de cualquiera de sus hijos). Si falla, no bloquea la creación:
+  // el tutor ya existe y el login seguirá funcionando con el hash de
+  // `tutores.password_hash` (alumno de referencia).
+  await guardarCredencialesIniciales(supabase, tutor.id, curps);
+
   // Bloque 6C: desactivar relaciones previas y tutores huérfanos.
+
   let reemplazos: ReemplazoTutor[] | undefined;
   let tutoresDesactivados: string[] | undefined;
   if (consolidar && tutoresPrevios.size > 0) {

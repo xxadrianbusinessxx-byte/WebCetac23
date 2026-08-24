@@ -8,9 +8,10 @@ function BubbleField({
   variant,
 }: {
   label: string;
-  variant: "nombreCompleto" | "clave";
+  variant: "identificador" | "clave";
 }) {
   const isClave = variant === "clave";
+
   const shell = isClave
     ? "border-white/40 bg-linear-to-b from-sky-600 via-sky-700 to-sky-900 text-white placeholder:text-sky-100/85 shadow-[0_8px_24px_rgba(2,132,199,0.35),inset_0_2px_0_rgba(255,255,255,0.35),inset_0_-3px_0_rgba(0,0,0,0.2)]"
     : "border-white/60 bg-linear-to-b from-slate-100 via-slate-200/95 to-slate-300/90 text-slate-800 placeholder:text-slate-500 shadow-[0_6px_20px_rgba(15,23,42,0.08),inset_0_2px_0_rgba(255,255,255,0.9),inset_0_-2px_0_rgba(15,23,42,0.06)]";
@@ -20,10 +21,11 @@ function BubbleField({
       <span className="sr-only">{label}</span>
       <input
         type={isClave ? "password" : "text"}
-        name={isClave ? "clave" : "nombreCompleto"}
+        name={isClave ? "clave" : "identificador"}
         required
         placeholder={label}
         autoComplete={isClave ? "current-password" : "name"}
+
         className={`w-full rounded-full border px-6 py-4 text-center text-sm font-extrabold uppercase tracking-widest outline-none transition focus-visible:ring-2 focus-visible:ring-sky-300 ${shell}`}
       />
       <span
@@ -44,8 +46,9 @@ export function HomeLoginForm() {
 
   return (
     <form className="mx-auto flex max-w-sm flex-col gap-4" action={formAction} noValidate>
-      <BubbleField label="Nombre completo" variant="nombreCompleto" />
+      <BubbleField label="Identificador" variant="identificador" />
       <BubbleField label="Clave" variant="clave" />
+
       {state.error ? (
         <p
           className="text-center text-xs font-semibold uppercase tracking-wide text-red-600"

@@ -6,11 +6,13 @@ import {
   actionBuscarAlumnoParaTutor,
   actionCrearTutor,
   actionGenerarTutoresAutomaticos,
-  actionListarTutores,
+  actionListarTutoresConCredenciales,
   actionPrevisualizarConsolidacionTutores,
   actionPrevisualizarGeneracionTutores,
 } from "@/app/actions/tutores";
 import { nombreCompletoTutor, type TutorRow } from "@/lib/escolar/tutores-types";
+import type { CredencialInicialTutor } from "@/lib/escolar/tutores";
+
 
 
 
@@ -92,9 +94,15 @@ type ResultadoMasivo = {
   csv: string;
 };
 
+type TutorConCredenciales = {
+  tutor: TutorRow;
+  credencialesIniciales: CredencialInicialTutor[];
+};
+
 export function TutoresPanel() {
-  const [tutores, setTutores] = useState<TutorRow[]>([]);
+  const [tutores, setTutores] = useState<TutorConCredenciales[]>([]);
   const [cargando, setCargando] = useState(false);
+
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,10 +137,11 @@ export function TutoresPanel() {
 
   const cargarTutores = useCallback(async () => {
     setCargando(true);
-    const lista = await actionListarTutores();
+    const lista = await actionListarTutoresConCredenciales();
     setTutores(lista);
     setCargando(false);
   }, []);
+
 
   useEffect(() => {
     void cargarTutores();
@@ -537,27 +546,47 @@ export function TutoresPanel() {
             </p>
           ) : (
             <ul className="flex flex-col gap-1">
-              {tutores.map((t) => (
+              {tutores.map(({ tutor, credencialesIniciales }) => (
                 <li
-                  key={t.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2 text-xs font-semibold text-slate-700"
+                  key={tutor.id}
+                  className="flex flex-col gap-1 rounded-xl bg-white/70 px-3 py-2 text-xs font-semibold text-slate-700"
                 >
-                  <span className="min-w-0 truncate">
-                    {nombreCompletoTutor(t) || t.usuario || t.clave_tutor}
-                  </span>
-                  <span className="shrink-0 text-slate-400">{t.clave_tutor}</span>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${
-                      t.activo
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {t.activo ? "Activo" : "Inactivo"}
-                  </span>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="min-w-0 truncate">
+                      {nombreCompletoTutor(tutor) ||
+                        tutor.usuario ||
+                        tutor.clave_tutor}
+                    </span>
+                    <span className="shrink-0 text-slate-400">
+                      {tutor.clave_tutor}
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${
+                        tutor.activo
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {tutor.activo ? "Activo" : "Inactivo"}
+                    </span>
+                  </div>
+                  {tutor.activo && credencialesIniciales.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {credencialesIniciales.map((c) => (
+                        <span
+                          key={c.curp_alumno}
+                          className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-800"
+                          title={`Contraseña inicial del hijo ${c.curp_alumno}`}
+                        >
+                          {c.curp_alumno.slice(-4)} → {c.contraseñaInicial}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
+
           )}
         </div>
 
