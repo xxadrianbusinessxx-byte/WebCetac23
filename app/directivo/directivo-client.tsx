@@ -18,10 +18,17 @@ import {
 } from "@/app/actions/noticias";
 import type { NoticiaInicioSlot } from "@/lib/cloudinary/noticias";
 import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
-import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
+import {
+  MateriaMapeoColumnas,
+  useMateriaMapeo,
+} from "@/app/components/materia-mapeo-columnas";
+import { MateriaSelector } from "@/app/components/materia-selector";
+import { MateriasConfigPanel } from "@/app/components/materias-config-panel";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
+import { materiasConNombreVisible } from "@/lib/escolar/nombres-visibles";
+import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
 import type { PortalSessionPayload } from "@/lib/auth/types";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
@@ -88,14 +95,14 @@ function PreviewPanel({
 
 type Props = {
   sesion: PortalSessionPayload | null;
-  materias: readonly string[];
+  materias: readonly MateriaConNombreVisible[];
   registros: readonly string[];
 };
 
 export function DirectivoClient({ sesion, materias, registros }: Props) {
   const router = useRouter();
   const [materiaSeleccionada, setMateriaSeleccionada] = useState<string>(
-    materias[0] ?? "",
+    materias[0]?.idInterno ?? "",
   );
   const [registroSeleccionado, setRegistroSeleccionado] = useState<string>(
     registros[0] ?? "",
@@ -111,11 +118,8 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
     null,
   );
   const [cargandoVista, setCargandoVista] = useState(false);
-  const [archivoSeleccionado, setArchivoSeleccionado] = useState<File | null>(
-    null,
-  );
-  const [subiendo, setSubiendo] = useState(false);
   const [mensajeArchivo, setMensajeArchivo] = useState<string | null>(null);
+  const { asistente, abrir, cerrar } = useMateriaMapeo();
   const [mensajeComentario, setMensajeComentario] = useState<string | null>(
     null,
   );
@@ -140,6 +144,16 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
   const inputStatusRef = useRef<HTMLInputElement>(null);
 
   const nombreDirectivo = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
+
+  // Registros de calificaciones finales (sin aliases): nombre visible =
+  // nombre técnico (fallback). Se reutiliza el mismo selector.
+  const registrosOpciones = materiasConNombreVisible(registros, new Map());
+
+  // Nombre visible de la materia seleccionada (solo presentación; las
+  // acciones siguen usando `materiaSeleccionada` = idInterno real).
+  const nombreVisibleSeleccionada =
+    materias.find((m) => m.idInterno === materiaSeleccionada)?.nombreVisible ??
+    materiaSeleccionada;
 
   const refrescarVista = useCallback(async (nombre: string) => {
     setCargandoVista(true);
@@ -171,9 +185,8 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
     event: React.ChangeEvent<HTMLInputElement>,
   ) {
     const file = event.target.files?.[0] ?? null;
-    setArchivoSeleccionado(file);
-    setMensajeArchivo(file ? `Archivo listo: ${file.name}` : null);
     event.target.value = "";
+    if (file && materiaSeleccionada) void abrir(file, materiaSeleccionada);
   }
 
   function onRegistroElegido(event: React.ChangeEvent<HTMLInputElement>) {
@@ -205,35 +218,6 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
       void refrescarVistaRegistro(registroSeleccionado);
     } else {
       setMensajeRegistro(resultado.error);
-    }
-  }
-
-  async function onSubirExcel() {
-    if (!archivoSeleccionado) {
-      abrirSelectorCalificaciones();
-      return;
-    }
-
-    setSubiendo(true);
-    setMensajeArchivo(null);
-
-    const formData = new FormData();
-    formData.set("archivo", archivoSeleccionado);
-
-    const resultado = await actionSubirMateriaExcel(
-      materiaSeleccionada,
-      formData,
-    );
-    setSubiendo(false);
-
-    if (resultado.ok) {
-      setMensajeArchivo(
-        `Contenido de ${materiaSeleccionada} reemplazado (${resultado.filas} filas).`,
-      );
-      setArchivoSeleccionado(null);
-      void refrescarVista(materiaSeleccionada);
-    } else {
-      setMensajeArchivo(resultado.error);
     }
   }
 
@@ -399,58 +383,70 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
             }}
           />
 
-          <div className="relative z-[1] flex flex-col gap-4">
-            <div className="flex flex-wrap gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
-              <MateriaScrollPicker
+          {asistente ? (
+            <MateriaMapeoColumnas
+              asistente={asistente}
+              onCancelar={cerrar}
+              onCompletado={(detalle) => {
+                setMensajeArchivo(
+                  detalle ?? "Calificaciones guardadas correctamente.",
+                );
+                cerrar();
+                void refrescarVista(materiaSeleccionada);
+              }}
+            />
+          ) : (
+            <div className="relative z-[1] flex flex-col gap-4 lg:flex-row">
+              <MateriaSelector
                 materias={materias}
                 seleccionada={materiaSeleccionada}
                 onSeleccionar={setMateriaSeleccionada}
+                mostrarIdTecnico
+                className="lg:w-80 lg:shrink-0"
               />
-            </div>
 
-            <div className="flex min-h-[240px] flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[300px] sm:p-6">
-              <PreviewPanel className="min-h-[200px] sm:min-h-[240px]">
-                {cargandoVista ? (
-                  <p>Cargando…</p>
-                ) : (
-                  <MateriaTablaVistaPanel
-                    vista={vistaMateria}
-                    materiaNombre={materiaSeleccionada}
-                  />
-                )}
-              </PreviewPanel>
+              <div className="flex min-h-[240px] flex-1 flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[300px] sm:p-6">
+                <PreviewPanel className="min-h-[200px] sm:min-h-[240px]">
+                  {cargandoVista ? (
+                    <p>Cargando…</p>
+                  ) : (
+                    <MateriaTablaVistaPanel
+                      vista={vistaMateria}
+                      materiaNombre={nombreVisibleSeleccionada}
+                      mostrarDetalleColumnas
+                    />
+                  )}
+                </PreviewPanel>
 
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <GreyActionPill
-                  onClick={onSubirExcel}
-                  className={subiendo ? "opacity-70" : ""}
-                >
-                  {subiendo
-                    ? "Subiendo…"
-                    : archivoSeleccionado
-                      ? "Subir y reemplazar"
-                      : "Cargar nuevo Excel"}
-                </GreyActionPill>
-                {mensajeArchivo && (
-                  <p
-                    className={`text-xs font-semibold ${mensajeArchivo.includes("reemplazado") ? "text-sky-900" : "text-red-700"}`}
-                    role="status"
-                  >
-                    {mensajeArchivo}
-                  </p>
-                )}
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <GreyActionPill onClick={abrirSelectorCalificaciones}>
+                    Cargar nuevo Excel
+                  </GreyActionPill>
+                  {mensajeArchivo && (
+                    <p
+                      className={`text-xs font-semibold ${
+                        mensajeArchivo.includes("correctamente")
+                          ? "text-sky-900"
+                          : "text-red-700"
+                      }`}
+                      role="status"
+                    >
+                      {mensajeArchivo}
+                    </p>
+                  )}
+                </div>
+
+                <input
+                  ref={inputCalificacionesRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls,text/csv"
+                  className="sr-only"
+                  onChange={onCalificacionesElegidas}
+                  aria-label="Seleccionar archivo de calificaciones"
+                />
               </div>
-
-              <input
-                ref={inputCalificacionesRef}
-                type="file"
-                accept=".csv,.xlsx,.xls,text/csv"
-                className="sr-only"
-                onChange={onCalificacionesElegidas}
-                aria-label="Seleccionar archivo de calificaciones"
-              />
             </div>
-          </div>
+          )}
         </div>
 
         {/* Registros de calificaciones finales por grupo */}
@@ -459,13 +455,13 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
             Sube el registro de calificaciones finales del grupo
           </PanelTab>
           <div className="relative z-[1] flex flex-col gap-4">
-            <div className="flex flex-wrap gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
-              <MateriaScrollPicker
-                materias={registros}
-                seleccionada={registroSeleccionado}
-                onSeleccionar={setRegistroSeleccionado}
-              />
-            </div>
+            <MateriaSelector
+              materias={registrosOpciones}
+              seleccionada={registroSeleccionado}
+              onSeleccionar={setRegistroSeleccionado}
+              titulo="Registros"
+              buscarPlaceholder="Buscar registro…"
+            />
             <div className="flex min-h-[200px] flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[260px] sm:p-6">
               <PreviewPanel className="min-h-[160px] sm:min-h-[200px]">
                 {cargandoVistaRegistro ? (
@@ -508,6 +504,8 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
             </div>
           </div>
         </div>
+
+        <MateriasConfigPanel materias={materias} />
 
         {/* ETIQUETAS (STATUS) */}
         <div className="relative mt-6 flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">

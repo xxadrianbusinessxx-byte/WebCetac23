@@ -7,10 +7,15 @@ import {
   actionObtenerVistaMateria,
   actionSubirMateriaExcel,
 } from "@/app/actions/escolar";
-import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
+import { MateriaSelector } from "@/app/components/materia-selector";
+import {
+  MateriaMapeoColumnas,
+  useMateriaMapeo,
+} from "@/app/components/materia-mapeo-columnas";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
+import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
 import type { PortalSessionPayload } from "@/lib/auth/types";
 import { actionTieneAccesoDocumentos } from "@/app/actions/documentos";
 import { AsistenciasPanel } from "../components/asistencias-panel";
@@ -45,22 +50,19 @@ function GreyActionPill({
 
 type Props = {
   sesion: PortalSessionPayload | null;
-  materias: readonly string[];
+  materias: readonly MateriaConNombreVisible[];
 };
 
 export function ProfesorClient({ sesion, materias }: Props) {
   const [materiaSeleccionada, setMateriaSeleccionada] = useState<string>(
-    materias[0] ?? "",
+    materias[0]?.idInterno ?? "",
   );
   const [vistaMateria, setVistaMateria] = useState<MateriaTablaVista | null>(
     null,
   );
   const [cargandoVista, setCargandoVista] = useState(false);
-  const [archivoSeleccionado, setArchivoSeleccionado] = useState<File | null>(
-    null,
-  );
-  const [subiendo, setSubiendo] = useState(false);
   const [mensajeArchivo, setMensajeArchivo] = useState<string | null>(null);
+  const { asistente, abrir, cerrar } = useMateriaMapeo();
   const [alumnoNombre, setAlumnoNombre] = useState("");
   const [comentario, setComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] = useState(false);
@@ -70,6 +72,12 @@ export function ProfesorClient({ sesion, materias }: Props) {
   const inputArchivoRef = useRef<HTMLInputElement>(null);
 
   const nombreProfesor = sesion?.nombre ?? sesion?.matricula ?? "Profesor";
+
+  // Nombre visible de la materia seleccionada (solo presentación; las
+  // acciones siguen usando `materiaSeleccionada` = idInterno real).
+  const nombreVisibleSeleccionada =
+    materias.find((m) => m.idInterno === materiaSeleccionada)?.nombreVisible ??
+    materiaSeleccionada;
 
   // ¿El profesor tiene acceso a Documentos? (para mostrar el botón en la barra).
   const [tieneAccesoDocumentos, setTieneAccesoDocumentos] = useState(false);
@@ -95,40 +103,8 @@ export function ProfesorClient({ sesion, materias }: Props) {
 
   function onArchivoElegido(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
-    setArchivoSeleccionado(file);
-    setMensajeArchivo(
-      file ? `Archivo listo: ${file.name}` : null,
-    );
     event.target.value = "";
-  }
-
-  async function onSubirExcel() {
-    if (!archivoSeleccionado) {
-      abrirSelectorArchivo();
-      return;
-    }
-
-    setSubiendo(true);
-    setMensajeArchivo(null);
-
-    const formData = new FormData();
-    formData.set("archivo", archivoSeleccionado);
-
-    const resultado = await actionSubirMateriaExcel(
-      materiaSeleccionada,
-      formData,
-    );
-    setSubiendo(false);
-
-    if (resultado.ok) {
-      setMensajeArchivo(
-        `Contenido de ${materiaSeleccionada} reemplazado (${resultado.filas} filas).`,
-      );
-      setArchivoSeleccionado(null);
-      void refrescarVista(materiaSeleccionada);
-    } else {
-      setMensajeArchivo(resultado.error);
-    }
+    if (file && materiaSeleccionada) void abrir(file, materiaSeleccionada);
   }
 
   async function onEnviarComentario() {
@@ -201,60 +177,72 @@ export function ProfesorClient({ sesion, materias }: Props) {
             }}
           />
 
-          <div className="relative z-[1] flex flex-col gap-4">
-            <div className="flex flex-wrap gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
-              <MateriaScrollPicker
+          {asistente ? (
+            <MateriaMapeoColumnas
+              asistente={asistente}
+              onCancelar={cerrar}
+              onCompletado={(detalle) => {
+                setMensajeArchivo(
+                  detalle ?? "Calificaciones guardadas correctamente.",
+                );
+                cerrar();
+                void refrescarVista(materiaSeleccionada);
+              }}
+            />
+          ) : (
+            <div className="relative z-[1] flex flex-col gap-4 lg:flex-row">
+              <MateriaSelector
                 materias={materias}
                 seleccionada={materiaSeleccionada}
                 onSeleccionar={setMateriaSeleccionada}
+                mostrarIdTecnico
+                className="lg:w-80 lg:shrink-0"
               />
-            </div>
 
-            <div className="flex min-h-[240px] flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[300px] sm:p-6">
-              <div className="flex flex-1 flex-col rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-4 py-6 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm">
-                {cargandoVista ? (
-                  <p className="text-center text-sm font-semibold text-slate-600">
-                    Cargando…
-                  </p>
-                ) : (
-                  <MateriaTablaVistaPanel
-                    vista={vistaMateria}
-                    materiaNombre={materiaSeleccionada}
-                  />
-                )}
+              <div className="flex min-h-[240px] flex-1 flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:min-h-[300px] sm:p-6">
+                <div className="flex flex-1 flex-col rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-4 py-6 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm">
+                  {cargandoVista ? (
+                    <p className="text-center text-sm font-semibold text-slate-600">
+                      Cargando…
+                    </p>
+                  ) : (
+                    <MateriaTablaVistaPanel
+                      vista={vistaMateria}
+                      materiaNombre={nombreVisibleSeleccionada}
+                      mostrarDetalleColumnas
+                    />
+                  )}
+                </div>
+
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <GreyActionPill onClick={abrirSelectorArchivo}>
+                    Cargar nuevo Excel
+                  </GreyActionPill>
+                  {mensajeArchivo && (
+                    <p
+                      className={`text-xs font-semibold ${
+                        mensajeArchivo.includes("correctamente")
+                          ? "text-sky-900"
+                          : "text-red-700"
+                      }`}
+                      role="status"
+                    >
+                      {mensajeArchivo}
+                    </p>
+                  )}
+                </div>
+
+                <input
+                  ref={inputArchivoRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls,text/csv"
+                  className="sr-only"
+                  onChange={onArchivoElegido}
+                  aria-label="Seleccionar archivo de calificaciones"
+                />
               </div>
-
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <GreyActionPill
-                  onClick={onSubirExcel}
-                  className={subiendo ? "opacity-70" : ""}
-                >
-                  {subiendo
-                    ? "Subiendo…"
-                    : archivoSeleccionado
-                      ? "Subir y reemplazar"
-                      : "Cargar nuevo Excel"}
-                </GreyActionPill>
-                {mensajeArchivo && (
-                  <p
-                    className={`text-xs font-semibold ${mensajeArchivo.includes("reemplazado") ? "text-sky-900" : "text-red-700"}`}
-                    role="status"
-                  >
-                    {mensajeArchivo}
-                  </p>
-                )}
-              </div>
-
-              <input
-                ref={inputArchivoRef}
-                type="file"
-                accept=".csv,.xlsx,.xls,text/csv"
-                className="sr-only"
-                onChange={onArchivoElegido}
-                aria-label="Seleccionar archivo de calificaciones"
-              />
             </div>
-          </div>
+          )}
         </div>
 
         <AsistenciasPanel />

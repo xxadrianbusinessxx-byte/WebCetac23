@@ -9,7 +9,8 @@ import {
   actionSubirFotoPerfil,
 } from "@/app/actions/escolar";
 import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistencia-alumno";
-import { MateriaScrollPicker } from "@/app/components/materia-scroll-picker";
+import { MateriaCalificacionesAlumno } from "@/app/components/materia-calificaciones-alumno";
+import { MateriaSelector } from "@/app/components/materia-selector";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { nombreCompletoAlumno } from "@/lib/escolar/alumnos";
 import { comentarioPersonalDesdeFila } from "@/lib/escolar/etiquetas";
@@ -26,6 +27,7 @@ import type {
   EtiquetasPersonalesRow,
   MateriaTablaVista,
 } from "@/lib/escolar/types";
+import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
@@ -91,7 +93,7 @@ type PerfilDatos = {
 };
 
 type Props = {
-  materias: readonly string[];
+  materias: readonly MateriaConNombreVisible[];
   modoDirectivo: boolean;
   urlRegreso: string;
   datos: PerfilDatos;
@@ -175,9 +177,9 @@ export function PerfilClient({
   }, []);
 
   useEffect(() => {
-    const primera = materias[0] ?? "";
+    const primera = materias[0]?.idInterno ?? "";
     setMateriaSeleccionada((prev) =>
-      prev && materias.includes(prev) ? prev : primera,
+      prev && materias.some((m) => m.idInterno === prev) ? prev : primera,
     );
   }, [materias]);
 
@@ -188,6 +190,12 @@ export function PerfilClient({
   const tieneGrupo = Boolean(
     etiquetas?.GRADO?.trim() && etiquetas?.GRUPO?.trim(),
   );
+
+  // Nombre visible de la materia seleccionada (solo presentación; las
+  // acciones siguen usando `materiaSeleccionada` = idInterno real).
+  const nombreVisibleSeleccionada =
+    materias.find((m) => m.idInterno === materiaSeleccionada)?.nombreVisible ??
+    materiaSeleccionada;
 
   return (
     <FrutigerBackdrop>
@@ -328,20 +336,6 @@ export function PerfilClient({
             {tab === "materia" && (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  {materias.length > 1 && (
-                    <div className="flex flex-wrap gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
-                      <MateriaScrollPicker
-                        materias={materias}
-                        seleccionada={materiaSeleccionada}
-                        onSeleccionar={setMateriaSeleccionada}
-                      />
-                    </div>
-                  )}
-                  {materias.length === 1 && (
-                    <p className="rounded-full border border-white/70 bg-white/90 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-sky-900">
-                      {materias[0]}
-                    </p>
-                  )}
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -369,20 +363,30 @@ export function PerfilClient({
                 </div>
 
                 {materiaSub === "asignaturas" ? (
-                  <div className="flex min-h-[220px] flex-1 items-center justify-center rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-6 py-16 text-center text-sm font-semibold text-slate-700 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:min-h-[280px]">
-                    {!tieneGrupo || materias.length === 0 ? (
+                  !tieneGrupo || materias.length === 0 ? (
+                    <div className="flex min-h-[220px] flex-1 items-center justify-center rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-6 py-16 text-center text-sm font-semibold text-slate-700 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:min-h-[280px]">
                       <p className="max-w-md px-4">
                         {!tieneGrupo
                           ? "En ETIQUETAS PERSONALES aún no hay grado y grupo. Cuando se actualicen, verás aquí solo las materias de tu carrera."
                           : "No hay materias cargadas para tu grado, grupo y carrera."}
                       </p>
-                    ) : (
-                      <MateriaTablaVistaPanel
-                        vista={vistaMateria}
-                        materiaNombre={materiaSeleccionada}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4 lg:flex-row">
+                      <MateriaSelector
+                        materias={materias}
+                        seleccionada={materiaSeleccionada}
+                        onSeleccionar={setMateriaSeleccionada}
+                        className="lg:w-80 lg:shrink-0"
                       />
-                    )}
-                  </div>
+                      <div className="flex min-h-[220px] flex-1 flex-col rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-4 py-6 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:min-h-[280px]">
+                        <MateriaCalificacionesAlumno
+                          vista={vistaMateria}
+                          materiaNombre={nombreVisibleSeleccionada}
+                        />
+                      </div>
+                    </div>
+                  )
                 ) : (
                   <div className="flex flex-col gap-4">
                     <div className="inline-flex w-fit rounded-full border border-white/70 bg-white/90 px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-sky-900 shadow-sm">

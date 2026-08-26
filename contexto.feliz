@@ -1,7 +1,7 @@
 ================================================================================
   CONTEXTO DEL PROYECTO — mi-web-escolar (AulaNube / CETAC)
   Archivo: contexto.feliz
-  Actualizado: mayo 2026
+  Actualizado: agosto 2026 (bloques 6E-6L + 7A-7C.2)
 ================================================================================
 
 Este documento resume lo implementado hasta ahora y lo que falta por hacer.
@@ -839,6 +839,131 @@ Conclusión y recomendación:
     deriva del CURP del alumno.
 Verificado: tsc --noEmit OK (0 errores). NO se hizo commit ni push.
 
+
+
+Bloque 6I-6L — Estado: completado — AUTENTICACIÓN Y CREDENCIALES MULTI-HIJO DE TUTORES
+(consolidado en el commit «feat(tutores)»). Se completó el sistema de acceso y perfil
+de tutores:
+  · Autenticación con `usuario` o `clave_tutor` como identificador.
+  · Credenciales iniciales = últimos 8 caracteres del CURP de cualquiera de los
+    alumnos vinculados (multi-hijo).
+  · Cambio obligatorio de credenciales como etapa posterior al primer acceso.
+  · Perfil del tutor integrado con la sesión general del portal (/tutor).
+  · El directivo puede consultar las credenciales iniciales asociadas a cada hijo.
+  · Almacenamiento de credenciales iniciales independiente de la contraseña actual.
+  · Migración de credenciales iniciales validada: 457 migradas, 3 omitidos (sin
+    alumnos activos), 0 errores, 40/40 verificadas con el flujo de hash.
+  · Relación tutor-alumno estable por identificadores únicos (no por nombres).
+Build verificado (tsc --noEmit OK + next build OK).
+
+
+Bloque 7A — Estado: completado — IDENTIDAD REAL + NOMBRES VISIBLES DE MATERIAS.
+Separa el IDENTIFICADOR TÉCNICO (nombre EXACTO de la tabla Supabase, ej.
+«2DO A MECATRONICA CONCIENCIA HISTORICA») del NOMBRE VISIBLE de presentación
+(editable por directivo). El idInterno NUNCA cambia y es el único usado para
+acceder a Supabase. Cambios clave:
+  · SQL: supabase/crear-tabla-nombres-visibles-materias.sql → materias_nombres_visibles
+    (UNIQUE materia_id, nombre_visible 1..120, activo, actualizado_por).
+  · lib/escolar/materia-identidad.ts: materiaIdDesdeNombreTabla (grado/grupo/carrera/
+    asignatura), carrerasDesdeTablas (detección dinámica de carreras), CARRERAS_ESCOLAR.
+  · lib/escolar/nombres-visibles.ts: materiasConNombreVisible, nombreVisibleDesdeMapa
+    (fallback = idInterno si no hay alias), listarNombresVisiblesMaterias,
+    obtenerNombreVisibleMateria, guardarNombreVisibleMateria, validarNombreVisible.
+  · app/actions/materias.ts: actionListarMateriasConNombreVisible,
+    actionGuardarNombreVisibleMateria (SOLO directivo; re-resuelve la materia real en
+    servidor; rechaza materias inventadas).
+  · app/components/materia-selector.tsx: selector tipo PANEL LATERAL con buscador,
+    agrupación por grado, filas ≥48px y estado activo (sustituye al <select size={6}>).
+  · app/components/materias-config-panel.tsx: sección «Configuración de materias» del
+    directivo (editar SOLO el nombre visible; el ID técnico es de solo lectura).
+  · UI: /perfil (alumno ve solo el nombre visible), /profesor y /directivo (nombre
+    visible + idInterno como detalle técnico).
+Pruebas: scripts/test-materia-identidad.mjs (44 verificaciones; incluye las 240
+tablas reales del proyecto y detección dinámica de carreras MECATRONICA/RH).
+
+
+Bloque 7B — Estado: completado — IDENTIFICACIÓN SEMÁNTICA DE COLUMNAS + VISTA DEL ALUMNO.
+  · lib/escolar/columnas-calificaciones.ts: identificarColumnaCalificacion,
+    identificarColumnasCalificaciones, vistaConColumnasIdentificadas. Categorías:
+    alumno, curp, actividad, parcial, promedio, final, asistencia, auxiliar,
+    desconocida. Reconocimiento robusto (ACT 1/ACT1/ACTIVIDAD 1, P1, PARCIAL 1/II,
+    EVALUACIÓN 1, 1ER PARCIAL, PROMEDIO, CALIFICACION FINAL, FALTAS, auxiliares…).
+  · El alumno SOLO ve su propia fila: actionObtenerVistaMateria conserva la
+    validación de materia permitida y localiza al alumno con buscar-en-filas (CURP →
+    nombre normalizado), con fallback sobre la vista completa para formatos legacy.
+  · El alumno ve SOLO columnas relevantes (Actividades / Evaluaciones / Resultado)
+    con etiquetas amigables; profesor/directivo ven todo con el encabezado original
+    (diagnóstico) y aviso de columnas duplicadas.
+  · app/components/materia-tabla-vista.tsx: tintes por categoría + encabezado
+    original (mostrarDetalleColumnas) + aviso «⚠ Duplicada».
+  · app/components/materia-calificaciones-alumno.tsx: presentación tipo tarjetas
+    agrupadas para el alumno.
+  · types.ts: MateriaTablaVista.columnasIdentificadas (metadatos de presentación).
+Pruebas: scripts/test-columnas-calificaciones.mjs (50 verificaciones).
+
+Bloque 7C — Estado: completado — MAPEO EXPLÍCITO DE COLUMNAS POR MATERIA.
+  · SQL: supabase/crear-tabla-mapeo-columnas-materias.sql → materias_mapeo_columnas
+    (columnas_nombre_alumno text[], columna_curp, columnas_actividades text[],
+    columnas_parciales text[], columna_promedio, columna_final, columnas_ocultas
+    text[]; UNIQUE materia_id).
+  · lib/escolar/mapeo-columnas-materia.ts: MapeoColumnasMateria,
+    mapeoDesdeDeteccionAutomatica (pre-relleno con 7B), validarMapeoColumnasMateria,
+    aplicarMapeoAVista, esMapeoColumnasMateria, obtenerMapeoColumnasMateria,
+    guardarMapeoColumnasMateria (UPSERT por materia_id).
+  · app/actions/materias.ts: actionGuardarMapeoColumnasMateria (SOLO maestro/directivo;
+    valida materia real y encabezados; resuelve al físico 7C.1), actionObtenerMapeoColumnasMateria.
+  · app/components/materia-mapeo-columnas.tsx: asistente de configuración (Paso 1
+    Identidad + CURP, Paso 2 Actividades/Parciales/Promedio/Final, Paso 3 Ocultar,
+    Paso 4 Vista previa del alumno) con hook useMateriaMapeo.
+  · El mapeo tiene PRIORIDAD sobre la detección automática 7B; sin mapeo → 7B intacto.
+Pruebas: scripts/test-mapeo-columnas-materia.mjs (33 verificaciones).
+
+
+Bloque 7C.1 — Estado: completado — ROBUSTEZ FÍSICO vs NORMALIZADO vs ETIQUETA.
+  · clasificarConMapeo compara por normalización (mayúsculas/tildes/espacios) PERO
+    conserva encabezadoOriginal (físico exacto).
+  · resolverColumnaFisica / resolverMapeoColumnasAFisico: resuelven variantes
+    (ej. «Calificación final» → físico «CALIFICACION FINAL») antes de guardar; la
+    ambigüedad se rechaza (no elige arbitrariamente).
+  · detectarColisionesEncabezados: advierte columnas que solo difieren por
+    mayúsculas/tildes (no fusiona, no elimina).
+  · toggleColumnaEnLista: selección por normalización (variante reemplaza, misma
+    física desmarca, nueva añade) → evita duplicados por formato.
+  · UI del asistente: muestra FÍSICO + etiqueta amigable y aviso de colisiones.
+  · Diagnóstico real con Supabase: la columna «Calificación final» EXISTE; el
+    PGRST204 previo correspondió al ciclo ALTER→INSERT con schema cache.
+Pruebas: scripts/test-mapeo-columnas-materia.mjs (36 verificaciones, incl. Tests 1-5b).
+
+
+Bloque 7C.2 — Estado: completado — RESUBIDA Y ACTUALIZACIÓN INCREMENTAL DE CALIFICACIONES.
+  · Nueva operación «Actualizar / agregar avance» (PREDETERMINADA) junto al
+    «Reemplazar completamente» (cadena de escritura existente intacta).
+  · SQL: supabase/crear-rpc-agregar-columnas.sql → escolar_agregar_columnas (SOLO
+    ADD COLUMN IF NOT EXISTS, sin DROP) para no eliminar columnas ausentes.
+  · lib/escolar/materia-avance.ts: planificarActualizacionAvance (localiza alumnos con
+    buscar-en-filas: CURP/nombre normalizado; UPDATE si existe, INSERT si no; fusiona
+    filas repetidas del mismo alumno sin duplicar), resolverEncabezadoAColumnaExistente,
+    columnasFaltantes, actualizarMateriaDesdeArchivo.
+  · app/actions/escolar.ts: actionActualizarMateriaExcel (mismas validaciones de rol y
+    materia; NO toca actionSubirMateriaExcel).
+  · app/components/materia-mapeo-columnas.tsx: selector de modo en el asistente
+    (Actualizar/agregar avance por defecto; Reemplazar completamente con advertencia).
+  · Fix de UX: key única del <li> en MateriaCalificacionesAlumno (etiquetas repetidas
+    provenientes de columnas colisionantes del CSV transformado).
+Pruebas: scripts/test-materia-avance.mjs (26 verificaciones).
+
+
+Regresión global actual (agosto 2026): 7A 44/44 · 7B 50/50 · 7C.1 36/36 ·
+7C.2 26/26 · npx tsc --noEmit OK · npm run build OK.
+
+SQL pendiente de ejecutar en Supabase (SQL Editor):
+  · supabase/crear-tabla-nombres-visibles-materias.sql
+  · supabase/crear-tabla-mapeo-columnas-materias.sql
+  · supabase/crear-rpc-agregar-columnas.sql
+
+Pendiente (BLOQUE 7C.2.b, separado): posible PGRST204 por schema cache de PostgREST
+tras ADD COLUMN en resubidas; mitigación candidata NOTIFY pgrst,'reload schema' en el
+RPC de agregar columnas (NO implementado; requiere aprobación).
 
 
   Fin de contexto.feliz

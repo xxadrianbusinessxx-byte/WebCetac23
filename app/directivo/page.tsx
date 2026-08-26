@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import {
-  actionListarMateriasSupabase,
-  actionListarRegistrosSupabase,
-} from "@/app/actions/tablas";
+import { actionListarMateriasConNombreVisible } from "@/app/actions/materias";
+import { actionListarRegistrosSupabase } from "@/app/actions/tablas";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { DirectivoClient } from "./directivo-client";
 
@@ -15,7 +13,7 @@ export const metadata: Metadata = {
 export default async function DirectivoPage() {
   const [sesion, materias, registros] = await Promise.all([
     obtenerSesionPortal(),
-    actionListarMateriasSupabase(),
+    actionListarMateriasConNombreVisible(),
     actionListarRegistrosSupabase(),
   ]);
   return (

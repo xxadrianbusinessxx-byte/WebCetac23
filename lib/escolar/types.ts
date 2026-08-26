@@ -1,3 +1,5 @@
+import type { InformacionColumnaCalificacion } from "./columnas-calificaciones";
+
 export type AlumnoRow = {
   CURP: string;
   P_APELLIDO: string | null;
@@ -51,4 +53,10 @@ export type MateriaContenidoRow = {
 export type MateriaTablaVista = {
   encabezados: string[];
   filas: string[][];
+  /**
+   * BLOQUE 7B — metadatos semánticos de las columnas, en el mismo orden que
+   * `encabezados`. Solo lo agrega la capa de identificación; si no existe, la
+   * UI renderiza los encabezados literalmente (comportamiento anterior).
+   */
+  columnasIdentificadas?: InformacionColumnaCalificacion[];
 };

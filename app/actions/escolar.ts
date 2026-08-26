@@ -33,7 +33,18 @@ import {
   titulosEtiquetasPersonales,
   valoresEtiquetasPersonales,
 } from "@/lib/escolar/etiquetas";
+import { buscarIndiceFilaAlumno } from "@/lib/escolar/buscar-en-filas";
+import { vistaConColumnasIdentificadas } from "@/lib/escolar/columnas-calificaciones";
+import { actualizarMateriaDesdeArchivo } from "@/lib/escolar/materia-avance";
+import { obtenerMapeoColumnasMateria } from "@/lib/escolar/mapeo-columnas-materia";
 import { filtrarMateriasPorGrupo } from "@/lib/escolar/materias-alumno";
+import { leerVistaMateriaAlumno } from "@/lib/escolar/materia-vista-alumno";
+import { carrerasDesdeTablas } from "@/lib/escolar/materia-identidad";
+import {
+  listarNombresVisiblesMaterias,
+  materiasConNombreVisible,
+  type MateriaConNombreVisible,
+} from "@/lib/escolar/nombres-visibles";
 import { obtenerVistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import { reemplazarContenidoStatusDesdeArchivo } from "@/lib/escolar/etiquetas-status";
@@ -65,7 +76,7 @@ export async function actionObtenerPerfilAlumno(
   alumno: AlumnoRow | null;
   etiquetas: EtiquetasPersonalesRow | null;
   registro: VistaRegistroAlumno;
-  materias: string[];
+  materias: MateriaConNombreVisible[];
   comentarios: ComentarioRow[];
   puedeEditarEtiquetas: boolean;
   fotoPerfilUrl: string | null;
@@ -117,7 +128,7 @@ export async function actionObtenerPerfilAlumno(
     curpConsulta?.trim() &&
       curpConsulta.trim().toUpperCase() !== sesion?.curp?.trim().toUpperCase(),
   );
-  const materias =
+  const materiasFiltradas =
     sesion?.rol === "alumno" || consultaOtroAlumno
       ? filtrarMateriasPorGrupo(
           todasMaterias,
@@ -126,6 +137,13 @@ export async function actionObtenerPerfilAlumno(
           carrera,
         )
       : [...todasMaterias];
+  const aliases = await listarNombresVisiblesMaterias(supabaseLectura);
+  const carreras = carrerasDesdeTablas(todasMaterias);
+  const materias = materiasConNombreVisible(
+    materiasFiltradas,
+    aliases,
+    carreras,
+  );
   const comentarios = await listarComentariosAlumno(supabase, curp);
   const fotoPerfilUrl = await obtenerFotoPerfilAlumno(supabase, curp);
   const puedeEditarEtiquetas =
@@ -237,6 +255,48 @@ export async function actionSubirMateriaExcel(
   return reemplazarContenidoMateriaDesdeArchivo(supabase, nombreMateria, archivo);
 }
 
+/**
+ * BLOQUE 7C.2 — Modo «Actualizar / agregar avance».
+ * Sube un Excel PARCIAL a una materia que ya tiene información:
+ *   - actualiza SOLO las columnas presentes;
+ *   - conserva columnas y alumnos ausentes;
+ *   - actualiza alumnos existentes (CURP/nombre normalizado) y agrega nuevos.
+ *
+ * NO reemplaza el contenido completo (para eso está actionSubirMateriaExcel).
+ */
+export async function actionActualizarMateriaExcel(
+  nombreMateria: string,
+  formData: FormData,
+): Promise<
+  | {
+      ok: true;
+      actualizados: number;
+      nuevos: number;
+      columnasAgregadas: number;
+    }
+  | { ok: false; error: string }
+> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+    return {
+      ok: false,
+      error: "No tienes permiso para actualizar calificaciones.",
+    };
+  }
+
+  if (!nombreMateria.trim()) {
+    return { ok: false, error: "Selecciona una materia en la lista." };
+  }
+
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { ok: false, error: "Selecciona un archivo válido." };
+  }
+
+  const supabase = await createClient();
+  return actualizarMateriaDesdeArchivo(supabase, nombreMateria, archivo);
+}
+
 export async function actionSubirRegistroExcel(
   nombreRegistro: string,
   formData: FormData,
@@ -278,7 +338,14 @@ export async function actionObtenerVistaMateria(
   const supabase = await createClient();
   const sesion = await obtenerSesionPortal();
 
+  // BLOQUE 7C: configuración de mapeo de columnas (si existe). El mapeo
+  // explícito tiene prioridad sobre la detección automática 7B. Si la tabla
+  // de configuración aún no existe, la lectura devuelve null y se usa 7B.
+  const mapeo = await obtenerMapeoColumnasMateria(supabase, nombreMateria);
+
   if (sesion?.rol === "alumno" && sesion.curp) {
+    // SEGURIDAD (se conserva): la materia debe pertenecer a las materias
+    // permitidas del alumno. Validación SIEMPRE en el servidor.
     const etiquetas = await obtenerEtiquetasPersonales(supabase, sesion.curp);
     const todas = await listarMateriasCompletas();
     const permitidas = filtrarMateriasPorGrupo(
@@ -288,9 +355,42 @@ export async function actionObtenerVistaMateria(
       carreraEscolarDesdeEtiquetas(etiquetas),
     );
     if (!permitidas.includes(nombreMateria.trim())) return null;
+
+    // BLOQUE 7B — el alumno SOLO ve su propia fila. Se reutiliza
+    // `leerVistaMateriaAlumno` (que usa buscar-en-filas: CURP primero, luego
+    // nombre normalizado). Si la lectura optimizada no localiza la fila
+    // (formato legacy o variantes de nombre), se hace un fallback con la
+    // vista completa + búsqueda en memoria (misma lógica de buscar-en-filas).
+    const alumno = await buscarAlumnoPorCurp(supabase, sesion.curp);
+    const nombreCompleto = alumno
+      ? nombreCompletoAlumno(alumno)
+      : sesion.nombre ?? "";
+    const criterio = { curp: sesion.curp, nombreCompleto };
+
+    let vista: MateriaTablaVista | null = await leerVistaMateriaAlumno(
+      supabase,
+      nombreMateria,
+      criterio,
+    );
+
+    if (!vista || !vista.filas.length) {
+      const completa = await obtenerVistaMateria(supabase, nombreMateria);
+      if (completa) {
+        const idx = buscarIndiceFilaAlumno(completa.filas, criterio);
+        vista = {
+          encabezados: completa.encabezados,
+          filas: idx >= 0 ? [completa.filas[idx]!] : [],
+        };
+      }
+    }
+
+    if (!vista) return null;
+    return vistaConColumnasIdentificadas(vista, { rol: "alumno", mapeo });
   }
 
-  return obtenerVistaMateria(supabase, nombreMateria);
+  const vista = await obtenerVistaMateria(supabase, nombreMateria);
+  if (!vista) return null;
+  return vistaConColumnasIdentificadas(vista, { rol: sesion?.rol, mapeo });
 }
 
 export async function actionEnviarComentarioAlumno(
