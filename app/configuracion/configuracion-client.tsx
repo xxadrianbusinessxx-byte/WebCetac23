@@ -6,6 +6,14 @@ import {
   actionPrevisualizarSincronizacionAlumnos,
   actionSincronizarAlumnosDesdeArchivo,
 } from "@/app/actions/escolar";
+import {
+  actionAplicarCargaAcademica,
+  actionPrevisualizarCargaAcademica,
+} from "@/app/actions/carga-academica";
+import type {
+  PreviewCargaAcademica,
+  ResultadoAplicarCarga,
+} from "@/lib/escolar/carga-academica";
 
 import type { PortalSessionPayload } from "@/lib/auth/types";
 import { archivoCsvAFilas } from "@/lib/escolar/csv";
@@ -65,6 +73,8 @@ function PanelTab({
 
 type Props = {
   sesion: PortalSessionPayload | null;
+  /** Periodos activos disponibles para el contexto académico de la carga. */
+  periodos: string[];
 };
 
 type Resultado =
@@ -86,9 +96,12 @@ const CAMPOS_ROSTER: { campo: CampoRoster; etiqueta: string }[] = [
   { campo: "pApellido", etiqueta: "Apellido paterno" },
   { campo: "sApellido", etiqueta: "Apellido materno" },
   { campo: "nombre", etiqueta: "Nombre(s)" },
+  { campo: "grado", etiqueta: "Grado (opcional)" },
+  { campo: "grupo", etiqueta: "Grupo (opcional)" },
+  { campo: "carrera", etiqueta: "Carrera (opcional)" },
 ];
 
-export function ConfiguracionClient({ sesion }: Props) {
+export function ConfiguracionClient({ sesion, periodos }: Props) {
   const nombre = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
   const [archivo, setArchivo] = useState<File | null>(null);
   const [encabezados, setEncabezados] = useState<string[]>([]);
@@ -100,6 +113,14 @@ export function ConfiguracionClient({ sesion }: Props) {
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [preview, setPreview] = useState<Resultado | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // --- Carga académica (C3.1) ---
+  const [contexto, setContexto] = useState({ periodoNombre: "", grado: "", grupo: "", carrera: "" });
+  const [previewAcademica, setPreviewAcademica] = useState<PreviewCargaAcademica | null>(null);
+  const [resultadoAcademica, setResultadoAcademica] = useState<ResultadoAplicarCarga | null>(null);
+  const [previsualizandoAcademica, setPrevisualizandoAcademica] = useState(false);
+  const [aplicandoAcademica, setAplicandoAcademica] = useState(false);
+  const [confirmadoAcademica, setConfirmadoAcademica] = useState(false);
 
   async function onArchivoElegido(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
@@ -219,6 +240,61 @@ export function ConfiguracionClient({ sesion }: Props) {
       setResultado(res);
       setMensaje(res.error);
     }
+  }
+
+
+  // --- Carga académica (C3.1): preview y aplicación ---
+
+  async function onPrevisualizarAcademica() {
+    if (!archivo) return;
+    if (!mapeo || !mapeoCompleto()) {
+      setMensaje("Asigna la columna CURP antes de previsualizar la carga académica.");
+      return;
+    }
+    if (!contexto.periodoNombre.trim()) {
+      setMensaje("Selecciona un periodo para la carga académica.");
+      return;
+    }
+    setPrevisualizandoAcademica(true);
+    setPreviewAcademica(null);
+    setResultadoAcademica(null);
+    setConfirmadoAcademica(false);
+    setMensaje(null);
+    const fd = new FormData();
+    fd.set("archivo", archivo);
+    fd.set("mapeo", JSON.stringify(mapeo));
+    fd.set("periodoNombre", contexto.periodoNombre.trim());
+    if (contexto.grado.trim()) fd.set("grado", contexto.grado.trim());
+    if (contexto.grupo.trim()) fd.set("grupo", contexto.grupo.trim());
+    if (contexto.carrera.trim()) fd.set("carrera", contexto.carrera.trim());
+    const res = await actionPrevisualizarCargaAcademica(fd);
+    setPrevisualizandoAcademica(false);
+    setPreviewAcademica(res);
+  }
+
+  async function onAplicarAcademica() {
+    if (!archivo || !previewAcademica?.ok) return;
+    if (!confirmadoAcademica) {
+      setMensaje("Confirma explícitamente antes de aplicar la carga académica.");
+      return;
+    }
+    if (previewAcademica.bloqueaEscritura) {
+      setMensaje("La carga tiene estados que bloquean la escritura. No se aplicará nada.");
+      return;
+    }
+    setAplicandoAcademica(true);
+    setResultadoAcademica(null);
+    const fd = new FormData();
+    fd.set("archivo", archivo);
+    fd.set("mapeo", JSON.stringify(previewAcademica.mapeo));
+    fd.set("periodoNombre", contexto.periodoNombre.trim());
+    if (contexto.grado.trim()) fd.set("grado", contexto.grado.trim());
+    if (contexto.grupo.trim()) fd.set("grupo", contexto.grupo.trim());
+    if (contexto.carrera.trim()) fd.set("carrera", contexto.carrera.trim());
+    const res = await actionAplicarCargaAcademica(fd);
+    setAplicandoAcademica(false);
+    setResultadoAcademica(res);
+    setConfirmadoAcademica(false);
   }
 
 
@@ -491,6 +567,231 @@ export function ConfiguracionClient({ sesion }: Props) {
                       ))}
                     </ul>
                   </details>
+                )}
+              </div>
+            )}
+
+            {/* Carga académica (C3.1) — ALUMNOS + PERTENENCIA */}
+            {archivo && mapeo && (
+              <div className="rounded-3xl border border-violet-400/50 bg-violet-100/60 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md sm:p-6">
+                <p className="mb-3 text-center text-xs font-extrabold uppercase tracking-wide text-violet-900">
+                  Carga académica (pertenencia opcional)
+                </p>
+                <p className="mb-3 text-center text-xs font-semibold text-slate-700">
+                  Si el archivo incluye columnas GRADO/GRUPO/CARRERA, asígnalas en
+                  el mapeo de arriba. Si no las incluye, selecciona el contexto
+                  académico (periodo + grado + grupo) que se aplicará a las filas.
+                </p>
+
+                {/* Contexto académico */}
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <label className="flex flex-col gap-1 rounded-xl border border-white/50 bg-white/50 p-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+                      Periodo *
+                    </span>
+                    <select
+                      value={contexto.periodoNombre}
+                      onChange={(e) =>
+                        setContexto((p) => ({ ...p, periodoNombre: e.target.value }))
+                      }
+                      className="rounded-lg border border-violet-300 bg-white px-2 py-1 text-xs font-semibold text-slate-800"
+                    >
+                      <option value="">— Seleccionar —</option>
+                      {periodos.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 rounded-xl border border-white/50 bg-white/50 p-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+                      Grado
+                    </span>
+                    <input
+                      value={contexto.grado}
+                      onChange={(e) =>
+                        setContexto((p) => ({ ...p, grado: e.target.value }))
+                      }
+                      placeholder="ej. 2DO"
+                      className="rounded-lg border border-violet-300 bg-white px-2 py-1 text-xs font-semibold text-slate-800"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 rounded-xl border border-white/50 bg-white/50 p-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+                      Grupo
+                    </span>
+                    <input
+                      value={contexto.grupo}
+                      onChange={(e) =>
+                        setContexto((p) => ({ ...p, grupo: e.target.value }))
+                      }
+                      placeholder="ej. A"
+                      className="rounded-lg border border-violet-300 bg-white px-2 py-1 text-xs font-semibold text-slate-800"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 rounded-xl border border-white/50 bg-white/50 p-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+                      Carrera
+                    </span>
+                    <input
+                      value={contexto.carrera}
+                      onChange={(e) =>
+                        setContexto((p) => ({ ...p, carrera: e.target.value }))
+                      }
+                      placeholder="ej. RH (opcional)"
+                      className="rounded-lg border border-violet-300 bg-white px-2 py-1 text-xs font-semibold text-slate-800"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-3 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+                  <GreyActionPill
+                    onClick={onPrevisualizarAcademica}
+                    disabled={
+                      !mapeoCompleto() ||
+                      previsualizandoAcademica ||
+                      !contexto.periodoNombre.trim()
+                    }
+                    className={previsualizandoAcademica ? "opacity-70" : ""}
+                  >
+                    {previsualizandoAcademica
+                      ? "Previsualizando…"
+                      : "Previsualizar carga académica"}
+                  </GreyActionPill>
+                </div>
+
+                {/* Resultado de la preview académica */}
+                {previewAcademica && (
+                  <div className="mt-4 rounded-2xl border border-white/50 bg-white/55 p-3">
+                    {previewAcademica.ok ? (
+                      <>
+                        <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                          Resumen — periodo {previewAcademica.periodoUtilizado ?? "—"}
+                        </p>
+                        <div className="grid gap-2 text-xs font-semibold text-slate-700 sm:grid-cols-2">
+                          <div className="rounded-xl bg-sky-50 p-2">
+                            <p className="font-extrabold text-sky-900">ALUMNOS</p>
+                            <ul>
+                              <li>Filas: {previewAcademica.alumnos.totalFilas}</li>
+                              <li>
+                                CURP válidas: {previewAcademica.alumnos.curpsValidas} ·
+                                ausentes: {previewAcademica.alumnos.curpsAusentes} ·
+                                duplicadas: {previewAcademica.alumnos.curpsDuplicadas}
+                              </li>
+                              <li>
+                                Nuevos: {previewAcademica.alumnos.alumnosNuevos} ·
+                                existentes: {previewAcademica.alumnos.alumnosExistentes} ·
+                                sin cambios: {previewAcademica.alumnos.alumnosSinCambios} ·
+                                completan campos: {previewAcademica.alumnos.camposCompletados}
+                              </li>
+                            </ul>
+                          </div>
+                          <div className="rounded-xl bg-violet-50 p-2">
+                            <p className="font-extrabold text-violet-900">ACADÉMICO</p>
+                            <ul>
+                              <li>
+                                Nuevas inscripciones: {previewAcademica.academico.nuevasInscripciones} ·
+                                sin cambio: {previewAcademica.academico.sinCambio}
+                              </li>
+                              <li>
+                                Cambios de grupo: {previewAcademica.academico.cambiosDeGrupo} ·
+                                sin datos académicos: {previewAcademica.academico.sinDatosAcademicos}
+                              </li>
+                              <li>
+                                Grupos inexistentes: {previewAcademica.academico.gruposInexistentes} ·
+                                ambiguos: {previewAcademica.academico.ambiguos} ·
+                                conflictos: {previewAcademica.academico.conflictosAcademicos}
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        {previewAcademica.detalle.filter((d) => d.estado === "CAMBIO_DE_GRUPO").length > 0 && (
+                          <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-2">
+                            <p className="mb-1 text-[10px] font-extrabold uppercase tracking-wide text-amber-800">
+                              Cambios de grupo ({previewAcademica.academico.cambiosDeGrupo}) —
+                              conservan historial
+                            </p>
+                            <ul className="max-h-32 overflow-y-auto text-xs font-semibold text-amber-900">
+                              {previewAcademica.detalle
+                                .filter((d) => d.estado === "CAMBIO_DE_GRUPO")
+                                .slice(0, 40)
+                                .map((d) => (
+                                  <li key={d.curp}>
+                                    {d.curp} → {d.gradoNormalizado} {d.grupoNormalizado}{" "}
+                                    {d.carreraNormalizada || "(sin carrera)"}
+                                    {d.grupoActualId ? ` (actual: ${d.grupoActualId.slice(0, 8)}…)` : ""}
+                                  </li>
+                                ))}
+                            </ul>
+                          </div>
+                        )}
+                        {previewAcademica.bloqueaEscritura && (
+                          <p className="mt-3 text-center text-xs font-extrabold text-red-700">
+                            ⛔ La carga tiene estados que bloquean la escritura (ambiguos,
+                            grupos inexistentes o conflictos). No se aplicará nada.
+                          </p>
+                        )}
+                        <label className="mt-3 flex items-start gap-2 rounded-xl border border-sky-300 bg-sky-50 p-2 text-xs font-semibold text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={confirmadoAcademica}
+                            onChange={(e) => setConfirmadoAcademica(e.target.checked)}
+                            className="mt-0.5"
+                          />
+                          Confirmo que revisé la previsualización y autorizo aplicar
+                          (ALUMNOS + inscripciones válidas). Los cambios de grupo
+                          conservan historial; no se elimina nada.
+                        </label>
+                        <div className="mt-3 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+                          <GreyActionPill
+                            onClick={onAplicarAcademica}
+                            disabled={
+                              !previewAcademica.ok ||
+                              previewAcademica.bloqueaEscritura ||
+                              !confirmadoAcademica ||
+                              aplicandoAcademica
+                            }
+                            className={aplicandoAcademica ? "opacity-70" : ""}
+                          >
+                            {aplicandoAcademica ? "Aplicando…" : "Confirmar y aplicar"}
+                          </GreyActionPill>
+                        </div>
+                        {resultadoAcademica && (
+                          <div className="mt-3 rounded-2xl border border-emerald-400/50 bg-emerald-100/70 p-3">
+                            {resultadoAcademica.ok ? (
+                              <>
+                                <p className="mb-1 text-center text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
+                                  Carga académica aplicada
+                                </p>
+                                <ul className="text-xs font-semibold text-emerald-900">
+                                  <li>
+                                    Alumnos: +{resultadoAcademica.alumnos.agregados} ·
+                                    completados {resultadoAcademica.alumnos.completados} ·
+                                    omitidos {resultadoAcademica.alumnos.omitidos}
+                                  </li>
+                                  <li>
+                                    Inscripciones nuevas: {resultadoAcademica.inscripciones.nuevas} ·
+                                    cambios de grupo: {resultadoAcademica.inscripciones.cambiosDeGrupo} ·
+                                    errores: {resultadoAcademica.inscripciones.errores}
+                                  </li>
+                                </ul>
+                              </>
+                            ) : (
+                              <p className="text-center text-xs font-bold text-red-700">
+                                {resultadoAcademica.error}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-center text-xs font-bold text-red-700">
+                        {previewAcademica.error}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             )}

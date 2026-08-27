@@ -52,7 +52,15 @@ function valorCelda(
   return t || "—";
 }
 
-/** Campos de ETIQUETAS PERSONALES para mostrar en el perfil (solo lectura). */
+/**
+ * Campos de ETIQUETAS PERSONALES para mostrar en el perfil (solo lectura).
+ *
+ * C4.6 — DECISIÓN CARRERA: se mantiene TEMPORALMENTE como dato descriptivo
+ * (opción C) para no romper la UI del perfil. La fuente OFICIAL de la carrera
+ * académica es el catálogo (inscripción activa → grupo → carrera). Cuando se
+ * ajuste el payload del perfil (C4.7) este campo pasará a resolverse desde el
+ * catálogo (opción B), eliminando la doble autoridad. No se borra la columna.
+ */
 export function informacionPersonalDesdeEtiquetas(
   row: EtiquetasPersonalesRow | null,
 ): CampoInformacionPersonal[] {

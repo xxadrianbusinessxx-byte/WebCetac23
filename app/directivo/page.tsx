@@ -16,7 +16,5 @@ export default async function DirectivoPage() {
     actionListarMateriasConNombreVisible(),
     actionListarRegistrosSupabase(),
   ]);
-  return (
-    <DirectivoClient sesion={sesion} materias={materias} registros={registros} />
-  );
+  return <DirectivoClient sesion={sesion} materias={materias} registros={registros} />;
 }

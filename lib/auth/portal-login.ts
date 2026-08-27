@@ -24,6 +24,8 @@ export type LoginResult = {
   rol: PortalRole;
   curp?: string;
   nombre?: string;
+  /** C4.10 — Identidad estructural (PROFESORES.ID). Solo profesor/directivo. */
+  profesorId?: number;
 };
 
 function safeEqual(a: string, b: string): boolean {
@@ -61,6 +63,7 @@ export async function validarAccesoPortal(
       matricula: profesor.CLAVE,
       rol: rolDesdePermisos(profesor.Permisos),
       nombre,
+      profesorId: profesor.ID,
     };
   }
 

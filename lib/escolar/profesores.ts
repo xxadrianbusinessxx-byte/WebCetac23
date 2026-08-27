@@ -4,13 +4,14 @@ import { nombresCoinciden, normalizarNombre } from "./nombres";
 import { TABLA_PROFESORES } from "./tables";
 
 export type ProfesorRow = {
+  /** C4.9/C4.10 — Identidad ESTRUCTURAL estable (única, NOT NULL). */
+  ID: number;
   "NOMBRE/PROFESOR/DIRECTIVO": string;
   CLAVE: string;
   Permisos: string;
 };
 
-const SELECT_PROFESOR =
-  '"NOMBRE/PROFESOR/DIRECTIVO", CLAVE, Permisos';
+const SELECT_PROFESOR = 'ID, "NOMBRE/PROFESOR/DIRECTIVO", CLAVE, Permisos';
 
 export function nombreProfesor(row: ProfesorRow): string {
   return String(row["NOMBRE/PROFESOR/DIRECTIVO"] ?? "").trim();

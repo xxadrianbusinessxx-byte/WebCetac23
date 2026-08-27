@@ -2,7 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
-import { actionGuardarNombreVisibleMateria } from "@/app/actions/materias";
+import {
+  actionCambiarVisibilidadMateria,
+  actionGuardarNombreVisibleMateria,
+  actionListarMateriasConfiguracion,
+} from "@/app/actions/materias";
 import { normalizarNombre } from "@/lib/escolar/nombres";
 import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
 
@@ -34,10 +38,25 @@ export function MateriasConfigPanel({ materias }: Props) {
   const [borrador, setBorrador] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<Mensaje>(null);
+  const [ocultas, setOcultas] = useState<ReadonlySet<string>>(new Set());
+  const [cargandoConfig, setCargandoConfig] = useState(true);
 
   useEffect(() => {
     setLista([...materias]);
   }, [materias]);
+
+  // C4.18 — carga TODAS las materias (incluidas las ocultas) + estado de
+  // visibilidad desde el catálogo, para poder desactivar/activar aquí.
+  useEffect(() => {
+    void (async () => {
+      const r = await actionListarMateriasConfiguracion();
+      if ("ok" in r && r.ok) {
+        setLista([...r.materias]);
+        setOcultas(new Set(r.ocultas));
+      }
+      setCargandoConfig(false);
+    })();
+  }, []);
 
   const filtradas = useMemo(() => {
     const q = normalizarNombre(busqueda);
@@ -68,6 +87,27 @@ export function MateriasConfigPanel({ materias }: Props) {
       setMensaje({ ok: true, texto: "Nombre visible actualizado." });
       // Refresca los datos del servidor para que el resto del panel
       // (selector, etc.) muestre el nuevo nombre.
+      router.refresh();
+    } else {
+      setMensaje({ ok: false, texto: r.error });
+    }
+  }
+
+  // C4.18 — desactivar/activar la visibilidad de la materia en el catálogo.
+  async function cambiarVisibilidad(m: MateriaConNombreVisible) {
+    const visible = !ocultas.has(m.idInterno);
+    setGuardando(true);
+    setMensaje(null);
+    const r = await actionCambiarVisibilidadMateria(m.idInterno, visible);
+    setGuardando(false);
+    if (r.ok) {
+      setOcultas((prev) => {
+        const next = new Set(prev);
+        if (visible) next.delete(m.idInterno);
+        else next.add(m.idInterno);
+        return next;
+      });
+      setMensaje({ ok: true, texto: r.mensaje });
       router.refresh();
     } else {
       setMensaje({ ok: false, texto: r.error });
@@ -136,6 +176,11 @@ export function MateriasConfigPanel({ materias }: Props) {
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                     ID técnico: {m.idInterno}
                   </p>
+                  {ocultas.has(m.idInterno) && (
+                    <span className="mt-1 inline-block w-fit rounded-full bg-rose-500/20 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-rose-800">
+                      Oculto del panel de calificaciones y del alumno
+                    </span>
+                  )}
 
                   {editando ? (
                     <div className="mt-1 flex flex-col gap-2">
@@ -176,17 +221,31 @@ export function MateriasConfigPanel({ materias }: Props) {
                       </div>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditandoId(m.idInterno);
-                        setBorrador(m.nombreVisible);
-                        setMensaje(null);
-                      }}
-                      className="mt-1 w-fit rounded-full border border-sky-700/40 bg-white/80 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
-                    >
-                      Editar nombre
-                    </button>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditandoId(m.idInterno);
+                          setBorrador(m.nombreVisible);
+                          setMensaje(null);
+                        }}
+                        className="w-fit rounded-full border border-sky-700/40 bg-white/80 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
+                      >
+                        Editar nombre
+                      </button>
+                      <button
+                        type="button"
+                        disabled={guardando || cargandoConfig}
+                        onClick={() => void cambiarVisibilidad(m)}
+                        className={`w-fit rounded-full border border-white/70 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${
+                          ocultas.has(m.idInterno)
+                            ? "bg-linear-to-b from-emerald-400 via-emerald-500 to-emerald-600"
+                            : "bg-linear-to-b from-rose-400 via-rose-500 to-rose-600"
+                        }`}
+                      >
+                        {ocultas.has(m.idInterno) ? "Activar" : "Desactivar"}
+                      </button>
+                    </div>
                   )}
                 </div>
               );

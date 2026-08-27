@@ -185,9 +185,9 @@ type PlanSincronizacion = {
 /**
  * Analiza el archivo contra los existentes y devuelve el plan de cambios
  * (qué insertar y qué completar) SIN escribir en Supabase. Reutilizado por la
- * sincronización real y por la previsualización.
+ * sincronización real, por la previsualización y por la carga académica (C3.1).
  */
-async function analizarRoster(
+export async function analizarRoster(
   supabase: SupabaseClient,
   file: File,
   mapeo?: MapeoRoster,

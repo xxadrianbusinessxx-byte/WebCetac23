@@ -1,6 +1,7 @@
 "use server";
 
 import type { PortalRole } from "@/lib/auth/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import {
   buscarAlumnoPorCurp,
@@ -39,6 +40,16 @@ import { actualizarMateriaDesdeArchivo } from "@/lib/escolar/materia-avance";
 import { obtenerMapeoColumnasMateria } from "@/lib/escolar/mapeo-columnas-materia";
 import { filtrarMateriasPorGrupo } from "@/lib/escolar/materias-alumno";
 import { leerVistaMateriaAlumno } from "@/lib/escolar/materia-vista-alumno";
+import {
+  resolverGrupoAlumno,
+  resolverMateriasAlumno,
+  validarAccesoAlumno,
+} from "@/lib/escolar/catalogo-academico";
+import {
+  gradoASemestre,
+  semestreActivoDeGrupo,
+  semestresInactivos,
+} from "@/lib/escolar/semestres";
 import { carrerasDesdeTablas } from "@/lib/escolar/materia-identidad";
 import {
   listarNombresVisiblesMaterias,
@@ -54,7 +65,7 @@ import {
   obtenerVistaMateria,
   reemplazarContenidoMateriaDesdeArchivo,
 } from "@/lib/escolar/materias";
-import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
+import { COMENTARIO_MAX_LENGTH, TABLA_GRUPO_MATERIAS } from "@/lib/escolar/tables";
 import type {
   AlumnoRow,
   ComentarioRow,
@@ -116,34 +127,89 @@ export async function actionObtenerPerfilAlumno(
   const nombreCompleto = alumno ? nombreCompletoAlumno(alumno) : "";
   const supabaseLectura = await clienteLecturaEscolar(supabase);
   const etiquetas = await obtenerEtiquetasPersonales(supabaseLectura, curp);
-  const carrera = carreraEscolarDesdeEtiquetas(etiquetas);
+  // C4.6 — La carrera ACADÉMICA OFICIAL proviene del catálogo
+  // (grupoCatalogo.carrera) cuando existe inscripción activa. ETIQUETAS.CARRERA
+  // se usa SOLO en el fallback legacy (sin inscripción) y como dato descriptivo.
   const registro = await obtenerVistaRegistroAlumno(
     supabaseLectura,
     curp,
     nombreCompleto,
     etiquetas,
   );
-  const todasMaterias = await listarMateriasCompletas();
+  const aliases = await listarNombresVisiblesMaterias(supabaseLectura);
   const consultaOtroAlumno = Boolean(
     curpConsulta?.trim() &&
       curpConsulta.trim().toUpperCase() !== sesion?.curp?.trim().toUpperCase(),
   );
-  const materiasFiltradas =
-    sesion?.rol === "alumno" || consultaOtroAlumno
-      ? filtrarMateriasPorGrupo(
-          todasMaterias,
-          etiquetas?.GRADO ?? "",
-          etiquetas?.GRUPO ?? "",
-          carrera,
-        )
-      : [...todasMaterias];
-  const aliases = await listarNombresVisiblesMaterias(supabaseLectura);
-  const carreras = carrerasDesdeTablas(todasMaterias);
-  const materias = materiasConNombreVisible(
-    materiasFiltradas,
-    aliases,
-    carreras,
-  );
+
+  // C4.1 — Fuente primaria: catálogo académico nuevo.
+  //   CURP → inscripciones_alumno (activa) → grupos → grupo_materias → materias.
+  //   idInterno = grupo_materias.tabla_legacy (compatibilidad de UI); nombre
+  //   visible sigue resolviéndose con el mecanismo existente (7A).
+  // Fallback legacy obligatorio si no hay inscripción activa resoluble
+  // (ETIQUETAS PERSONALES → filtrarMateriasPorGrupo).
+  // C4.14 — si el alumno tiene grupo resoluble y su SEMESTRE está inactivo
+  // (academico_semestres), su oferta de materias queda vacía (no cae al
+  // fallback legacy). Si la estructura no existe, el comportamiento es el
+  // actual (semestre sin restricción).
+  const grupoCatalogo = await resolverGrupoAlumno(supabaseLectura, curp);
+  const semestreActivo =
+    grupoCatalogo && gradoASemestre(grupoCatalogo.grupo.grado) !== null
+      ? await semestreActivoDeGrupo(supabaseLectura, grupoCatalogo.grupo)
+      : true;
+  const materiasCatalogo =
+    grupoCatalogo && semestreActivo
+      ? await resolverMateriasAlumno(supabaseLectura, curp)
+      : [];
+  const tablasLegacy = materiasCatalogo
+    .map((m) => m.tablaLegacy)
+    .filter((t): t is string => Boolean(t));
+
+  let fuente: "CATALOGO" | "FALLBACK_LEGACY" | "SEMESTRE_INACTIVO" =
+    "FALLBACK_LEGACY";
+  let materias: MateriaConNombreVisible[] = [];
+
+  if (grupoCatalogo && !semestreActivo) {
+    fuente = "SEMESTRE_INACTIVO";
+    materias = [];
+  } else if (grupoCatalogo && tablasLegacy.length > 0) {
+    fuente = "CATALOGO";
+    materias = materiasConNombreVisible(
+      tablasLegacy,
+      aliases,
+      carrerasDesdeTablas(tablasLegacy),
+    );
+  } else {
+    // Fallback legacy (alumnos sin inscripción/contexto; directivo sin grupo).
+    // C4.6 — CARRERA de ETIQUETAS SOLO aquí (compatibilidad del fallback); la
+    // carrera oficial (con inscripción) la entrega el catálogo.
+    const carrera = carreraEscolarDesdeEtiquetas(etiquetas);
+    const todasMaterias = await listarMateriasCompletas();
+    const materiasFiltradas =
+      sesion?.rol === "alumno" || consultaOtroAlumno
+        ? filtrarMateriasPorGrupo(
+            todasMaterias,
+            etiquetas?.GRADO ?? "",
+            etiquetas?.GRUPO ?? "",
+            carrera,
+          )
+        : [...todasMaterias];
+    materias = materiasConNombreVisible(
+      materiasFiltradas,
+      aliases,
+      carrerasDesdeTablas(todasMaterias),
+    );
+  }
+  void fuente; // distingue internamente CATALOGO / FALLBACK_LEGACY
+
+  // C4.7 — CARRERA del PERFIL: proviene del CATÁLOGO cuando existe inscripción
+  // activa (grupoCatalogo.carrera); vacía si no la hay (no se inventa).
+  // ETIQUETAS.CARRERA permanece almacenada como dato legacy/descriptivo pero
+  // deja de mostrarse como autoridad académica en el perfil.
+  const etiquetasVisibles: EtiquetasPersonalesRow | null = etiquetas
+    ? { ...etiquetas, CARRERA: grupoCatalogo?.carrera?.clave ?? "" }
+    : null;
+
   const comentarios = await listarComentariosAlumno(supabase, curp);
   const fotoPerfilUrl = await obtenerFotoPerfilAlumno(supabase, curp);
   const puedeEditarEtiquetas =
@@ -151,7 +217,7 @@ export async function actionObtenerPerfilAlumno(
 
   return {
     alumno,
-    etiquetas,
+    etiquetas: etiquetasVisibles,
     registro,
     materias,
     comentarios,
@@ -233,6 +299,34 @@ export async function actionGuardarComentarioPersonal(
   );
 }
 
+/**
+ * C4.18 — ¿Por qué una materia NO debe cargarse/actualizarse? Devuelve el
+ * motivo (materia desactivada en grupo_materias, o semestre inactivo) o null.
+ */
+async function motivoMateriaNoCargable(
+  supabase: SupabaseClient,
+  idInterno: string,
+): Promise<string | null> {
+  const id = idInterno.trim();
+  if (!id) return null;
+  const { data: gms } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .select("tabla_legacy, activo")
+    .eq("tabla_legacy", id);
+  if (gms && gms.length > 0 && gms.every((g) => g.activo === false)) {
+    return "La materia está desactivada en el catálogo.";
+  }
+  const m = id.toUpperCase().match(/^(1RO|2DO|3RO|4TO|5TO|6TO)\s/);
+  if (m) {
+    const sem = gradoASemestre(m[1]);
+    if (sem !== null) {
+      const inactivos = await semestresInactivos(supabase);
+      if (inactivos.has(sem)) return "el semestre de esta materia está inactivo";
+    }
+  }
+  return null;
+}
+
 export async function actionSubirMateriaExcel(
   nombreMateria: string,
   formData: FormData,
@@ -252,6 +346,12 @@ export async function actionSubirMateriaExcel(
   }
 
   const supabase = await createClient();
+  // C4.18 — no se permite subir calificaciones de materias desactivadas o de
+  // semestres inactivos (la visualización y la operación quedan cerradas).
+  const motivo = await motivoMateriaNoCargable(supabase, nombreMateria);
+  if (motivo) {
+    return { ok: false, error: `No se puede subir: ${motivo}.` };
+  }
   return reemplazarContenidoMateriaDesdeArchivo(supabase, nombreMateria, archivo);
 }
 
@@ -294,6 +394,12 @@ export async function actionActualizarMateriaExcel(
   }
 
   const supabase = await createClient();
+  // C4.18 — tampoco se permite «actualizar/agregar avance» en materias
+  // desactivadas o de semestres inactivos.
+  const motivo = await motivoMateriaNoCargable(supabase, nombreMateria);
+  if (motivo) {
+    return { ok: false, error: `No se puede actualizar: ${motivo}.` };
+  }
   return actualizarMateriaDesdeArchivo(supabase, nombreMateria, archivo);
 }
 
@@ -344,17 +450,51 @@ export async function actionObtenerVistaMateria(
   const mapeo = await obtenerMapeoColumnasMateria(supabase, nombreMateria);
 
   if (sesion?.rol === "alumno" && sesion.curp) {
-    // SEGURIDAD (se conserva): la materia debe pertenecer a las materias
-    // permitidas del alumno. Validación SIEMPRE en el servidor.
-    const etiquetas = await obtenerEtiquetasPersonales(supabase, sesion.curp);
-    const todas = await listarMateriasCompletas();
-    const permitidas = filtrarMateriasPorGrupo(
-      todas,
-      etiquetas?.GRADO ?? "",
-      etiquetas?.GRUPO ?? "",
-      carreraEscolarDesdeEtiquetas(etiquetas),
+    // C4.1 — SEGURIDAD: autorización server-side desde el catálogo.
+    // 1) Fuente primaria: inscripción activa → grupo → grupo_materias → materias.
+    // 2) La materia solicitada (idInterno = tabla_legacy) debe pertenecer al grupo.
+    // 3) validarAccesoAlumno() confirma la relación persistida.
+    // 4) Fallback legacy si no hay inscripción resoluble.
+    // C4.14 — si el semestre del grupo está inactivo, el alumno no puede
+    // acceder a la materia (sin caer al fallback legacy).
+    const grupoAcceso = await resolverGrupoAlumno(supabase, sesion.curp);
+    if (grupoAcceso) {
+      const semestreGrupo = gradoASemestre(grupoAcceso.grupo.grado);
+      if (
+        semestreGrupo !== null &&
+        !(await semestreActivoDeGrupo(supabase, grupoAcceso.grupo))
+      ) {
+        return null;
+      }
+    }
+    const materiasCatalogo = await resolverMateriasAlumno(supabase, sesion.curp);
+    const conTablaLegacy = materiasCatalogo.filter((m) => m.tablaLegacy);
+    const permitidoCatalogo = conTablaLegacy.find(
+      (m) => m.tablaLegacy === nombreMateria.trim(),
     );
-    if (!permitidas.includes(nombreMateria.trim())) return null;
+
+    if (permitidoCatalogo) {
+      const acceso = await validarAccesoAlumno(
+        supabase,
+        sesion.curp,
+        permitidoCatalogo.grupoMateriaId,
+      );
+      if (!acceso) return null;
+    } else if (conTablaLegacy.length > 0) {
+      // El alumno tiene catálogo resoluble y esta materia NO le pertenece.
+      return null;
+    } else {
+      // Fallback legacy (alumno sin inscripción activa resoluble).
+      const etiquetas = await obtenerEtiquetasPersonales(supabase, sesion.curp);
+      const todas = await listarMateriasCompletas();
+      const permitidas = filtrarMateriasPorGrupo(
+        todas,
+        etiquetas?.GRADO ?? "",
+        etiquetas?.GRUPO ?? "",
+        carreraEscolarDesdeEtiquetas(etiquetas),
+      );
+      if (!permitidas.includes(nombreMateria.trim())) return null;
+    }
 
     // BLOQUE 7B — el alumno SOLO ve su propia fila. Se reutiliza
     // `leerVistaMateriaAlumno` (que usa buscar-en-filas: CURP primero, luego

@@ -17,6 +17,17 @@ export const TABLA_TUTOR_ALUMNOS = "tutor_alumnos";
 export const TABLA_TUTOR_CREDENCIALES_INICIALES = "tutor_credenciales_iniciales";
 export const TABLA_JUSTIFICACIONES_ASISTENCIA = "justificaciones_asistencia";
 
+/** Catálogo académico (FASE C1). Tablas nuevas; ver supabase/crear-tablas-catalogo-academico.sql. */
+export const TABLA_PERIODOS = "periodos";
+export const TABLA_CARRERAS = "carreras";
+export const TABLA_MATERIAS = "materias";
+export const TABLA_GRUPOS = "grupos";
+export const TABLA_GRUPO_MATERIAS = "grupo_materias";
+export const TABLA_INSCRIPCIONES_ALUMNO = "inscripciones_alumno";
+export const TABLA_ASIGNACIONES_PROFESOR = "asignaciones_profesor";
+/** C4.14 — Estado activo/inactivo de la oferta por semestre (grado) y periodo. */
+export const TABLA_SEMESTRES = "academico_semestres";
+
 
 
 

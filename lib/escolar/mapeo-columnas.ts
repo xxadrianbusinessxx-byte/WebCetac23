@@ -13,14 +13,24 @@ export type CampoRoster =
   | "curp"
   | "nombre"
   | "pApellido"
-  | "sApellido";
+  | "sApellido"
+  | "grado"
+  | "grupo"
+  | "carrera";
 
-/** Mapeo campo → índice de columna (0-based) en el archivo. -1 = no usar. */
+/**
+ * Mapeo campo → índice de columna (0-based) en el archivo. -1 = no usar.
+ * Los campos académicos (grado/grupo/carrera) son OPCIONALES: su ausencia en
+ * un mapeo recibido se interpreta como -1 (compatibilidad con cargas solo-ALUMNOS).
+ */
 export type MapeoRoster = {
   curp: number;
   nombre: number;
   pApellido: number;
   sApellido: number;
+  grado: number;
+  grupo: number;
+  carrera: number;
 };
 
 /** Catálogo de aliases por campo (normalizados). */
@@ -65,6 +75,15 @@ export const CAMPO_ROSTER_ALIASES: Record<CampoRoster, string[]> = {
     "2DO_APELLIDO",
     "APELLIDO MATERNO DEL ALUMNO",
   ],
+  grado: [
+    "GRADO",
+    "GRADO ESCOLAR",
+    "GRADO_ESCOLAR",
+    "GRADO ACADEMICO",
+    "GRADO_ACADEMICO",
+  ],
+  grupo: ["GRUPO", "GRUPO ESCOLAR", "GRUPO_ESCOLAR"],
+  carrera: ["CARRERA", "CARRERA ESCOLAR", "CARRERA_ESCOLAR"],
 };
 
 /**
@@ -109,6 +128,9 @@ export function detectarColumnasRoster(encabezados: string[]): MapeoRoster {
     nombre: -1,
     pApellido: -1,
     sApellido: -1,
+    grado: -1,
+    grupo: -1,
+    carrera: -1,
   };
   const usados = new Set<number>();
 
@@ -132,17 +154,24 @@ export function mapeoRosterValido(
   if (!mapeo || typeof mapeo !== "object") return false;
   const m = mapeo as Record<string, unknown>;
 
-  const campos: CampoRoster[] = ["curp", "nombre", "pApellido", "sApellido"];
-  for (const campo of campos) {
-    const v = m[campo];
-    if (typeof v !== "number" || !Number.isInteger(v)) return false;
-    if (v < -1 || v >= numColumnas) return false;
+  // Campos de identidad/nombre: OBLIGATORIOS en el mapeo.
+  const camposBase: CampoRoster[] = ["curp", "nombre", "pApellido", "sApellido"];
+  // Campos académicos: OPCIONALES (si faltan se interpretan como -1).
+  const camposAcademicos: CampoRoster[] = ["grado", "grupo", "carrera"];
+
+  const validarIndice = (v: unknown): boolean =>
+    typeof v === "number" && Number.isInteger(v) && v >= -1 && v < numColumnas;
+
+  for (const campo of camposBase) {
+    if (!validarIndice(m[campo])) return false;
   }
 
   // No permitir que dos campos usen el mismo índice (salvo -1).
   const usados = new Set<number>();
-  for (const campo of campos) {
-    const v = m[campo] as number;
+  for (const campo of [...camposBase, ...camposAcademicos]) {
+    const v = m[campo] as number | undefined;
+    if (v === undefined) continue; // académico ausente → -1
+    if (!validarIndice(v)) return false;
     if (v === -1) continue;
     if (usados.has(v)) return false;
     usados.add(v);
@@ -158,5 +187,8 @@ export function crearMapeoRoster(parcial: Partial<MapeoRoster>): MapeoRoster {
     nombre: parcial.nombre ?? -1,
     pApellido: parcial.pApellido ?? -1,
     sApellido: parcial.sApellido ?? -1,
+    grado: parcial.grado ?? -1,
+    grupo: parcial.grupo ?? -1,
+    carrera: parcial.carrera ?? -1,
   };
 }

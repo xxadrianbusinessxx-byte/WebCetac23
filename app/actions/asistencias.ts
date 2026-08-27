@@ -21,7 +21,13 @@ import {
   type ResumenAsistencia,
 } from "@/lib/escolar/asistencias";
 
-import { TABLA_JUSTIFICACIONES_ASISTENCIA } from "@/lib/escolar/tables";
+import {
+  TABLA_CARRERAS,
+  TABLA_ETIQUETAS_PERSONALES,
+  TABLA_GRUPOS,
+  TABLA_INSCRIPCIONES_ALUMNO,
+  TABLA_JUSTIFICACIONES_ASISTENCIA,
+} from "@/lib/escolar/tables";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores";
 
 /**
@@ -328,16 +334,61 @@ export async function actionObtenerContextoAlumnoParaTutor(input: {
     return { ok: false, error: "No tienes relación con ese alumno." };
   }
 
-  // Buscar el alumno en ETIQUETAS PERSONALES (fuente real de grado/grupo/carrera).
-  const { data: etiquetas, error: errEtiquetas } = await supabase
-    .from("ETIQUETAS PERSONALES")
-    .select("CURP, GRADO, GRUPO, CARRERA")
-    .eq("CURP", curp)
-    .limit(1)
-    .maybeSingle();
+  // C4.3 — Fuente primaria: inscripciones_alumno (activa) → grupos → carreras.
+  // Fallback LEGACY temporal (ETIQUETAS PERSONALES) si no hay inscripción activa.
+  const { data: inscripciones, error: errIns } = await supabase
+    .from(TABLA_INSCRIPCIONES_ALUMNO)
+    .select("grupo_id, activo")
+    .eq("curp", curp)
+    .eq("activo", true)
+    .limit(2);
 
-  if (errEtiquetas || !etiquetas) {
-    return { ok: false, error: "No se encontró el alumno en el grupo." };
+  let grado = "";
+  let grupo = "";
+  let carrera = "";
+
+  if (errIns || !inscripciones || inscripciones.length === 0) {
+    // Fallback LEGACY temporal (alumno sin inscripción activa).
+    const { data: etiquetas, error: errEtiquetas } = await supabase
+      .from(TABLA_ETIQUETAS_PERSONALES)
+      .select("CURP, GRADO, GRUPO, CARRERA")
+      .eq("CURP", curp)
+      .limit(1)
+      .maybeSingle();
+    if (errEtiquetas || !etiquetas) {
+      return { ok: false, error: "No se encontró el alumno en el grupo." };
+    }
+    grado = String(etiquetas.GRADO ?? "");
+    grupo = String(etiquetas.GRUPO ?? "");
+    carrera = String(etiquetas.CARRERA ?? "");
+  } else if (inscripciones.length > 1) {
+    // CASO E — múltiples inscripciones activas: anomalía; no elegir arbitrariamente.
+    return {
+      ok: false,
+      error: "El alumno tiene más de una inscripción activa. Revisa el catálogo.",
+    };
+  } else {
+    const { data: detalleGrupo, error: errGrupo } = await supabase
+      .from(TABLA_GRUPOS)
+      .select("grado, nombre, carrera_id, activo")
+      .eq("id", inscripciones[0].grupo_id)
+      .maybeSingle();
+    if (errGrupo || !detalleGrupo || detalleGrupo.activo === false) {
+      return {
+        ok: false,
+        error: "El grupo del alumno no es válido o está inactivo.",
+      };
+    }
+    grado = String(detalleGrupo.grado ?? "");
+    grupo = String(detalleGrupo.nombre ?? "");
+    if (detalleGrupo.carrera_id) {
+      const { data: detalleCarrera } = await supabase
+        .from(TABLA_CARRERAS)
+        .select("clave")
+        .eq("id", detalleGrupo.carrera_id)
+        .maybeSingle();
+      carrera = String(detalleCarrera?.clave ?? "");
+    }
   }
 
   // Nombre completo desde ALUMNOS.
@@ -365,9 +416,9 @@ export async function actionObtenerContextoAlumnoParaTutor(input: {
     alumno: {
       curp,
       nombre,
-      grado: String(etiquetas.GRADO ?? ""),
-      grupo: String(etiquetas.GRUPO ?? ""),
-      carrera: String(etiquetas.CARRERA ?? ""),
+      grado,
+      grupo,
+      carrera,
     },
   };
 }

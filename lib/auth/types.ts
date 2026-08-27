@@ -5,4 +5,8 @@ export type PortalSessionPayload = {
   rol: PortalRole;
   curp?: string;
   nombre?: string;
+  /** C4.10 — Identidad ESTRUCTURAL del profesor (PROFESORES.ID). Solo en
+   *  sesiones de profesor/directivo autenticadas desde PROFESORES. Nunca se
+   *  resuelve desde CLAVE (ambigua). matricula permanece como histórico. */
+  profesorId?: number;
 };

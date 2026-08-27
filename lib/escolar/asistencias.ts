@@ -8,14 +8,26 @@ import {
 } from "./calendario";
 import { detectarColumnasFechaAsistencia } from "./fechas";
 
+import {
+  normalizarCarreraCatalogo,
+  normalizarGradoCatalogo,
+  normalizarGrupoCatalogo,
+  type CarreraRow,
+  type GrupoRow,
+  type PeriodoRow,
+} from "./catalogo-academico";
 import { carreraEscolarDesdeEtiquetas } from "./informacion-personal";
 import { nombreCompletoAlumno } from "./alumnos";
 import {
   TABLA_ALUMNOS,
   TABLA_ASISTENCIA_ALUMNOS,
+  TABLA_CARRERAS,
   TABLA_CLASES_IMPARTIDAS,
   TABLA_CONFIGURACION_CLASES_PROFESOR,
   TABLA_ETIQUETAS_PERSONALES,
+  TABLA_GRUPOS,
+  TABLA_INSCRIPCIONES_ALUMNO,
+  TABLA_PERIODOS,
   type TipoDiaCalendario,
 } from "./tables";
 
@@ -244,15 +256,149 @@ export function clasesDelProfesorParaFecha(
 }
 
 
-/**
- * Lista los grupos (grado + grupo + carrera) que existen en ETIQUETAS
- * PERSONALES. Fuente real de datos: NO se hardcodean grados/grupos/carreras.
- */
+type GrupoAsistencia = { grado: string; grupo: string; carrera: string };
 
+type ContextoCatalogoAsistencia = {
+  periodoNombre: string;
+  periodoId: string;
+  indice: Map<string, { id: string; grado: string; grupo: string; carreraClave: string }>;
+};
+
+/**
+ * C4.3 — Carga los grupos activos del PERIODO ACTIVO del catálogo, indexados
+ * por identidad normalizada (G2). `periodos` es la autoridad del periodo;
+ * `calendario_escolar` permanece responsable de fechas/clases.
+ */
+async function cargarContextoCatalogoAsistencia(
+  supabase: SupabaseClient,
+): Promise<ContextoCatalogoAsistencia | null> {
+  const { data: periodos } = await supabase
+    .from(TABLA_PERIODOS)
+    .select("*")
+    .eq("activo", true)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const periodo = periodos?.[0] as PeriodoRow | undefined;
+  if (!periodo) return null;
+
+  const { data: grupos } = await supabase
+    .from(TABLA_GRUPOS)
+    .select("*")
+    .eq("periodo_id", periodo.id)
+    .eq("activo", true);
+  const filasGrupos = (grupos ?? []) as GrupoRow[];
+
+  const carreraIds = [
+    ...new Set(filasGrupos.map((g) => g.carrera_id).filter((x): x is string => Boolean(x))),
+  ];
+  const claveCarreraPorId = new Map<string, string>();
+  if (carreraIds.length) {
+    const { data: carreras } = await supabase
+      .from(TABLA_CARRERAS)
+      .select("*")
+      .in("id", carreraIds);
+    for (const c of (carreras ?? []) as CarreraRow[]) {
+      claveCarreraPorId.set(c.id, normalizarCarreraCatalogo(c.clave));
+    }
+  }
+
+  const indice = new Map<string, { id: string; grado: string; grupo: string; carreraClave: string }>();
+  for (const g of filasGrupos) {
+    const carreraClave = g.carrera_id ? (claveCarreraPorId.get(g.carrera_id) ?? "") : "";
+    const key = `${normalizarGradoCatalogo(g.grado)}|${normalizarGrupoCatalogo(g.nombre)}|${carreraClave}`;
+    indice.set(key, { id: g.id, grado: g.grado, grupo: g.nombre, carreraClave });
+  }
+  return { periodoNombre: periodo.nombre, periodoId: periodo.id, indice };
+}
+
+/** CURPs con inscripción ACTIVA en un grupo del catálogo (paginado). */
+async function obtenerCurpsInscritasGrupo(
+  supabase: SupabaseClient,
+  grupoId: string,
+): Promise<Set<string>> {
+  const curps = new Set<string>();
+  let desde = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await supabase
+      .from(TABLA_INSCRIPCIONES_ALUMNO)
+      .select("curp")
+      .eq("grupo_id", grupoId)
+      .eq("activo", true)
+      .range(desde, desde + TAMANO_PAGINA - 1);
+    if (error || !data || data.length === 0) break;
+    for (const r of data as Array<{ curp: string }>) {
+      const c = norm(String(r.curp ?? ""));
+      if (c) curps.add(c);
+    }
+    if (data.length < TAMANO_PAGINA) break;
+    desde += TAMANO_PAGINA;
+  }
+  return curps;
+}
+
+/** Nombres completos desde ALUMNOS para un set de CURPs (paginado, sin N+1). */
+async function completarNombresAlumnos(
+  supabase: SupabaseClient,
+  curps: Set<string>,
+): Promise<AlumnoPlantilla[]> {
+  const porCurp = new Map<string, string>();
+  let desde = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await supabase
+      .from(TABLA_ALUMNOS)
+      .select("CURP, NOMBRE, P_APELLIDO, S_APELLIDO")
+      .range(desde, desde + TAMANO_PAGINA - 1);
+    if (error || !data || data.length === 0) break;
+    for (const r of data as AlumnoRow[]) {
+      const c = norm(String(r.CURP ?? ""));
+      if (c && curps.has(c)) porCurp.set(c, nombreCompletoAlumno(r));
+    }
+    if (data.length < TAMANO_PAGINA) break;
+    desde += TAMANO_PAGINA;
+  }
+  const alumnos: AlumnoPlantilla[] = [];
+  for (const curp of curps) alumnos.push({ curp, nombre: porCurp.get(curp) ?? "" });
+  alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  return alumnos;
+}
+
+/**
+ * C4.3 — Lista los grupos (grado + grupo + carrera) para asistencia.
+ * Fuente primaria: catálogo (periodos → grupos → carreras).
+ * Fallback LEGACY temporal (ETIQUETAS PERSONALES) solo si no hay periodo
+ * activo o el catálogo no tiene grupos.
+ */
 export async function listarGruposAsistencia(
   supabase: SupabaseClient,
-): Promise<{ grado: string; grupo: string; carrera: string }[]> {
-  const grupos = new Map<string, { grado: string; grupo: string; carrera: string }>();
+): Promise<GrupoAsistencia[]> {
+  const catalogo = await cargarContextoCatalogoAsistencia(supabase);
+  if (catalogo && catalogo.indice.size > 0) {
+    const grupos = new Map<string, GrupoAsistencia>();
+    for (const item of catalogo.indice.values()) {
+      grupos.set(`${item.grado}|${item.grupo}|${item.carreraClave}`, {
+        grado: item.grado,
+        grupo: item.grupo,
+        carrera: item.carreraClave,
+      });
+    }
+    return [...grupos.values()].sort((a, b) =>
+      `${a.grado} ${a.grupo} ${a.carrera}`.localeCompare(
+        `${b.grado} ${b.grupo} ${b.carrera}`,
+        "es",
+      ),
+    );
+  }
+  // Fallback LEGACY temporal (sin periodo activo / catálogo sin grupos).
+  return listarGruposAsistenciaLegacy(supabase);
+}
+
+/** Fallback LEGACY: grupos derivados de ETIQUETAS PERSONALES (temporal). */
+async function listarGruposAsistenciaLegacy(
+  supabase: SupabaseClient,
+): Promise<GrupoAsistencia[]> {
+  const grupos = new Map<string, GrupoAsistencia>();
   let desde = 0;
 
   // eslint-disable-next-line no-constant-condition
@@ -286,9 +432,11 @@ export async function listarGruposAsistencia(
 }
 
 /**
- * Obtiene los alumnos de un grado/grupo/carrera desde ETIQUETAS PERSONALES
- * (fuente real de grado/grupo/carrera) y completa el nombre desde ALUMNOS.
- * Carga ALUMNOS paginado en un Map para evitar N+1.
+ * C4.3 — Obtiene los alumnos de un grado/grupo/carrera.
+ * Fuente primaria: inscripciones_alumno (activas) del grupo del catálogo,
+ * completando el nombre desde ALUMNOS.
+ * Fallback LEGACY temporal (ETIQUETAS PERSONALES) solo si el grupo no se
+ * resuelve en el catálogo o aún no tiene inscripciones.
  */
 export async function obtenerAlumnosDelGrupo(
   supabase: SupabaseClient,
@@ -301,7 +449,30 @@ export async function obtenerAlumnosDelGrupo(
   const c = norm(carrera);
   if (!g || !gr) return [];
 
-  // 1) CURPs del grupo desde ETIQUETAS PERSONALES.
+  // Fuente primaria: catálogo.
+  const catalogo = await cargarContextoCatalogoAsistencia(supabase);
+  if (catalogo) {
+    const key = `${normalizarGradoCatalogo(g)}|${normalizarGrupoCatalogo(gr)}|${normalizarCarreraCatalogo(c)}`;
+    const item = catalogo.indice.get(key);
+    if (item) {
+      const curps = await obtenerCurpsInscritasGrupo(supabase, item.id);
+      if (curps.size > 0) return completarNombresAlumnos(supabase, curps);
+      // El grupo existe en el catálogo pero aún sin inscripciones → se permite
+      // el fallback legacy temporal para no perder alumnos pendientes.
+    }
+  }
+
+  // Fallback LEGACY temporal (grupo no resuelto o sin inscripciones).
+  return obtenerAlumnosDelGrupoLegacy(supabase, g, gr, c);
+}
+
+/** Fallback LEGACY: CURPs del grupo desde ETIQUETAS PERSONALES (temporal). */
+async function obtenerAlumnosDelGrupoLegacy(
+  supabase: SupabaseClient,
+  g: string,
+  gr: string,
+  c: string,
+): Promise<AlumnoPlantilla[]> {
   const curps = new Set<string>();
   let desde = 0;
   // eslint-disable-next-line no-constant-condition
@@ -329,36 +500,7 @@ export async function obtenerAlumnosDelGrupo(
   }
 
   if (curps.size === 0) return [];
-
-  // 2) Nombre completo desde ALUMNOS (paginado, en un Map).
-  const porCurp = new Map<string, string>();
-  let desdeAl = 0;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const { data, error } = await supabase
-      .from(TABLA_ALUMNOS)
-      .select("CURP, NOMBRE, P_APELLIDO, S_APELLIDO")
-      .range(desdeAl, desdeAl + TAMANO_PAGINA - 1);
-
-    if (error || !data || data.length === 0) break;
-
-    for (const r of data as AlumnoRow[]) {
-      const curp = norm(String(r.CURP ?? ""));
-      if (curp && curps.has(curp)) {
-        porCurp.set(curp, nombreCompletoAlumno(r));
-      }
-    }
-
-    if (data.length < TAMANO_PAGINA) break;
-    desdeAl += TAMANO_PAGINA;
-  }
-
-  const alumnos: AlumnoPlantilla[] = [];
-  for (const curp of curps) {
-    alumnos.push({ curp, nombre: porCurp.get(curp) ?? "" });
-  }
-  alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
-  return alumnos;
+  return completarNombresAlumnos(supabase, curps);
 }
 
 /**

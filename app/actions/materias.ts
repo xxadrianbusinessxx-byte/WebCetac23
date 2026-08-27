@@ -19,20 +19,113 @@ import {
   type MateriaConNombreVisible,
 } from "@/lib/escolar/nombres-visibles";
 import { listarMateriasCompletas } from "@/lib/escolar/tablas-supabase";
+import {
+  resolverAsignacionesProfesor,
+  resolverAsignacionesProfesorPorId,
+  type AsignacionProfesorResuelta,
+} from "@/lib/escolar/catalogo-academico";
+import { TABLA_GRUPO_MATERIAS } from "@/lib/escolar/tables";
+import {
+  gradoASemestre,
+  semestresInactivos,
+} from "@/lib/escolar/semestres";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
+const GRADO_RE = /^(1RO|2DO|3RO|4TO|5TO|6TO)\s/;
+
+function gradoDesdeTabla(tabla: string): string | null {
+  const m = (tabla ?? "").trim().toUpperCase().match(GRADO_RE);
+  return m ? m[1] : null;
+}
+
 /**
- * Lista todas las materias reales con su identidad (grado, grupo, carrera,
- * asignatura) y su nombre visible. Lectura: disponible para roles autenticados.
+ * Filtra las tablas de materias que deben ser VISIBLES/OPERATIVAS:
+ *  - excluye las que tienen `grupo_materias.activo = false` (materia
+ *    desactivada administrativamente);
+ *  - excluye las de un SEMESTRE inactivo (academico_semestres).
+ * Si la estructura de semestres no existe, no filtra por semestre.
+ * Las tablas legacy sin fila en grupo_materias se conservan (sin catálogo).
+ */
+async function filtrarTablasVisibles(
+  supabase: SupabaseClient,
+  tablas: readonly string[],
+): Promise<string[]> {
+  const { data: gms } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .select("tabla_legacy, activo");
+  const inactivas = new Set(
+    (gms ?? [])
+      .filter((g) => g.activo === false)
+      .map((g) => g.tabla_legacy),
+  );
+  const semInactivos = await semestresInactivos(supabase);
+  const out: string[] = [];
+  for (const t of tablas) {
+    if (inactivas.has(t)) continue;
+    const grado = gradoDesdeTabla(t);
+    if (grado) {
+      const sem = gradoASemestre(grado);
+      if (sem !== null && semInactivos.has(sem)) continue;
+    }
+    out.push(t);
+  }
+  return out;
+}
+
+/**
+ * Lista las materias del profesor.
+ *
+ * C4.6 — Fuente primaria: asignaciones_profesor → grupo_materia → materia
+ *   (idInterno = tabla_legacy para compatibilidad de la UI existente).
+ * FALLBACK_TODAS_LAS_MATERIAS: transitorio mientras `asignaciones_profesor`
+ * esté vacía (hoy = 0). Identificado internamente; NUNCA debe convertirse en
+ * autoridad permanente. Lectura: disponible para roles autenticados.
  */
 export async function actionListarMateriasConNombreVisible(): Promise<
   MateriaConNombreVisible[]
 > {
   const supabase = await createClient();
-  const tablas = await listarMateriasCompletas();
+  const sesion = await obtenerSesionPortal();
   const aliases = await listarNombresVisiblesMaterias(supabase);
-  const carreras = carrerasDesdeTablas(tablas);
-  return materiasConNombreVisible(tablas, aliases, carreras);
+
+  if (sesion?.rol === "maestro") {
+    // C4.10/C4.11 — identidad ESTRUCTURAL primero (PROFESORES.ID desde la
+    // sesión server-side). `sesion.matricula` solo como compatibilidad
+    // temporal para sesiones creadas antes de C4.10 (sin profesorId).
+    let asignaciones: AsignacionProfesorResuelta[] = [];
+    if (typeof sesion.profesorId === "number") {
+      asignaciones = await resolverAsignacionesProfesorPorId(
+        supabase,
+        sesion.profesorId,
+      );
+    } else if (sesion.matricula) {
+      asignaciones = await resolverAsignacionesProfesor(supabase, sesion.matricula);
+    }
+    if (asignaciones.length > 0) {
+      const tablasLegacy = asignaciones
+        .map((a) => a.grupoMateria.tabla_legacy)
+        .filter((t): t is string => Boolean(t));
+      if (tablasLegacy.length > 0) {
+        // C4.18 — filtrar semestre inactivo y materias desactivadas.
+        const visibles = await filtrarTablasVisibles(supabase, tablasLegacy);
+        if (visibles.length > 0) {
+          return materiasConNombreVisible(
+            visibles,
+            aliases,
+            carrerasDesdeTablas(visibles),
+          );
+        }
+      }
+    }
+  }
+
+  // FALLBACK_TODAS_LAS_MATERIAS (transitorio mientras asignaciones esté vacía).
+  const tablas = await listarMateriasCompletas();
+  // C4.18 — la desactivación de semestre / materia oculta la lista de
+  // calificaciones (sin borrar nada).
+  const visibles = await filtrarTablasVisibles(supabase, tablas);
+  return materiasConNombreVisible(visibles, aliases, carrerasDesdeTablas(visibles));
 }
 
 /**
@@ -166,4 +259,97 @@ export async function actionGuardarMapeoColumnasMateria(
     mapeoFisico,
     sesion.matricula ?? "",
   );
+}
+
+/**
+ * C4.18 — Lista TODAS las materias con alias + estado de visibilidad
+ * (solo rol directivo). Usado por el panel de Configuración de materias
+ * (nombres visibles) para poder reactivar materias ocultas.
+ */
+export async function actionListarMateriasConfiguracion(): Promise<
+  | { ok: true; materias: MateriaConNombreVisible[]; ocultas: string[] }
+  | { ok: false; error: string }
+> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return { ok: false, error: "No autorizado: se requiere rol directivo." };
+  }
+
+  const supabase = await createClient();
+  const [aliases, tablas, gms] = await Promise.all([
+    listarNombresVisiblesMaterias(supabase),
+    listarMateriasCompletas(),
+    supabase.from(TABLA_GRUPO_MATERIAS).select("tabla_legacy, activo"),
+  ]);
+  const materias = materiasConNombreVisible(
+    tablas,
+    aliases,
+    carrerasDesdeTablas(tablas),
+  );
+  const ocultas = [
+    ...new Set(
+      ((gms.data ?? []) as Array<{ tabla_legacy: string; activo: boolean }>)
+        .filter((g) => g.activo === false)
+        .map((g) => g.tabla_legacy),
+    ),
+  ];
+  return { ok: true, materias, ocultas };
+}
+
+/**
+ * C4.18 — Activa/desactiva la visibilidad de una materia en el catálogo
+ * (solo rol directivo).
+ *
+ * Desactivar = UPDATE `grupo_materias.activo = false` para la tabla_legacy:
+ *  - oculta la materia del panel de subir calificaciones y de la vista del
+ *    alumno (que ya filtra grupo_materias activos);
+ *  - NO borra materias, calificaciones, grupo_materias ni datos históricos.
+ * Reactivar = activo = true (se restaura sin recrear nada).
+ */
+export async function actionCambiarVisibilidadMateria(
+  idInterno: unknown,
+  visible: unknown,
+): Promise<{ ok: true; mensaje: string } | { ok: false; error: string }> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return { ok: false, error: "No autorizado: se requiere rol directivo." };
+  }
+
+  const id = String(idInterno ?? "").trim();
+  if (!id) return { ok: false, error: "Materia no válida." };
+
+  // Re-resolver contra la lista REAL de materias (nunca confiar en el texto).
+  const tablas = await listarMateriasCompletas();
+  if (!tablas.some((t) => normalizarNombre(t) === normalizarNombre(id))) {
+    return { ok: false, error: "La materia no existe o no está permitida." };
+  }
+
+  const supabase = await createClient();
+  const activo = Boolean(visible);
+
+  const { data: filas, error: e0 } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .select("id")
+    .eq("tabla_legacy", id)
+    .limit(1);
+  if (e0) return { ok: false, error: e0.message };
+  if (!filas?.length) {
+    return {
+      ok: false,
+      error: "La materia no está asociada al catálogo; no se puede cambiar su visibilidad.",
+    };
+  }
+
+  const { error } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .update({ activo })
+    .eq("tabla_legacy", id);
+  if (error) return { ok: false, error: error.message };
+
+  return {
+    ok: true,
+    mensaje: activo
+      ? "Materia activada en el catálogo."
+      : "Materia desactivada (oculta del panel de calificaciones y del alumno).",
+  };
 }

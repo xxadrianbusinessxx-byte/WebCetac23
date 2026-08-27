@@ -25,6 +25,9 @@ const r = await fetch(`${urlBase}/rest/v1/`, {
 });
 const spec = await r.json();
 const defs = spec.definitions ?? spec;
+// Catálogo académico (FASE C1): excluir de "materias" las tablas de
+// oferta/relaciones. Mantener sincronizado con TABLAS_SISTEMA en
+// lib/escolar/tablas-supabase.ts (exclusión EXPLÍCITA, no heurística).
 const sistema = new Set([
   "ALUMNOS",
   "PROFESORES",
@@ -34,6 +37,13 @@ const sistema = new Set([
   "ETIQUETAS PERSONALES",
   "BOLETA",
   "mensajes_chat",
+  "periodos",
+  "carreras",
+  "materias",
+  "grupos",
+  "grupo_materias",
+  "inscripciones_alumno",
+  "asignaciones_profesor",
 ]);
 
 const todas = Object.keys(defs).filter((k) => !k.startsWith("rpc_")).sort();
