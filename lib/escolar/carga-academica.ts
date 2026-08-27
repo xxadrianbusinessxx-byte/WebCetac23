@@ -71,6 +71,13 @@ export type EstadoAcademico =
   | "AMBIGUO"
   | "CURP_DUPLICADA_CONFLICTO_ACADEMICO";
 
+/** Grupo legible (grado + nombre + carrera) para la previsualización UX. */
+export type GrupoDetalleCarga = {
+  grado: string;
+  nombre: string;
+  carrera: string | null;
+};
+
 export type DetalleCargaAcademica = {
   curp: string;
   gradoOriginal: string;
@@ -81,7 +88,11 @@ export type DetalleCargaAcademica = {
   carreraNormalizada: string;
   estado: EstadoAcademico;
   grupoDestinoId?: string;
-  grupoActualId?: string;
+  grupoActualId?: string | null;
+  /** C4.24 — grupo actual legible del alumno (null = sin inscripción). */
+  grupoActual?: GrupoDetalleCarga | null;
+  /** C4.24 — grupo destino legible (grado+grupo+carrera). */
+  grupoDestino?: GrupoDetalleCarga | null;
   candidatos?: { grupoId: string; grado: string; grupo: string; carrera: string | null }[];
   esAlumnoNuevo: boolean;
 };
@@ -423,6 +434,7 @@ export async function previsualizarCargaAcademica(
           ...baseFinal,
           estado: "NUEVA_INSCRIPCION",
           grupoDestinoId: grupoDestino.id,
+          grupoActualId: null,
         });
       } else if (inscripcionActiva.grupo_id === grupoDestino.id) {
         academico.sinCambio++;
@@ -441,6 +453,64 @@ export async function previsualizarCargaAcademica(
           grupoActualId: inscripcionActiva.grupo_id,
         });
       }
+    }
+
+    // C4.24 — Enriquece el detalle con grupos LEGIBLES (el servidor resuelve;
+    // el cliente solo presenta). Una sola consulta para todos los ids.
+    const idsGrupos = [
+      ...new Set(
+        detalle.flatMap((d) =>
+          [d.grupoDestinoId, d.grupoActualId].filter(
+            (x): x is string => Boolean(x),
+          ),
+        ),
+      ),
+    ];
+    const gruposPorId = new Map<string, GrupoRow>();
+    if (idsGrupos.length) {
+      const { data: filasGrupos } = await supabase
+        .from(TABLA_GRUPOS)
+        .select("*")
+        .in("id", idsGrupos);
+      for (const g of (filasGrupos ?? []) as GrupoRow[]) {
+        gruposPorId.set(g.id, g);
+      }
+    }
+    const carreraIds = [
+      ...new Set(
+        [...gruposPorId.values()]
+          .map((g) => g.carrera_id)
+          .filter((x): x is string => Boolean(x)),
+      ),
+    ];
+    const claveCarreraPorId = new Map<string, string>();
+    if (carreraIds.length) {
+      const { data: carreras } = await supabase
+        .from(TABLA_CARRERAS)
+        .select("id, clave")
+        .in("id", carreraIds);
+      for (const c of (carreras ?? []) as Array<{ id: string; clave: string }>) {
+        claveCarreraPorId.set(c.id, c.clave);
+      }
+    }
+    const grupoLegible = (
+      id?: string | null,
+    ): GrupoDetalleCarga | null | undefined => {
+      if (id === null) return null;
+      if (id === undefined) return undefined;
+      const g = gruposPorId.get(id);
+      if (!g) return null;
+      return {
+        grado: g.grado,
+        nombre: g.nombre,
+        carrera: g.carrera_id
+          ? (claveCarreraPorId.get(g.carrera_id) ?? null)
+          : null,
+      };
+    };
+    for (const d of detalle) {
+      d.grupoActual = grupoLegible(d.grupoActualId);
+      d.grupoDestino = grupoLegible(d.grupoDestinoId);
     }
 
     const alumnos: ResumenAlumnos = {

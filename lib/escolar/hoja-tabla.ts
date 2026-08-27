@@ -5,6 +5,7 @@ import {
   filasDbAVistaDirecta,
   listarColumnasTabla,
   prepararYConstruirFilas,
+  type FilaInsertDirecta,
 } from "./excel-a-registros";
 import type { MateriaTablaVista } from "./types";
 
@@ -134,16 +135,63 @@ export async function reemplazarHojaEnTabla(
 
   const { filas } = preparado;
 
-  for (let i = 0; i < filas.length; i += TAMANO_LOTE) {
-    const lote = filas.slice(i, i + TAMANO_LOTE);
-    const { error: insError } = await supabase.from(tabla).insert(lote);
-    if (insError) {
-      return {
-        ok: false,
-        error: `Error al guardar en «${tabla}»: ${insError.message}`,
-      };
-    }
+  const errInsertar = await insertarFilasConReintento(supabase, tabla, filas);
+  if (errInsertar) {
+    return {
+      ok: false,
+      error: `Error al guardar en «${tabla}»: ${errInsertar}`,
+    };
   }
 
   return { ok: true, filas: preparado.count };
+}
+
+/** ¿El error de PostgREST indica caché de esquema sin recargar? */
+function esErrorCacheEsquema(mensaje: string): boolean {
+  return (
+    /in the schema cache/i.test(mensaje) ||
+    /could not find the .* column of .* in the schema cache/i.test(mensaje)
+  );
+}
+
+const ESPERA_REINTENTO_MS = 1200;
+const MAX_REINTENTOS = 2;
+
+/**
+ * C4.23 — Reintento controlado de la inserción por lotes.
+ *
+ * La RPC `escolar_sync_columns` crea/elimina columnas dinámicamente; si su
+ * `NOTIFY pgrst, 'reload schema'` aún no llegó (o el despliegue de PostgREST
+ * no lo procesó), el primer INSERT a una columna nueva falla con
+ * "Could not find the '<col>' column ... in the schema cache". En ese caso se
+ * espera un instante y se reintenta desde el lote siguiente al último exitoso
+ * (nunca re-inserta lotes ya confirmados).
+ */
+async function insertarFilasConReintento(
+  supabase: SupabaseClient,
+  tabla: string,
+  filas: FilaInsertDirecta[],
+): Promise<string | null> {
+  const totalLotes = Math.ceil(filas.length / TAMANO_LOTE);
+  let desde = 0;
+  for (let intento = 0; intento <= MAX_REINTENTOS; intento++) {
+    const errores: string[] = [];
+    for (let li = desde; li < totalLotes; li++) {
+      const lote = filas.slice(li * TAMANO_LOTE, (li + 1) * TAMANO_LOTE);
+      const { error } = await supabase.from(tabla).insert(lote);
+      if (error) {
+        errores.push(error.message);
+        desde = li;
+        break;
+      }
+      desde = li + 1;
+    }
+    if (errores.length === 0) return null;
+    const esCache = errores.some((m) => esErrorCacheEsquema(m));
+    if (!esCache || intento === MAX_REINTENTOS) {
+      return errores[0] ?? "Error al insertar los registros.";
+    }
+    await new Promise((resolver) => setTimeout(resolver, ESPERA_REINTENTO_MS));
+  }
+  return "Error al insertar los registros.";
 }

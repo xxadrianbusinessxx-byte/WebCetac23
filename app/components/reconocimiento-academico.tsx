@@ -191,6 +191,23 @@ export function ReconocimientoAcademico() {
     );
   }, [catalogo, periodoId, carreraId, grado]);
 
+  const nombresPorCurp = useMemo(() => {
+    const out = new Map<string, string>();
+    if (!mapeo) return out;
+    for (const fila of filasDatos) {
+      const curp = normalizarCurp(String(fila[mapeo.curp] ?? ""));
+      if (!curp) continue;
+      const nombre = CAMPOS_NOMBRE.map((c) =>
+        mapeo[c] >= 0 ? String(fila[mapeo[c]] ?? "").trim() : "",
+      )
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      out.set(curp, nombre || "—");
+    }
+    return out;
+  }, [mapeo, filasDatos]);
+
   const periodoSeleccionado =
     catalogo?.periodos.find((p) => p.id === periodoId) ?? null;
   const carreraSeleccionada =
@@ -246,6 +263,42 @@ export function ReconocimientoAcademico() {
     setResultado(res);
     setConfirmado(false);
     setPreviewServer(null);
+  }
+
+  /* __HELPERS__ */
+
+  /** Grupo legible: "3RO A RH" o "1RO A" (sin carrera). */
+  function textoGrupo(
+    g: { grado: string; nombre: string; carrera: string | null } | null | undefined,
+  ): string {
+    if (!g) return "Sin inscripción";
+    return `${g.grado} ${g.nombre}${g.carrera ? ` ${g.carrera}` : ""}`;
+  }
+
+  /** Acción legible según el estado del detalle (C4.24, previsualización final). */
+  function textoAccion(d: {
+    estado: string;
+    grupoDestino?: { grado: string; nombre: string; carrera: string | null } | null;
+  }): string {
+    const destino = d.grupoDestino ? textoGrupo(d.grupoDestino) : "";
+    switch (d.estado) {
+      case "NUEVA_INSCRIPCION":
+        return `Inscribir en ${destino}`;
+      case "CAMBIO_DE_GRUPO":
+        return `Cambiar a ${destino}`;
+      case "SIN_CAMBIO":
+        return "Sin cambio";
+      case "SIN_DATOS_ACADEMICOS":
+        return "Sin datos académicos";
+      case "GRUPO_INEXISTENTE":
+        return "Grupo inexistente";
+      case "AMBIGUO":
+        return "Grupo ambiguo";
+      case "CURP_DUPLICADA_CONFLICTO_ACADEMICO":
+        return "Conflicto por CURP duplicada";
+      default:
+        return d.estado;
+    }
   }
 
   return (
@@ -484,10 +537,16 @@ export function ReconocimientoAcademico() {
             </div>
             {grupoSeleccionado && periodoSeleccionado && (
               <p className="mt-2 text-xs font-bold text-slate-700">
-                Grupo: {grupoSeleccionado.grado} {grupoSeleccionado.nombre} ·
-                semestre {grupoSeleccionado.semestre} ·{" "}
+                GRUPO: {grupoSeleccionado.grado} {grupoSeleccionado.nombre} ·
+                SEMESTRE ACADÉMICO: {grupoSeleccionado.semestre} ·{" "}
                 {carreraSeleccionada?.clave ?? "SIN CARRERA"} ·{" "}
                 {periodoSeleccionado.nombre}
+              </p>
+            )}
+            {grado && gruposCompatibles.length === 0 && (
+              <p className="mt-2 text-xs font-bold text-red-700">
+                La combinación seleccionada no tiene grupos compatibles
+                (periodo + carrera + grado). No se puede continuar.
               </p>
             )}
           </div>
@@ -547,6 +606,46 @@ export function ReconocimientoAcademico() {
               {previewServer.academico.conflictosAcademicos}
             </li>
           </ul>
+
+          {previewServer.detalle.length > 0 && (
+            <div className="mt-3 overflow-x-auto">
+              <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+                Detalle por alumno (estado actual → acción)
+              </p>
+              <div className="mt-1 max-h-[16rem] overflow-auto rounded-xl border border-white/60 bg-white/60">
+                <table className="w-full min-w-[600px] text-left text-[11px]">
+                  <thead className="sticky top-0 bg-white/90 text-[10px] uppercase text-slate-500">
+                    <tr>
+                      <th className="py-1.5 pl-2 pr-3 font-extrabold">CURP</th>
+                      <th className="py-1.5 pr-3 font-extrabold">Alumno</th>
+                      <th className="py-1.5 pr-3 font-extrabold">
+                        Estado actual
+                      </th>
+                      <th className="py-1.5 pr-2 font-extrabold">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewServer.detalle.map((d, i) => (
+                      <tr
+                        key={i}
+                        className="border-t border-white/50 text-slate-700"
+                      >
+                        <td className="py-1 pl-2 pr-3 font-bold">{d.curp}</td>
+                        <td className="py-1 pr-3 font-semibold">
+                          {nombresPorCurp.get(d.curp) ?? "—"}
+                        </td>
+                        <td className="py-1 pr-3 font-semibold">
+                          {textoGrupo(d.grupoActual)}
+                        </td>
+                        <td className="py-1 pr-2 font-bold">{textoAccion(d)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {previewServer.bloqueaEscritura ? (
             <p className="mt-2 text-xs font-bold text-red-700">
               La carga tiene bloqueos (inexistentes / ambiguos / conflictos). No

@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CriterioAlumnoEnFila } from "./buscar-en-filas";
-import { carreraEscolarDesdeEtiquetas } from "./informacion-personal";
 import { nombreTablaRegistroDesdeGrupo } from "./grupo-parse";
 import { leerVistaRegistroEstatus } from "./registro-estatus";
 import {
@@ -8,7 +7,6 @@ import {
   TABLA_GRUPOS,
   TABLA_INSCRIPCIONES_ALUMNO,
 } from "./tables";
-import type { EtiquetasPersonalesRow } from "./types";
 
 export type VistaRegistroAlumno = {
   encabezados: string[];
@@ -36,20 +34,19 @@ type PertenenciaBoleta = {
   grado: string;
   grupo: string;
   carrera: string;
-  fuente: "CATALOGO" | "FALLBACK_LEGACY";
+  fuente: "CATALOGO" | "SIN_INSCRIPCION";
 };
 
 /**
- * C4.4 — Resuelve la pertenencia académica de la boleta.
- * Fuente primaria: inscripción ACTIVA → grupos → carreras del catálogo.
- * Fallback LEGACY (ETIQUETAS PERSONALES) si no hay inscripción válida,
- * si hay más de una inscripción activa (anomalía: no se elige arbitrariamente)
- * o si el grupo es inexistente/inactivo.
+ * C4.4/C4.24 — Resuelve la pertenencia académica de la boleta.
+ * SOLO desde la inscripción ACTIVA → grupos → carreras del catálogo.
+ * Sin inscripción válida (o múltiples activas / grupo inexistente) NO se
+ * infiere desde ETIQUETAS PERSONALES: se devuelve vacío (la identidad
+ * académica la define únicamente el directivo).
  */
 async function resolverPertenenciaBoleta(
   supabase: SupabaseClient,
   curp: string,
-  etiquetas: EtiquetasPersonalesRow | null,
 ): Promise<PertenenciaBoleta> {
   const c = curp.trim().toUpperCase();
   if (c) {
@@ -84,31 +81,21 @@ async function resolverPertenenciaBoleta(
           fuente: "CATALOGO",
         };
       }
-      // Grupo inexistente/inactivo → no es una pertenencia válida → fallback.
     }
   }
 
-  // Fallback LEGACY (sin inscripción válida, múltiples activas o error).
-  return {
-    grado: etiquetas?.GRADO?.trim() ?? "",
-    grupo: etiquetas?.GRUPO?.trim() ?? "",
-    carrera: carreraEscolarDesdeEtiquetas(etiquetas),
-    fuente: "FALLBACK_LEGACY",
-  };
+  return { grado: "", grupo: "", carrera: "", fuente: "SIN_INSCRIPCION" };
 }
 
 export async function obtenerVistaRegistroAlumno(
   supabase: SupabaseClient,
   curp: string | null | undefined,
   nombreCompleto: string,
-  etiquetas: EtiquetasPersonalesRow | null,
 ): Promise<VistaRegistroAlumno> {
-  // C4.4 — Fuente primaria: inscripción activa → grupos/carreras del catálogo.
-  // Fallback LEGACY (ETIQUETAS PERSONALES) si no hay inscripción válida.
+  // C4.4 — Fuente única: inscripción activa → grupos/carreras del catálogo.
   const { grado, grupo, carrera } = await resolverPertenenciaBoleta(
     supabase,
     curp ?? "",
-    etiquetas,
   );
   const criterio = criterioDesdeAlumno(curp, nombreCompleto);
 

@@ -57,8 +57,8 @@ export function MateriaCalificacionesAlumno({
   if (!vista || !vista.filas.length) {
     return (
       <p className="w-full text-center text-sm font-semibold text-slate-700">
-        {materiaNombre} — aún no hay calificaciones registradas para ti en esta
-        materia.
+        {materiaNombre} — el profesor aún no ha publicado calificaciones.
+        Espera actualizaciones por parte del profesor.
       </p>
     );
   }

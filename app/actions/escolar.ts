@@ -38,7 +38,6 @@ import { buscarIndiceFilaAlumno } from "@/lib/escolar/buscar-en-filas";
 import { vistaConColumnasIdentificadas } from "@/lib/escolar/columnas-calificaciones";
 import { actualizarMateriaDesdeArchivo } from "@/lib/escolar/materia-avance";
 import { obtenerMapeoColumnasMateria } from "@/lib/escolar/mapeo-columnas-materia";
-import { filtrarMateriasPorGrupo } from "@/lib/escolar/materias-alumno";
 import { leerVistaMateriaAlumno } from "@/lib/escolar/materia-vista-alumno";
 import {
   resolverGrupoAlumno,
@@ -59,8 +58,6 @@ import {
 import { obtenerVistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import { reemplazarContenidoStatusDesdeArchivo } from "@/lib/escolar/etiquetas-status";
-import { carreraEscolarDesdeEtiquetas } from "@/lib/escolar/informacion-personal";
-import { listarMateriasCompletas } from "@/lib/escolar/tablas-supabase";
 import {
   obtenerVistaMateria,
   reemplazarContenidoMateriaDesdeArchivo,
@@ -134,24 +131,17 @@ export async function actionObtenerPerfilAlumno(
     supabaseLectura,
     curp,
     nombreCompleto,
-    etiquetas,
   );
   const aliases = await listarNombresVisiblesMaterias(supabaseLectura);
-  const consultaOtroAlumno = Boolean(
-    curpConsulta?.trim() &&
-      curpConsulta.trim().toUpperCase() !== sesion?.curp?.trim().toUpperCase(),
-  );
 
   // C4.1 — Fuente primaria: catálogo académico nuevo.
   //   CURP → inscripciones_alumno (activa) → grupos → grupo_materias → materias.
   //   idInterno = grupo_materias.tabla_legacy (compatibilidad de UI); nombre
   //   visible sigue resolviéndose con el mecanismo existente (7A).
-  // Fallback legacy obligatorio si no hay inscripción activa resoluble
-  // (ETIQUETAS PERSONALES → filtrarMateriasPorGrupo).
   // C4.14 — si el alumno tiene grupo resoluble y su SEMESTRE está inactivo
-  // (academico_semestres), su oferta de materias queda vacía (no cae al
-  // fallback legacy). Si la estructura no existe, el comportamiento es el
-  // actual (semestre sin restricción).
+  // (academico_semestres), su oferta de materias queda vacía.
+  // C4.24 — sin inscripción activa NO se infiere la oferta desde ETIQUETAS
+  // PERSONALES (la identidad académica la define SOLO el directivo).
   const grupoCatalogo = await resolverGrupoAlumno(supabaseLectura, curp);
   const semestreActivo =
     grupoCatalogo && gradoASemestre(grupoCatalogo.grupo.grado) !== null
@@ -165,49 +155,41 @@ export async function actionObtenerPerfilAlumno(
     .map((m) => m.tablaLegacy)
     .filter((t): t is string => Boolean(t));
 
-  let fuente: "CATALOGO" | "FALLBACK_LEGACY" | "SEMESTRE_INACTIVO" =
-    "FALLBACK_LEGACY";
+  // C4.24 — La oferta de materias del alumno proviene SOLO de su inscripción
+  // activa (catálogo). Sin inscripción activa → sin oferta (NO se infiere de
+  // ETIQUETAS PERSONALES). Semestre inactivo → oferta vacía (no se cae a un
+  // fallback legacy).
+  let fuente: "CATALOGO" | "SEMESTRE_INACTIVO" | "SIN_INSCRIPCION" =
+    grupoCatalogo
+      ? semestreActivo
+        ? "CATALOGO"
+        : "SEMESTRE_INACTIVO"
+      : "SIN_INSCRIPCION";
   let materias: MateriaConNombreVisible[] = [];
-
-  if (grupoCatalogo && !semestreActivo) {
-    fuente = "SEMESTRE_INACTIVO";
-    materias = [];
-  } else if (grupoCatalogo && tablasLegacy.length > 0) {
-    fuente = "CATALOGO";
+  if (grupoCatalogo && semestreActivo) {
     materias = materiasConNombreVisible(
       tablasLegacy,
       aliases,
       carrerasDesdeTablas(tablasLegacy),
     );
-  } else {
-    // Fallback legacy (alumnos sin inscripción/contexto; directivo sin grupo).
-    // C4.6 — CARRERA de ETIQUETAS SOLO aquí (compatibilidad del fallback); la
-    // carrera oficial (con inscripción) la entrega el catálogo.
-    const carrera = carreraEscolarDesdeEtiquetas(etiquetas);
-    const todasMaterias = await listarMateriasCompletas();
-    const materiasFiltradas =
-      sesion?.rol === "alumno" || consultaOtroAlumno
-        ? filtrarMateriasPorGrupo(
-            todasMaterias,
-            etiquetas?.GRADO ?? "",
-            etiquetas?.GRUPO ?? "",
-            carrera,
-          )
-        : [...todasMaterias];
-    materias = materiasConNombreVisible(
-      materiasFiltradas,
-      aliases,
-      carrerasDesdeTablas(todasMaterias),
-    );
   }
-  void fuente; // distingue internamente CATALOGO / FALLBACK_LEGACY
+  void fuente;
 
   // C4.7 — CARRERA del PERFIL: proviene del CATÁLOGO cuando existe inscripción
   // activa (grupoCatalogo.carrera); vacía si no la hay (no se inventa).
   // ETIQUETAS.CARRERA permanece almacenada como dato legacy/descriptivo pero
   // deja de mostrarse como autoridad académica en el perfil.
+  // C4.24 — GRADO/GRUPO también provienen SOLO del catálogo (inscripción que
+  // controla el directivo). Las ETIQUETAS PERSONALES (legacy) dejan de
+  // sobreponerse a la inscripción: si el alumno no tiene inscripción activa,
+  // la identidad académica se muestra vacía (no se infiere de etiquetas).
   const etiquetasVisibles: EtiquetasPersonalesRow | null = etiquetas
-    ? { ...etiquetas, CARRERA: grupoCatalogo?.carrera?.clave ?? "" }
+    ? {
+        ...etiquetas,
+        GRADO: grupoCatalogo?.grupo.grado ?? "",
+        GRUPO: grupoCatalogo?.grupo.nombre ?? "",
+        CARRERA: grupoCatalogo?.carrera?.clave ?? "",
+      }
     : null;
 
   const comentarios = await listarComentariosAlumno(supabase, curp);
@@ -480,20 +462,11 @@ export async function actionObtenerVistaMateria(
         permitidoCatalogo.grupoMateriaId,
       );
       if (!acceso) return null;
-    } else if (conTablaLegacy.length > 0) {
-      // El alumno tiene catálogo resoluble y esta materia NO le pertenece.
-      return null;
     } else {
-      // Fallback legacy (alumno sin inscripción activa resoluble).
-      const etiquetas = await obtenerEtiquetasPersonales(supabase, sesion.curp);
-      const todas = await listarMateriasCompletas();
-      const permitidas = filtrarMateriasPorGrupo(
-        todas,
-        etiquetas?.GRADO ?? "",
-        etiquetas?.GRUPO ?? "",
-        carreraEscolarDesdeEtiquetas(etiquetas),
-      );
-      if (!permitidas.includes(nombreMateria.trim())) return null;
+      // C4.24 — La materia debe pertenecer a la inscripción activa del alumno.
+      // Sin inscripción resoluble (o materia ajena al grupo) se DENIEGA; no se
+      // infiere la pertenencia desde ETIQUETAS PERSONALES.
+      return null;
     }
 
     // BLOQUE 7B — el alumno SOLO ve su propia fila. Se reutiliza

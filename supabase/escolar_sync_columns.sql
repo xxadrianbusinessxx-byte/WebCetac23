@@ -60,6 +60,11 @@ BEGIN
       col
     );
   END LOOP;
+
+  -- C4.23 — Recarga el caché de esquema de PostgREST para que los INSERT/UPDATE
+  -- inmediatos a columnas recién creadas no fallen con
+  -- "Could not find the '<col>' column ... in the schema cache".
+  PERFORM pg_notify('pgrst', 'reload schema');
 END;
 $$;
 

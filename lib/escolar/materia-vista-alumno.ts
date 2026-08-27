@@ -91,9 +91,13 @@ function coincideNombreEnFila(
     }
   }
 
-  const colNombre = colsDatos.includes("alumno_nombre")
+  // C4.24 — `alumno_nombre` siempre se considera columna de nombre, aunque
+  // no esté en colsDatos (colsDatos la excluye por ser columna de sistema).
+  const colNombre = "alumno_nombre" in row
     ? "alumno_nombre"
-    : null;
+    : colsDatos.includes("alumno_nombre")
+      ? "alumno_nombre"
+      : null;
   if (colNombre) {
     const enColumna = String(row[colNombre] ?? "").trim();
     if (
