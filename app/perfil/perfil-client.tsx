@@ -377,6 +377,7 @@ export function PerfilClient({
                         materias={materias}
                         seleccionada={materiaSeleccionada}
                         onSeleccionar={setMateriaSeleccionada}
+                        iniciarColapsado={materias.length > 30}
                         className="lg:w-80 lg:shrink-0"
                       />
                       <div className="flex min-h-[220px] flex-1 flex-col rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-4 py-6 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:min-h-[280px]">

@@ -39,24 +39,34 @@ export function MateriasConfigPanel({ materias }: Props) {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<Mensaje>(null);
   const [ocultas, setOcultas] = useState<ReadonlySet<string>>(new Set());
-  const [cargandoConfig, setCargandoConfig] = useState(true);
+  const [abierto, setAbierto] = useState(false);
+  const [cargandoConfig, setCargandoConfig] = useState(false);
 
   useEffect(() => {
     setLista([...materias]);
   }, [materias]);
 
-  // C4.18 — carga TODAS las materias (incluidas las ocultas) + estado de
-  // visibilidad desde el catálogo, para poder desactivar/activar aquí.
-  useEffect(() => {
-    void (async () => {
-      const r = await actionListarMateriasConfiguracion();
-      if ("ok" in r && r.ok) {
-        setLista([...r.materias]);
-        setOcultas(new Set(r.ocultas));
-      }
-      setCargandoConfig(false);
-    })();
-  }, []);
+  // C4.19 — carga PEREZOSA del catálogo completo (eficiencia): no se cargan
+  // los cientos de materias al montar; se abren con el botón "Abrir catálogo".
+  async function abrirCatalogo() {
+    setCargandoConfig(true);
+    setMensaje(null);
+    const r = await actionListarMateriasConfiguracion();
+    setCargandoConfig(false);
+    if ("ok" in r && r.ok) {
+      setLista([...r.materias]);
+      setOcultas(new Set(r.ocultas));
+      setAbierto(true);
+    } else if ("error" in r) {
+      setMensaje({ ok: false, texto: r.error });
+    }
+  }
+
+  function cerrarCatalogo() {
+    setAbierto(false);
+    setLista([]);
+    setMensaje(null);
+  }
 
   const filtradas = useMemo(() => {
     const q = normalizarNombre(busqueda);
@@ -129,19 +139,40 @@ export function MateriasConfigPanel({ materias }: Props) {
           tabla ni las calificaciones.
         </div>
 
-        <div className="relative">
-          <label className="sr-only" htmlFor={idBusqueda}>
-            Buscar materia
-          </label>
-          <input
-            id={idBusqueda}
-            type="search"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por nombre visible, asignatura o ID técnico…"
-            className="w-full rounded-2xl border border-white/70 bg-white/90 px-4 py-2.5 text-xs font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/50"
-          />
-        </div>
+        {!abierto ? (
+          <button
+            type="button"
+            onClick={() => void abrirCatalogo()}
+            disabled={cargandoConfig}
+            className="rounded-full border border-sky-700/40 bg-white/80 px-5 py-2 text-xs font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {cargandoConfig
+              ? "Cargando catálogo…"
+              : "Abrir catálogo completo"}
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={cerrarCatalogo}
+              className="w-fit rounded-full border border-sky-700/40 bg-white/80 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
+            >
+              No ver nada (ocultar catálogo)
+            </button>
+
+            <div className="relative">
+              <label className="sr-only" htmlFor={idBusqueda}>
+                Buscar materia
+              </label>
+              <input
+                id={idBusqueda}
+                type="search"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por nombre visible, asignatura o ID técnico…"
+                className="w-full rounded-2xl border border-white/70 bg-white/90 px-4 py-2.5 text-xs font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/50"
+              />
+            </div>
 
         {mensaje && (
           <p
@@ -251,6 +282,8 @@ export function MateriasConfigPanel({ materias }: Props) {
               );
             })}
           </div>
+        )}
+          </>
         )}
       </div>
     </div>

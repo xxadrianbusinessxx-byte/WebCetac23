@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { ReactNode } from "react";
 import {
   actionBuscarAlumnoParaTutor,
@@ -102,6 +102,7 @@ type TutorConCredenciales = {
 export function TutoresPanel() {
   const [tutores, setTutores] = useState<TutorConCredenciales[]>([]);
   const [cargando, setCargando] = useState(false);
+  const [listaAbierta, setListaAbierta] = useState(false);
 
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -142,10 +143,17 @@ export function TutoresPanel() {
     setCargando(false);
   }, []);
 
+  // C4.19 — carga PEREZOSA de tutores registrados (463): no se cargan al
+  // montar; se abren bajo demanda por eficiencia de rendimiento.
+  async function abrirListaTutores() {
+    setListaAbierta(true);
+    await cargarTutores();
+  }
 
-  useEffect(() => {
-    void cargarTutores();
-  }, [cargarTutores]);
+  function cerrarListaTutores() {
+    setListaAbierta(false);
+    setTutores([]);
+  }
 
   async function onBuscarAlumno() {
     setError(null);
@@ -227,7 +235,7 @@ export function TutoresPanel() {
       csv: res.csv,
     });
     setPreview(null);
-    await cargarTutores();
+    await abrirListaTutores();
   }
 
   function onDescargarCsv() {
@@ -332,7 +340,7 @@ export function TutoresPanel() {
       setAlumnos([]);
       setPreviewConsolidacion(null);
       setConfirmandoConsolidacion(false);
-      await cargarTutores();
+      await abrirListaTutores();
     } else {
       setError(res.error);
     }
@@ -536,57 +544,80 @@ export function TutoresPanel() {
           <p className="mb-3 text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
             Tutores registrados ({tutores.length})
           </p>
-          {cargando ? (
-            <p className="text-center text-xs font-semibold text-slate-600">
-              Cargando…
-            </p>
-          ) : tutores.length === 0 ? (
-            <p className="text-center text-xs font-semibold text-slate-600">
-              Aún no hay tutores registrados.
-            </p>
+          {!listaAbierta ? (
+            <div className="flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void abrirListaTutores()}
+                className="rounded-full border border-sky-700/40 bg-white/80 px-5 py-2 text-xs font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
+              >
+                Ver tutores registrados
+              </button>
+              <p className="text-center text-xs font-semibold text-slate-600">
+                Catálogo oculto por eficiencia. Ábrelo solo si lo necesitas.
+              </p>
+            </div>
           ) : (
-            <ul className="flex flex-col gap-1">
-              {tutores.map(({ tutor, credencialesIniciales }) => (
-                <li
-                  key={tutor.id}
-                  className="flex flex-col gap-1 rounded-xl bg-white/70 px-3 py-2 text-xs font-semibold text-slate-700"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="min-w-0 truncate">
-                      {nombreCompletoTutor(tutor) ||
-                        tutor.usuario ||
-                        tutor.clave_tutor}
-                    </span>
-                    <span className="shrink-0 text-slate-400">
-                      {tutor.clave_tutor}
-                    </span>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${
-                        tutor.activo
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
+            <>
+              <button
+                type="button"
+                onClick={cerrarListaTutores}
+                className="mb-3 w-fit rounded-full border border-sky-700/40 bg-white/80 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
+              >
+                No ver nada (ocultar lista)
+              </button>
+              {cargando ? (
+                <p className="text-center text-xs font-semibold text-slate-600">
+                  Cargando…
+                </p>
+              ) : tutores.length === 0 ? (
+                <p className="text-center text-xs font-semibold text-slate-600">
+                  Aún no hay tutores registrados.
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-1">
+                  {tutores.map(({ tutor, credencialesIniciales }) => (
+                    <li
+                      key={tutor.id}
+                      className="flex flex-col gap-1 rounded-xl bg-white/70 px-3 py-2 text-xs font-semibold text-slate-700"
                     >
-                      {tutor.activo ? "Activo" : "Inactivo"}
-                    </span>
-                  </div>
-                  {tutor.activo && credencialesIniciales.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {credencialesIniciales.map((c) => (
-                        <span
-                          key={c.curp_alumno}
-                          className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-800"
-                          title={`Contraseña inicial del hijo ${c.curp_alumno}`}
-                        >
-                          {c.curp_alumno.slice(-4)} → {c.contraseñaInicial}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="min-w-0 truncate">
+                          {nombreCompletoTutor(tutor) ||
+                            tutor.usuario ||
+                            tutor.clave_tutor}
                         </span>
-                      ))}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-
+                        <span className="shrink-0 text-slate-400">
+                          {tutor.clave_tutor}
+                        </span>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${
+                            tutor.activo
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {tutor.activo ? "Activo" : "Inactivo"}
+                        </span>
+                      </div>
+                      {tutor.activo && credencialesIniciales.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {credencialesIniciales.map((c) => (
+                            <span
+                              key={c.curp_alumno}
+                              className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-800"
+                              title={`Contraseña inicial del hijo ${c.curp_alumno}`}
+                            >
+                              {c.curp_alumno.slice(-4)} → {c.contraseñaInicial}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </div>
 

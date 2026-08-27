@@ -15,6 +15,13 @@ type Props = {
   titulo?: string;
   buscarPlaceholder?: string;
   className?: string;
+  /**
+   * C4.19 — inicia COLAPSADO (no renderiza la lista) y muestra un botón
+   * "Ver catálogo completo" / "No ver nada". Para catálogos grandes
+   * (perfil de alumno/padre con cientos de materias) y evitar cargar todo
+   * el árbol de nodos de golpe.
+   */
+  iniciarColapsado?: boolean;
 };
 
 /**
@@ -35,11 +42,14 @@ export function MateriaSelector({
   titulo = "Materias",
   buscarPlaceholder = "Buscar materia…",
   className = "",
+  iniciarColapsado = false,
 }: Props) {
   const idBusqueda = useId();
   const [busqueda, setBusqueda] = useState("");
+  const [abierto, setAbierto] = useState(!iniciarColapsado);
 
   const grupos = useMemo(() => {
+    if (!abierto) return [];
     const q = normalizarNombre(busqueda);
 
     const filtradas = q
@@ -88,7 +98,23 @@ export function MateriaSelector({
         />
       </div>
 
-      <div className="flex max-h-72 flex-col gap-3 overflow-y-auto pr-1 lg:max-h-[28rem]">
+      {iniciarColapsado && (
+        <button
+          type="button"
+          onClick={() => setAbierto((v) => !v)}
+          className="mb-2 w-full rounded-full border border-sky-700/40 bg-white/80 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
+        >
+          {abierto ? "No ver nada (ocultar catálogo)" : "Ver catálogo completo"}
+        </button>
+      )}
+
+      {!abierto ? (
+        <p className="px-1 py-2 text-center text-xs font-semibold text-slate-600">
+          Catálogo oculto por eficiencia. Pulsa «Ver catálogo completo» para
+          cargarlo.
+        </p>
+      ) : (
+        <div className="flex max-h-72 flex-col gap-3 overflow-y-auto pr-1 lg:max-h-[28rem]">
         {grupos.length === 0 ? (
           <p className="px-1 py-2 text-center text-xs font-semibold text-slate-600">
             Sin coincidencias.
@@ -127,7 +153,8 @@ export function MateriaSelector({
             </div>
           ))
         )}
-      </div>
+        </div>
+      )}
     </aside>
   );
 }
