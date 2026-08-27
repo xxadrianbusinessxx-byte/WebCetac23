@@ -16,6 +16,8 @@ export const TABLA_TUTORES = "tutores";
 export const TABLA_TUTOR_ALUMNOS = "tutor_alumnos";
 export const TABLA_TUTOR_CREDENCIALES_INICIALES = "tutor_credenciales_iniciales";
 export const TABLA_JUSTIFICACIONES_ASISTENCIA = "justificaciones_asistencia";
+/** C4.25 — Mensajes administrativos directivo → tutor asociados a una justificación. */
+export const TABLA_MENSAJES_JUSTIFICACION = "mensajes_justificacion";
 
 /** Catálogo académico (FASE C1). Tablas nuevas; ver supabase/crear-tablas-catalogo-academico.sql. */
 export const TABLA_PERIODOS = "periodos";

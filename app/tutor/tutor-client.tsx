@@ -7,6 +7,10 @@ import {
   actionObtenerDatosTutor,
 } from "@/app/actions/tutores";
 import { actionObtenerContextoAlumnoParaTutor } from "@/app/actions/asistencias";
+import {
+  actionListarMensajesDelTutor,
+  type MensajeJustificacionConDetalle,
+} from "@/app/actions/justificaciones";
 import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistencia-alumno";
 import type { PortalSessionPayload } from "@/lib/auth/types";
 
@@ -15,7 +19,7 @@ import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
 import { nombreCompletoTutor, type TutorRow } from "@/lib/escolar/tutores-types";
 
-type MainTab = "datos" | "alumnos" | "asistencia";
+type MainTab = "datos" | "alumnos" | "asistencia" | "mensajes";
 
 function MainTabButton({
   id,
@@ -113,8 +117,27 @@ export function TutorClient({ sesion }: Props) {
     grado: string;
     grupo: string;
     carrera: string;
+    ciclo: string;
   } | null>(null);
   const [cargandoContexto, setCargandoContexto] = useState(false);
+
+  // Mensajes de justificaciones dirigidos al tutor.
+  const [mensajes, setMensajes] = useState<MensajeJustificacionConDetalle[]>([]);
+  const [cargandoMensajes, setCargandoMensajes] = useState(false);
+  const [errorMensajes, setErrorMensajes] = useState<string | null>(null);
+
+  const cargarMensajes = useCallback(async () => {
+    setCargandoMensajes(true);
+    setErrorMensajes(null);
+    const res = await actionListarMensajesDelTutor();
+    setCargandoMensajes(false);
+    if (res.ok) setMensajes(res.mensajes);
+    else setErrorMensajes(res.error);
+  }, []);
+
+  useEffect(() => {
+    if (tab === "mensajes") void cargarMensajes();
+  }, [tab, cargarMensajes]);
 
   // Formulario de cambio de credenciales.
   const [usuario, setUsuario] = useState("");
@@ -276,6 +299,12 @@ export function TutorClient({ sesion }: Props) {
                 id="asistencia"
                 label="Asistencia"
                 selected={tab === "asistencia"}
+                onSelect={setTab}
+              />
+              <MainTabButton
+                id="mensajes"
+                label="Mensajes"
+                selected={tab === "mensajes"}
                 onSelect={setTab}
               />
             </div>
@@ -440,6 +469,7 @@ export function TutorClient({ sesion }: Props) {
                           grado={contextoAlumno.grado}
                           grupo={contextoAlumno.grupo}
                           carrera={contextoAlumno.carrera || undefined}
+                          ciclo={contextoAlumno.ciclo || undefined}
                           nombreAlumno={contextoAlumno.nombre}
                           permitirJustificacion
                         />
@@ -449,6 +479,76 @@ export function TutorClient({ sesion }: Props) {
                         </p>
                       )}
                     </>
+                  )}
+                </div>
+              )}
+
+              {tab === "mensajes" && (
+                <div className="flex flex-col gap-4">
+                  <p className="text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
+                    Mensajes de justificaciones
+                  </p>
+                  {errorMensajes && (
+                    <p
+                      className="text-center text-xs font-semibold text-red-700"
+                      role="alert"
+                    >
+                      {errorMensajes}
+                    </p>
+                  )}
+                  {cargandoMensajes ? (
+                    <p className="text-center text-sm font-semibold text-slate-600">
+                      Cargando mensajes…
+                    </p>
+                  ) : mensajes.length === 0 ? (
+                    <p className="text-center text-xs font-semibold text-slate-600">
+                      No tienes mensajes de justificaciones.
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col gap-3">
+                      {mensajes.map((m) => (
+                        <li
+                          key={m.id}
+                          className="rounded-3xl border border-white/60 bg-white/80 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.9),0_2px_8px_rgba(14,165,233,0.1)]"
+                        >
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <span
+                              className={`rounded-full px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide ${
+                                m.justificacion?.estado === "rechazada"
+                                  ? "bg-red-100 text-red-900"
+                                  : "bg-emerald-100 text-emerald-900"
+                              }`}
+                            >
+                              {m.justificacion?.estado === "rechazada"
+                                ? "Rechazada"
+                                : m.justificacion?.estado ?? "Justificación"}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-500">
+                              {m.justificacion
+                                ? `${m.justificacion.fecha} · ${m.justificacion.curpAlumno}`
+                                : "Justificación"}
+                              {" · "}
+                              {new Date(m.created_at).toLocaleString("es-MX", {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              })}
+                            </span>
+                          </div>
+                          <p className="text-sm font-semibold text-slate-800">
+                            {m.mensaje}
+                          </p>
+                          {m.justificacion?.motivoRechazo && (
+                            <p className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">
+                              Motivo del rechazo:{" "}
+                              {m.justificacion.motivoRechazo}
+                            </p>
+                          )}
+                          <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-sky-800">
+                            ✓ Leído
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
               )}

@@ -23,12 +23,16 @@ import {
 
 import {
   TABLA_CARRERAS,
-  TABLA_ETIQUETAS_PERSONALES,
   TABLA_GRUPOS,
   TABLA_INSCRIPCIONES_ALUMNO,
   TABLA_JUSTIFICACIONES_ASISTENCIA,
+  TABLA_PERIODOS,
 } from "@/lib/escolar/tables";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores";
+import {
+  resolverContextoAlumnoDesdeInscripcion,
+  resumenClasesYAsistencia,
+} from "@/lib/escolar/justificaciones";
 
 /**
  * Server Actions de ASISTENCIAS DEL PROFESOR (Bloque 5B).
@@ -312,6 +316,7 @@ export async function actionObtenerContextoAlumnoParaTutor(input: {
         grado: string;
         grupo: string;
         carrera: string;
+        ciclo: string;
       };
     }
   | { ok: false; error: string }
@@ -334,8 +339,9 @@ export async function actionObtenerContextoAlumnoParaTutor(input: {
     return { ok: false, error: "No tienes relación con ese alumno." };
   }
 
-  // C4.3 — Fuente primaria: inscripciones_alumno (activa) → grupos → carreras.
-  // Fallback LEGACY temporal (ETIQUETAS PERSONALES) si no hay inscripción activa.
+  // C4.3/C4.25 — Fuente ÚNICA: inscripciones_alumno (activa) → grupos → carreras.
+  // Sin fallback hacia ETIQUETAS PERSONALES (identidad académica SOLO desde la
+  // inscripción que controla el directivo).
   const { data: inscripciones, error: errIns } = await supabase
     .from(TABLA_INSCRIPCIONES_ALUMNO)
     .select("grupo_id, activo")
@@ -346,21 +352,10 @@ export async function actionObtenerContextoAlumnoParaTutor(input: {
   let grado = "";
   let grupo = "";
   let carrera = "";
+  let ciclo = "";
 
   if (errIns || !inscripciones || inscripciones.length === 0) {
-    // Fallback LEGACY temporal (alumno sin inscripción activa).
-    const { data: etiquetas, error: errEtiquetas } = await supabase
-      .from(TABLA_ETIQUETAS_PERSONALES)
-      .select("CURP, GRADO, GRUPO, CARRERA")
-      .eq("CURP", curp)
-      .limit(1)
-      .maybeSingle();
-    if (errEtiquetas || !etiquetas) {
-      return { ok: false, error: "No se encontró el alumno en el grupo." };
-    }
-    grado = String(etiquetas.GRADO ?? "");
-    grupo = String(etiquetas.GRUPO ?? "");
-    carrera = String(etiquetas.CARRERA ?? "");
+    return { ok: false, error: "El alumno no tiene inscripción activa." };
   } else if (inscripciones.length > 1) {
     // CASO E — múltiples inscripciones activas: anomalía; no elegir arbitrariamente.
     return {
@@ -370,7 +365,7 @@ export async function actionObtenerContextoAlumnoParaTutor(input: {
   } else {
     const { data: detalleGrupo, error: errGrupo } = await supabase
       .from(TABLA_GRUPOS)
-      .select("grado, nombre, carrera_id, activo")
+      .select("grado, nombre, carrera_id, periodo_id, activo")
       .eq("id", inscripciones[0].grupo_id)
       .maybeSingle();
     if (errGrupo || !detalleGrupo || detalleGrupo.activo === false) {
@@ -388,6 +383,14 @@ export async function actionObtenerContextoAlumnoParaTutor(input: {
         .eq("id", detalleGrupo.carrera_id)
         .maybeSingle();
       carrera = String(detalleCarrera?.clave ?? "");
+    }
+    if (detalleGrupo.periodo_id) {
+      const { data: detallePeriodo } = await supabase
+        .from(TABLA_PERIODOS)
+        .select("nombre")
+        .eq("id", detalleGrupo.periodo_id)
+        .maybeSingle();
+      ciclo = String(detallePeriodo?.nombre ?? "");
     }
   }
 
@@ -419,14 +422,27 @@ export async function actionObtenerContextoAlumnoParaTutor(input: {
       grado,
       grupo,
       carrera,
+      ciclo,
     },
   };
+}
+
+/** ¿Fecha en el futuro? (formato YYYY-MM-DD) */
+function esFechaFuturaLocal(fecha: string): boolean {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const f = new Date(`${fecha}T00:00:00`);
+  if (Number.isNaN(f.getTime())) return false;
+  return f.getTime() > hoy.getTime();
 }
 
 /**
  * Registra (UPSERT) una justificación de falta para un alumno en una fecha.
  * Solo el tutor del alumno (o el propio alumno) puede solicitarla.
- * Re-solicitar la misma fecha actualiza el motivo, no duplica.
+ * Re-solicitar la misma fecha actualiza el motivo (solo si sigue pendiente).
+ * Validaciones server-side: fecha no futura, falta real registrada, y no existe
+ * justificación aprobada/rechazada previa. Identidad académica SOLO desde la
+ * inscripción.
  */
 export async function actionSolicitarJustificacionAsistencia(input: {
   curp: string;
@@ -446,6 +462,9 @@ export async function actionSolicitarJustificacionAsistencia(input: {
   }
   if (motivo.length > 500) {
     return { ok: false, error: "El motivo no puede superar 500 caracteres." };
+  }
+  if (esFechaFuturaLocal(fecha)) {
+    return { ok: false, error: "No se puede justificar una fecha futura." };
   }
 
   const supabase = await createClient();
@@ -467,6 +486,42 @@ export async function actionSolicitarJustificacionAsistencia(input: {
     return { ok: false, error: "No tienes permiso para justificar asistencias." };
   }
 
+  // Contexto académico SOLO desde la inscripción (sin fallback legacy).
+  const contexto = await resolverContextoAlumnoDesdeInscripcion(supabase, curp);
+  if (!contexto) {
+    return { ok: false, error: "El alumno no tiene inscripción activa; no se puede justificar." };
+  }
+  // Debe existir una falta real ese día.
+  const { esperadas, asistidas } = await resumenClasesYAsistencia(supabase, {
+    curp,
+    grado: contexto.grado,
+    grupo: contexto.grupo,
+    fecha,
+  });
+  if (esperadas <= 0) {
+    return { ok: false, error: "Ese día no hay clase registrada para el grupo del alumno." };
+  }
+  if (asistidas > 0) {
+    return { ok: false, error: "El alumno no tiene falta registrada ese día." };
+  }
+
+  // Estados previos: no re-solicitar algo aprobado o rechazado (historial).
+  const { data: previa } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .select("id, estado")
+    .eq("curp_alumno", curp)
+    .eq("fecha", fecha)
+    .maybeSingle();
+  if (previa && previa.estado === "aprobada") {
+    return { ok: false, error: "Esa falta ya fue aprobada." };
+  }
+  if (previa && previa.estado === "rechazada") {
+    return {
+      ok: false,
+      error: "Esa falta ya fue rechazada por la administración. Contacta con la dirección.",
+    };
+  }
+
   // UPSERT: una justificación por (curp, fecha). Re-solicitar actualiza.
   const { error } = await supabase
     .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
@@ -474,6 +529,9 @@ export async function actionSolicitarJustificacionAsistencia(input: {
       {
         curp_alumno: curp,
         fecha,
+        grado: contexto.grado,
+        grupo: contexto.grupo,
+        carrera: contexto.carrera,
         motivo,
         estado: "pendiente",
         solicitante_tipo: solicitanteTipo,

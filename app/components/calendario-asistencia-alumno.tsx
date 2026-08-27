@@ -4,13 +4,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   actionObtenerEstadosAsistenciaAlumno,
-  actionSolicitarJustificacionAsistencia,
 } from "@/app/actions/asistencias";
+import {
+  actionObtenerJustificacionesDeAlumno,
+  actionSolicitarJustificacionConArchivo,
+} from "@/app/actions/justificaciones";
 import { actionListarCiclosEscolares } from "@/app/actions/calendario";
 import type {
   DiaEstadoAsistencia,
   EstadoAsistencia,
 } from "@/lib/escolar/asistencias";
+import type { FilaJustificacion } from "@/lib/escolar/justificaciones";
 import { fechaISO } from "@/lib/escolar/calendario";
 
 
@@ -164,10 +168,16 @@ export function CalendarioAsistenciaAlumno({
   // Día seleccionado para ver detalle / justificar.
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
+  const [archivo, setArchivo] = useState<File | null>(null);
   const [guardandoJustificacion, setGuardandoJustificacion] = useState(false);
   const [mensajeJustificacion, setMensajeJustificacion] = useState<
     string | null
   >(null);
+
+  // Justificaciones del alumno (por fecha) para mostrar su estado.
+  const [justificaciones, setJustificaciones] = useState<
+    Record<string, FilaJustificacion>
+  >({});
 
   // Cargar ciclos cuando no se pasa `ciclo` por prop.
   useEffect(() => {
@@ -209,9 +219,27 @@ export function CalendarioAsistenciaAlumno({
     }
   }, [curp, grado, grupo, carrera, cicloSeleccionado, profesorClave]);
 
+  // Cargar las justificaciones del alumno para pintar su estado por día.
+  const cargarJustificaciones = useCallback(async () => {
+    if (!curp) {
+      setJustificaciones({});
+      return;
+    }
+    const res = await actionObtenerJustificacionesDeAlumno(curp);
+    if (res.ok) {
+      const mapa: Record<string, FilaJustificacion> = {};
+      for (const j of res.justificaciones) mapa[j.fecha] = j;
+      setJustificaciones(mapa);
+    }
+  }, [curp]);
+
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  useEffect(() => {
+    void cargarJustificaciones();
+  }, [cargarJustificaciones]);
 
 
   const diasPorFecha = useMemo(() => {
@@ -264,22 +292,28 @@ export function CalendarioAsistenciaAlumno({
   const diaSeleccionado = seleccionado
     ? diasPorFecha.get(seleccionado)
     : null;
+  const justificacionDia = seleccionado
+    ? justificaciones[seleccionado]
+    : undefined;
 
   async function onSolicitarJustificacion() {
-    if (!seleccionado || !motivo.trim()) return;
+    if (!seleccionado || !motivo.trim() || !archivo) return;
     setGuardandoJustificacion(true);
     setMensajeJustificacion(null);
-    const res = await actionSolicitarJustificacionAsistencia({
-      curp,
-      fecha: seleccionado,
-      motivo: motivo.trim(),
-    });
+    const formData = new FormData();
+    formData.append("curp", curp);
+    formData.append("fecha", seleccionado);
+    formData.append("motivo", motivo.trim());
+    formData.append("archivo", archivo);
+    const res = await actionSolicitarJustificacionConArchivo(formData);
     setGuardandoJustificacion(false);
     if (res.ok) {
       setMensajeJustificacion(
         "Justificación enviada. Quedará pendiente de revisión.",
       );
       setMotivo("");
+      setArchivo(null);
+      await cargarJustificaciones();
     } else {
       setMensajeJustificacion(res.error);
     }
@@ -425,28 +459,90 @@ export function CalendarioAsistenciaAlumno({
                 diaSeleccionado.estado === "falta" && (
                   <div className="mt-3 flex flex-col gap-2">
                     <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
-                      Solicitar justificación
+                      Justificación de la falta
                     </p>
-                    <textarea
-                      value={motivo}
-                      onChange={(e) => setMotivo(e.target.value)}
-                      rows={2}
-                      maxLength={500}
-                      placeholder="Motivo de la falta…"
-                      className="w-full resize-none rounded-2xl border border-white/70 bg-white/95 px-4 py-3 text-sm font-semibold text-sky-900"
-                    />
-                    <div className="flex justify-center">
-                      <GreyActionPill
-                        onClick={onSolicitarJustificacion}
-                        disabled={guardandoJustificacion || !motivo.trim()}
+                    {justificacionDia ? (
+                      <p
+                        role="status"
+                        className={`rounded-2xl border px-4 py-3 text-center text-xs font-bold ${
+                          justificacionDia.estado === "pendiente"
+                            ? "border-amber-500/60 bg-amber-100/90 text-amber-900"
+                            : justificacionDia.estado === "rechazada"
+                              ? "border-red-500/60 bg-red-100/90 text-red-900"
+                              : "border-emerald-500/60 bg-emerald-100/90 text-emerald-900"
+                        }`}
                       >
-                        {guardandoJustificacion
-                          ? "Enviando…"
-                          : "Enviar justificación"}
-                      </GreyActionPill>
-                    </div>
+                        {justificacionDia.estado === "pendiente"
+                          ? "Justificación enviada — pendiente de revisión."
+                          : justificacionDia.estado === "rechazada"
+                            ? `Justificación rechazada: ${
+                                justificacionDia.motivo_rechazo ||
+                                "sin motivo registrado"
+                              }`
+                            : "Justificación aprobada."}
+                      </p>
+                    ) : (
+                      <>
+                        <textarea
+                          value={motivo}
+                          onChange={(e) => setMotivo(e.target.value)}
+                          rows={2}
+                          maxLength={500}
+                          placeholder="Motivo de la falta (obligatorio)…"
+                          className="w-full resize-none rounded-2xl border border-white/70 bg-white/95 px-4 py-3 text-sm font-semibold text-sky-900"
+                        />
+                        <label className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-sky-500/60 bg-white/80 px-4 py-3 text-xs font-bold text-sky-900">
+                          <span>
+                            {archivo
+                              ? `Archivo listo: ${archivo.name}`
+                              : "Adjuntar justificante (PDF, JPG o PNG; obligatorio)"}
+                          </span>
+                          <input
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                            onChange={(e) => {
+                              setArchivo(e.target.files?.[0] ?? null);
+                              setMensajeJustificacion(null);
+                            }}
+                            className="max-w-full text-[11px] font-semibold text-sky-900 file:mr-3 file:rounded-full file:border-0 file:bg-sky-800 file:px-4 file:py-1.5 file:text-[11px] file:font-extrabold file:uppercase file:text-white"
+                            aria-label="Seleccionar archivo de justificación"
+                          />
+                        </label>
+                        <div className="flex flex-wrap justify-center gap-2">
+                          <GreyActionPill
+                            onClick={() => {
+                              setMotivo("");
+                              setArchivo(null);
+                              setMensajeJustificacion(null);
+                            }}
+                            disabled={guardandoJustificacion}
+                          >
+                            Cancelar
+                          </GreyActionPill>
+                          <GreyActionPill
+                            onClick={onSolicitarJustificacion}
+                            disabled={
+                              guardandoJustificacion ||
+                              !motivo.trim() ||
+                              !archivo
+                            }
+                          >
+                            {guardandoJustificacion
+                              ? "Enviando…"
+                              : "Enviar justificación"}
+                          </GreyActionPill>
+                        </div>
+                      </>
+                    )}
                     {mensajeJustificacion && (
-                      <p className="text-center text-xs font-semibold text-sky-900">
+                      <p
+                        className={`text-center text-xs font-semibold ${
+                          mensajeJustificacion.startsWith("Justificación enviada")
+                            ? "text-sky-900"
+                            : "text-red-700"
+                        }`}
+                        role="status"
+                      >
                         {mensajeJustificacion}
                       </p>
                     )}

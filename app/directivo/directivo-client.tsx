@@ -25,6 +25,7 @@ import {
 import { MateriaSelector } from "@/app/components/materia-selector";
 import { MateriasConfigPanel } from "@/app/components/materias-config-panel";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
+import { JustificacionesAdmin } from "./justificaciones-admin";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 import { materiasConNombreVisible } from "@/lib/escolar/nombres-visibles";
@@ -677,6 +678,14 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
             </div>
           </section>
         </div>
+
+        {/* Justificaciones de asistencia (panel administrativo) */}
+        <section
+          className="relative mt-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-1 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150"
+          aria-label="Justificaciones pendientes"
+        >
+          <JustificacionesAdmin />
+        </section>
 
         {/* Entrar al perfil del alumno */}
         <section
