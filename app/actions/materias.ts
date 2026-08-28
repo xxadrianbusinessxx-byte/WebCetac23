@@ -1,7 +1,6 @@
 "use server";
 
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
-import { carrerasDesdeTablas } from "@/lib/escolar/materia-identidad";
 import {
   esMapeoColumnasMateria,
   guardarMapeoColumnasMateria,
@@ -14,7 +13,7 @@ import { normalizarNombre } from "@/lib/escolar/nombres";
 import {
   guardarNombreVisibleMateria,
   listarNombresVisiblesMaterias,
-  materiasConNombreVisible,
+  materiasVisiblesDesdeCatalogo,
   validarNombreVisible,
   type MateriaConNombreVisible,
 } from "@/lib/escolar/nombres-visibles";
@@ -22,6 +21,7 @@ import { listarMateriasCompletas } from "@/lib/escolar/tablas-supabase";
 import {
   resolverAsignacionesProfesor,
   resolverAsignacionesProfesorPorId,
+  resolverIdentidadesCatalogo,
   type AsignacionProfesorResuelta,
 } from "@/lib/escolar/catalogo-academico";
 import { TABLA_GRUPO_MATERIAS } from "@/lib/escolar/tables";
@@ -32,18 +32,13 @@ import {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
-const GRADO_RE = /^(1RO|2DO|3RO|4TO|5TO|6TO)\s/;
-
-function gradoDesdeTabla(tabla: string): string | null {
-  const m = (tabla ?? "").trim().toUpperCase().match(GRADO_RE);
-  return m ? m[1] : null;
-}
-
 /**
  * Filtra las tablas de materias que deben ser VISIBLES/OPERATIVAS:
  *  - excluye las que tienen `grupo_materias.activo = false` (materia
  *    desactivada administrativamente);
- *  - excluye las de un SEMESTRE inactivo (academico_semestres).
+ *  - excluye las de un SEMESTRE inactivo (academico_semestres). El grado se
+ *    resuelve desde el catálogo (grupo_materias → grupos.grado); NUNCA se
+ *    parsea el nombre físico de la tabla.
  * Si la estructura de semestres no existe, no filtra por semestre.
  * Las tablas legacy sin fila en grupo_materias se conservan (sin catálogo).
  */
@@ -51,11 +46,12 @@ async function filtrarTablasVisibles(
   supabase: SupabaseClient,
   tablas: readonly string[],
 ): Promise<string[]> {
-  const { data: gms } = await supabase
-    .from(TABLA_GRUPO_MATERIAS)
-    .select("tabla_legacy, activo");
+  const [gmsRes, identidades] = await Promise.all([
+    supabase.from(TABLA_GRUPO_MATERIAS).select("tabla_legacy, activo"),
+    resolverIdentidadesCatalogo(supabase, tablas),
+  ]);
   const inactivas = new Set(
-    (gms ?? [])
+    ((gmsRes.data ?? []) as Array<{ tabla_legacy: string | null; activo: boolean }>)
       .filter((g) => g.activo === false)
       .map((g) => g.tabla_legacy),
   );
@@ -63,7 +59,8 @@ async function filtrarTablasVisibles(
   const out: string[] = [];
   for (const t of tablas) {
     if (inactivas.has(t)) continue;
-    const grado = gradoDesdeTabla(t);
+    const identidad = identidades.get(t);
+    const grado = identidad?.grado ?? null;
     if (grado) {
       const sem = gradoASemestre(grado);
       if (sem !== null && semInactivos.has(sem)) continue;
@@ -110,11 +107,19 @@ export async function actionListarMateriasConNombreVisible(): Promise<
         // C4.18 — filtrar semestre inactivo y materias desactivadas.
         const visibles = await filtrarTablasVisibles(supabase, tablasLegacy);
         if (visibles.length > 0) {
-          return materiasConNombreVisible(
+          // C4.28 — identidad (grado/grupo/carrera/asignatura) desde el
+          // catálogo; NUNCA desde el nombre físico de la tabla.
+          const identidades = await resolverIdentidadesCatalogo(
+            supabase,
             visibles,
-            aliases,
-            carrerasDesdeTablas(visibles),
           );
+          // C4.28 — solo materias del catálogo académico: se descartan tablas
+          // físicas sin fila en grupo_materias (no deben mostrar "General").
+          return materiasVisiblesDesdeCatalogo(
+            visibles,
+            identidades,
+            aliases,
+          ).filter((m) => Boolean(m.grado));
         }
       }
     }
@@ -125,7 +130,12 @@ export async function actionListarMateriasConNombreVisible(): Promise<
   // C4.18 — la desactivación de semestre / materia oculta la lista de
   // calificaciones (sin borrar nada).
   const visibles = await filtrarTablasVisibles(supabase, tablas);
-  return materiasConNombreVisible(visibles, aliases, carrerasDesdeTablas(visibles));
+  const identidades = await resolverIdentidadesCatalogo(supabase, visibles);
+  // C4.28 — solo materias del catálogo académico (nunca tablas de sistema ni
+  // huérfanas; no deben aparecer en el buscador de materias).
+  return materiasVisiblesDesdeCatalogo(visibles, identidades, aliases).filter(
+    (m) => Boolean(m.grado),
+  );
 }
 
 /**
@@ -281,11 +291,10 @@ export async function actionListarMateriasConfiguracion(): Promise<
     listarMateriasCompletas(),
     supabase.from(TABLA_GRUPO_MATERIAS).select("tabla_legacy, activo"),
   ]);
-  const materias = materiasConNombreVisible(
-    tablas,
-    aliases,
-    carrerasDesdeTablas(tablas),
-  );
+  // C4.28 — identidad desde el catálogo (grupo_materias → grupos/materias/
+  // carreras); los nombres físicos ya no se interpretan.
+  const identidades = await resolverIdentidadesCatalogo(supabase, tablas);
+  const materias = materiasVisiblesDesdeCatalogo(tablas, identidades, aliases);
   const ocultas = [
     ...new Set(
       ((gms.data ?? []) as Array<{ tabla_legacy: string; activo: boolean }>)

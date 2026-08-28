@@ -360,6 +360,121 @@ export async function resolverMateriasAlumno(
   return out;
 }
 
+/* ---------------------------------------------------------------------------
+ * IDENTIDAD DESDE CATÁLOGO (C4.28)
+ *
+ * Resuelve grado / grupo / carrera / asignatura desde la cadena autoritativa
+ *
+ *     grupo_materias.tabla_legacy → grupos → carreras
+ *     grupo_materias.materia_id   → materias
+ *
+ * usando `tabla_legacy` SOLO como clave física. NUNCA parsea el nombre físico
+ * (los identificadores físicos inmutables [GRADO][CARRERA][GRUPO]MAT### no
+ * llevan semántica académica: solo identificación).
+ * ------------------------------------------------------------------------- */
+
+export type MateriaIdentidadCatalogo = {
+  /** Nombre físico EXACTO de la tabla (puente de almacenamiento). */
+  tablaLegacy: string;
+  grupoMateriaId: string;
+  /** Estado de disponibilidad del grupo_materia (activo). */
+  gmActivo: boolean;
+  grado: string;
+  grupo: string;
+  carreraClave: string | null;
+  /** Nombre de presentación de la materia desde `materias` (catálogo). */
+  asignatura: string;
+};
+
+/** Normaliza un embed de PostgREST (objeto o array) a un único objeto. */
+function embedAUno<T>(v: T | T[] | null | undefined): T | null {
+  if (Array.isArray(v)) return (v[0] ?? null) as T | null;
+  return (v ?? null) as T | null;
+}
+
+/**
+ * C4.28 — Mapa `tabla_legacy` → identidad académica desde el catálogo.
+ * Solo lectura; devuelve un Map vacío si no hay correspondencias.
+ * `gmActivo` informa si el grupo_materia está disponible (no filtra: la
+ * visibilidad se decide en la capa de acciones).
+ */
+export async function resolverIdentidadesCatalogo(
+  supabase: SupabaseClient,
+  tablasLegacy: readonly string[],
+): Promise<Map<string, MateriaIdentidadCatalogo>> {
+  const mapa = new Map<string, MateriaIdentidadCatalogo>();
+  const tablas = [
+    ...new Set(
+      (tablasLegacy ?? [])
+        .map((t) => (t ?? "").trim())
+        .filter((t): t is string => Boolean(t)),
+    ),
+  ];
+  if (!tablas.length) return mapa;
+
+  const { data, error } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .select(
+      "id, tabla_legacy, activo, grupos(id, grado, nombre, carrera_id), materias(id, clave, nombre)",
+    )
+    .in("tabla_legacy", tablas);
+  if (error || !data?.length) return mapa;
+
+  const filas = data as Array<{
+    id: string;
+    tabla_legacy: string | null;
+    activo: boolean;
+    grupos:
+      | { id: string; grado: string; nombre: string; carrera_id: string | null }
+      | { id: string; grado: string; nombre: string; carrera_id: string | null }[]
+      | null;
+    materias:
+      | { id: string; clave: string; nombre: string | null }
+      | { id: string; clave: string; nombre: string | null }[]
+      | null;
+  }>;
+
+  const carreraIds = [
+    ...new Set(
+      filas
+        .map((f) => embedAUno(f.grupos)?.carrera_id)
+        .filter((x): x is string => Boolean(x)),
+    ),
+  ];
+  const carreraClavePorId = new Map<string, string>();
+  if (carreraIds.length) {
+    const { data: carreras, error: eCarr } = await supabase
+      .from(TABLA_CARRERAS)
+      .select("id, clave")
+      .in("id", carreraIds);
+    if (!eCarr) {
+      for (const c of (carreras ?? []) as Array<{ id: string; clave: string }>) {
+        carreraClavePorId.set(c.id, c.clave);
+      }
+    }
+  }
+
+  for (const f of filas) {
+    const t = (f.tabla_legacy ?? "").trim();
+    if (!t) continue;
+    const grupo = embedAUno(f.grupos);
+    const materia = embedAUno(f.materias);
+    if (!grupo || !materia) continue;
+    mapa.set(t, {
+      tablaLegacy: t,
+      grupoMateriaId: f.id,
+      gmActivo: Boolean(f.activo),
+      grado: String(grupo.grado ?? "").trim(),
+      grupo: String(grupo.nombre ?? "").trim(),
+      carreraClave: grupo.carrera_id
+        ? (carreraClavePorId.get(grupo.carrera_id) ?? null)
+        : null,
+      asignatura: String(materia.nombre ?? materia.clave ?? "").trim(),
+    });
+  }
+  return mapa;
+}
+
 /** Busca el grupo por su identidad natural (periodo, grado, nombre, carrera). */
 export async function resolverGrupoPorIdentidad(
   supabase: SupabaseClient,

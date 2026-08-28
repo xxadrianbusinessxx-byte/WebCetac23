@@ -17,6 +17,7 @@
  * PERSISTENCIA (solo servidor; reciben el cliente Supabase como parámetro).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { MateriaIdentidadCatalogo } from "./catalogo-academico";
 import {
   materiaIdDesdeNombreTabla,
   type MateriaIdentidad,
@@ -90,6 +91,45 @@ export function materiasConNombreVisible(
     out.push({
       ...identidad,
       nombreVisible: nombreVisibleDesdeMapa(aliases, identidad.idInterno),
+    });
+  }
+  return out;
+}
+
+/**
+ * C4.28 — Convierte una lista de nombres físicos de tabla en materias con
+ * identidad + nombre visible usando la IDENTIDAD YA RESUELTA desde el catálogo
+ * (grupo_materias → grupos → carreras, y grupo_materias → materias).
+ *
+ * El `identidades` Map es el resultado de `resolverIdentidadesCatalogo`
+ * (lib/escolar/catalogo-academico.ts). NUNCA se parsea el nombre físico para
+ * obtener grado/grupo/carrera/asignatura: los identificadores físicos nuevos
+ * ([GRADO][CARRERA][GRUPO]MAT###) solo identifican; la identidad vive en el
+ * catálogo.
+ *
+ * Para tablas físicas SIN fila en grupo_materias se usa una identidad mínima
+ * (asignatura = nombre físico) y el alias se resuelve igualmente.
+ */
+export function materiasVisiblesDesdeCatalogo(
+  listaTablas: readonly string[],
+  identidades: ReadonlyMap<string, MateriaIdentidadCatalogo>,
+  aliases: ReadonlyMap<string, string>,
+): MateriaConNombreVisible[] {
+  const out: MateriaConNombreVisible[] = [];
+  for (const t of listaTablas) {
+    const ident = identidades.get(t.trim());
+    const base = ident
+      ? {
+          idInterno: ident.tablaLegacy,
+          grado: ident.grado,
+          grupo: ident.grupo,
+          carrera: ident.carreraClave,
+          asignatura: ident.asignatura,
+        }
+      : { idInterno: t, grado: "", grupo: "", carrera: null, asignatura: t };
+    out.push({
+      ...base,
+      nombreVisible: nombreVisibleDesdeMapa(aliases, base.idInterno),
     });
   }
   return out;

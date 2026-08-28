@@ -24,6 +24,13 @@ type Props = {
   iniciarColapsado?: boolean;
 };
 
+/** Código corto de carrera para la presentación en filtros (MC, RH…). */
+function etiquetaCarrera(clave: string): string {
+  const c = clave.trim().toUpperCase();
+  if (c === "MECATRONICA") return "MC";
+  return c || clave.trim();
+}
+
 /**
  * Selector de materias tipo PANEL LATERAL / LISTA (sustituye al <select
  * size={6}> que provocaba misclicks). Cada opción tiene mínimo 48px de alto,
@@ -40,30 +47,75 @@ export function MateriaSelector({
   onSeleccionar,
   mostrarIdTecnico = false,
   titulo = "Materias",
-  buscarPlaceholder = "Buscar materia…",
+  buscarPlaceholder = "Buscar materia (ej. 3RO MC A)…",
   className = "",
   iniciarColapsado = false,
 }: Props) {
   const idBusqueda = useId();
   const [busqueda, setBusqueda] = useState("");
+  // C4.28 — filtros por grado / grupo / carrera para localizar rápido
+  // (ej. 1RO·A, 3RO·MC·A, 5TO·RH·A). El value de cada opción sigue siendo
+  // el idInterno (tabla física); estos filtros son SOLO presentación.
+  const [filtroGrado, setFiltroGrado] = useState("");
+  const [filtroGrupo, setFiltroGrupo] = useState("");
+  const [filtroCarrera, setFiltroCarrera] = useState("");
   const [abierto, setAbierto] = useState(!iniciarColapsado);
+
+  const opcionesGrado = useMemo(
+    () =>
+      [...new Set(materias.map((m) => m.grado).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "es"),
+      ),
+    [materias],
+  );
+  const opcionesGrupo = useMemo(
+    () =>
+      [...new Set(materias.map((m) => m.grupo).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "es"),
+      ),
+    [materias],
+  );
+  const opcionesCarrera = useMemo(
+    () =>
+      [
+        ...new Set(
+          materias
+            .map((m) => m.carrera)
+            .filter((c): c is string => Boolean(c)),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "es")),
+    [materias],
+  );
 
   const grupos = useMemo(() => {
     if (!abierto) return [];
     const q = normalizarNombre(busqueda);
 
-    const filtradas = q
-      ? materias.filter((m) => {
-          const visible = normalizarNombre(m.nombreVisible);
-          const asignatura = normalizarNombre(m.asignatura);
-          const tecnico = normalizarNombre(m.idInterno);
-          return (
-            visible.includes(q) ||
-            asignatura.includes(q) ||
-            tecnico.includes(q)
-          );
-        })
-      : [...materias];
+    const filtradas = materias.filter((m) => {
+      // C4.28 — nunca mostrar "General": solo materias con grado resuelto
+      // desde el catálogo (grupo_materias → grupos).
+      if (!m.grado) return false;
+      if (filtroGrado && m.grado !== filtroGrado) return false;
+      if (filtroGrupo && m.grupo !== filtroGrupo) return false;
+      if (filtroCarrera && (m.carrera ?? "") !== filtroCarrera) return false;
+      if (q) {
+        const visible = normalizarNombre(m.nombreVisible);
+        const asignatura = normalizarNombre(m.asignatura);
+        const tecnico = normalizarNombre(m.idInterno);
+        const identidad = normalizarNombre(
+          `${m.grado} ${m.grupo} ${etiquetaCarrera(m.carrera ?? "")} ${
+            m.carrera ?? ""
+          }`.trim(),
+        );
+        return (
+          visible.includes(q) ||
+          asignatura.includes(q) ||
+          tecnico.includes(q) ||
+          identidad.includes(q)
+        );
+      }
+      return true;
+    });
 
     const mapa = new Map<string, MateriaConNombreVisible[]>();
     for (const m of filtradas) {
@@ -73,7 +125,7 @@ export function MateriaSelector({
       mapa.set(g, arr);
     }
     return [...mapa.entries()];
-  }, [busqueda, materias]);
+  }, [abierto, busqueda, filtroGrado, filtroGrupo, filtroCarrera, materias]);
 
   return (
     <aside
@@ -114,7 +166,65 @@ export function MateriaSelector({
           cargarlo.
         </p>
       ) : (
-        <div className="flex max-h-72 flex-col gap-3 overflow-y-auto pr-1 lg:max-h-[28rem]">
+        <>
+          <div className="mb-2 grid grid-cols-3 gap-1.5">
+            <select
+              value={filtroGrado}
+              onChange={(e) => setFiltroGrado(e.target.value)}
+              aria-label="Filtrar por grado"
+              title="Filtrar por grado"
+              className="rounded-xl border border-white/70 bg-white/85 px-2 py-1.5 text-[10px] font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none focus:ring-2 focus:ring-sky-400/50"
+            >
+              <option value="">Grado: todos</option>
+              {opcionesGrado.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filtroGrupo}
+              onChange={(e) => setFiltroGrupo(e.target.value)}
+              aria-label="Filtrar por grupo"
+              title="Filtrar por grupo"
+              className="rounded-xl border border-white/70 bg-white/85 px-2 py-1.5 text-[10px] font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none focus:ring-2 focus:ring-sky-400/50"
+            >
+              <option value="">Grupo: todos</option>
+              {opcionesGrupo.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filtroCarrera}
+              onChange={(e) => setFiltroCarrera(e.target.value)}
+              aria-label="Filtrar por carrera"
+              title="Filtrar por carrera"
+              className="rounded-xl border border-white/70 bg-white/85 px-2 py-1.5 text-[10px] font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none focus:ring-2 focus:ring-sky-400/50"
+            >
+              <option value="">Carrera: todas</option>
+              {opcionesCarrera.map((c) => (
+                <option key={c} value={c}>
+                  {etiquetaCarrera(c)}
+                </option>
+              ))}
+            </select>
+          </div>
+          {(filtroGrado || filtroGrupo || filtroCarrera) && (
+            <button
+              type="button"
+              onClick={() => {
+                setFiltroGrado("");
+                setFiltroGrupo("");
+                setFiltroCarrera("");
+              }}
+              className="mb-2 w-full rounded-full border border-sky-700/40 bg-white/70 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
+            >
+              Limpiar filtros (grado · grupo · carrera)
+            </button>
+          )}
+          <div className="flex max-h-72 flex-col gap-3 overflow-y-auto pr-1 lg:max-h-[28rem]">
         {grupos.length === 0 ? (
           <p className="px-1 py-2 text-center text-xs font-semibold text-slate-600">
             Sin coincidencias.
@@ -153,7 +263,8 @@ export function MateriaSelector({
             </div>
           ))
         )}
-        </div>
+          </div>
+        </>
       )}
     </aside>
   );

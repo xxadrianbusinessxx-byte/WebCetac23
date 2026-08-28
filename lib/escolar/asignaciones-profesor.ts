@@ -28,6 +28,10 @@ import {
 } from "./tables";
 import { resolverGrupoMateria } from "./catalogo-academico";
 import { nombreProfesor, type ProfesorRow } from "./profesores";
+import {
+  listarNombresVisiblesMaterias,
+  nombreVisibleDesdeMapa,
+} from "./nombres-visibles";
 
 export const ERROR_DDL_PENDIENTE =
   "Esquema C4.11 pendiente: aplicar supabase/migrar-asignaciones-profesor-id.sql (columna asignaciones_profesor.profesor_id) antes de administrar asignaciones.";
@@ -176,25 +180,83 @@ export async function crearAsignacion(
     return { ok: false, error: esquema.error ?? ERROR_DDL_PENDIENTE };
   }
 
-  // Duplicado activo lógico (la UNIQUE estructural (grupo_materia_id,
-  // profesor_id) se auditará en una fase posterior; aquí se impide en capa).
-  const { data: existente, error: eDup } = await supabase
+  // C4.28 — RECONCILIACIÓN MÍNIMA ANTI-DUPLICADOS.
+  // Conviven dos constraints: la UNIQUE legacy (grupo_materia_id,
+  // profesor_clave) = "asignaciones_profesor_unico", y la UNIQUE parcial
+  // estructural (grupo_materia_id, profesor_id) WHERE profesor_id IS NOT NULL.
+  // El error "duplicate key ... asignaciones_profesor_unico" aparece cuando una
+  // fila legacy (profesor_id NULL + profesor_clave) ya ocupa el par
+  // (grupo_materia_id, profesor_clave) y se intenta INSERTAR de nuevo.
+  // Por eso se inspeccionan TODAS las filas del grupo_materia y se resuelve:
+  //   a) fila ESTRUCTURAL con profesor_id == PROFESORES.ID:
+  //        activa → mensaje claro (no insertar);
+  //        inactiva → reactivar (activo=true, hasta=null) conservando historial.
+  //   b) fila LEGACY con profesor_id NULL y profesor_clave == CLAVE:
+  //        reconciliar: profesor_id = PROFESORES.ID, activo = true; se conserva
+  //        historial y datos. CLAVE solo actúa como MATCH HISTÓRICO de filas
+  //        legacy, NUNCA como identidad.
+  //   c) ninguna → INSERT normal.
+  const { data: filasGm, error: eDup } = await supabase
     .from(TABLA_ASIGNACIONES_PROFESOR)
-    .select("id")
-    .eq("grupo_materia_id", grupoMateriaId)
-    .eq("profesor_id", profesorId)
-    .eq("activo", true)
-    .maybeSingle();
+    .select("id, profesor_id, profesor_clave, activo, desde, hasta")
+    .eq("grupo_materia_id", grupoMateriaId);
   if (eDup) return { ok: false, error: eDup.message };
-  if (existente) {
+
+  type FilaAsignacionGm = {
+    id: string;
+    profesor_id: number | null;
+    profesor_clave: string | null;
+    activo: boolean;
+    desde: string | null;
+    hasta: string | null;
+  };
+  const filas = (filasGm ?? []) as FilaAsignacionGm[];
+  const claveProf = String(profesor.CLAVE ?? "").trim().toUpperCase();
+  const etiqueta = `${resuelto.grupo.grado} ${resuelto.grupo.nombre} / ${resuelto.materia.nombre}`;
+
+  // a) Estructural por PROFESORES.ID.
+  const estructural = filas.find(
+    (f) => typeof f.profesor_id === "number" && f.profesor_id === profesorId,
+  );
+  if (estructural) {
+    if (estructural.activo) {
+      return {
+        ok: false,
+        error: `Ya existe una asignación ACTIVA de PROFESORES.ID ${profesorId} para ese grupo-materia (${etiqueta}).`,
+      };
+    }
+    const { error: eUp } = await supabase
+      .from(TABLA_ASIGNACIONES_PROFESOR)
+      .update({ activo: true, hasta: null })
+      .eq("id", estructural.id);
+    if (eUp) return { ok: false, error: eUp.message };
     return {
-      ok: false,
-      error:
-        "Ya existe una asignación ACTIVA de ese profesor para ese grupo-materia.",
+      ok: true,
+      mensaje: `Asignación REACTIVADA: PROFESORES.ID ${profesorId} → ${etiqueta} (historial conservado).`,
+      asignacionId: estructural.id,
     };
   }
 
-  // INSERT. `profesor_clave` se copia desde la fila de PROFESORES como dato
+  // b) Fila legacy con profesor_id NULL y profesor_clave == CLAVE.
+  const legacy = filas.find(
+    (f) =>
+      f.profesor_id === null &&
+      String(f.profesor_clave ?? "").trim().toUpperCase() === claveProf,
+  );
+  if (legacy) {
+    const { error: eUp } = await supabase
+      .from(TABLA_ASIGNACIONES_PROFESOR)
+      .update({ profesor_id: profesorId, activo: true, hasta: null })
+      .eq("id", legacy.id);
+    if (eUp) return { ok: false, error: eUp.message };
+    return {
+      ok: true,
+      mensaje: `Asignación legacy RECONCILIADA: la fila existente (${legacy.id.slice(0, 8)}…) se actualizó con PROFESORES.ID ${profesorId} → ${etiqueta}. Historial conservado; CLAVE solo queda como dato histórico.`,
+      asignacionId: legacy.id,
+    };
+  }
+
+  // c) INSERT. `profesor_clave` se copia desde la fila de PROFESORES como dato
   // HISTÓRICO (columna NOT NULL legacy); no resuelve identidad ni autoriza.
   const { data: nueva, error: eIns } = await supabase
     .from(TABLA_ASIGNACIONES_PROFESOR)
@@ -212,7 +274,7 @@ export async function crearAsignacion(
 
   return {
     ok: true,
-    mensaje: `Asignación creada: ${profesorId} → ${resuelto.grupo.grado} ${resuelto.grupo.nombre} / ${resuelto.materia.nombre}.`,
+    mensaje: `Asignación creada: PROFESORES.ID ${profesorId} → ${etiqueta}.`,
     asignacionId: (nueva as { id?: string })?.id,
   };
 }
@@ -266,9 +328,13 @@ export type AsignacionAdminListado = {
   profesorClave: string | null;
   grupoMateriaId: string;
   grupoDescripcion: string;
+  /** Nombre de la materia desde el catálogo (materias.nombre). */
   materiaNombre: string;
+  /** Nombre VISIBLE de la materia (alias → materias.nombre → id). Solo presentación. */
+  materiaNombreVisible: string;
   carreraClave: string | null;
   periodoNombre: string;
+  /** Nombre físico de la tabla (solo debugging administrativo). */
   tablaLegacy: string | null;
   activo: boolean;
   desde: string | null;
@@ -310,6 +376,11 @@ export async function listarAsignacionesAdmin(
   }>;
   if (!filas.length) return { ok: true, asignaciones: [] };
 
+  // C4.28 — nombre visible de la materia desde materias_nombres_visibles
+  // (la tabla física tras el rename es clave del alias; nunca se expone el
+  // nombre físico como identidad académica).
+  const aliases = await listarNombresVisiblesMaterias(supabase);
+
   const salida: AsignacionAdminListado[] = [];
   for (const f of filas) {
     const resuelto = await resolverGrupoMateria(supabase, f.grupo_materia_id);
@@ -317,6 +388,11 @@ export async function listarAsignacionesAdmin(
       typeof f.profesor_id === "number"
         ? await obtenerProfesorPorId(supabase, f.profesor_id)
         : null;
+    const tablaLegacy = resuelto?.grupoMateria.tabla_legacy ?? null;
+    const aliasResuelto =
+      tablaLegacy && resuelto?.grupoMateria.tabla_legacy
+        ? nombreVisibleDesdeMapa(aliases, resuelto.grupoMateria.tabla_legacy)
+        : "";
     salida.push({
       asignacionId: f.id,
       profesorId: f.profesor_id ?? null,
@@ -329,9 +405,15 @@ export async function listarAsignacionesAdmin(
         ? `${resuelto.grupo.grado} ${resuelto.grupo.nombre}`
         : f.grupo_materia_id,
       materiaNombre: resuelto?.materia.nombre ?? "—",
+      materiaNombreVisible:
+        (aliasResuelto && aliasResuelto !== tablaLegacy
+          ? aliasResuelto
+          : "") ||
+        (resuelto?.materia.nombre?.trim() ?? "") ||
+        "—",
       carreraClave: resuelto?.carrera?.clave ?? null,
       periodoNombre: resuelto?.periodo.nombre ?? "—",
-      tablaLegacy: resuelto?.grupoMateria.tabla_legacy ?? null,
+      tablaLegacy,
       activo: f.activo,
       desde: f.desde,
       hasta: f.hasta,

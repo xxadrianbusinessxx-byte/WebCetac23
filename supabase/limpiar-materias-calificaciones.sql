@@ -1,4 +1,4 @@
--- C4.24 — LIMPIEZA DE DATOS DE MATERIAS Y CALIFICACIONES FINALES.
+-- C4.24 / C4.28 — LIMPIEZA DE DATOS DE MATERIAS Y CALIFICACIONES FINALES.
 --
 -- Vacía (DELETE de todas las filas) las tablas físicas de materia y las
 -- tablas de "REGISTRO DE CALIFICACIONES FINALES". NO borra la estructura
@@ -6,10 +6,13 @@
 -- materias, materias_nombres_visibles, inscripciones_alumno, aliases.
 --
 -- Cómo se identifican las tablas:
---   1) grupo_materias.tabla_legacy  → cada materia del catálogo académico.
+--   1) grupo_materias.tabla_legacy  → cada materia del catálogo académico
+--      (tras C4.28 contiene el nombre físico inmutable, ej. "2DOMAT001").
 --   2) information_schema: tablas con nombre ILIKE '%REGISTRO DE CALIFICACIONES FINALES%'.
 --   3) information_schema: tablas huérfanas cuyo nombre inicia con un grado
---      (1RO|2DO|3RO|4TO|5TO|6TO) que no estén en grupo_materias.
+--      (1RO|2DO|3RO|4TO|5TO|6TO) — formato legacy "1RO A ..." o formato
+--      C4.28 "[GRADO][CARRERA][GRUPO]MAT###" (ej. "2DORHAMAT001") — que no
+--      estén en grupo_materias.
 --
 -- Ejecutar en Supabase → SQL Editor. Aplica SOLO a datos (filas).
 
@@ -40,12 +43,17 @@ BEGIN
   END LOOP;
 
   -- 3) Tablas huérfanas de materia (empiezan con un grado y no están en
-  --    grupo_materias; por si quedaron de cargas legacy).
+  --    grupo_materias; por si quedaron de cargas legacy). C4.28: reconoce
+  --    tanto el formato legacy "1RO A ..." como el formato físico nuevo
+  --    "[GRADO][CARRERA][GRUPO]MAT###" (ej. "2DORHAMAT001", "1ROAMAT001").
   FOR t IN
     SELECT c.table_name
     FROM information_schema.tables c
     WHERE c.table_schema = 'public'
-      AND c.table_name ~* '^(1RO|2DO|3RO|4TO|5TO|6TO) '
+      AND (
+        c.table_name ~* '^(1RO|2DO|3RO|4TO|5TO|6TO) '
+        OR c.table_name ~* '^(1RO|2DO|3RO|4TO|5TO|6TO)(MC|RH)?[A-Z]MAT[0-9]{3}$'
+      )
       AND c.table_name NOT IN (
         SELECT DISTINCT tabla_legacy FROM public.grupo_materias
         WHERE tabla_legacy IS NOT NULL AND tabla_legacy <> ''

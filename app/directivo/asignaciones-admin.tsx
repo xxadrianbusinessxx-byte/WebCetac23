@@ -142,8 +142,7 @@ export function AsignacionesProfesorAdmin() {
                 <option value="">Seleccionar…</option>
                 {oferta.map((g) => (
                   <option key={g.grupoMateriaId} value={g.grupoMateriaId}>
-                    {g.descripcion} — {g.materiaClave} · {g.periodoNombre}
-                    {g.tablaLegacy ? ` · ${g.tablaLegacy}` : ""}
+                    {g.descripcion} — {g.materiaNombre} · {g.periodoNombre}
                   </option>
                 ))}
               </select>
@@ -174,6 +173,7 @@ export function AsignacionesProfesorAdmin() {
                   <li
                     key={a.asignacionId}
                     className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+                    title={a.tablaLegacy ?? undefined}
                   >
                     <div className="text-xs font-bold text-slate-800">
                       <span
@@ -186,10 +186,9 @@ export function AsignacionesProfesorAdmin() {
                         {a.activo ? "activa" : "inactiva"}
                       </span>
                       ID {a.profesorId} — {a.profesorNombre} →{" "}
-                      {a.grupoDescripcion} / {a.materiaNombre}
+                      {a.grupoDescripcion} / {a.materiaNombreVisible}
                       {a.carreraClave ? ` · ${a.carreraClave}` : ""} ·{" "}
                       {a.periodoNombre}
-                      {a.tablaLegacy ? ` · ${a.tablaLegacy}` : ""}
                     </div>
                     {a.activo && (
                       <button

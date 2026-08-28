@@ -41,6 +41,7 @@ import { obtenerMapeoColumnasMateria } from "@/lib/escolar/mapeo-columnas-materi
 import { leerVistaMateriaAlumno } from "@/lib/escolar/materia-vista-alumno";
 import {
   resolverGrupoAlumno,
+  resolverIdentidadesCatalogo,
   resolverMateriasAlumno,
   validarAccesoAlumno,
 } from "@/lib/escolar/catalogo-academico";
@@ -49,10 +50,9 @@ import {
   semestreActivoDeGrupo,
   semestresInactivos,
 } from "@/lib/escolar/semestres";
-import { carrerasDesdeTablas } from "@/lib/escolar/materia-identidad";
 import {
   listarNombresVisiblesMaterias,
-  materiasConNombreVisible,
+  materiasVisiblesDesdeCatalogo,
   type MateriaConNombreVisible,
 } from "@/lib/escolar/nombres-visibles";
 import { obtenerVistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
@@ -167,10 +167,16 @@ export async function actionObtenerPerfilAlumno(
       : "SIN_INSCRIPCION";
   let materias: MateriaConNombreVisible[] = [];
   if (grupoCatalogo && semestreActivo) {
-    materias = materiasConNombreVisible(
+    // C4.28 — identidad desde el catálogo (grupo_materias → grupos → carreras
+    // y materias). El nombre físico de la tabla NUNCA se interpreta.
+    const identidades = await resolverIdentidadesCatalogo(
+      supabaseLectura,
       tablasLegacy,
+    );
+    materias = materiasVisiblesDesdeCatalogo(
+      tablasLegacy,
+      identidades,
       aliases,
-      carrerasDesdeTablas(tablasLegacy),
     );
   }
   void fuente;
@@ -298,9 +304,12 @@ async function motivoMateriaNoCargable(
   if (gms && gms.length > 0 && gms.every((g) => g.activo === false)) {
     return "La materia está desactivada en el catálogo.";
   }
-  const m = id.toUpperCase().match(/^(1RO|2DO|3RO|4TO|5TO|6TO)\s/);
-  if (m) {
-    const sem = gradoASemestre(m[1]);
+  // C4.28 — el semestre se resuelve desde el catálogo (grupo_materias →
+  // grupos.grado). El nombre físico de la tabla NUNCA se parsea.
+  const identidades = await resolverIdentidadesCatalogo(supabase, [id]);
+  const identidad = identidades.get(id);
+  if (identidad?.grado) {
+    const sem = gradoASemestre(identidad.grado);
     if (sem !== null) {
       const inactivos = await semestresInactivos(supabase);
       if (inactivos.has(sem)) return "el semestre de esta materia está inactivo";

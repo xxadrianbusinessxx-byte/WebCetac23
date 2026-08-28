@@ -21,6 +21,10 @@ import {
   listarAsignacionesAdmin,
 } from "@/lib/escolar/asignaciones-profesor";
 import {
+  listarNombresVisiblesMaterias,
+  nombreVisibleDesdeMapa,
+} from "@/lib/escolar/nombres-visibles";
+import {
   TABLA_CARRERAS,
   TABLA_GRUPO_MATERIAS,
   TABLA_PERIODOS,
@@ -82,10 +86,15 @@ type GrupoMateriaJoin = {
 
 export type GrupoMateriaParaAsignacion = {
   grupoMateriaId: string;
+  /** Presentación humana: grado + grupo + carrera (ej. "2DO A RH"). */
   descripcion: string;
+  /** Nombre visible de la materia (alias → materias.nombre → materias.clave). */
+  materiaNombre: string;
+  /** Solo debugging administrativo. */
   materiaClave: string;
   carreraClave: string | null;
   periodoNombre: string;
+  /** Nombre físico de la tabla; solo debugging (la UI NO lo expone). */
   tablaLegacy: string | null;
 };
 
@@ -141,6 +150,11 @@ export async function actionListarGruposMateriasParaAsignacion(): Promise<
     ),
   );
 
+  // C4.28 — el nombre visible de la materia sale del alias existente
+  // (materias_nombres_visibles) o del catálogo (materias.nombre/clave);
+  // NUNCA del nombre físico de la tabla.
+  const aliases = await listarNombresVisiblesMaterias(supabase);
+
   return gms.map((g) => {
     const grupo = aUno(g.grupos);
     const materia = aUno(g.materias);
@@ -148,11 +162,21 @@ export async function actionListarGruposMateriasParaAsignacion(): Promise<
       ? (carreraPorId.get(grupo.carrera_id) ?? null)
       : null;
     const grupoDesc = `${grupo?.grado ?? ""} ${grupo?.nombre ?? ""}`.trim();
+    const aliasResuelto = g.tabla_legacy
+      ? nombreVisibleDesdeMapa(aliases, g.tabla_legacy)
+      : "";
+    const materiaNombre =
+      (aliasResuelto && aliasResuelto !== g.tabla_legacy
+        ? aliasResuelto
+        : "") ||
+      (materia?.nombre?.trim() ?? "") ||
+      (materia?.clave?.trim() ?? "—");
     return {
       grupoMateriaId: g.id,
       descripcion: grupoDesc
-        ? `${grupoDesc}${carreraClave ? " · " + carreraClave : ""}`
+        ? `${grupoDesc}${carreraClave ? " " + carreraClave : ""}`
         : g.id,
+      materiaNombre,
       materiaClave: materia?.clave ?? "—",
       carreraClave,
       periodoNombre: grupo?.periodo_id

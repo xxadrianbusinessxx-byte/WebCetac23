@@ -44,6 +44,24 @@ const sistema = new Set([
   "grupo_materias",
   "inscripciones_alumno",
   "asignaciones_profesor",
+  // C4.28 — Tablas de SISTEMA/BACKEND que NO son materias (documentos, tutores,
+  // asistencia, justificaciones, semestres, nombres visibles, mapeo de columnas).
+  // Mantener sincronizado con TABLAS_SISTEMA en lib/escolar/tablas-supabase.ts.
+  "CARPETAS",
+  "DOCUMENTOS",
+  "PERMISOS CARPETAS",
+  "calendario_escolar",
+  "clases_impartidas",
+  "asistencia_alumnos",
+  "configuracion_clases_profesor",
+  "tutores",
+  "tutor_alumnos",
+  "tutor_credenciales_iniciales",
+  "justificaciones_asistencia",
+  "mensajes_justificacion",
+  "academico_semestres",
+  "materias_nombres_visibles",
+  "materias_mapeo_columnas",
 ]);
 
 const todas = Object.keys(defs).filter((k) => !k.startsWith("rpc_")).sort();

@@ -1,0 +1,1687 @@
+{
+  "regla": "[GRADO][CARRERA][GRUPO]MAT### — código de carrera (MECATRONICA=MC, RH=RH; 1RO sin carrera) y número secuencial por (grado, carrera, grupo).",
+  "generado": "2026-08-28T14:52:43.125Z",
+  "total": 240,
+  "mapa": [
+    {
+      "viejo": "1RO A CIENCIAS NATURALES",
+      "nuevo": "1ROAMAT001",
+      "grupo": "A",
+      "carrera": null,
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "1RO A CIENCIAS SOCIALES",
+      "nuevo": "1ROAMAT002",
+      "grupo": "A",
+      "carrera": null,
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "1RO A CONCIENCIA HISTORICA",
+      "nuevo": "1ROAMAT003",
+      "grupo": "A",
+      "carrera": null,
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "1RO A CULTURA DIGITAL",
+      "nuevo": "1ROAMAT004",
+      "grupo": "A",
+      "carrera": null,
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "1RO A INGLES",
+      "nuevo": "1ROAMAT005",
+      "grupo": "A",
+      "carrera": null,
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "1RO A LENGUA Y COMUNICACION",
+      "nuevo": "1ROAMAT006",
+      "grupo": "A",
+      "carrera": null,
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "1RO A MODULO",
+      "nuevo": "1ROAMAT007",
+      "grupo": "A",
+      "carrera": null,
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "1RO A PENSAMIENTO FILOSOFICO",
+      "nuevo": "1ROAMAT008",
+      "grupo": "A",
+      "carrera": null,
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "1RO A PENSAMIENTO MATEMATICO",
+      "nuevo": "1ROAMAT009",
+      "grupo": "A",
+      "carrera": null,
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "1RO A RECURSO",
+      "nuevo": "1ROAMAT010",
+      "grupo": "A",
+      "carrera": null,
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "1RO B CIENCIAS NATURALES",
+      "nuevo": "1ROBMAT001",
+      "grupo": "B",
+      "carrera": null,
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "1RO B CIENCIAS SOCIALES",
+      "nuevo": "1ROBMAT002",
+      "grupo": "B",
+      "carrera": null,
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "1RO B CONCIENCIA HISTORICA",
+      "nuevo": "1ROBMAT003",
+      "grupo": "B",
+      "carrera": null,
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "1RO B CULTURA DIGITAL",
+      "nuevo": "1ROBMAT004",
+      "grupo": "B",
+      "carrera": null,
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "1RO B INGLES",
+      "nuevo": "1ROBMAT005",
+      "grupo": "B",
+      "carrera": null,
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "1RO B LENGUA Y COMUNICACION",
+      "nuevo": "1ROBMAT006",
+      "grupo": "B",
+      "carrera": null,
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "1RO B MODULO",
+      "nuevo": "1ROBMAT007",
+      "grupo": "B",
+      "carrera": null,
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "1RO B PENSAMIENTO FILOSOFICO",
+      "nuevo": "1ROBMAT008",
+      "grupo": "B",
+      "carrera": null,
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "1RO B PENSAMIENTO MATEMATICO",
+      "nuevo": "1ROBMAT009",
+      "grupo": "B",
+      "carrera": null,
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "1RO B RECURSO",
+      "nuevo": "1ROBMAT010",
+      "grupo": "B",
+      "carrera": null,
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "1RO C CIENCIAS NATURALES",
+      "nuevo": "1ROCMAT001",
+      "grupo": "C",
+      "carrera": null,
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "1RO C CIENCIAS SOCIALES",
+      "nuevo": "1ROCMAT002",
+      "grupo": "C",
+      "carrera": null,
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "1RO C CONCIENCIA HISTORICA",
+      "nuevo": "1ROCMAT003",
+      "grupo": "C",
+      "carrera": null,
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "1RO C CULTURA DIGITAL",
+      "nuevo": "1ROCMAT004",
+      "grupo": "C",
+      "carrera": null,
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "1RO C INGLES",
+      "nuevo": "1ROCMAT005",
+      "grupo": "C",
+      "carrera": null,
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "1RO C LENGUA Y COMUNICACION",
+      "nuevo": "1ROCMAT006",
+      "grupo": "C",
+      "carrera": null,
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "1RO C MODULO",
+      "nuevo": "1ROCMAT007",
+      "grupo": "C",
+      "carrera": null,
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "1RO C PENSAMIENTO FILOSOFICO",
+      "nuevo": "1ROCMAT008",
+      "grupo": "C",
+      "carrera": null,
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "1RO C PENSAMIENTO MATEMATICO",
+      "nuevo": "1ROCMAT009",
+      "grupo": "C",
+      "carrera": null,
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "1RO C RECURSO",
+      "nuevo": "1ROCMAT010",
+      "grupo": "C",
+      "carrera": null,
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "1RO D CIENCIAS NATURALES",
+      "nuevo": "1RODMAT001",
+      "grupo": "D",
+      "carrera": null,
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "1RO D CIENCIAS SOCIALES",
+      "nuevo": "1RODMAT002",
+      "grupo": "D",
+      "carrera": null,
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "1RO D CONCIENCIA HISTORICA",
+      "nuevo": "1RODMAT003",
+      "grupo": "D",
+      "carrera": null,
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "1RO D CULTURA DIGITAL",
+      "nuevo": "1RODMAT004",
+      "grupo": "D",
+      "carrera": null,
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "1RO D INGLES",
+      "nuevo": "1RODMAT005",
+      "grupo": "D",
+      "carrera": null,
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "1RO D LENGUA Y COMUNICACION",
+      "nuevo": "1RODMAT006",
+      "grupo": "D",
+      "carrera": null,
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "1RO D MODULO",
+      "nuevo": "1RODMAT007",
+      "grupo": "D",
+      "carrera": null,
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "1RO D PENSAMIENTO FILOSOFICO",
+      "nuevo": "1RODMAT008",
+      "grupo": "D",
+      "carrera": null,
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "1RO D PENSAMIENTO MATEMATICO",
+      "nuevo": "1RODMAT009",
+      "grupo": "D",
+      "carrera": null,
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "1RO D RECURSO",
+      "nuevo": "1RODMAT010",
+      "grupo": "D",
+      "carrera": null,
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "2DO A MECATRONICA CIENCIAS NATURALES",
+      "nuevo": "2DOMCAMAT001",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "2DO A MECATRONICA CIENCIAS SOCIALES",
+      "nuevo": "2DOMCAMAT002",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "2DO A MECATRONICA CONCIENCIA HISTORICA",
+      "nuevo": "2DOMCAMAT003",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "2DO A MECATRONICA CULTURA DIGITAL",
+      "nuevo": "2DOMCAMAT004",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "2DO A MECATRONICA INGLES",
+      "nuevo": "2DOMCAMAT005",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "2DO A MECATRONICA LENGUA Y COMUNICACION",
+      "nuevo": "2DOMCAMAT006",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "2DO A MECATRONICA MODULO",
+      "nuevo": "2DOMCAMAT007",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "2DO A MECATRONICA PENSAMIENTO FILOSOFICO",
+      "nuevo": "2DOMCAMAT008",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "2DO A MECATRONICA PENSAMIENTO MATEMATICO",
+      "nuevo": "2DOMCAMAT009",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "2DO A MECATRONICA RECURSO",
+      "nuevo": "2DOMCAMAT010",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "2DO A RH CIENCIAS NATURALES",
+      "nuevo": "2DORHAMAT001",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "2DO A RH CIENCIAS SOCIALES",
+      "nuevo": "2DORHAMAT002",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "2DO A RH CONCIENCIA HISTORICA",
+      "nuevo": "2DORHAMAT003",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "2DO A RH CULTURA DIGITAL",
+      "nuevo": "2DORHAMAT004",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "2DO A RH INGLES",
+      "nuevo": "2DORHAMAT005",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "2DO A RH LENGUA Y COMUNICACION",
+      "nuevo": "2DORHAMAT006",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "2DO A RH MODULO",
+      "nuevo": "2DORHAMAT007",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "2DO A RH PENSAMIENTO FILOSOFICO",
+      "nuevo": "2DORHAMAT008",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "2DO A RH PENSAMIENTO MATEMATICO",
+      "nuevo": "2DORHAMAT009",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "2DO A RH RECURSO",
+      "nuevo": "2DORHAMAT010",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "2DO B MECATRONICA CIENCIAS NATURALES",
+      "nuevo": "2DOMCBMAT001",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "2DO B MECATRONICA CIENCIAS SOCIALES",
+      "nuevo": "2DOMCBMAT002",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "2DO B MECATRONICA CONCIENCIA HISTORICA",
+      "nuevo": "2DOMCBMAT003",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "2DO B MECATRONICA CULTURA DIGITAL",
+      "nuevo": "2DOMCBMAT004",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "2DO B MECATRONICA INGLES",
+      "nuevo": "2DOMCBMAT005",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "2DO B MECATRONICA LENGUA Y COMUNICACION",
+      "nuevo": "2DOMCBMAT006",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "2DO B MECATRONICA MODULO",
+      "nuevo": "2DOMCBMAT007",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "2DO B MECATRONICA PENSAMIENTO FILOSOFICO",
+      "nuevo": "2DOMCBMAT008",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "2DO B MECATRONICA PENSAMIENTO MATEMATICO",
+      "nuevo": "2DOMCBMAT009",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "2DO B MECATRONICA RECURSO",
+      "nuevo": "2DOMCBMAT010",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "2DO B RH CIENCIAS NATURALES",
+      "nuevo": "2DORHBMAT001",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "2DO B RH CIENCIAS SOCIALES",
+      "nuevo": "2DORHBMAT002",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "2DO B RH CONCIENCIA HISTORICA",
+      "nuevo": "2DORHBMAT003",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "2DO B RH CULTURA DIGITAL",
+      "nuevo": "2DORHBMAT004",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "2DO B RH INGLES",
+      "nuevo": "2DORHBMAT005",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "2DO B RH LENGUA Y COMUNICACION",
+      "nuevo": "2DORHBMAT006",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "2DO B RH MODULO",
+      "nuevo": "2DORHBMAT007",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "2DO B RH PENSAMIENTO FILOSOFICO",
+      "nuevo": "2DORHBMAT008",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "2DO B RH PENSAMIENTO MATEMATICO",
+      "nuevo": "2DORHBMAT009",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "2DO B RH RECURSO",
+      "nuevo": "2DORHBMAT010",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "3RO A MECATRONICA CIENCIAS NATURALES",
+      "nuevo": "3ROMCAMAT001",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "3RO A MECATRONICA CIENCIAS SOCIALES",
+      "nuevo": "3ROMCAMAT002",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "3RO A MECATRONICA CONCIENCIA HISTORICA",
+      "nuevo": "3ROMCAMAT003",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "3RO A MECATRONICA CULTURA DIGITAL",
+      "nuevo": "3ROMCAMAT004",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "3RO A MECATRONICA INGLES",
+      "nuevo": "3ROMCAMAT005",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "3RO A MECATRONICA LENGUA Y COMUNICACION",
+      "nuevo": "3ROMCAMAT006",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "3RO A MECATRONICA MODULO",
+      "nuevo": "3ROMCAMAT007",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "3RO A MECATRONICA PENSAMIENTO FILOSOFICO",
+      "nuevo": "3ROMCAMAT008",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "3RO A MECATRONICA PENSAMIENTO MATEMATICO",
+      "nuevo": "3ROMCAMAT009",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "3RO A MECATRONICA RECURSO",
+      "nuevo": "3ROMCAMAT010",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "3RO A RH CIENCIAS NATURALES",
+      "nuevo": "3RORHAMAT001",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "3RO A RH CIENCIAS SOCIALES",
+      "nuevo": "3RORHAMAT002",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "3RO A RH CONCIENCIA HISTORICA",
+      "nuevo": "3RORHAMAT003",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "3RO A RH CULTURA DIGITAL",
+      "nuevo": "3RORHAMAT004",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "3RO A RH INGLES",
+      "nuevo": "3RORHAMAT005",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "3RO A RH LENGUA Y COMUNICACION",
+      "nuevo": "3RORHAMAT006",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "3RO A RH MODULO",
+      "nuevo": "3RORHAMAT007",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "3RO A RH PENSAMIENTO FILOSOFICO",
+      "nuevo": "3RORHAMAT008",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "3RO A RH PENSAMIENTO MATEMATICO",
+      "nuevo": "3RORHAMAT009",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "3RO A RH RECURSO",
+      "nuevo": "3RORHAMAT010",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "3RO B MECATRONICA CIENCIAS NATURALES",
+      "nuevo": "3ROMCBMAT001",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "3RO B MECATRONICA CIENCIAS SOCIALES",
+      "nuevo": "3ROMCBMAT002",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "3RO B MECATRONICA CONCIENCIA HISTORICA",
+      "nuevo": "3ROMCBMAT003",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "3RO B MECATRONICA CULTURA DIGITAL",
+      "nuevo": "3ROMCBMAT004",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "3RO B MECATRONICA INGLES",
+      "nuevo": "3ROMCBMAT005",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "3RO B MECATRONICA LENGUA Y COMUNICACION",
+      "nuevo": "3ROMCBMAT006",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "3RO B MECATRONICA MODULO",
+      "nuevo": "3ROMCBMAT007",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "3RO B MECATRONICA PENSAMIENTO FILOSOFICO",
+      "nuevo": "3ROMCBMAT008",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "3RO B MECATRONICA PENSAMIENTO MATEMATICO",
+      "nuevo": "3ROMCBMAT009",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "3RO B MECATRONICA RECURSO",
+      "nuevo": "3ROMCBMAT010",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "3RO B RH CIENCIAS NATURALES",
+      "nuevo": "3RORHBMAT001",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "3RO B RH CIENCIAS SOCIALES",
+      "nuevo": "3RORHBMAT002",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "3RO B RH CONCIENCIA HISTORICA",
+      "nuevo": "3RORHBMAT003",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "3RO B RH CULTURA DIGITAL",
+      "nuevo": "3RORHBMAT004",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "3RO B RH INGLES",
+      "nuevo": "3RORHBMAT005",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "3RO B RH LENGUA Y COMUNICACION",
+      "nuevo": "3RORHBMAT006",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "3RO B RH MODULO",
+      "nuevo": "3RORHBMAT007",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "3RO B RH PENSAMIENTO FILOSOFICO",
+      "nuevo": "3RORHBMAT008",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "3RO B RH PENSAMIENTO MATEMATICO",
+      "nuevo": "3RORHBMAT009",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "3RO B RH RECURSO",
+      "nuevo": "3RORHBMAT010",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "4TO A MECATRONICA CIENCIAS NATURALES",
+      "nuevo": "4TOMCAMAT001",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "4TO A MECATRONICA CIENCIAS SOCIALES",
+      "nuevo": "4TOMCAMAT002",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "4TO A MECATRONICA CONCIENCIA HISTORICA",
+      "nuevo": "4TOMCAMAT003",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "4TO A MECATRONICA CULTURA DIGITAL",
+      "nuevo": "4TOMCAMAT004",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "4TO A MECATRONICA INGLES",
+      "nuevo": "4TOMCAMAT005",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "4TO A MECATRONICA LENGUA Y COMUNICACION",
+      "nuevo": "4TOMCAMAT006",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "4TO A MECATRONICA MODULO",
+      "nuevo": "4TOMCAMAT007",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "4TO A MECATRONICA PENSAMIENTO FILOSOFICO",
+      "nuevo": "4TOMCAMAT008",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "4TO A MECATRONICA PENSAMIENTO MATEMATICO",
+      "nuevo": "4TOMCAMAT009",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "4TO A MECATRONICA RECURSO",
+      "nuevo": "4TOMCAMAT010",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "4TO A RH CIENCIAS NATURALES",
+      "nuevo": "4TORHAMAT001",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "4TO A RH CIENCIAS SOCIALES",
+      "nuevo": "4TORHAMAT002",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "4TO A RH CONCIENCIA HISTORICA",
+      "nuevo": "4TORHAMAT003",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "4TO A RH CULTURA DIGITAL",
+      "nuevo": "4TORHAMAT004",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "4TO A RH INGLES",
+      "nuevo": "4TORHAMAT005",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "4TO A RH LENGUA Y COMUNICACION",
+      "nuevo": "4TORHAMAT006",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "4TO A RH MODULO",
+      "nuevo": "4TORHAMAT007",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "4TO A RH PENSAMIENTO FILOSOFICO",
+      "nuevo": "4TORHAMAT008",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "4TO A RH PENSAMIENTO MATEMATICO",
+      "nuevo": "4TORHAMAT009",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "4TO A RH RECURSO",
+      "nuevo": "4TORHAMAT010",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "4TO B MECATRONICA CIENCIAS NATURALES",
+      "nuevo": "4TOMCBMAT001",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "4TO B MECATRONICA CIENCIAS SOCIALES",
+      "nuevo": "4TOMCBMAT002",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "4TO B MECATRONICA CONCIENCIA HISTORICA",
+      "nuevo": "4TOMCBMAT003",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "4TO B MECATRONICA CULTURA DIGITAL",
+      "nuevo": "4TOMCBMAT004",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "4TO B MECATRONICA INGLES",
+      "nuevo": "4TOMCBMAT005",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "4TO B MECATRONICA LENGUA Y COMUNICACION",
+      "nuevo": "4TOMCBMAT006",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "4TO B MECATRONICA MODULO",
+      "nuevo": "4TOMCBMAT007",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "4TO B MECATRONICA PENSAMIENTO FILOSOFICO",
+      "nuevo": "4TOMCBMAT008",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "4TO B MECATRONICA PENSAMIENTO MATEMATICO",
+      "nuevo": "4TOMCBMAT009",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "4TO B MECATRONICA RECURSO",
+      "nuevo": "4TOMCBMAT010",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "4TO B RH CIENCIAS NATURALES",
+      "nuevo": "4TORHBMAT001",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "4TO B RH CIENCIAS SOCIALES",
+      "nuevo": "4TORHBMAT002",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "4TO B RH CONCIENCIA HISTORICA",
+      "nuevo": "4TORHBMAT003",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "4TO B RH CULTURA DIGITAL",
+      "nuevo": "4TORHBMAT004",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "4TO B RH INGLES",
+      "nuevo": "4TORHBMAT005",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "4TO B RH LENGUA Y COMUNICACION",
+      "nuevo": "4TORHBMAT006",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "4TO B RH MODULO",
+      "nuevo": "4TORHBMAT007",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "4TO B RH PENSAMIENTO FILOSOFICO",
+      "nuevo": "4TORHBMAT008",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "4TO B RH PENSAMIENTO MATEMATICO",
+      "nuevo": "4TORHBMAT009",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "4TO B RH RECURSO",
+      "nuevo": "4TORHBMAT010",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "5TO A MECATRONICA CIENCIAS NATURALES",
+      "nuevo": "5TOMCAMAT001",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "5TO A MECATRONICA CIENCIAS SOCIALES",
+      "nuevo": "5TOMCAMAT002",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "5TO A MECATRONICA CONCIENCIA HISTORICA",
+      "nuevo": "5TOMCAMAT003",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "5TO A MECATRONICA CULTURA DIGITAL",
+      "nuevo": "5TOMCAMAT004",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "5TO A MECATRONICA INGLES",
+      "nuevo": "5TOMCAMAT005",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "5TO A MECATRONICA LENGUA Y COMUNICACION",
+      "nuevo": "5TOMCAMAT006",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "5TO A MECATRONICA MODULO",
+      "nuevo": "5TOMCAMAT007",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "5TO A MECATRONICA PENSAMIENTO FILOSOFICO",
+      "nuevo": "5TOMCAMAT008",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "5TO A MECATRONICA PENSAMIENTO MATEMATICO",
+      "nuevo": "5TOMCAMAT009",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "5TO A MECATRONICA RECURSO",
+      "nuevo": "5TOMCAMAT010",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "5TO A RH CIENCIAS NATURALES",
+      "nuevo": "5TORHAMAT001",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "5TO A RH CIENCIAS SOCIALES",
+      "nuevo": "5TORHAMAT002",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "5TO A RH CONCIENCIA HISTORICA",
+      "nuevo": "5TORHAMAT003",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "5TO A RH CULTURA DIGITAL",
+      "nuevo": "5TORHAMAT004",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "5TO A RH INGLES",
+      "nuevo": "5TORHAMAT005",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "5TO A RH LENGUA Y COMUNICACION",
+      "nuevo": "5TORHAMAT006",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "5TO A RH MODULO",
+      "nuevo": "5TORHAMAT007",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "5TO A RH PENSAMIENTO FILOSOFICO",
+      "nuevo": "5TORHAMAT008",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "5TO A RH PENSAMIENTO MATEMATICO",
+      "nuevo": "5TORHAMAT009",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "5TO A RH RECURSO",
+      "nuevo": "5TORHAMAT010",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "5TO B MECATRONICA CIENCIAS NATURALES",
+      "nuevo": "5TOMCBMAT001",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "5TO B MECATRONICA CIENCIAS SOCIALES",
+      "nuevo": "5TOMCBMAT002",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "5TO B MECATRONICA CONCIENCIA HISTORICA",
+      "nuevo": "5TOMCBMAT003",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "5TO B MECATRONICA CULTURA DIGITAL",
+      "nuevo": "5TOMCBMAT004",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "5TO B MECATRONICA INGLES",
+      "nuevo": "5TOMCBMAT005",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "5TO B MECATRONICA LENGUA Y COMUNICACION",
+      "nuevo": "5TOMCBMAT006",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "5TO B MECATRONICA MODULO",
+      "nuevo": "5TOMCBMAT007",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "5TO B MECATRONICA PENSAMIENTO FILOSOFICO",
+      "nuevo": "5TOMCBMAT008",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "5TO B MECATRONICA PENSAMIENTO MATEMATICO",
+      "nuevo": "5TOMCBMAT009",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "5TO B MECATRONICA RECURSO",
+      "nuevo": "5TOMCBMAT010",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "5TO B RH CIENCIAS NATURALES",
+      "nuevo": "5TORHBMAT001",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "5TO B RH CIENCIAS SOCIALES",
+      "nuevo": "5TORHBMAT002",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "5TO B RH CONCIENCIA HISTORICA",
+      "nuevo": "5TORHBMAT003",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "5TO B RH CULTURA DIGITAL",
+      "nuevo": "5TORHBMAT004",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "5TO B RH INGLES",
+      "nuevo": "5TORHBMAT005",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "5TO B RH LENGUA Y COMUNICACION",
+      "nuevo": "5TORHBMAT006",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "5TO B RH MODULO",
+      "nuevo": "5TORHBMAT007",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "5TO B RH PENSAMIENTO FILOSOFICO",
+      "nuevo": "5TORHBMAT008",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "5TO B RH PENSAMIENTO MATEMATICO",
+      "nuevo": "5TORHBMAT009",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "5TO B RH RECURSO",
+      "nuevo": "5TORHBMAT010",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "6TO A MECATRONICA CIENCIAS NATURALES",
+      "nuevo": "6TOMCAMAT001",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "6TO A MECATRONICA CIENCIAS SOCIALES",
+      "nuevo": "6TOMCAMAT002",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "6TO A MECATRONICA CONCIENCIA HISTORICA",
+      "nuevo": "6TOMCAMAT003",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "6TO A MECATRONICA CULTURA DIGITAL",
+      "nuevo": "6TOMCAMAT004",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "6TO A MECATRONICA INGLES",
+      "nuevo": "6TOMCAMAT005",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "6TO A MECATRONICA LENGUA Y COMUNICACION",
+      "nuevo": "6TOMCAMAT006",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "6TO A MECATRONICA MODULO",
+      "nuevo": "6TOMCAMAT007",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "6TO A MECATRONICA PENSAMIENTO FILOSOFICO",
+      "nuevo": "6TOMCAMAT008",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "6TO A MECATRONICA PENSAMIENTO MATEMATICO",
+      "nuevo": "6TOMCAMAT009",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "6TO A MECATRONICA RECURSO",
+      "nuevo": "6TOMCAMAT010",
+      "grupo": "A",
+      "carrera": "MECATRONICA",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "6TO A RH CIENCIAS NATURALES",
+      "nuevo": "6TORHAMAT001",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "6TO A RH CIENCIAS SOCIALES",
+      "nuevo": "6TORHAMAT002",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "6TO A RH CONCIENCIA HISTORICA",
+      "nuevo": "6TORHAMAT003",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "6TO A RH CULTURA DIGITAL",
+      "nuevo": "6TORHAMAT004",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "6TO A RH INGLES",
+      "nuevo": "6TORHAMAT005",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "6TO A RH LENGUA Y COMUNICACION",
+      "nuevo": "6TORHAMAT006",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "6TO A RH MODULO",
+      "nuevo": "6TORHAMAT007",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "6TO A RH PENSAMIENTO FILOSOFICO",
+      "nuevo": "6TORHAMAT008",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "6TO A RH PENSAMIENTO MATEMATICO",
+      "nuevo": "6TORHAMAT009",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "6TO A RH RECURSO",
+      "nuevo": "6TORHAMAT010",
+      "grupo": "A",
+      "carrera": "RH",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "6TO B MECATRONICA CIENCIAS NATURALES",
+      "nuevo": "6TOMCBMAT001",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "6TO B MECATRONICA CIENCIAS SOCIALES",
+      "nuevo": "6TOMCBMAT002",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "6TO B MECATRONICA CONCIENCIA HISTORICA",
+      "nuevo": "6TOMCBMAT003",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "6TO B MECATRONICA CULTURA DIGITAL",
+      "nuevo": "6TOMCBMAT004",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "6TO B MECATRONICA INGLES",
+      "nuevo": "6TOMCBMAT005",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "6TO B MECATRONICA LENGUA Y COMUNICACION",
+      "nuevo": "6TOMCBMAT006",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "6TO B MECATRONICA MODULO",
+      "nuevo": "6TOMCBMAT007",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "6TO B MECATRONICA PENSAMIENTO FILOSOFICO",
+      "nuevo": "6TOMCBMAT008",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "6TO B MECATRONICA PENSAMIENTO MATEMATICO",
+      "nuevo": "6TOMCBMAT009",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "6TO B MECATRONICA RECURSO",
+      "nuevo": "6TOMCBMAT010",
+      "grupo": "B",
+      "carrera": "MECATRONICA",
+      "asignatura": "RECURSO"
+    },
+    {
+      "viejo": "6TO B RH CIENCIAS NATURALES",
+      "nuevo": "6TORHBMAT001",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS NATURALES"
+    },
+    {
+      "viejo": "6TO B RH CIENCIAS SOCIALES",
+      "nuevo": "6TORHBMAT002",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CIENCIAS SOCIALES"
+    },
+    {
+      "viejo": "6TO B RH CONCIENCIA HISTORICA",
+      "nuevo": "6TORHBMAT003",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CONCIENCIA HISTORICA"
+    },
+    {
+      "viejo": "6TO B RH CULTURA DIGITAL",
+      "nuevo": "6TORHBMAT004",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "CULTURA DIGITAL"
+    },
+    {
+      "viejo": "6TO B RH INGLES",
+      "nuevo": "6TORHBMAT005",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "INGLES"
+    },
+    {
+      "viejo": "6TO B RH LENGUA Y COMUNICACION",
+      "nuevo": "6TORHBMAT006",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "LENGUA Y COMUNICACION"
+    },
+    {
+      "viejo": "6TO B RH MODULO",
+      "nuevo": "6TORHBMAT007",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "MODULO"
+    },
+    {
+      "viejo": "6TO B RH PENSAMIENTO FILOSOFICO",
+      "nuevo": "6TORHBMAT008",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO FILOSOFICO"
+    },
+    {
+      "viejo": "6TO B RH PENSAMIENTO MATEMATICO",
+      "nuevo": "6TORHBMAT009",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "PENSAMIENTO MATEMATICO"
+    },
+    {
+      "viejo": "6TO B RH RECURSO",
+      "nuevo": "6TORHBMAT010",
+      "grupo": "B",
+      "carrera": "RH",
+      "asignatura": "RECURSO"
+    }
+  ]
+}
