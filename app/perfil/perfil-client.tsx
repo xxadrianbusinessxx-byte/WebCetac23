@@ -29,7 +29,6 @@ import type {
 } from "@/lib/escolar/types";
 import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
-import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
 
 type MainTab = "materia" | "estatus" | "comentarios" | "boleta";
@@ -217,17 +216,6 @@ export function PerfilClient({
             </Link>
           </div>
         )}
-        {/* Barra Perfil / Chat */}
-        <div className="mb-6 flex h-14 items-center justify-center gap-3 rounded-full border-[3px] border-sky-800/55 bg-sky-200/45 px-3 py-2 shadow-[0_8px_28px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl backdrop-saturate-150 sm:mb-8 sm:h-16 sm:justify-between sm:px-6">
-          <GlossyNavPill href="/perfil" active>
-            Perfil
-          </GlossyNavPill>
-          <GlossyNavPill href="/chat?origen=perfil">Chat</GlossyNavPill>
-          {modoDirectivo && (
-            <GlossyNavPill href="/configuracion">Configuración</GlossyNavPill>
-          )}
-        </div>
-
         {/* Cabecera avatar + nombre */}
         <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-center">
           <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-[1.75rem] border-[3px] border-sky-900/70 bg-white/75 p-2 shadow-[0_10px_28px_rgba(14,165,233,0.2),inset_0_2px_0_rgba(255,255,255,0.95)] backdrop-blur-md sm:h-32 sm:w-32">

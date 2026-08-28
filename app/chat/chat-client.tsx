@@ -11,11 +11,9 @@ import { imagenAClaveGuardado } from "@/lib/chat/comentario-codigo";
 import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
 import { demoProfilePorOrigen } from "@/lib/auth/demo-profiles";
 import type { PortalSessionPayload } from "@/lib/auth/types";
-import { CHAT_ORIGEN_NAV } from "@/lib/chat/constants";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { ChatOrigen, MensajeChat } from "@/lib/chat/types";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
-import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
 
 function GreyPill({
@@ -92,7 +90,6 @@ type Props = { sesion: PortalSessionPayload | null };
 export function ChatClient({ sesion }: Props) {
   const searchParams = useSearchParams();
   const origen = parseOrigen(searchParams.get("origen"));
-  const nav = CHAT_ORIGEN_NAV[origen];
   const demo = demoProfilePorOrigen(origen);
   const usuario = sesion
     ? {
@@ -220,13 +217,6 @@ export function ChatClient({ sesion }: Props) {
   return (
     <FrutigerBackdrop>
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-8 pt-6 sm:px-6 lg:max-w-6xl lg:px-8 lg:pt-8">
-        <div className="mb-6 flex h-14 items-center justify-center gap-3 rounded-full border-[3px] border-sky-800/55 bg-sky-200/45 px-3 py-2 shadow-[0_8px_28px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl backdrop-saturate-150 sm:mb-8 sm:h-16 sm:justify-between sm:px-6">
-          <GlossyNavPill href={nav.href}>{nav.label}</GlossyNavPill>
-          <GlossyNavPill href={`/chat?origen=${origen}`} active>
-            Chat
-          </GlossyNavPill>
-        </div>
-
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150">
           <ul
             ref={listaRef}

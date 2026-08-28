@@ -7,6 +7,20 @@
   --white-glass: rgba(255, 255, 255, 0.45);
   --border-glass: rgba(255, 255, 255, 0.65);
   --grass-soft: rgba(134, 239, 172, 0.15);
+
+  /* C4.27-B — Fondo global vivo Ocean/Glass (PRYDA / Frutiger Aero) */
+  --app-bg-base: #081d3a;
+  --app-bg-secondary: #0c2749;
+  --app-bg-deep: #041224;
+  --app-bg-glow: #38bdf8;
+  --app-bg-glow-cyan: #22d3ee;
+  --app-bg-glow-teal: #14b8a6;
+  --app-bg-glow-blue: #3b82f6;
+  --app-bg-glow-opacity: 0.32;
+  --app-bg-light-opacity: 0.8;
+  --app-bg-animation-duration: 24s;
+  --app-bg-animation-duration-slow: 30s;
+  --app-bg-blur: 90px;
 }
 
 @theme inline {
@@ -78,8 +92,303 @@
   }
 }
 
+/* ============================================================
+   C4.27-B — Fondo global vivo Ocean/Glass (PRYDA / Frutiger Aero)
+   Composición por capas dentro de DecoracionFondo (única instancia).
+   Solo animan transform/opacity; sin partículas ni librerías.
+   ============================================================ */
+
+/* CAPA 1 — Base oceánica: azul profundo con variación vertical/horizontal,
+   sin negro absoluto y sin degradado uniforme. */
+.app-bg-base {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      130% 80% at 8% -12%,
+      color-mix(in srgb, var(--app-bg-glow) 18%, transparent) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      130% 80% at 92% -14%,
+      color-mix(in srgb, var(--app-bg-glow-cyan) 14%, transparent) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      160% 100% at 50% 118%,
+      color-mix(in srgb, var(--app-bg-glow-blue) 24%, transparent) 0%,
+      transparent 58%
+    ),
+    linear-gradient(
+      175deg,
+      #11335c 0%,
+      var(--app-bg-secondary) 28%,
+      #0a2144 52%,
+      var(--app-bg-base) 76%,
+      var(--app-bg-deep) 100%
+    );
+}
+
+/* CAPA 2 — Iluminación volumétrica: varias zonas de luz grandes, difusas e
+   irregulares (superior, izquierda, derecha, inferior muy tenue) + edge glow
+   en laterales y esquinas. Sin foco central evidente. */
+.app-bg-light {
+  position: absolute;
+  inset: -38%;
+  opacity: var(--app-bg-light-opacity);
+  background:
+    radial-gradient(
+      70% 34% at 50% 14%,
+      rgba(186, 230, 253, 0.27) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      48% 58% at 8% 58%,
+      rgba(125, 211, 252, 0.23) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      52% 62% at 92% 46%,
+      rgba(165, 243, 252, 0.2) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      58% 40% at 34% 112%,
+      rgba(56, 189, 248, 0.17) 0%,
+      transparent 62%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(125, 211, 252, 0.14) 0%,
+      transparent 9%,
+      transparent 91%,
+      rgba(165, 243, 252, 0.14) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(165, 243, 252, 0.14) 0%,
+      transparent 14%
+    );
+  animation: app-bg-breathe var(--app-bg-animation-duration) ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+/* CAPA 3 — Glows volumétricos: fuentes grandes con blur variable para
+   profundidad (lejos = más blur, menos opacidad). */
+.app-bg-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(var(--app-bg-blur));
+  opacity: var(--app-bg-glow-opacity);
+  will-change: transform;
+}
+
+.app-bg-glow--a {
+  width: 96vmin;
+  height: 96vmin;
+  left: -22%;
+  top: -26%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--app-bg-glow) 56%, transparent), transparent 60%);
+  filter: blur(110px);
+  opacity: 0.32;
+  animation: app-bg-drift-a calc(var(--app-bg-animation-duration-slow) * 1.25) ease-in-out infinite alternate;
+}
+
+.app-bg-glow--b {
+  width: 84vmin;
+  height: 84vmin;
+  right: -20%;
+  top: 6%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--app-bg-glow-cyan) 47%, transparent), transparent 60%);
+  filter: blur(95px);
+  opacity: 0.36;
+  animation: app-bg-drift-b var(--app-bg-animation-duration-slow) ease-in-out infinite alternate;
+}
+
+.app-bg-glow--c {
+  width: 104vmin;
+  height: 104vmin;
+  left: -18%;
+  bottom: -36%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--app-bg-glow-blue) 41%, transparent), transparent 60%);
+  filter: blur(120px);
+  opacity: 0.28;
+  animation: app-bg-drift-c calc(var(--app-bg-animation-duration-slow) * 0.85) ease-in-out infinite alternate;
+}
+
+.app-bg-glow--d {
+  width: 60vmin;
+  height: 60vmin;
+  right: -6%;
+  bottom: 2%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--app-bg-glow-teal) 35%, transparent), transparent 60%);
+  filter: blur(60px);
+  opacity: 0.4;
+  animation: app-bg-drift-d calc(var(--app-bg-animation-duration-slow) * 1.15) ease-in-out infinite alternate;
+}
+
+/* CAPA 4 — Ribbons / rayos de luz: bandas curvas asimétricas que atraviesan
+   parcialmente el viewport y se pierden en el fondo. Blur medio (profundidad
+   intermedia) y movimiento casi subliminal. Van detrás de los paneles glass. */
+.app-bg-ribbon {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(var(--app-bg-blur));
+  opacity: var(--app-bg-glow-opacity);
+  will-change: transform;
+}
+
+.app-bg-ribbon--1 {
+  left: -16%;
+  top: -10%;
+  width: 76vmin;
+  height: 22vmin;
+  background: linear-gradient(95deg, rgba(103, 232, 249, 0.58) 0%, rgba(56, 189, 248, 0.3) 50%, transparent 88%);
+  filter: blur(26px);
+  opacity: 0.58;
+  animation: app-bg-ribbon-a 28s ease-in-out infinite alternate;
+}
+
+.app-bg-ribbon--2 {
+  right: -18%;
+  top: 2%;
+  width: 40vmin;
+  height: 96vmin;
+  background: linear-gradient(10deg, rgba(34, 211, 238, 0.56) 0%, rgba(125, 211, 252, 0.22) 60%, transparent 92%);
+  filter: blur(30px);
+  opacity: 0.5;
+  animation: app-bg-ribbon-b 33s ease-in-out infinite alternate;
+}
+
+.app-bg-ribbon--3 {
+  left: 4%;
+  bottom: -6%;
+  width: 92vmin;
+  height: 20vmin;
+  background: linear-gradient(90deg, transparent 0%, rgba(96, 165, 250, 0.4) 28%, rgba(147, 197, 253, 0.24) 62%, transparent 100%);
+  filter: blur(22px);
+  opacity: 0.48;
+  animation: app-bg-ribbon-c 36s ease-in-out infinite alternate;
+}
+
+.app-bg-ribbon--4 {
+  right: 4%;
+  top: 26%;
+  width: 44vmin;
+  height: 26vmin;
+  border-radius: 50% 50% 0 0;
+  background: transparent;
+  border-top: 3.5vmin solid rgba(125, 211, 252, 0.46);
+  filter: blur(10px);
+  opacity: 0.62;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 22%, black 78%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, black 22%, black 78%, transparent 100%);
+  animation: app-bg-ribbon-d 26s ease-in-out infinite alternate;
+}
+
+/* CAPA 5 — Viñeta extremadamente sutil: profundidad sin apagar la iluminación. */
+.app-bg-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    140% 120% at 50% 44%,
+    transparent 60%,
+    rgba(2, 9, 20, 0.26) 100%
+  );
+}
+
+/* Movimiento ambiental lento y casi subliminal (12–35s), desincronizado. */
+@keyframes app-bg-breathe {
+  from {
+    opacity: 0.94;
+    transform: scale(1);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes app-bg-drift-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(3vmin, -2vmin, 0) scale(1.045);
+  }
+}
+
+@keyframes app-bg-drift-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.03);
+  }
+  to {
+    transform: translate3d(-2vmin, 3vmin, 0) scale(1);
+  }
+}
+
+@keyframes app-bg-drift-c {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2vmin, 2vmin, 0) scale(1.04);
+  }
+}
+
+@keyframes app-bg-drift-d {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.04);
+  }
+  to {
+    transform: translate3d(-3vmin, -2vmin, 0) scale(1);
+  }
+}
+
+@keyframes app-bg-ribbon-a {
+  from {
+    transform: rotate(-14deg) translate3d(-2%, 0, 0) scale(1);
+  }
+  to {
+    transform: rotate(-14deg) translate3d(2%, -0.8vmin, 0) scale(1.02);
+  }
+}
+
+@keyframes app-bg-ribbon-b {
+  from {
+    transform: rotate(18deg) translate3d(0, -1vmin, 0) scale(1.01);
+  }
+  to {
+    transform: rotate(18deg) translate3d(-1.5vmin, 1.2vmin, 0) scale(1);
+  }
+}
+
+@keyframes app-bg-ribbon-c {
+  from {
+    transform: rotate(-4deg) translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: rotate(-4deg) translate3d(1.5vmin, 1vmin, 0) scale(1.03);
+  }
+}
+
+@keyframes app-bg-ribbon-d {
+  from {
+    transform: rotate(-8deg) translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: rotate(-8deg) translate3d(1.5vmin, -1.5vmin, 0) scale(1.02);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [style*="decor-drift"] {
+    animation: none !important;
+  }
+  .app-bg-light,
+  .app-bg-glow,
+  .app-bg-ribbon,
+  .app-nav-bar__glow {
     animation: none !important;
   }
 }
@@ -92,4 +401,93 @@ body {
   margin: 0;
   min-height: 100dvh;
   font-family: var(--font-nunito), system-ui, sans-serif;
+  background-color: var(--app-bg-base);
+}
+
+/* ============================================================
+   C4.27-C/D — Barra de navegación global (franja full-width, sticky)
+   Transparente, con luz difusa hacia los extremos y logo CETAC a la
+   derecha. Se monta una sola vez en el layout; no anima contenido.
+   ============================================================ */
+.app-nav-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding-top: env(safe-area-inset-top);
+  pointer-events: none;
+}
+
+/* Luz difuminada hacia afuera/extremos (edge glow ambiental). */
+.app-nav-bar__glow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      52% 210% at 0% 30%,
+      rgba(56, 189, 248, 0.3) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      52% 210% at 100% 30%,
+      rgba(34, 211, 238, 0.26) 0%,
+      transparent 62%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(8, 29, 58, 0.5) 0%,
+      rgba(8, 29, 58, 0.18) 62%,
+      transparent 100%
+    );
+  filter: blur(14px);
+  animation: app-bg-breathe 26s ease-in-out infinite alternate;
+}
+
+/* Franja de extremo a extremo: translúcida, con blur; sin radius. */
+.app-nav-bar__nav {
+  position: relative;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.35rem 3.5rem;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(
+    180deg,
+    rgba(8, 29, 58, 0.58) 0%,
+    rgba(8, 29, 58, 0.32) 100%
+  );
+  box-shadow: 0 10px 38px rgba(2, 16, 34, 0.28);
+  backdrop-filter: blur(18px) saturate(1.5);
+}
+
+.app-nav-bar__pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+/* Sello CETAC en la esquina derecha, al alto de los pills. */
+.app-nav-bar__logo {
+  position: absolute;
+  right: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 2.25rem;
+  width: auto;
+  opacity: 0.92;
+}
+
+@media (min-width: 640px) {
+  .app-nav-bar__nav {
+    min-height: 3.75rem;
+    padding: 0.4rem 5rem;
+  }
+  .app-nav-bar__logo {
+    height: 2.5rem;
+  }
 }

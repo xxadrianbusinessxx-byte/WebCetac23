@@ -15,7 +15,6 @@ import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistenc
 import type { PortalSessionPayload } from "@/lib/auth/types";
 
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
-import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
 import { nombreCompletoTutor, type TutorRow } from "@/lib/escolar/tutores-types";
 
@@ -220,14 +219,6 @@ export function TutorClient({ sesion }: Props) {
   return (
     <FrutigerBackdrop>
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 lg:max-w-6xl lg:px-8 lg:pt-8">
-        {/* Barra Perfil / Tutor */}
-        <div className="mb-6 flex h-14 items-center justify-center gap-3 rounded-full border-[3px] border-sky-800/55 bg-sky-200/45 px-3 py-2 shadow-[0_8px_28px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl backdrop-saturate-150 sm:mb-8 sm:h-16 sm:justify-between sm:px-6">
-          <GlossyNavPill href="/perfil">Perfil</GlossyNavPill>
-          <GlossyNavPill href="/tutor" active>
-            Tutor / Padre
-          </GlossyNavPill>
-        </div>
-
         {/* Cabecera avatar + nombre (estructura del perfil de alumno) */}
         <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-center">
           <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-[1.75rem] border-[3px] border-sky-900/70 bg-white/75 p-2 shadow-[0_10px_28px_rgba(14,165,233,0.2),inset_0_2px_0_rgba(255,255,255,0.95)] backdrop-blur-md sm:h-32 sm:w-32">

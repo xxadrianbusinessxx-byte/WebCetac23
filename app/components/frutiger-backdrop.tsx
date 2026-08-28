@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
-import { DecoracionEsquinas } from "./decoracion-esquinas";
-import { DecoracionFondo } from "./decoracion-fondo";
 
+/**
+ * C4.27-A — El fondo global (DecoracionFondo + DecoracionEsquinas) se monta
+ * UNA sola vez en app/layout.tsx. Este componente es solo el shell de contenido:
+ * crea el stacking context que coloca las páginas por encima del fondo fijo.
+ */
 export function FrutigerBackdrop({ children }: { children: ReactNode }) {
   return (
-    <div className="relative isolate min-h-dvh overflow-x-hidden font-sans">
-      <DecoracionFondo />
-      <DecoracionEsquinas />
+    <div className="relative isolate z-[1] min-h-dvh overflow-x-hidden font-sans">
       {children}
     </div>
   );

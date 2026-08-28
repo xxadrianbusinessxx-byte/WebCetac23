@@ -17,10 +17,8 @@ import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
 import type { PortalSessionPayload } from "@/lib/auth/types";
-import { actionTieneAccesoDocumentos } from "@/app/actions/documentos";
 import { AsistenciasPanel } from "../components/asistencias-panel";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
-import { GlossyNavPill } from "../components/glossy-nav-pill";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
 
 
@@ -79,13 +77,6 @@ export function ProfesorClient({ sesion, materias }: Props) {
     materias.find((m) => m.idInterno === materiaSeleccionada)?.nombreVisible ??
     materiaSeleccionada;
 
-  // ¿El profesor tiene acceso a Documentos? (para mostrar el botón en la barra).
-  const [tieneAccesoDocumentos, setTieneAccesoDocumentos] = useState(false);
-  useEffect(() => {
-    void actionTieneAccesoDocumentos().then(setTieneAccesoDocumentos);
-  }, []);
-
-
   const refrescarVista = useCallback(async (nombre: string) => {
     setCargandoVista(true);
     const vista = await actionObtenerVistaMateria(nombre);
@@ -128,17 +119,6 @@ export function ProfesorClient({ sesion, materias }: Props) {
   return (
     <FrutigerBackdrop>
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 lg:max-w-6xl lg:px-8 lg:pt-8">
-        <div className="mb-6 flex h-14 items-center justify-center gap-3 rounded-full border-[3px] border-sky-800/55 bg-sky-200/45 px-3 py-2 shadow-[0_8px_28px_rgba(56,189,248,0.18),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl backdrop-saturate-150 sm:mb-8 sm:h-16 sm:justify-between sm:px-6">
-          <GlossyNavPill href="/profesor" active>
-            Profesor
-          </GlossyNavPill>
-          {tieneAccesoDocumentos && (
-            <GlossyNavPill href="/documentos">Documentos</GlossyNavPill>
-          )}
-          <GlossyNavPill href="/chat?origen=profesor">Chat</GlossyNavPill>
-        </div>
-
-
         <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-center">
           <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-[1.75rem] border-[3px] border-sky-900/70 bg-white/75 p-2 shadow-[0_10px_28px_rgba(14,165,233,0.2),inset_0_2px_0_rgba(255,255,255,0.95)] backdrop-blur-md sm:h-32 sm:w-32">
             <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-linear-to-b from-sky-100/90 to-sky-300/50">
