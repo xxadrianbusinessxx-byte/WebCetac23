@@ -71,6 +71,7 @@ import type {
 } from "@/lib/escolar/types";
 import { subirImagenCloudinary } from "@/lib/cloudinary/upload";
 import { publicIdPerfilUpload } from "@/lib/cloudinary/urls";
+import { invalidarUrlFotoPerfil } from "@/lib/cloudinary/urls-server";
 import {
   guardarUrlFotoPerfil,
   obtenerFotoPerfilAlumno,
@@ -613,6 +614,9 @@ export async function actionSubirFotoPerfil(
   const supabase = await createClient();
   const guardado = await guardarUrlFotoPerfil(supabase, curp, subida.url);
   if (!guardado.ok) return guardado;
+
+  // O5 — La foto cambió: invalida la caché para que sea visible de inmediato.
+  invalidarUrlFotoPerfil(curp);
 
   return subida;
 }

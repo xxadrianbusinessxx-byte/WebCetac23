@@ -2,6 +2,7 @@
 
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import {
+  invalidarNoticiasInicio,
   listarUrlsNoticiasInicio,
   publicIdNoticiaInicio,
   type NoticiaInicioSlot,
@@ -30,5 +31,9 @@ export async function actionPublicarNoticiaInicio(
   }
 
   const buffer = Buffer.from(await archivo.arrayBuffer());
-  return subirImagenCloudinary(buffer, publicIdNoticiaInicio(slot));
+  const subida = await subirImagenCloudinary(buffer, publicIdNoticiaInicio(slot));
+  if (!subida.ok) return subida;
+  // O5 — La noticia cambió: invalida la caché para que sea visible de inmediato.
+  invalidarNoticiasInicio();
+  return { ok: true, url: subida.url };
 }
