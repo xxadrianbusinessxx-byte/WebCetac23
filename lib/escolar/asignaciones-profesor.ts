@@ -25,8 +25,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   TABLA_ASIGNACIONES_PROFESOR,
+  TABLA_PROFESORES,
 } from "./tables";
-import { resolverGrupoMateria } from "./catalogo-academico";
+import { resolverGrupoMateria, resolverGrupoMateriasBatch } from "./catalogo-academico";
 import { nombreProfesor, type ProfesorRow } from "./profesores";
 import {
   listarNombresVisiblesMaterias,
@@ -103,6 +104,34 @@ export async function obtenerProfesorPorId(
     .range(0, 4999);
   if (error || !data?.length) return null;
   return (data as ProfesorRow[]).find((p) => p.ID === profesorId) ?? null;
+}
+
+/**
+ * O8 — Batch de profesores por PROFESORES.ID en UNA consulta (`in(ID)`).
+ * Devuelve un Map ID → ProfesorRow. Evita el full-scan de PROFESORES por
+ * cada asignación (antes: 1 `range(0,4999)` por profesor).
+ */
+export async function obtenerProfesoresPorIds(
+  supabase: SupabaseClient,
+  profesorIds: readonly number[],
+): Promise<Map<number, ProfesorRow>> {
+  const ids = [
+    ...new Set(
+      profesorIds.filter(
+        (x): x is number => typeof x === "number" && Number.isInteger(x) && x > 0,
+      ),
+    ),
+  ];
+  const mapa = new Map<number, ProfesorRow>();
+  if (ids.length === 0) return mapa;
+
+  const { data, error } = await supabase
+    .from(TABLA_PROFESORES)
+    .select('ID, "NOMBRE/PROFESOR/DIRECTIVO", CLAVE, Permisos')
+    .in("ID", ids);
+  if (error || !data) return mapa;
+  for (const p of data as ProfesorRow[]) mapa.set(p.ID, p);
+  return mapa;
 }
 
 /* ---------------------------------------------------------------------------
@@ -381,12 +410,27 @@ export async function listarAsignacionesAdmin(
   // nombre físico como identidad académica).
   const aliases = await listarNombresVisiblesMaterias(supabase);
 
+  // O8 — Batch: resuelve TODOS los grupo_materias en pocas consultas
+  // (`resolverGrupoMateriasBatch`) y TODOS los profesores en una (`in(ID)`),
+  // en lugar de ~6 consultas por asignación (incluido un full-scan de
+  // PROFESORES por cada una).
+  const grupoMateriaIds = [
+    ...new Set(filas.map((f) => f.grupo_materia_id)),
+  ];
+  const profesorIds = filas
+    .map((f) => f.profesor_id)
+    .filter((x): x is number => typeof x === "number");
+  const [resueltos, profesores] = await Promise.all([
+    resolverGrupoMateriasBatch(supabase, grupoMateriaIds),
+    obtenerProfesoresPorIds(supabase, profesorIds),
+  ]);
+
   const salida: AsignacionAdminListado[] = [];
   for (const f of filas) {
-    const resuelto = await resolverGrupoMateria(supabase, f.grupo_materia_id);
+    const resuelto = resueltos.get(f.grupo_materia_id) ?? null;
     const prof =
       typeof f.profesor_id === "number"
-        ? await obtenerProfesorPorId(supabase, f.profesor_id)
+        ? (profesores.get(f.profesor_id) ?? null)
         : null;
     const tablaLegacy = resuelto?.grupoMateria.tabla_legacy ?? null;
     const aliasResuelto =

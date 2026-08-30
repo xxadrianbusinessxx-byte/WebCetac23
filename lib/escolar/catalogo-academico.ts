@@ -588,6 +588,82 @@ export async function resolverGrupoMateria(
   };
 }
 
+/**
+ * O8 — Resuelve VARIOS grupo_materias en pocas consultas (`in(id)` + joins en
+ * memoria). Devuelve un Map id → GrupoMateriaResuelto (null si no resuelve,
+ * con la misma semántica que `resolverGrupoMateria`).
+ *
+ * Los ids sin resolución quedan con `null` (grupo_materia inactivo/inexistente
+ * o algún elemento requerido inactivo/faltante), igual que `resolverGrupoMateria`.
+ */
+export async function resolverGrupoMateriasBatch(
+  supabase: SupabaseClient,
+  grupoMateriaIds: readonly string[],
+): Promise<Map<string, GrupoMateriaResuelto | null>> {
+  const ids = [...new Set(grupoMateriaIds.map((x) => x.trim()).filter(Boolean))];
+  const mapa = new Map<string, GrupoMateriaResuelto | null>();
+  for (const id of ids) mapa.set(id, null);
+  if (ids.length === 0) return mapa;
+
+  const { data: gms, error: e1 } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .select("*")
+    .in("id", ids)
+    .eq("activo", true);
+  if (e1 || !gms?.length) return mapa;
+
+  const gmPorId = new Map((gms as GrupoMateriaRow[]).map((g) => [g.id, g]));
+  const grupoIds = [...new Set([...gmPorId.values()].map((g) => g.grupo_id))];
+  const materiaIds = [...new Set([...gmPorId.values()].map((g) => g.materia_id))];
+
+  const [{ data: materias, error: e2 }, { data: grupos, error: e3 }] =
+    await Promise.all([
+      supabase.from(TABLA_MATERIAS).select("*").in("id", materiaIds).eq("activo", true),
+      supabase.from(TABLA_GRUPOS).select("*").in("id", grupoIds).eq("activo", true),
+    ]);
+  if (e2 || !materias || e3 || !grupos) return mapa;
+
+  const materiaPorId = new Map((materias as MateriaRow[]).map((m) => [m.id, m]));
+  const grupoPorId = new Map((grupos as GrupoRow[]).map((g) => [g.id, g]));
+
+  const periodoIds = [...new Set([...grupoPorId.values()].map((g) => g.periodo_id))];
+  const carreraIds = [
+    ...new Set(
+      [...grupoPorId.values()]
+        .map((g) => g.carrera_id)
+        .filter((x): x is string => Boolean(x)),
+    ),
+  ];
+
+  const [{ data: periodos, error: e4 }, { data: carreras, error: e5 }] =
+    await Promise.all([
+      supabase.from(TABLA_PERIODOS).select("*").in("id", periodoIds).eq("activo", true),
+      carreraIds.length
+        ? supabase.from(TABLA_CARRERAS).select("*").in("id", carreraIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+  if (e4 || !periodos || e5 || !carreras) return mapa;
+
+  const periodoPorId = new Map((periodos as PeriodoRow[]).map((p) => [p.id, p]));
+  const carreraPorId = new Map((carreras as CarreraRow[]).map((c) => [c.id, c]));
+
+  for (const [gid, gm] of gmPorId) {
+    const materia = materiaPorId.get(gm.materia_id);
+    const grupo = grupoPorId.get(gm.grupo_id);
+    if (!materia || !grupo) continue;
+    const periodo = periodoPorId.get(grupo.periodo_id);
+    if (!periodo) continue;
+    mapa.set(gid, {
+      grupoMateria: gm,
+      materia,
+      grupo,
+      periodo,
+      carrera: grupo.carrera_id ? (carreraPorId.get(grupo.carrera_id) ?? null) : null,
+    });
+  }
+  return mapa;
+}
+
 /* ---------------------------------------------------------------------------
  * ASIGNACIONES DE PROFESOR
  * ------------------------------------------------------------------------- */
