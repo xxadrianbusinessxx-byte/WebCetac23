@@ -966,6 +966,36 @@ tras ADD COLUMN en resubidas; mitigación candidata NOTIFY pgrst,'reload schema'
 RPC de agregar columnas (NO implementado; requiere aprobación).
 
 
+--------------------------------------------------------------------------------
+Bloque 8 — Estado: completado — OPTIMIZACIÓN DE RENDIMIENTO LOTE 1 (O3/O5/O9/O1/O8)
+comiteado y desplegado. Implementa las 5 optimizaciones de PRIORIDAD 1 de
+docs/OPTIMIZACION_RENDIMIENTO_400_500.md (spec OpenAPI cacheado, Cloudinary
+cacheado, batch de tutores, perfil paralelizado, batch de asignaciones), tras
+FASE 0 (benchmark), FASE 1 (priorización), FASE 2 (implementación) y FASE PRE-3
+(benchmark post-Lote 1: 0->600 concurrentes contra Supabase real, 0 errores,
+veredicto "600 ESTABLE CON DEGRADACIÓN"). Ningún cambio de SQL, tablas, índices,
+autenticación ni identidad (CURP->nombre normalizado->tokens se mantiene
+intacto; idInterno de materias sin tocar; separación reemplazo/avance sin
+unificar). Build verificado (tsc --noEmit OK). Pendiente antes de declarar
+cerrado el lote: verificación funcional en la app real desplegada (no solo
+patrón de consultas) — ver sección "Pendientes de regresión funcional" del doc
+de optimización.
+  Rutas exactas de archivos cambiados:
+    - lib/escolar/openapi.ts (nuevo)
+    - lib/escolar/tablas-supabase.ts
+    - lib/escolar/schema-tabla.ts
+    - lib/escolar/materia-avance.ts
+    - lib/cloudinary/urls-server.ts
+    - lib/cloudinary/noticias.ts
+    - app/actions/escolar.ts
+    - app/actions/noticias.ts
+    - lib/escolar/tutores.ts
+    - app/actions/tutores.ts
+    - lib/escolar/catalogo-academico.ts
+    - lib/escolar/asignaciones-profesor.ts
+    - docs/OPTIMIZACION_RENDIMIENTO_400_500.md
+
+
   Fin de contexto.feliz
 
 
