@@ -7,7 +7,7 @@ import {
   cambiarCredencialesTutor,
   crearTutorConAlumnos,
   generarTutoresAutomaticos,
-  listarCredencialesInicialesDeTutor,
+  listarCredencialesInicialesDeTutores,
   listarCurpsDeTutor,
   listarTutores,
   obtenerTutorConAlumnos,
@@ -60,13 +60,17 @@ export async function actionListarTutoresConCredenciales(): Promise<
   if (sesion?.rol !== "directivo") return [];
   const supabase = await createClient();
   const tutores = await listarTutores(supabase);
-  const resultado: { tutor: TutorRow; credencialesIniciales: CredencialInicialTutor[] }[] =
-    [];
-  for (const tutor of tutores) {
-    const credenciales = await listarCredencialesInicialesDeTutor(supabase, tutor.id);
-    resultado.push({ tutor, credencialesIniciales: credenciales });
-  }
-  return resultado;
+  // O9 — Batch: UNA consulta para las credenciales de todos los tutores
+  // (antes: 1 query por tutor ≈ 463 × 98 ms ≈ 45 s). El orden de `tutores`
+  // se conserva; los tutores sin credenciales quedan con [].
+  const credencialesPorTutor = await listarCredencialesInicialesDeTutores(
+    supabase,
+    tutores.map((t) => t.id),
+  );
+  return tutores.map((tutor) => ({
+    tutor,
+    credencialesIniciales: credencialesPorTutor.get(tutor.id) ?? [],
+  }));
 }
 
 

@@ -232,6 +232,61 @@ export async function listarCredencialesInicialesDeTutor(
     .filter((c) => c.contraseñaInicial !== "");
 }
 
+/**
+ * O9 — Batch de credenciales iniciales para VARIOS tutores en pocas consultas
+ * (`in(tutor_id)` en lotes de 50, ejecutados en paralelo). Devuelve un Map
+ * tutor_id → CredencialInicialTutor[].
+ *
+ * Reemplaza el N+1 del panel directivo (1 query por tutor → ~N/50 queries).
+ * El lote evita el desbordamiento de URL de PostgREST (medido: 463 UUIDs en
+ * un solo `in()` provoca `UND_ERR_HEADERS_OVERFLOW`).
+ * Preserva la semántica de `listarCredencialesInicialesDeTutor`:
+ *  - la contraseña se RECONSTRUYE desde el CURP (nunca se expone el hash);
+ *  - tutores sin credenciales no aparecen en el mapa (el llamador usa `[]`);
+ *  - la relación tutor ↔ credencial se mantiene por `tutor_id`.
+ * El orden DENTRO de cada tutor puede variar (antes no había `.order()`);
+ * el orden de los TUTORES lo controla el llamador.
+ */
+const TAMANO_LOTE_IDS = 50;
+
+export async function listarCredencialesInicialesDeTutores(
+  supabase: SupabaseClient,
+  tutorIds: readonly string[],
+): Promise<Map<string, CredencialInicialTutor[]>> {
+  const ids = [...new Set(tutorIds.map((x) => x.trim()).filter(Boolean))];
+  const mapa = new Map<string, CredencialInicialTutor[]>();
+  if (ids.length === 0) return mapa;
+
+  const lotes: string[][] = [];
+  for (let i = 0; i < ids.length; i += TAMANO_LOTE_IDS) {
+    lotes.push(ids.slice(i, i + TAMANO_LOTE_IDS));
+  }
+
+  const resultados = await Promise.all(
+    lotes.map(async (lote) => {
+      const { data, error } = await supabase
+        .from(TABLA_TUTOR_CREDENCIALES_INICIALES)
+        .select("tutor_id, curp_alumno")
+        .in("tutor_id", lote);
+      return (error || !data ? [] : data) as {
+        tutor_id: string;
+        curp_alumno: string;
+      }[];
+    }),
+  );
+
+  for (const filas of resultados) {
+    for (const r of filas) {
+      const contraseña = contraseñaInicialTutorDesdeCurp(r.curp_alumno);
+      if (!contraseña) continue;
+      const arr = mapa.get(r.tutor_id) ?? [];
+      arr.push({ curp_alumno: r.curp_alumno, contraseñaInicial: contraseña });
+      mapa.set(r.tutor_id, arr);
+    }
+  }
+  return mapa;
+}
+
 
 // ---------------------------------------------------------------------------
 // Generación de clave_tutor (TUT-XXXXXXXX).
