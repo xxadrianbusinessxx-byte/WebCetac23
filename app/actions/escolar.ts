@@ -121,10 +121,20 @@ export async function actionObtenerPerfilAlumno(
     };
   }
 
-  const alumno = await buscarAlumnoPorCurp(supabase, curp);
-  const nombreCompleto = alumno ? nombreCompletoAlumno(alumno) : "";
+  // O1 — Consultas INDEPENDIENTES en paralelo (mismo resultado, menos latencia).
+  // Cadenas dependientes conservadas: alumno → registro; grupo → semestre → materias.
   const supabaseLectura = await clienteLecturaEscolar(supabase);
-  const etiquetas = await obtenerEtiquetasPersonales(supabaseLectura, curp);
+  const [alumno, etiquetas, grupoCatalogo, aliases, comentarios, fotoPerfilUrl] =
+    await Promise.all([
+      buscarAlumnoPorCurp(supabase, curp),
+      obtenerEtiquetasPersonales(supabaseLectura, curp),
+      resolverGrupoAlumno(supabaseLectura, curp),
+      listarNombresVisiblesMaterias(supabaseLectura),
+      listarComentariosAlumno(supabase, curp),
+      obtenerFotoPerfilAlumno(supabase, curp),
+    ]);
+
+  const nombreCompleto = alumno ? nombreCompletoAlumno(alumno) : "";
   // C4.6 — La carrera ACADÉMICA OFICIAL proviene del catálogo
   // (grupoCatalogo.carrera) cuando existe inscripción activa. ETIQUETAS.CARRERA
   // se usa SOLO en el fallback legacy (sin inscripción) y como dato descriptivo.
@@ -133,7 +143,6 @@ export async function actionObtenerPerfilAlumno(
     curp,
     nombreCompleto,
   );
-  const aliases = await listarNombresVisiblesMaterias(supabaseLectura);
 
   // C4.1 — Fuente primaria: catálogo académico nuevo.
   //   CURP → inscripciones_alumno (activa) → grupos → grupo_materias → materias.
@@ -143,7 +152,6 @@ export async function actionObtenerPerfilAlumno(
   // (academico_semestres), su oferta de materias queda vacía.
   // C4.24 — sin inscripción activa NO se infiere la oferta desde ETIQUETAS
   // PERSONALES (la identidad académica la define SOLO el directivo).
-  const grupoCatalogo = await resolverGrupoAlumno(supabaseLectura, curp);
   const semestreActivo =
     grupoCatalogo && gradoASemestre(grupoCatalogo.grupo.grado) !== null
       ? await semestreActivoDeGrupo(supabaseLectura, grupoCatalogo.grupo)
@@ -199,8 +207,6 @@ export async function actionObtenerPerfilAlumno(
       }
     : null;
 
-  const comentarios = await listarComentariosAlumno(supabase, curp);
-  const fotoPerfilUrl = await obtenerFotoPerfilAlumno(supabase, curp);
   const puedeEditarEtiquetas =
     sesion?.rol === "alumno" || sesion?.rol === "directivo";
 
