@@ -1,3 +1,4 @@
+import { obtenerSpecOpenAPI } from "./openapi";
 import {
   TABLA_ALUMNOS,
   TABLA_ASIGNACIONES_PROFESOR,
@@ -67,31 +68,9 @@ const TABLAS_SISTEMA = new Set([
   "materias_mapeo_columnas",
 ]);
 
-function leerEnvSupabase(): { urlBase: string; key: string } | null {
-  const urlBase = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/+$/, "");
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  if (!urlBase || !key) return null;
-  return { urlBase, key };
-}
-
-/** Nombres de tablas expuestas en PostgREST (OpenAPI). */
+/** Nombres de tablas expuestas en PostgREST (OpenAPI). O3: usa caché del spec. */
 export async function listarTablasDesdeSupabase(): Promise<string[]> {
-  const cfg = leerEnvSupabase();
-  if (!cfg) return [];
-
-  const r = await fetch(`${cfg.urlBase}/rest/v1/`, {
-    headers: {
-      apikey: cfg.key,
-      Authorization: `Bearer ${cfg.key}`,
-    },
-    cache: "no-store",
-  });
-
-  if (!r.ok) return [];
-
-  const spec = (await r.json()) as { definitions?: Record<string, unknown> };
+  const spec = await obtenerSpecOpenAPI();
   const defs = spec.definitions ?? spec;
   return Object.keys(defs)
     .filter((k) => !k.startsWith("rpc_"))

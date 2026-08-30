@@ -25,6 +25,7 @@ import { archivoCsvAFilas } from "./csv";
 import { matrizAFilasDirectas } from "./excel-a-registros";
 import { obtenerMapeoColumnasMateria } from "./mapeo-columnas-materia";
 import { normalizarNombre } from "./nombres";
+import { invalidarCacheOpenAPI } from "./openapi";
 
 export type FilaExistente = Record<string, unknown>;
 export type FilaAvance = Record<string, string>;
@@ -219,6 +220,8 @@ export async function actualizarMateriaDesdeArchivo(
         nombres_columnas: faltantes,
       });
       if (errAdd) return { ok: false, error: errAdd.message };
+      // O3 — El DDL agregó columnas: invalida la caché del spec.
+      invalidarCacheOpenAPI();
     }
 
     // 3) CURP: mapeo 7C guardado, o columna del avance que parezca CURP.

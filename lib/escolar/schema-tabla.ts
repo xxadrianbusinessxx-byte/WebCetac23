@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { invalidarCacheOpenAPI, obtenerSpecOpenAPI } from "./openapi";
 
 const COLUMNAS_SISTEMA = new Set([
   "id",
@@ -8,35 +9,11 @@ const COLUMNAS_SISTEMA = new Set([
   "contenido",
 ]);
 
-function leerEnvSupabase(): { urlBase: string; key: string } | null {
-  const urlBase = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/+$/, "");
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  if (!urlBase || !key) return null;
-  return { urlBase, key };
-}
-
-/** Nombres de columnas actuales de una tabla (OpenAPI / PostgREST). */
+/** Nombres de columnas actuales de una tabla (OpenAPI / PostgREST). O3: usa caché del spec. */
 export async function listarColumnasTabla(
   nombreTabla: string,
 ): Promise<string[]> {
-  const cfg = leerEnvSupabase();
-  if (!cfg) return ["id", "alumno_nombre", "datos", "actualizado"];
-
-  const r = await fetch(`${cfg.urlBase}/rest/v1/`, {
-    headers: {
-      apikey: cfg.key,
-      Authorization: `Bearer ${cfg.key}`,
-    },
-    cache: "no-store",
-  });
-
-  if (!r.ok) return ["id", "alumno_nombre", "datos", "actualizado"];
-
-  const spec = (await r.json()) as {
-    definitions?: Record<string, { properties?: Record<string, unknown> }>;
-  };
+  const spec = await obtenerSpecOpenAPI();
   const props = spec.definitions?.[nombreTabla.trim()]?.properties;
   if (!props) return ["id", "alumno_nombre", "datos", "actualizado"];
   return Object.keys(props);
@@ -80,6 +57,10 @@ export async function sincronizarColumnasTabla(
     }
     return { ok: false, error: error.message };
   }
+
+  // O3 — El DDL cambió el esquema (columnas agregadas/eliminadas): invalida la
+  // caché del spec para que la siguiente lectura obtenga el esquema actualizado.
+  invalidarCacheOpenAPI();
 
   return { ok: true };
 }
