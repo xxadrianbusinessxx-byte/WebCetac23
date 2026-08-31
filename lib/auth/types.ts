@@ -9,4 +9,7 @@ export type PortalSessionPayload = {
    *  sesiones de profesor/directivo autenticadas desde PROFESORES. Nunca se
    *  resuelve desde CLAVE (ambigua). matricula permanece como histórico. */
   profesorId?: number;
+  /** BLOQUE 9 (PIEZA 5) — true = el profesor/directivo debe cambiar su clave
+   *  antes de usar el portal (cambio forzado). Solo profesor/directivo. */
+  debeCambiarCredenciales?: boolean;
 };

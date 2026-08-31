@@ -58,6 +58,7 @@ export async function loginWithNombreCompleto(
     curp: user.curp,
     nombre: user.nombre,
     profesorId: user.profesorId,
+    debeCambiarCredenciales: user.debeCambiarCredenciales,
   });
   console.log("[6J-login] sesión creada → redirect:", destinationForRole(user.rol));
   redirect(destinationForRole(user.rol));

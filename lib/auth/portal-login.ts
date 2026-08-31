@@ -26,6 +26,9 @@ export type LoginResult = {
   nombre?: string;
   /** C4.10 — Identidad estructural (PROFESORES.ID). Solo profesor/directivo. */
   profesorId?: number;
+  /** BLOQUE 9 (PIEZA 5) — true = el profesor/directivo debe cambiar su clave
+   *  antes de usar el portal (flag debe_cambiar_credenciales). */
+  debeCambiarCredenciales?: boolean;
 };
 
 function safeEqual(a: string, b: string): boolean {
@@ -64,6 +67,9 @@ export async function validarAccesoPortal(
       rol: rolDesdePermisos(profesor.Permisos),
       nombre,
       profesorId: profesor.ID,
+      // BLOQUE 9 (PIEZA 5) — el login NO cambia la lógica de comparación de
+      // clave; solo lee el flag para que la UI fuerce el cambio de clave.
+      debeCambiarCredenciales: Boolean(profesor.debe_cambiar_credenciales),
     };
   }
 

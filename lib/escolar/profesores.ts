@@ -9,9 +9,12 @@ export type ProfesorRow = {
   "NOMBRE/PROFESOR/DIRECTIVO": string;
   CLAVE: string;
   Permisos: string;
+  /** BLOQUE 9 (PIEZA 5) — true = el próximo login exige cambiar la clave. */
+  debe_cambiar_credenciales: boolean;
 };
 
-const SELECT_PROFESOR = 'ID, "NOMBRE/PROFESOR/DIRECTIVO", CLAVE, Permisos';
+const SELECT_PROFESOR =
+  'ID, "NOMBRE/PROFESOR/DIRECTIVO", CLAVE, Permisos, debe_cambiar_credenciales';
 
 export function nombreProfesor(row: ProfesorRow): string {
   return String(row["NOMBRE/PROFESOR/DIRECTIVO"] ?? "").trim();
@@ -67,6 +70,25 @@ export async function listarProfesores(
     ),
   );
   return filas;
+}
+
+/**
+ * BLOQUE 9 (PIEZA 5) — Cambia la CLAVE de un profesor (TEXTO PLANO, mismo
+ * formato que hoy) y limpia el flag de cambio forzado. SOLO debe llamarse con
+ * la identidad ESTRUCTURAL (PROFESORES.ID) validada en la capa de acciones.
+ */
+export async function cambiarClaveProfesor(
+  supabase: SupabaseClient,
+  profesorId: number,
+  nuevaClave: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { error } = await supabase
+    .from(TABLA_PROFESORES)
+    .update({ CLAVE: nuevaClave, debe_cambiar_credenciales: false })
+    .eq("ID", profesorId);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 

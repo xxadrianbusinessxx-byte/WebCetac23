@@ -26,6 +26,8 @@ import { MateriaSelector } from "@/app/components/materia-selector";
 import { MateriasConfigPanel } from "@/app/components/materias-config-panel";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { JustificacionesAdmin } from "./justificaciones-admin";
+import { actionCambiarClaveProfesor } from "@/app/actions/profesores";
+import { ProfesoresCredencialesPanel } from "@/app/components/profesores-credenciales-panel";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 import { materiasConNombreVisible } from "@/lib/escolar/nombres-visibles";
@@ -142,8 +144,34 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
   const inputRegistroRef = useRef<HTMLInputElement>(null);
   const inputPublicacionRef = useRef<HTMLInputElement>(null);
   const inputStatusRef = useRef<HTMLInputElement>(null);
+  // BLOQUE 9 (PIEZA 5) — cambio forzado de clave (texto plano, mismo formato).
+  const [nuevaClave, setNuevaClave] = useState("");
+  const [confirmarClave, setConfirmarClave] = useState("");
+  const [guardandoClave, setGuardandoClave] = useState(false);
+  const [mensajeClave, setMensajeClave] = useState<string | null>(null);
 
   const nombreDirectivo = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
+  const debeCambiar = sesion?.debeCambiarCredenciales === true;
+
+  async function onGuardarClave() {
+    setMensajeClave(null);
+    if (nuevaClave.trim().length < 6) {
+      setMensajeClave("La nueva clave debe tener al menos 6 caracteres.");
+      return;
+    }
+    if (nuevaClave !== confirmarClave) {
+      setMensajeClave("Las claves no coinciden.");
+      return;
+    }
+    setGuardandoClave(true);
+    const r = await actionCambiarClaveProfesor(nuevaClave);
+    setGuardandoClave(false);
+    if (r.ok) {
+      router.refresh();
+    } else {
+      setMensajeClave(r.error);
+    }
+  }
 
   // Registros de calificaciones finales (sin aliases): nombre visible =
   // nombre técnico (fallback). Se reutiliza el mismo selector.
@@ -359,6 +387,52 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
           </div>
         </div>
 
+        {debeCambiar ? (
+          <div className="relative z-10 flex flex-1 flex-col items-center justify-center">
+            <div className="w-full max-w-md rounded-3xl border border-amber-400/60 bg-amber-100/70 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md sm:p-6">
+              <p className="mb-2 text-center text-xs font-extrabold uppercase tracking-wide text-amber-800">
+                Cambia tu clave para continuar
+              </p>
+              <p className="mb-4 text-center text-xs font-semibold text-amber-900">
+                La administración te pidió definir una nueva clave antes de
+                usar el portal.
+              </p>
+              <div className="flex flex-col gap-3">
+                <input
+                  type="password"
+                  value={nuevaClave}
+                  onChange={(e) => setNuevaClave(e.target.value)}
+                  placeholder="Nueva clave (mínimo 6 caracteres)"
+                  className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                />
+                <input
+                  type="password"
+                  value={confirmarClave}
+                  onChange={(e) => setConfirmarClave(e.target.value)}
+                  placeholder="Confirmar clave"
+                  className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                />
+                <div className="flex justify-center">
+                  <GreyActionPill
+                    onClick={() => void onGuardarClave()}
+                    disabled={guardandoClave}
+                  >
+                    {guardandoClave ? "Guardando…" : "Guardar clave"}
+                  </GreyActionPill>
+                </div>
+              </div>
+              {mensajeClave && (
+                <p
+                  className="mt-3 text-center text-xs font-semibold text-red-700"
+                  role="alert"
+                >
+                  {mensajeClave}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
         {/* Calificaciones por materia */}
         <div className="relative flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
           <PanelTab className="mx-auto w-fit">
@@ -675,6 +749,9 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
           <JustificacionesAdmin />
         </section>
 
+        {/* BLOQUE 9 (PIEZA 5) — Forzar cambio de clave por profesor. */}
+        <ProfesoresCredencialesPanel />
+
         {/* Entrar al perfil del alumno */}
         <section
           className="relative mt-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-900/90 p-4 shadow-[0_12px_40px_rgba(2,6,23,0.2)] sm:p-6"
@@ -713,6 +790,8 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
             </div>
           </div>
         </section>
+          </>
+        )}
       </div>
     </FrutigerBackdrop>
   );
