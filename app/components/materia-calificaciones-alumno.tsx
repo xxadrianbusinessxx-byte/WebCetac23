@@ -1,5 +1,6 @@
 "use client";
 
+import { calcularPromedioPonderado } from "@/lib/escolar/mapeo-columnas-materia";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 
 type FilaSemantica = { etiqueta: string; valor: string };
@@ -50,9 +51,16 @@ function GrupoCalificaciones({
 export function MateriaCalificacionesAlumno({
   vista,
   materiaNombre,
+  pesosActividades = null,
 }: {
   vista: MateriaTablaVista | null;
   materiaNombre: string;
+  /**
+   * BLOQUE 9 (PIEZA 1) — Pesos opcionales por actividad (clave = columna
+   * física, valor = porcentaje 0-100). null = feature apagada: NO se muestra
+   * el «Promedio calculado» (comportamiento idéntico al de hoy).
+   */
+  pesosActividades?: Record<string, number> | null;
 }) {
   if (!vista || !vista.filas.length) {
     return (
@@ -92,6 +100,14 @@ export function MateriaCalificacionesAlumno({
     );
   }
 
+  // BLOQUE 9 (PIEZA 1) — Promedio ponderado calculado SOLO en presentación
+  // (en memoria, nunca una query extra). null = feature apagada: no se muestra
+  // nada nuevo (comportamiento idéntico al de hoy).
+  const promedioPonderado =
+    pesosActividades !== null
+      ? calcularPromedioPonderado(vista, pesosActividades)
+      : null;
+
   return (
     <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
       <GrupoCalificaciones titulo="Actividades" items={actividades} />
@@ -99,6 +115,21 @@ export function MateriaCalificacionesAlumno({
       {resultado.length > 0 && (
         <div className="sm:col-span-2">
           <GrupoCalificaciones titulo="Resultado" items={resultado} />
+        </div>
+      )}
+      {promedioPonderado !== null && (
+        <div className="sm:col-span-2">
+          <div className="rounded-3xl border border-violet-400/60 bg-violet-100/50 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md sm:p-4">
+            <p className="mb-1 text-center text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+              Promedio calculado
+            </p>
+            <p className="text-center text-2xl font-extrabold text-sky-950">
+              {promedioPonderado}
+            </p>
+            <p className="mt-1 text-center text-[10px] font-semibold text-slate-600">
+              Promedio ponderado según los pesos que configuró tu profesor.
+            </p>
+          </div>
         </div>
       )}
     </div>

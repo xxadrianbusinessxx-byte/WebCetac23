@@ -7,6 +7,7 @@ import {
   obtenerMapeoColumnasMateria,
   resolverMapeoColumnasAFisico,
   validarMapeoColumnasMateria,
+  validarPesosActividades,
   type MapeoColumnasMateria,
 } from "@/lib/escolar/mapeo-columnas-materia";
 import { normalizarNombre } from "@/lib/escolar/nombres";
@@ -260,6 +261,16 @@ export async function actionGuardarMapeoColumnasMateria(
   const validacion = validarMapeoColumnasMateria(mapeoFisico, encabezados);
   if (!validacion.ok) {
     return { ok: false, error: validacion.errores.join(" · ") };
+  }
+
+  // BLOQUE 9 (PIEZA 1): los pesos opcionales deben referirse a actividades
+  // detectadas y su suma no puede superar 100%. Permite menos de 100.
+  const validacionPesos = validarPesosActividades(
+    mapeoFisico.pesosActividades,
+    mapeoFisico.columnasActividades,
+  );
+  if (!validacionPesos.ok) {
+    return { ok: false, error: validacionPesos.errores.join(" · ") };
   }
 
   const supabase = await createClient();

@@ -243,6 +243,38 @@ export function MateriaMapeoColumnas({
     [asistente.encabezados, columnaUsadaEn],
   );
 
+  // BLOQUE 9 (PIEZA 1) — Pesos OPCIONALES por actividad (promedio ponderado).
+  // Si el profesor no toca este paso, `mapeo.pesosActividades` queda null
+  // (feature apagada, comportamiento actual sin cambios).
+  const sumaPesos = useMemo(() => {
+    const pesos = mapeo.pesosActividades ?? {};
+    return Object.values(pesos).reduce((a, b) => a + b, 0);
+  }, [mapeo.pesosActividades]);
+
+  const pesoInput = useCallback(
+    (col: string): string => {
+      const v = mapeo.pesosActividades?.[col];
+      return v === undefined ? "" : String(v);
+    },
+    [mapeo.pesosActividades],
+  );
+
+  function setPesoActividad(col: string, valor: string) {
+    setMapeo((m) => {
+      const pesos = { ...(m.pesosActividades ?? {}) };
+      const v = Number(valor.trim().replace(",", "."));
+      if (valor.trim() === "" || !Number.isFinite(v)) {
+        delete pesos[col];
+      } else {
+        pesos[col] = Math.min(100, Math.max(0, v));
+      }
+      return {
+        ...m,
+        pesosActividades: Object.keys(pesos).length > 0 ? pesos : null,
+      };
+    });
+  }
+
   async function confirmar() {
     if (!validacion.ok) {
       setMensaje({ ok: false, texto: "Revisa la configuración." });
@@ -455,6 +487,59 @@ export function MateriaMapeoColumnas({
         </div>
       </div>
 
+      {/* PASO OPCIONAL — PESOS DE ACTIVIDADES (promedio ponderado) */}
+      {mapeo.columnasActividades.length > 0 && (
+        <div className="rounded-3xl border border-white/55 bg-violet-100/30 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
+          <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+            Paso opcional · Pesos de actividades (promedio ponderado)
+          </p>
+          <p className="mb-3 text-[10px] font-semibold text-slate-600">
+            Asigna un porcentaje (0-100) a cada actividad para que el alumno vea
+            un «Promedio calculado». Si lo dejas vacío no cambia nada (promedio
+            ponderado desactivado). La suma no debe superar 100%.
+          </p>
+          <ul className="flex flex-col gap-1.5">
+            {mapeo.columnasActividades.map((col) => (
+              <li
+                key={col}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-white/60 bg-white/80 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]"
+              >
+                <span className="min-w-0 truncate text-[11px] font-bold uppercase tracking-wide text-sky-900">
+                  {col}
+                </span>
+                <label className="flex shrink-0 items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-500">%</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.5"
+                    value={pesoInput(col)}
+                    onChange={(e) => setPesoActividad(col, e.target.value)}
+                    placeholder="—"
+                    className="w-20 rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-3 py-1.5 text-center text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                    aria-label={`Peso de la actividad ${col}`}
+                  />
+                </label>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[10px] font-semibold text-slate-600">
+            Suma de pesos: {sumaPesos}%
+            {sumaPesos > 100 && (
+              <span className="ml-2 rounded-full border border-red-300/60 bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-800">
+                No puede superar 100%
+              </span>
+            )}
+            {sumaPesos > 0 && sumaPesos <= 100 && (
+              <span className="ml-2 rounded-full border border-emerald-300/60 bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
+                Promedio ponderado activo
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
       {/* PASO 3 — OCULTAR */}
       <div className="rounded-3xl border border-white/55 bg-amber-100/30 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
         <GrupoCheckboxes
@@ -484,6 +569,7 @@ export function MateriaMapeoColumnas({
         <MateriaCalificacionesAlumno
           vista={vistaPreview}
           materiaNombre="Vista previa"
+          pesosActividades={mapeo.pesosActividades}
         />
       </div>
 

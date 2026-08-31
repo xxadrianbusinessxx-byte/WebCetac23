@@ -8,6 +8,7 @@ import {
   actionObtenerVistaMateria,
   actionSubirFotoPerfil,
 } from "@/app/actions/escolar";
+import { actionObtenerMapeoColumnasMateria } from "@/app/actions/materias";
 import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistencia-alumno";
 import { MateriaCalificacionesAlumno } from "@/app/components/materia-calificaciones-alumno";
 import { MateriaSelector } from "@/app/components/materia-selector";
@@ -120,6 +121,11 @@ export function PerfilClient({
   const [vistaMateria, setVistaMateria] = useState<MateriaTablaVista | null>(
     null,
   );
+  // BLOQUE 9 (PIEZA 1) — pesos opcionales de la materia seleccionada para el
+  // «Promedio calculado». null = feature apagada (no se muestra nada nuevo).
+  const [pesosMateria, setPesosMateria] = useState<
+    Record<string, number> | null
+  >(null);
   const [comentarioPersonal, setComentarioPersonal] = useState(() =>
     comentarioPersonalDesdeFila(etiquetas),
   );
@@ -175,6 +181,11 @@ export function PerfilClient({
     setVistaMateria(vista);
   }, []);
 
+  const refrescarPesos = useCallback(async (nombre: string) => {
+    const mapeo = await actionObtenerMapeoColumnasMateria(nombre);
+    setPesosMateria(mapeo?.pesosActividades ?? null);
+  }, []);
+
   useEffect(() => {
     const primera = materias[0]?.idInterno ?? "";
     setMateriaSeleccionada((prev) =>
@@ -183,8 +194,11 @@ export function PerfilClient({
   }, [materias]);
 
   useEffect(() => {
-    if (materiaSeleccionada) void refrescarMateria(materiaSeleccionada);
-  }, [materiaSeleccionada, refrescarMateria]);
+    if (materiaSeleccionada) {
+      void refrescarMateria(materiaSeleccionada);
+      void refrescarPesos(materiaSeleccionada);
+    }
+  }, [materiaSeleccionada, refrescarMateria, refrescarPesos]);
 
   const tieneGrupo = Boolean(
     etiquetas?.GRADO?.trim() && etiquetas?.GRUPO?.trim(),
@@ -372,6 +386,7 @@ export function PerfilClient({
                         <MateriaCalificacionesAlumno
                           vista={vistaMateria}
                           materiaNombre={nombreVisibleSeleccionada}
+                          pesosActividades={pesosMateria}
                         />
                       </div>
                     </div>
