@@ -10,6 +10,7 @@ import {
   generarPlantillaAsistencia,
   guardarConfiguracionClasesProfesor,
   listarGruposAsistencia,
+  obtenerAlumnosDelGrupo,
   obtenerConfiguracionClasesProfesor,
   obtenerEstadosAsistenciaAlumno,
   previsualizarAsistencias,
@@ -20,8 +21,10 @@ import {
   type PlanAsistencia,
   type ResumenAsistencia,
 } from "@/lib/escolar/asistencias";
+import { resolverAsignacionesProfesor } from "@/lib/escolar/catalogo-academico";
 
 import {
+  TABLA_ASISTENCIA_ALUMNOS,
   TABLA_CARRERAS,
   TABLA_GRUPOS,
   TABLA_INSCRIPCIONES_ALUMNO,
@@ -469,9 +472,13 @@ export async function actionSolicitarJustificacionAsistencia(input: {
 
   const supabase = await createClient();
 
-  // Permisos: tutor (solo sus alumnos) o alumno (solo su propia CURP).
-  let solicitanteTipo: "tutor" | "alumno" = "tutor";
+  // Permisos: tutor (solo sus alumnos), alumno (solo su propia CURP) o
+  // profesor/directivo (BLOQUE 9 / PIEZA 3 — validado abajo con la función
+  // YA EXISTENTE `profesorImparteEnGrupo`, que verifica `clases_impartidas`).
+  let solicitanteTipo: "tutor" | "alumno" | "profesor" = "tutor";
   let solicitanteId = sesion.matricula;
+  const rolProfesorJustifica =
+    sesion.rol === "maestro" || sesion.rol === "directivo";
   if (sesion.rol === "tutor") {
     const curps = await listarCurpsDeTutor(supabase, sesion.matricula);
     if (!curps.includes(curp)) {
@@ -482,7 +489,7 @@ export async function actionSolicitarJustificacionAsistencia(input: {
       return { ok: false, error: "Solo puedes justificar tu propia asistencia." };
     }
     solicitanteTipo = "alumno";
-  } else {
+  } else if (!rolProfesorJustifica) {
     return { ok: false, error: "No tienes permiso para justificar asistencias." };
   }
 
@@ -490,6 +497,25 @@ export async function actionSolicitarJustificacionAsistencia(input: {
   const contexto = await resolverContextoAlumnoDesdeInscripcion(supabase, curp);
   if (!contexto) {
     return { ok: false, error: "El alumno no tiene inscripción activa; no se puede justificar." };
+  }
+
+  // BLOQUE 9 (PIEZA 3): el profesor solo justifica faltas en los grupos donde
+  // realmente imparte clase (validación existente, NO se reimplementa).
+  if (rolProfesorJustifica) {
+    const imparte = await profesorImparteEnGrupo(
+      supabase,
+      sesion.matricula,
+      contexto.grado,
+      contexto.grupo,
+    );
+    if (!imparte) {
+      return {
+        ok: false,
+        error: "Solo puedes justificar faltas en los grupos donde impartes clase.",
+      };
+    }
+    solicitanteTipo = "profesor";
+    solicitanteId = sesion.matricula;
   }
   // Debe existir una falta real ese día.
   const { esperadas, asistidas } = await resumenClasesYAsistencia(supabase, {
@@ -544,6 +570,155 @@ export async function actionSolicitarJustificacionAsistencia(input: {
     return { ok: false, error: "No se pudo guardar la justificación." };
   }
   return { ok: true };
+}
+
+/**
+ * BLOQUE 9 (PIEZA 4) — Anula (resta 1 a) el aporte de asistencia que el
+ * profesor registró para un alumno en una fecha concreta.
+ *
+ * SEGURIDAD:
+ *   - SOLO rol «maestro» o «directivo».
+ *   - El profesor debe impartir en el grupo (profesorImparteEnGrupo, existente).
+ *   - UPDATE puntual (NO upsert-insert): scoped a `profesor_clave =
+ *     sesion.matricula` + curp + fecha + grado + grupo. El WHERE por
+ *     profesor_clave garantiza que NUNCA se toca el aporte de otro profesor.
+ *   - Resta 1 con piso en 0 (GREATEST(clases_asistidas - 1, 0) emulado en el
+ *     servidor con Math.max; el CHECK `clases_asistidas >= 0` de la tabla
+ *     sigue protegiendo contra negativos).
+ */
+export async function actionAnularAsistenciaProfesor(input: {
+  curp: string;
+  fecha: string;
+  grado: string;
+  grupo: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+    return { ok: false, error: "No tienes permiso para anular asistencias." };
+  }
+
+  const curp = input.curp.trim().toUpperCase();
+  const fecha = input.fecha.trim();
+  const grado = input.grado.trim();
+  const grupo = input.grupo.trim();
+  if (!curp || !fecha || !grado || !grupo) {
+    return { ok: false, error: "Indica CURP, fecha, grado y grupo." };
+  }
+  if (esFechaFuturaLocal(fecha)) {
+    return { ok: false, error: "No se puede anular una fecha futura." };
+  }
+
+  const supabase = await createClient();
+
+  // Validación existente: el profesor solo opera en los grupos donde imparte.
+  const imparte = await profesorImparteEnGrupo(
+    supabase,
+    sesion.matricula,
+    grado,
+    grupo,
+  );
+  if (!imparte) {
+    return {
+      ok: false,
+      error: "Solo puedes anular asistencias en los grupos donde impartes clase.",
+    };
+  }
+
+  // Buscar SOLO la fila de ESTE profesor (profesor_clave = sesión).
+  const { data: fila, error: errBuscar } = await supabase
+    .from(TABLA_ASISTENCIA_ALUMNOS)
+    .select("id, clases_asistidas")
+    .eq("profesor_clave", sesion.matricula)
+    .eq("curp", curp)
+    .eq("fecha", fecha)
+    .eq("grado", grado)
+    .eq("grupo", grupo)
+    .maybeSingle();
+
+  if (errBuscar) return { ok: false, error: errBuscar.message };
+  if (!fila) {
+    return {
+      ok: false,
+      error: "No hay asistencia registrada por ti ese día para este alumno.",
+    };
+  }
+
+  // Resta 1 con piso en 0 (GREATEST(clases_asistidas - 1, 0)).
+  const nuevoValor = Math.max((Number(fila.clases_asistidas) || 0) - 1, 0);
+
+  // UPDATE puntual sobre la fila concreta (id) — nunca la de otro profesor.
+  const { error: errUpdate } = await supabase
+    .from(TABLA_ASISTENCIA_ALUMNOS)
+    .update({ clases_asistidas: nuevoValor })
+    .eq("id", fila.id);
+
+  if (errUpdate) return { ok: false, error: errUpdate.message };
+  return { ok: true };
+}
+
+/**
+ * BLOQUE 9 (PIEZA 4) — Lista los grupos donde el profesor de sesión imparte
+ * clase (`resolverAsignacionesProfesor`, catálogo) con los alumnos de cada
+ * grupo (`obtenerAlumnosDelGrupo`, que ya maneja catálogo + fallback legacy).
+ *
+ * PERF: los alumnos de cada grupo se resuelven en PARALELO (Promise.all).
+ * NO se hace un buscador sobre los 461 alumnos completos: solo sobre los
+ * grupos asignados al profesor de la sesión.
+ */
+export async function actionListarAlumnosGruposProfesor(): Promise<
+  | {
+      ok: true;
+      grupos: {
+        grado: string;
+        grupo: string;
+        carrera: string;
+        alumnos: { curp: string; nombre: string }[];
+      }[];
+    }
+  | { ok: false; error: string }
+> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+    return { ok: false, error: "No tienes permiso para consultar alumnos." };
+  }
+
+  const supabase = await createClient();
+  const asignaciones = await resolverAsignacionesProfesor(
+    supabase,
+    sesion.matricula,
+  );
+  if (asignaciones.length === 0) {
+    return {
+      ok: false,
+      error:
+        "No tienes grupos asignados en el catálogo (asignaciones_profesor). La administración debe crear tus asignaciones.",
+    };
+  }
+
+  // Agrupar por (grado, grupo, carrera) sin duplicados.
+  const gruposUnicos = new Map<
+    string,
+    { grado: string; grupo: string; carrera: string }
+  >();
+  for (const a of asignaciones) {
+    const grado = String(a.grupo.grado ?? "").trim();
+    const grupo = String(a.grupo.nombre ?? "").trim();
+    const carrera = String(a.carrera?.clave ?? "").trim();
+    if (!grado || !grupo) continue;
+    gruposUnicos.set(`${grado}|${grupo}|${carrera}`, { grado, grupo, carrera });
+  }
+  const grupos = [...gruposUnicos.values()];
+
+  const porGrupo = await Promise.all(
+    grupos.map(async (g) => ({
+      ...g,
+      alumnos: (
+        await obtenerAlumnosDelGrupo(supabase, g.grado, g.grupo, g.carrera)
+      ).map((al) => ({ curp: al.curp, nombre: al.nombre })),
+    })),
+  );
+
+  return { ok: true, grupos: porGrupo };
 }
 
 

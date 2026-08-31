@@ -18,6 +18,7 @@ import type { MateriaTablaVista } from "@/lib/escolar/types";
 import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
 import type { PortalSessionPayload } from "@/lib/auth/types";
 import { AsistenciasPanel } from "../components/asistencias-panel";
+import { BuscadorAlumnoProfesor } from "../components/buscador-alumno-profesor";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
 
@@ -226,6 +227,12 @@ export function ProfesorClient({ sesion, materias }: Props) {
         </div>
 
         <AsistenciasPanel />
+
+        {/* BLOQUE 9 (PIEZA 4) — Asistencia de mis alumnos (solo grupos donde
+            imparte el profesor de sesión). */}
+        {sesion?.matricula ? (
+          <BuscadorAlumnoProfesor profesorClave={sesion.matricula} />
+        ) : null}
 
         <section
           className="relative mt-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"

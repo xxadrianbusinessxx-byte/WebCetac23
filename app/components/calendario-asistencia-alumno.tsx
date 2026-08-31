@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
+  actionAnularAsistenciaProfesor,
   actionObtenerEstadosAsistenciaAlumno,
 } from "@/app/actions/asistencias";
 import {
@@ -47,6 +48,11 @@ type Props = {
   profesorClave?: string;
   /** Si true, permite solicitar justificación en días de falta. */
   permitirJustificacion?: boolean;
+  /**
+   * BLOQUE 9 (PIEZA 4) — Si true (y hay `profesorClave`), permite ANULAR el
+   * aporte de asistencia registrado por ESE profesor en días «asistio».
+   */
+  permitirAnulacion?: boolean;
 };
 
 
@@ -148,6 +154,7 @@ export function CalendarioAsistenciaAlumno({
   nombreAlumno,
   profesorClave,
   permitirJustificacion = false,
+  permitirAnulacion = false,
 }: Props) {
   const [dias, setDias] = useState<DiaEstadoAsistencia[]>([]);
   const [cargando, setCargando] = useState(false);
@@ -173,6 +180,10 @@ export function CalendarioAsistenciaAlumno({
   const [mensajeJustificacion, setMensajeJustificacion] = useState<
     string | null
   >(null);
+
+  // BLOQUE 9 (PIEZA 4) — Anulación del aporte del profesor en un día «asistio».
+  const [anulando, setAnulando] = useState(false);
+  const [mensajeAnulacion, setMensajeAnulacion] = useState<string | null>(null);
 
   // Justificaciones del alumno (por fecha) para mostrar su estado.
   const [justificaciones, setJustificaciones] = useState<
@@ -269,6 +280,7 @@ export function CalendarioAsistenciaAlumno({
     );
     setSeleccionado(null);
     setMensajeJustificacion(null);
+    setMensajeAnulacion(null);
   }
 
   // Resumen derivado (solo sobre clases registradas: asistencias + faltas).
@@ -316,6 +328,27 @@ export function CalendarioAsistenciaAlumno({
       await cargarJustificaciones();
     } else {
       setMensajeJustificacion(res.error);
+    }
+  }
+
+  // BLOQUE 9 (PIEZA 4) — Anula el aporte de asistencia del profesor (día
+  // «asistio»). Mismo patrón de confirmación/envió que la justificación.
+  async function onAnular() {
+    if (!seleccionado || !grado || !grupo) return;
+    setAnulando(true);
+    setMensajeAnulacion(null);
+    const res = await actionAnularAsistenciaProfesor({
+      curp,
+      fecha: seleccionado,
+      grado,
+      grupo,
+    });
+    setAnulando(false);
+    if (res.ok) {
+      setMensajeAnulacion("Asistencia anulada correctamente.");
+      await cargar();
+    } else {
+      setMensajeAnulacion(res.error);
     }
   }
 
@@ -423,6 +456,7 @@ export function CalendarioAsistenciaAlumno({
                     onClick={() => {
                       setSeleccionado(fecha);
                       setMensajeJustificacion(null);
+                      setMensajeAnulacion(null);
                     }}
                     className={`flex min-h-[3rem] flex-col items-center justify-center rounded-xl border p-1 text-xs font-bold transition hover:brightness-105 sm:min-h-[3.5rem] ${info.clase} ${
                       esSeleccionado ? "ring-2 ring-sky-500 ring-offset-1" : ""
@@ -544,6 +578,37 @@ export function CalendarioAsistenciaAlumno({
                         role="status"
                       >
                         {mensajeJustificacion}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+              {/* BLOQUE 9 (PIEZA 4) — Anular el aporte del profesor en un día
+                  «asistio». Mismo patrón visual/de confirmación que la
+                  justificación (bloque en el detalle del día). */}
+              {permitirAnulacion &&
+                profesorClave &&
+                diaSeleccionado.estado === "asistio" && (
+                  <div className="mt-3 flex flex-col items-center gap-2">
+                    <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                      Anular asistencia registrada por ti
+                    </p>
+                    <GreyActionPill
+                      onClick={() => void onAnular()}
+                      disabled={anulando}
+                    >
+                      {anulando ? "Anulando…" : "Anular"}
+                    </GreyActionPill>
+                    {mensajeAnulacion && (
+                      <p
+                        className={`text-center text-xs font-semibold ${
+                          mensajeAnulacion.startsWith("Asistencia anulada")
+                            ? "text-sky-900"
+                            : "text-red-700"
+                        }`}
+                        role="status"
+                      >
+                        {mensajeAnulacion}
                       </p>
                     )}
                   </div>
