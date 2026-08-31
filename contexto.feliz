@@ -996,6 +996,88 @@ de optimización.
     - docs/OPTIMIZACION_RENDIMIENTO_400_500.md
 
 
+Bloque 9 — Estado: completado — 6 FEATURES PARA PROFESORES EN MATERIAS/
+ASISTENCIAS/LOGIN (promedio ponderado, plantilla xlsx, justificación y
+anulación de asistencia, buscador por grupos asignados, cambio forzado de
+clave). Cinco commits atómicos (uno por pieza), cada uno revertible por
+separado. Regla de rendimiento cumplida: cero N+1 nuevos, cero select(*)
+sobre tablas grandes, cálculos aritméticos en memoria. Build verificado
+(tsc --noEmit OK + next build OK).
+  · PIEZA 1 — Promedio ponderado opcional por actividad:
+      - SQL: supabase/agregar-pesos-actividades-materia.sql → columna
+        `pesos_actividades jsonb` en materias_mapeo_columnas (NULL = feature
+        apagada, comportamiento actual sin cambios).
+      - lib/escolar/mapeo-columnas-materia.ts: MapeoColumnasMateria.pesosActividades,
+        validarPesosActividades (claves ∈ columnasActividades, suma ≤ 100,
+        null permitido), calcularPromedioPonderado (SOLO presentación, en
+        memoria, nunca una query extra), persistencia en el UPSERT.
+      - app/components/materia-mapeo-columnas.tsx: paso OPCIONAL de pesos tras
+        «Actividades» (vacío = se guarda null; aviso si suma > 100, no bloquea
+        si suma < 100).
+      - app/components/materia-calificaciones-alumno.tsx: tarjeta extra
+        «Promedio calculado» solo si pesosActividades ≠ null.
+      - app/perfil/perfil-client.tsx: conecta pesosMateria a la vista del alumno.
+      - app/actions/materias.ts: actionGuardarMapeoColumnasMateria valida pesos.
+  · PIEZA 2 — Descargar plantilla de materia por grado/grupo/carrera:
+      - lib/escolar/materias.ts: generarPlantillaMateriaXlsx (reutiliza
+        obtenerAlumnosDelGrupo de asistencias; librería «xlsx» ya instalada).
+      - app/actions/materias.ts: actionDescargarPlantillaMateria (rol
+        maestro/directivo, mismo patrón que actionDescargarPlantillaAsistencia).
+      - app/components/asistencias-panel.tsx: botón «Descargar plantilla de
+        materia (CURP | NOMBRE)» reutilizando el selector grado/grupo/carrera
+        existente (sin ciclo).
+  · PIEZA 3 — Justificación de asistencia por el profesor:
+      - SQL: supabase/ampliar-solicitante-tipo-justificaciones.sql → CHECK de
+        solicitante_tipo ampliado a ('tutor','alumno','profesor') (nombre real
+        del constraint confirmado: justificaciones_asistencia_solicitante_tipo_check).
+      - app/actions/asistencias.ts: actionSolicitarJustificacionAsistencia
+        acepta rol maestro/directivo y valida con profesorImparteEnGrupo
+        (existente); solicitanteTipo='profesor', solicitanteId=sesion.matricula.
+  · PIEZA 4 — Anulación de asistencia + buscador «Asistencia de mis alumnos»:
+      - app/actions/asistencias.ts: actionAnularAsistenciaProfesor (UPDATE
+        puntual scoped a profesor_clave=sesión + curp + fecha + grado + grupo;
+        resta 1 con piso 0 — GREATEST emulado con Math.max porque PostgREST no
+        acepta expresiones SQL en UPDATE; el CHECK >= 0 de la tabla sigue
+        protegiendo). NUNCA toca el aporte de otro profesor.
+      - app/components/calendario-asistencia-alumno.tsx: prop permitirAnulacion
+        (botón «Anular» en días «asistio», mismo patrón visual/de confirmación
+        que permitirJustificacion).
+      - app/components/buscador-alumno-profesor.tsx (nuevo): reutiliza
+        resolverAsignacionesProfesor + obtenerAlumnosDelGrupo vía
+        actionListarAlumnosGruposProfesor (Promise.all por grupo); NUNCA busca
+        sobre los 461 alumnos completos. Al elegir alumno renderiza
+        CalendarioAsistenciaAlumno con profesorClave + permitirJustificacion +
+        permitirAnulacion.
+      - app/profesor/profesor-client.tsx: nueva sección «Asistencia de mis
+        alumnos».
+  · PIEZA 5 — Cambio forzado de clave (profesores/directivos, TEXTO PLANO):
+      - SQL: supabase/agregar-debe-cambiar-credenciales-profesores.sql →
+        `debe_cambiar_credenciales boolean NOT NULL DEFAULT false` en
+        PROFESORES (DEFAULT false intencional: no bloquea a los profesores
+        actuales; el directivo activa el flag por profesor).
+      - lib/escolar/profesores.ts: flag en ProfesorRow + SELECT + helper
+        cambiarClaveProfesor.
+      - lib/auth/portal-login.ts: lee el flag y lo devuelve en LoginResult
+        (NO se toca clavesCoinciden). lib/auth/types.ts y app/actions/login.ts
+        propagan debeCambiarCredenciales a la sesión.
+      - app/actions/profesores.ts (nuevo): actionCambiarClaveProfesor (solo
+        para sí mismo; identidad = PROFESORES.ID; mínimo 6 caracteres; escribe
+        CLAVE en texto plano y limpia el flag + refresca la cookie),
+        actionListarProfesoresCredenciales y
+        actionCambiarDebeCambiarCredencialesProfesor (solo directivo).
+      - app/profesor/profesor-client.tsx y app/directivo/directivo-client.tsx:
+        formulario de cambio forzado ANTES del panel si
+        sesion.debeCambiarCredenciales === true (mismo patrón que tutor).
+      - app/components/profesores-credenciales-panel.tsx (nuevo): toggle por
+        profesor en el panel del directivo para forzar el cambio.
+SQL pendiente de ejecutar en Supabase (SQL Editor), en este orden:
+  1) supabase/agregar-pesos-actividades-materia.sql
+  2) supabase/ampliar-solicitante-tipo-justificaciones.sql
+  3) supabase/agregar-debe-cambiar-credenciales-profesores.sql
+(El GREATEST de la anulación se emuló en el servidor con Math.max; no se
+requiere un 4º script SQL.)
+
+
   Fin de contexto.feliz
 
 
