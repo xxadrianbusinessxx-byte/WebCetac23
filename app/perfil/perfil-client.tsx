@@ -241,6 +241,11 @@ export function PerfilClient({
                 <img
                   src={fotoUrl}
                   alt=""
+                  // FASE 7 (6A-2) — dimensiones explícitas del avatar
+                  // (256 px es la transformación de Cloudinary; el CSS
+                  // h-full w-full object-cover mantiene el encuadre).
+                  width={256}
+                  height={256}
                   className="h-full w-full object-cover"
                   onError={() => setFotoRota(true)}
                 />

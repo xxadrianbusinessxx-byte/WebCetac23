@@ -759,3 +759,573 @@ Nada que diagnosticar sobre la RPC en Vercel hasta que exista el deployment inte
 ### Siguiente acción (justificada solo por evidencia)
 Tras deploy y benchmark limpio de `/perfil` (c=400 100% 2xx, 0 timeouts de servidor, p99 razonable, sin degradación progresiva): plantear carga mixta (alumnos+tutores+boletas/asistencias+directivo), NO antes.
 
+
+---
+
+# FASE 6 — AUDITORÍA MATERIAS + CLOUDINARY + NOTICIAS
+
+> Fecha: 31/08/2026. **Fase de auditoría pura: NO se implementó nada.** Objetivo: reconstruir
+> exactamente cómo el sistema encuentra al alumno dentro de una materia, cómo actualiza/refleja sus
+> actividades y calificaciones, dónde está el coste real, si Cloudinary es lento por API o por
+> descarga, y cómo agregar el visor grande de noticias sin perjudicar el login. Regla: **mide →
+> demuestra → prioriza → propone.**
+
+## 1. Estado inicial
+
+- HEAD: `84fc6e0` (docs(contexto): registra Bloque 9 — 6 features para profesores).
+- `git status`: sin modificaciones de código funcional. Solo untracked preexistentes de la
+  subdivisión (`scripts/7-*`, `supabase/ampliar-materias-15-aliases.sql`).
+- Archivos modificados en esta fase: **ninguno funcional**. Solo este documento (`docs/...`).
+- Sin commits, sin push, sin SQL ejecutado, sin índices creados.
+
+### Datos reales actuales (leídos de Supabase en esta fase)
+
+| Tabla | Filas | Nota |
+| --- | --- | --- |
+| ALUMNOS | 461 | `cr 0-0/461` (coincide con FASE 0) |
+| PROFESORES | 19 | — |
+| grupos | 24 | — |
+| materias (catálogo) | 15 | — |
+| grupo_materias | **253** | FASE 0 decía 240 → creció con la subdivisión |
+| inscripciones_alumno | 443 | — |
+| materias_nombres_visibles | 101 | — |
+| academico_semestres | 5 | — |
+| asignaciones_profesor | 4 | — |
+| materias_mapeo_columnas | 2 | — |
+| Tablas MAT (materias físicas) | **360** | FASE 0 decía 240 → subdivisión amplió (15 aliases) |
+| Tablas REGISTRO | 24 | — |
+| Filas en tablas MAT / REGISTRO | **0** | `*/0` confirmado (`1ROAMAT001`, `6TORHAMAT001`, `1RO A REGISTRO...`) |
+
+Espec OpenAPI: **902 KB · 1.647 ms frío · 412 definiciones** (más grande que los 681 KB de FASE 0).
+
+## 2. Materias — arquitectura real del flujo
+
+Cadena real que ejecuta `/perfil` (alumno):
+
+```
+GET /perfil (Server Component, force-dynamic)
+ └─ actionObtenerPerfilAlumno(curp)
+     ├─ RPC obtener_perfil_alumno(p_curp)  → 1 request (SECURITY DEFINER, solo service_role)
+     │     devuelve: alumno, etiquetas, inscripcion, grupo, periodo, carrera, semestres,
+     │     grupo_materias, materias, identidades, nombres_visibles, comentarios
+     ├─ obtenerFotoPerfilAlumno(curp)  → Cloudinary api.resource (1 llamada admin, caché O5)
+     └─ obtenerVistaRegistroAlumno(curp)  → boleta
+         ├─ resolverPertenenciaBoleta: inscripciones(1) + grupos(1) + carreras(0–1)
+         ├─ nombreTablaRegistroDesdeGrupo → listarRegistrosCompletos (spec cacheado O3)
+         └─ leerVistaRegistroEstatus → listarColumnasTabla (spec cacheado) + select(*) completo (1)
+
+Cliente (PerfilClient) al montar:
+ └─ useEffect → refrescarMateria(materias[0]) → actionObtenerVistaMateria(idInterno)
+     ├─ obtenerMapeoColumnasMateria  (1)
+     ├─ resolverGrupoAlumno          (inscripción 1 + grupo 1 + periodo 1 + carrera 1 = hasta 4)
+     ├─ semestreActivoDeGrupo        (academico_semestres 1)
+     ├─ resolverMateriasAlumno       (re-resuelve resolverGrupoAlumno 4 + grupo_materias 1 + materias 1 = 6)
+     ├─ validarAccesoAlumno          (resolverGrupoMateria: gm 1 + materia 1 + grupo 1; inscripción 1 = 4)
+     ├─ buscarAlumnoPorCurp          (1)
+     └─ leerVistaMateriaAlumno       (ilike alumno_nombre 1 + fallback select(*) 0–2)
+ └─ refrescarPesos → actionObtenerMapeoColumnasMateria (1)
+```
+
+- **Requests por `/perfil` ≈ 24–25** (1 RPC + 1 Cloudinary admin + ~4 boleta + ~18 materia + 1 mapeo),
+  en su mayoría secuenciales. La RPC consolidó el bloque inicial (~21 → 1), **pero la carga perezosa de
+  la primera materia vuelve a resolver el mismo catálogo** (~18 requests).
+- `select("*")` se usa en: RPC (internal), `leerVistaMateriaAlumno`, `leerVistaRegistroEstatus`,
+  `leerHojaDesdeTabla`, catálogo (`inscripciones`, `grupos`, `periodos`, `carreras`, `grupo_materias`,
+  `materias`), `alumnos` (range 0–4999), `etiquetas-status` (fallback limit 5000).
+- `ilike`: solo en `leerVistaMateriaAlumno` → `alumno_nombre ILIKE '%token%'` (token = primera palabra
+  significativa del nombre). No hay índice pg_trgm (innecesario hoy: tablas vacías; 40–500 filas se
+  escanean en pocos ms).
+- Fallback (tabla completa + búsqueda JS): ocurre cuando el `ilike` no devuelve filas o cuando la
+  búsqueda en las candidatas no localiza la fila.
+- **Medición real de la cadena completa (local → Supabase, secuencial, tablas vacías):**
+  `RPC 174 ms · boleta 644 ms (insc 151 + grupo 325 + registro 168) · cadena materia 2.564 ms (15 queries)`
+  → **~3.4 s por perfil**, de los cuales la **cadena de materia es el 75 %** y la mitad de esa cadena es
+  **trabajo duplicado** (inscripción y grupo se resuelven 3 veces; la RPC ya los resolvió).
+
+
+## 3. Búsqueda del alumno — queries, payloads, identidad y costes
+
+### 3.1 Cómo encuentra al alumno (semántica exacta actual)
+
+`leerVistaMateriaAlumno` + `filaCoincideAlumno` + `nombresMismoAlumno` (orden de prioridad):
+
+1. **CURP**: si el criterio trae CURP, la primera celda de la fila que sea EXACTAMENTE igual
+   (`trim().toUpperCase() === curp`) ⇒ match inmediato (no revisa nombre).
+2. **`alumno_nombre`** (C4.24): columna de sistema que siempre se considera columna de nombre (aunque
+   `colsDatos` la excluya). Si la celda contiene el nombre del criterio (`nombresMismoAlumno` o
+   alternativa) ⇒ match.
+3. **Resto de celdas**: `filaCoincideAlumno` barre todas las columnas (CURP en cualquier celda, luego
+   nombre con `nombresCoinciden` = tokens normalizados sin acentos/mayúsculas, comparación por conjunto
+   ordenado — soporta orden invertido apellidos/nombre).
+4. **Filtros previos en PostgREST**: `alumno_nombre ilike '%<primerTokenNombre>%'` si la tabla tiene la
+   columna `alumno_nombre` (siempre la tiene en el flujo de inserción directa). **No se filtra por CURP
+   en PostgREST** aunque la tabla tenga una columna CURP.
+
+### 3.2 Identidad (CURP ↔ nombre ↔ alumno_nombre ↔ idInterno ↔ tabla_legacy)
+
+- `CURP` = identidad del alumno (login, RPC, búsqueda en filas). `alumno_nombre` = nombre consolidado en
+  cada fila de materia (se llena al subir Excel: columnas cuyo encabezado contiene nombre/apellido/
+  paterno/materno/alumno). `nombresMismoAlumno` = comparador tolerante al orden y tildes.
+- `idInterno` = **nombre físico exacto de la tabla** (`2DORHAMAT008`, inmutable, C4.28). `tabla_legacy` =
+  puente físico desde `grupo_materias` hacia esa tabla. `nombreVisible` = solo presentación.
+- **No se propone cambiar ninguna de estas semánticas.** Las propuestas de esta fase solo:
+  (a) filtran MÁS en PostgREST con los mismos criterios (CURP exacta, `alumno_nombre` ilike), y
+  (b) evitan re-resolver lo que la RPC ya resolvió en la misma petición. Ambas preservan la equivalencia:
+  `filaCoincideAlumno` devuelve true si la CURP coincide en cualquier celda **o** si el nombre coincide;
+  filtrar por `CURP = X OR alumno_nombre ilike` produce exactamente el mismo conjunto de candidatas.
+
+### 3.3 Costes (medidos y conceptuales)
+
+| Escenario | Requests | Payload | Tiempo (medido/conceptual) |
+| --- | --- | --- | --- |
+| 1 alumno abre 1 materia (hoy, tablas vacías) | ~18 (secuencial) | < 5 KB | **2.564 ms medidos** |
+| 1 alumno `/perfil` completo (hoy) | ~24–25 | < 10 KB | **~3.4 s medidos** (secuencial) |
+| Tabla de materia poblada 40 filas × 30 cols | 1 `select(*)` | ≈ 21 KB | conceptual |
+| Tabla de materia poblada 500 filas × 30 cols | 1 `select(*)` | ≈ 266 KB | conceptual |
+| Registro/boleta poblado 500 filas × 38 cols | 1 `select(*)` | ≈ 266 KB | conceptual |
+| Matching JS (replicado, sintético) | — | — | 0.04–1.1 ms (500 filas ≈ 0.15 ms) |
+| 400 alumnos `/perfil` simultáneos (poblado) | ~9.600 | hasta 106 MB solo boletas | conceptual (sin filtrado) |
+
+**Conclusiones de tamaño:** con las tablas VACÍAS actuales no hay coste de transferencia real (filas 0).
+Cuando se pueblen, el `select(*)` de registro/materia será el coste dominante (hasta ~266 KB por
+lectura para SOLO mostrar una fila). El matching JS **no es el cuello** (sub-ms).
+
+## 4. Actualización de materias — qué ocurre cuando cambian actividades/calificaciones
+
+| Evento | Server Action | Consultas re-ejecutadas | Refresco del alumno |
+| --- | --- | --- | --- |
+| Profesor sube Excel (reemplazo) | `actionSubirMateriaExcel` → `reemplazarHojaEnTabla` | delete + insert por lotes + `escolar_sync_columns` (DDL) | Profesor: `refrescarVista` inmediato. **Alumno: nada** — solo al re-seleccionar la materia o recargar `/perfil`. |
+| Profesor sube avance parcial | `actionActualizarMateriaExcel` → `actualizarMateriaDesdeArchivo` | `select(*)` filas existentes + `escolar_agregar_columnas` (si faltan) + update/insert por fila | Ídem. |
+| Alumno navega entre materias | `actionObtenerVistaMateria(nombre)` | **Cadena completa ~18 requests** (re-resuelve grupo/semestre/materias/acceso) | Inmediato (client state). |
+| Alumno vuelve a entrar / recarga | `actionObtenerPerfilAlumno` + cadena materia | RPC + boleta + ~18 | Inmediato. |
+| Se modifica la fila del alumno (calificación) | Solo por reemplazo/avance del profesor | — | Ídem (sin push). |
+
+- **No existe `revalidatePath` ni `revalidateTag`** (0 usos) y no hay caché de datos de calificaciones:
+  cada `actionObtenerVistaMateria` lee directo de PostgREST ⇒ **no hay datos obsoletos por caché**.
+- La "obsolescencia" es de **UI**: mientras la pestaña del alumno está abierta, un cambio del profesor no
+  se refleja hasta re-seleccionar la materia o recargar. No es un problema de caché de Next (no hay).
+- `router.refresh` solo se usa en paneles administrativos (clave, nombre visible), no en el perfil.
+- **Trabajo repetido en la actualización:** cada apertura/navegación de materia re-ejecuta la
+  autorización completa (`resolverGrupoAlumno` ×3 en el peor camino) aunque la RPC de `/perfil` ya
+  resolvió inscripción/grupo/periodo/carrera/materias en la MISMA sesión.
+
+
+## 5. Cloudinary — arquitectura real y mediciones
+
+### 5.1 Las 8 capas separadas
+
+| Capa | Estado real |
+| --- | --- |
+| A. Resolución administrativa | `cld.api.resource(publicId)` en `urls-server.ts` (foto) y `noticias.ts` (noticias), **solo para saber si el recurso existe**. Caché O5 en memoria por instancia (TTL 10 min). |
+| B. Generación de URL | `urlCloudinaryDesdePublicId` → `https://res.cloudinary.com/<cloud>/image/upload/f_auto,q_auto/<id>` — **determinista, sin API**. |
+| C. Caché del servidor | O5 en memoria (Map por CURP / por slot). Por instancia serverless. Se invalida en subida. |
+| D. CDN Cloudinary | Existe; no configurable desde la app. |
+| E. Descarga de la imagen | `next/image unoptimized` (noticias) o `<img>` directo (foto perfil). |
+| F. Tamaño real | Foto: original ≤1280 px / ≤0.8 MB (comprimida en cliente). Noticia 1: 1092×264 jpg. |
+| G. Transformaciones | **Solo `f_auto,q_auto`.** Sin `w_`, `c_fill`, ni transformación de avatar. |
+| H. Caché del navegador | HTTP cache de Cloudinary (útil tras la primera descarga). |
+
+### 5.2 Mediciones (directo a Cloudinary, esta fase)
+
+| Llamada | Resultado |
+| --- | --- |
+| `api.resource` foto perfil (NO existe) | **399 ms · 404** |
+| `api.resource` noticia 1 (existe) | **278 ms · 200** (jpg 1092×264, 51.977 bytes original) |
+| `api.resource` noticia 2 (NO existe) | **114 ms · 404** |
+| Descarga noticia 1 `f_auto,q_auto` | **1.228 ms · 29.863 bytes · image/jpeg** (CDN frío) |
+| Descarga noticia 2 / foto inexistente | 404 · 0 bytes · image/gif (338–499 ms) |
+
+### 5.3 Preguntas críticas
+
+1. **Cuándo se ejecuta `api.resource`:** en cada lectura con caché fría (foto por CURP; noticias por
+   slot). En `/perfil` se ejecuta en el server action (1 por alumno/visita si no está cacheado). En el
+   login (Home), `actionObtenerNoticiasInicio` ejecuta 2 (slot 1 y 2, en paralelo).
+2. **Cuánto tarda:** 114–399 ms medidos (404 más lento que 200 en este entorno).
+3. **Cuántas veces:** una por CURP/slot por ventana TTL por instancia. Con 400 alumnos en cold start →
+   **hasta 400 llamadas admin** solo de fotos (además de noticias) en la primera ola.
+4. **Cuándo entra el caché:** tras la primera resolución por clave (incluye el 404 → `null`). TTL 10 min.
+5. **Cold start:** caché vacía → cada CURP nuevo dispara `api.resource` (399 ms de latencia extra en el
+   render, secuencial tras la RPC en el branch RPC).
+6. **Múltiples instancias Vercel:** el caché es por instancia; N instancias → N veces la llamada por clave.
+7. **¿Es necesaria para construir la URL?** **No.** La URL es 100 % determinista (public_id + f_auto,q_auto).
+   La llamada solo decide "¿renderizo la URL o un ícono/placeholder?". Eliminarla a secas trasladaría el
+   coste al navegador (404 de imagen ≈ 338–499 ms por foto inexistente) — peor.
+8. **¿URL determinista sin consulta?** Sí, `urlCloudinaryDesdePublicId` ya la construye. La existencia es
+   el único dato que falta; se puede persistir en Supabase al subir (el `upload_stream` ya devuelve
+   `secure_url`; hoy `guardarUrlFotoPerfil` es **un stub que no persiste nada**).
+9. **Comportamiento cuando el recurso no existe:** `api.resource` → 404 → se cachea `null` → la UI
+   renderiza ícono. Sin la llamada, el navegador pediría la imagen y recibiría un 404 (gif vacío).
+10. **¿Eliminar esa consulta produciría regresiones?** Si se elimina sin sustituto, sí: 404 en imágenes
+    inexistentes y pérdida del placeholder. Si se sustituye por **existencia persistida en BD al subir**,
+    no hay regresión y se elimina la llamada admin de las lecturas.
+
+### 5.4 Fotos de perfil — ¿API o descarga?
+
+- **API:** 399 ms por foto en caché fría (una por alumno/visita). Con O5 caliente: 0.
+- **Descarga:** el avatar renderiza `<img src={urlFotoPerfil}>` con `f_auto,q_auto` pero **sin
+  transformación de tamaño** ⇒ descarga el original (hasta 1280 px / 0.8 MB) para un avatar de ~100 px.
+  Con `w_256,c_fill` el avatar bajaría a pocos KB. **La lentitud percibida de las fotos hoy viene
+  principalmente de la descarga sobredimensionada del original, no del API (que O5 ya neutraliza).**
+- **Layout shift:** el contenedor del avatar es de tamaño fijo, pero no hay `width/height` en el `<img>`.
+
+### 5.5 Noticias
+
+- El login (Home) renderiza `EventosInicio` (Server Component): `actionObtenerNoticiasInicio` →
+  2 `api.resource` (paralelos, 114–278 ms, cacheables por O5) → `<Image fill unoptimized>` descarga
+  `f_auto,q_auto` (≈30 KB cada una). La noticia 2 actualmente NO existe (404 → placeholder).
+- Coste inicial (2 imágenes ~60 KB + 2 llamadas admin frías ~278 ms) es **bajo**; no es candidato a
+  crítica salvo en cold start con mucho tráfico público del login.
+
+
+
+## 6. Noticias — arquitectura actual y propuesta del visor (NO implementado)
+
+### 6.1 Actual
+
+- `EventosInicio` (Server Component) recibe las URLs desde `actionObtenerNoticiasInicio` y renderiza
+  dos `<Image fill unoptimized sizes="33vw">` **sin click, sin modal, sin lightbox**.
+- **No existe ningún `<dialog>`, `role="dialog"`, lightbox ni manejador de Escape en el codebase**
+  (0 resultados en búsqueda).
+- La "imagen grande" y la "miniatura" son **la misma URL** (sin transformación de tamaño): el navegador
+  ya la tiene cacheada tras el render inicial ⇒ abrir un visor con el mismo `src` **no descarga nada
+  nuevo**.
+
+### 6.2 Propuesta funcional (requisitos) — para implementar en fase posterior
+
+```
+LOGIN → noticia → click → imagen grande → ver imagen completa → cerrar
+```
+
+- **Componente:** convertir el contenedor de imagen en un botón cliente (o añadir un Client Component
+  `NoticiaLightbox`) con `onClick`. El modal se monta SOLO tras el click (lazy): **no afecta el LCP**.
+- **Reutilizar la URL actual** (mismo `src`, ya en caché del navegador) → 0 descargas adicionales. Si se
+  quisiera más nitidez en pantallas grandes, opcionalmente una transformación `w_1600`/`w_1920` al abrir.
+- **Accesibilidad requerida:** botón cerrar visible, `Escape` cierra, `aria-modal="true"`, foco
+  movido al diálogo y restaurado al cerrar, `alt` descriptivo (hoy `alt={label}` = "Imagen de evento"),
+  `role="dialog"`, scroll lock y ancho responsive en móvil.
+- **Rendimiento:** la apertura no debe pedir nada al servidor (no Server Action, no `api.resource`);
+  reutiliza la URL ya resuelta por el render del login.
+
+## 7. Duplicaciones encontradas (trabajo repetido)
+
+1. **Catálogo resuelto 2 veces por `/perfil`:** la RPC `obtener_perfil_alumno` ya devuelve
+   inscripción/grupo/periodo/carrera/grupo_materias/materias/identidades/semestres, y luego
+   `actionObtenerVistaMateria` vuelve a resolver todo (resolverGrupoAlumno + resolverMateriasAlumno +
+   semestre + validarAcceso). **~18 requests vs ~6 necesarios.**
+2. **Inscripción/grupo resueltos hasta 3 veces dentro de la cadena de materia:**
+   `resolverGrupoAlumno` (1ª), `resolverMateriasAlumno` → `resolverGrupoAlumno` (2ª),
+   `validarAccesoAlumno` → `obtenerInscripcionActiva` (3ª). Medido: la cadena tarda 2.564 ms con ~60 %
+   de trabajo repetido.
+3. **Misma tabla de materia descargada 2–3 veces en el peor caso:** `leerVistaMateriaAlumno` puede
+   ejecutar `select(*)` dos veces (REQUEST 3 es idéntica a REQUEST 2 cuando REQUEST 2 ya corrió) y la
+   action añade un tercer `select(*)` vía `obtenerVistaMateria` si la vista quedó vacía.
+4. **Boleta leída en cada `/perfil` aunque el alumno no abra la pestaña:** `obtenerVistaRegistroAlumno`
+   se ejecuta siempre en el server action (descarga `select(*)` del registro). Hoy (vacíos) es trivial;
+   con 500 filas ≈ 266 KB por visita sin importar si se ve la boleta.
+5. **Login:** `buscarAlumnoPorNombre` descarga `range(0,4999)` de ALUMNOS (461 filas ≈ 54 KB) en cada
+   intento de login como alumno; se repite en `validarAccesoPortal` tras `buscarProfesorPorNombre`
+   (secuencial). Coste actual bajo (390 ms medidos en FASE 0).
+6. **`api.resource` de noticias** se ejecuta en el render público del login para TODOS los visitantes
+   (caché O5 lo neutraliza por instancia, pero no entre instancias).
+7. **`guardarUrlFotoPerfil` es un stub**: la foto se sube, se devuelve `secure_url`, pero NO se persiste
+   la existencia en Supabase; cada lectura vuelve a depender de `api.resource`.
+
+
+## 8. Mediciones (tabla ANTES — datos reales de esta fase)
+
+| Medición | Valor | Tipo |
+| --- | --- | --- |
+| Spec OpenAPI | 902 KB · 1.647 ms frío · 412 definiciones | MEDIDO |
+| RPC `obtener_perfil_alumno` | 174–313 ms (2 ejecuciones) | MEDIDO |
+| Cadena boleta (insc+grupo+select registro) | 644 ms (secuencial, vacío) | MEDIDO |
+| Cadena materia alumno (15 queries) | 2.564 ms (secuencial, vacío) | MEDIDO |
+| `/perfil` completo estimado | ≈ 3.4 s (secuencial, vacío) | MEDIDO (suma) |
+| `api.resource` foto perfil (404) | 399 ms | MEDIDO |
+| `api.resource` noticia 1 (existe) | 278 ms (1092×264 jpg, 51.977 B orig) | MEDIDO |
+| `api.resource` noticia 2 (404) | 114 ms | MEDIDO |
+| Descarga noticia 1 f_auto,q_auto | 1.228 ms · 29.863 B | MEDIDO |
+| Descarga foto/noticia inexistente | 404 · 0 B · 338–499 ms | MEDIDO |
+| Matching JS (1/40/100/400/500 filas) | 0.04–1.1 ms | CONCEPTUAL (lógica replicada, datos sintéticos) |
+| Payload materia 40 filas × 30 cols | ≈ 21 KB | CONCEPTUAL (fila ≈ 540 B) |
+| Payload materia/registro 500 filas | ≈ 266 KB | CONCEPTUAL |
+| Caché O3/O5 hit | **NO MEDIBLE EN ESTE ENTORNO** (caché en proceso de una instancia local) | — |
+| Latencia de descarga en el navegador real | **NO MEDIBLE EN ESTE ENTORNO** (requiere navegador/performance trace) | — |
+
+## 9. Problemas encontrados
+
+### Confirmados (con medición o código)
+
+1. **Doble/triple resolución del catálogo** por `/perfil` (RPC + cadena de materia; inscripción/grupo ×3).
+2. **`select(*)` repetido de la misma tabla de materia** (hasta 3 lecturas completas en el peor caso).
+3. **`guardarUrlFotoPerfil` no persiste**: la existencia de la foto depende de `api.resource` + caché
+   por instancia; en cold start multi-instancia el burst puede acercarse al rate limit de admin API
+   (500/min) con 400 fotos + noticias.
+4. **Avatar sin transformación**: se descarga el original (≤1280 px/0.8 MB) para un avatar ~100 px.
+5. **Boleta siempre leída** aunque el alumno no abra la pestaña (coste cuando se pueblen los registros).
+6. **Sin mecanismo de refresco para el alumno** ante cambios del profesor (no es caché obsoleta: es
+   UI; se resuelve re-seleccionando o recargando).
+7. **Login como alumno descarga 461 filas** (54 KB) en cada intento (coste bajo hoy, no crítico).
+
+### Potenciales (requieren datos o staging)
+
+8. Cuando se pueblen las 360 tablas MAT y 24 registros, el `select(*)` + búsqueda JS en cada lectura
+   escalará con N (≈266 KB por registro; 400 perfiles ≈ 106 MB solo boletas).
+9. Burst de `api.resource` en cold start con 400 CURPs únicos (fotos) + 2 noticias por visitante del login.
+10. `ilike %token%` sin índice pg_trgm en tablas pobladas (seq scan; a 500 filas es aceptable, pero es
+    bueno planear índice cuando haya datos reales).
+
+
+## 10. Prioridad
+
+### P0 — Crítica (afecta la capacidad 400–500)
+
+1. **Eliminar la resolución duplicada del catálogo al abrir una materia** (reutilizar la validación
+   mínima por `grupo_materia_id` + inscripción). Reduce la cadena de ~18 → ~6 requests por apertura.
+   Evidencia: 2.564 ms medidos, la mitad duplicada.
+2. **Filtrado PostgREST equivalente (CURP exacta / `alumno_nombre` ilike) en lectura de materia y
+   boleta** para no transferir la tabla completa cuando se pueblen (hoy vacías: coste 0; a 500 filas
+   ≈ 266 KB por lectura). Sin cambio de identidad.
+3. **Persistir la existencia/URL de la foto en Supabase al subir** (y de noticias) para **0 llamadas
+   admin en lecturas** y eliminar el burst de cold start. `upload_stream` ya devuelve `secure_url`.
+
+### P1 — Beneficiosa ahora (bajo riesgo)
+
+4. **Eliminar la descarga redundante** en `leerVistaMateriaAlumno` (REQUEST 3 = REQUEST 2) y reusar la
+   lectura completa en el fallback de la action. Puro código, sin cambio semántico.
+5. **Transformación de avatar** (`w_256,c_fill,f_auto,q_auto`) + `width/height` y `loading="lazy"` en
+   la foto de perfil.
+6. **Visor de noticias (lightbox)** reutilizando la URL ya cacheada (0 descargas extra; no afecta LCP).
+7. **Reducir `select(*)` a columnas específicas** en catálogo (`inscripciones`, `grupos`, `periodos`,
+   `carreras`) — ya identificado en FASE 1 como pendiente.
+
+### P2 — Preparar (requiere staging/datos/evidencia)
+
+8. Índice `pg_trgm` en `alumno_nombre` (o índice B-tree en columna CURP) cuando las tablas se pueblen.
+9. Caché server-side de "materias permitidas del alumno" (TTL) o reuso del resultado RPC vía
+   identificadores que permitan una validación ligera sin cambiar identidad.
+10. `unstable_cache`/`revalidateTag` del spec OpenAPI (documentado en FASE 1 como estrategia).
+
+### P3 — Diferir
+
+11. Lazy-load de la sección Eventos del login si el LCP lo exigiera (hoy ~60 KB totales: bajo).
+12. Optimización del login de alumno (reemplazar range 0–4999 por filtro; coste actual bajo).
+
+### DESCARTAR (la medición demuestra que no vale la pena)
+
+13. **Optimizar el matching JS de búsqueda del alumno** (sub-ms a 500 filas; no es el cuello).
+14. **Optimizar la construcción de URL de Cloudinary** (ya determinista y con `f_auto,q_auto`).
+
+
+## 11. Propuestas (detalle por propuesta)
+
+### P0-1 — Validación ligera de acceso a materia (reutiliza el catálogo ya resuelto)
+
+- **Beneficio esperado:** cadena de apertura de materia ~18 → ~6 requests; elimina la resolución
+  triplicada de inscripción/grupo; alivia PostgREST en picos (400–500 alumnos abriendo materias).
+- **Evidencia:** 2.564 ms medidos en la cadena actual; la RPC ya resolvió el catálogo en la misma sesión.
+- **Riesgo funcional:** bajo si se conserva `validarAccesoAlumno` (que verifica gm → grupo == grupo de
+  la inscripción activa) como puerta; un atacante solo podría ver materias de su propio grupo. No cambia
+  identidad, roles ni tablas.
+- **Complejidad:** media (pasar `grupoMateriaId` desde la RPC al cliente; o caché server-side por CURP).
+- **Archivos afectados:** `app/actions/escolar.ts`, `app/perfil/perfil-client.tsx`, tipos de
+  `catalogo-academico.ts` / `nombres-visibles.ts`.
+- **SQL:** no.
+- **Staging:** recomendable (pruebas de regresión de autorización alumno).
+- **Validación:** abrir 1 materia y comparar nº de requests y tiempo contra el ANTES (2.564 ms).
+- **Criterio de éxito:** apertura de materia < 600 ms y ≤ 7 requests; pruebas de acceso (alumno solo a
+  su grupo, materia ajena → denegado) intactas.
+
+### P0-2 — Filtrado PostgREST de materia/boleta (CURP exacta + `alumno_nombre` ilike)
+
+- **Beneficio esperado:** con tablas pobladas, elimina la transferencia completa (≈266 KB por lectura
+  a 500 filas); la búsqueda JS se limita a las filas candidatas. Hoy (vacías) es preparación, no coste.
+- **Evidencia:** payload conceptual 21–266 KB; `filaCoincideAlumno` ya prioriza CURP exacta.
+- **Riesgo funcional:** medio si se filtra SOLO por CURP (se perderían filas con CURP ausente/errónea
+  pero nombre correcto). Mitigación: filtro `OR` (`<columnaCurp>.eq.CURP` o `alumno_nombre.ilike.token`)
+  que reproduce exactamente las reglas 1–2 de `filaCoincideAlumno`.
+- **Complejidad:** media. **SQL:** no (filtro vía API). **Staging:** sí, con tablas pobladas reales.
+- **Validación:** comparar filas devueltas por el filtro vs el resultado de la búsqueda JS actual en las
+  mismas tablas (equivalencia exacta). **Criterio de éxito:** mismas filas y < 50 % del payload actual.
+
+### P0-3 — Persistir existencia/URL de foto (y noticias) en Supabase al subir
+
+- **Beneficio esperado:** 0 llamadas `api.resource` en lecturas; elimina el burst de cold start (hasta
+  400 llamadas admin con 400 fotos) y la latencia de 399 ms por foto en el render de `/perfil`.
+- **Evidencia:** `api.resource` 114–399 ms; `guardarUrlFotoPerfil` hoy es stub; `upload_stream` ya
+  devuelve `secure_url`.
+- **Riesgo funcional:** bajo (dato aditivo; la URL es la misma; invalidación por re-subida como hoy).
+- **Complejidad:** baja-media. **SQL:** tabla/columna aditiva (ej. `fotos_perfil(curp, url)` o columna
+  en ALUMNOS) — requiere aprobación. **Staging:** recomendable. **Validación:** subir foto → verla;
+  borrar/inexistente → ícono; sin foto → ícono sin llamada admin.
+- **Criterio de éxito:** 0 `api.resource` en lecturas dentro del flujo normal; mismo comportamiento visual.
+
+### P1-4 — Eliminar descargas redundantes en `leerVistaMateriaAlumno`
+
+- **Beneficio esperado:** peor caso de 3 lecturas completas → 1; evita transferir la misma tabla 2–3
+  veces. **Evidencia:** REQUEST 3 es idéntica a REQUEST 2 cuando REQUEST 2 ya se ejecutó (revisión de
+  código). **Riesgo:** muy bajo (no cambia resultados). **Complejidad:** baja. **SQL:** no.
+- **Criterio de éxito:** apertura de materia con exactamente 1 lectura completa en el peor caso.
+
+### P1-5 — Transformación de avatar + atributos de imagen
+- **Beneficio esperado:** avatar de ~100 px deja de descargar el original (≤0.8 MB). **Evidencia:**
+  URL actual sin transformación; original 1280 px. **Riesgo:** bajo. **Complejidad:** baja
+  (agregar `w_256,c_fill` en `urlFotoPerfil` o variante). **SQL:** no. **Criterio de éxito:** foto
+  cargada < 20 KB y sin layout shift.
+
+### P1-6 — Visor de noticias (lightbox)
+
+- **Beneficio esperado:** funcionalidad pedida SIN tocar el LCP del login (0 descargas extra, modal
+  lazy, misma URL cacheada). **Evidencia:** la miniatura y la "grande" son la misma URL. **Riesgo:** bajo.
+  **Complejidad:** baja-media. **SQL:** no. **Validación:** teclado (Escape), foco, cerrar, móvil.
+  **Criterio de éxito:** abrir/cerrar sin requests nuevos y sin afectar el render inicial.
+
+
+## 12. Qué NO tocar (partes protegidas)
+
+- Identidad académica: `CURP`, `nombre`, `alumno_nombre`, `idInterno` (nombre físico de tabla),
+  `tabla_legacy`, `nombresMismoAlumno`, `filaCoincideAlumno` (semántica intacta).
+- Autenticación y roles (sesión, cookies, `validarAccesoPortal`, precedencia profesor→alumno→tutor).
+- Estructura de tablas existentes, separación reemplazo/avance, `escolar_sync_columns`, `tabla_legacy`.
+- RPC `obtener_perfil_alumno` (permisos restringidos a `service_role`).
+- No crear índices, no migraciones, no dependencias nuevas, no eliminar APIs públicas.
+
+## 13. Recomendación — siguiente lote óptimo
+
+**Lote 6A (seguro, sin SQL):** P1-4 (descargas redundantes), P1-5 (avatar), P1-6 (visor noticias) +
+**P0-1** (validación ligera de materia, reutilizando `validarAccesoAlumno`). Son cambios de código
+puros, reversibles y medibles; atacan el coste real actual (cadena de materia 2.564 ms) y la
+funcionalidad pedida (visor) sin SQL ni riesgo de identidad.
+
+**Lote 6B (requiere aprobación SQL / datos):** P0-2 (filtrado PostgREST de materia/boleta) y P0-3
+(persistir existencia de foto). P0-2 solo tiene impacto real cuando se pueblen las tablas; P0-3 elimina
+el burst de Cloudinary en cold start y se puede hacer con una tabla aditiva. **No ejecutar antes de
+staging con datos poblados** (especialmente P0-2, cuya validación exige tablas con filas).
+
+Orden de ejecución recomendado dentro de 6A: **P1-6 → P1-4 → P1-5 → P0-1** (el visor es independiente y
+de riesgo mínimo; P0-1 requiere más pruebas de autorización y se valida contra la medición ANTES).
+
+## 14. Estado de Git
+
+- Sin cambios de código funcional: `git status` muestra únicamente los untracked preexistentes.
+- Único archivo tocado en esta fase: `docs/OPTIMIZACION_RENDIMIENTO_400_500.md` (esta sección).
+- No se hizo commit ni push. No se ejecutó SQL ni se crearon índices.
+
+
+---
+
+# FASE 7 — IMPLEMENTACIÓN LOTE 6A
+
+> Fecha: 31/08/2026. Implementación del Lote 6A (visor de noticias + avatar Cloudinary +
+> redundancias de materias + validación ligera). Sin SQL, sin índices, sin migraciones, sin commit/push.
+
+## 1. Qué se implementó
+
+| Bloque | Cambio | Archivos |
+| --- | --- | --- |
+| 6A-1 Visor de noticias | La imagen del evento en el login se convierte en botón que abre un lightbox lazy (mismo `src`, modal montado SOLO al hacer click, Escape, foco, `aria-modal`, scroll lock). | `app/components/evento-visor.tsx` (NUEVO), `app/components/eventos-inicio.tsx` |
+| 6A-2 Avatar Cloudinary | Nueva URL determinista `w_256,c_fill,f_auto,q_auto` para fotos de perfil (la identidad = public_id NO cambia). `obtenerUrlFotoPerfilSiExiste` y `actionSubirFotoPerfil` devuelven la URL de avatar. `<img>` con `width/height`. | `lib/cloudinary/urls.ts`, `lib/cloudinary/urls-server.ts`, `app/actions/escolar.ts`, `app/perfil/perfil-client.tsx` |
+| 6A-3 Descargas redundantes | `leerVistaMateriaAlumno` deja de re-descargar la misma tabla completa cuando ya la tiene (R3 era idéntica a R2). El fallback legacy de la action se conserva intacto (no cambia resultados). | `lib/escolar/materia-vista-alumno.ts`, `app/actions/escolar.ts` |
+| 6A-4 Validación ligera | Nueva `verificarAccesoAlumnoMateria` (6 consultas) reemplaza la re-resolución completa (~15 consultas) en `actionObtenerVistaMateria`, verificando las MISMAS reglas (inscripción activa, gm activo con tabla_legacy, grupo activo, periodo activo, semestre activo, materia activa). | `lib/escolar/catalogo-academico.ts`, `app/actions/escolar.ts` |
+
+## 2. Evidencia ANTES/DESPUÉS (misma máquina → Supabase, tablas vacías, secuencial)
+
+| Métrica | ANTES (FASE 6) | DESPUÉS (FASE 7) |
+| --- | --- | --- |
+| Queries de la cadena de materia (`actionObtenerVistaMateria` alumno) | ~15 (más 1–2 internas redundantes) | **9–10** (6 validación ligera + mapeo + alumno + ilike + full worst-case) |
+| Latencia de la cadena de materia | **2.564 ms** (15 queries) | **≈ 1.069 ms** (10 queries, worst-case con full) |
+| Requests `/perfil` totales (RPC + foto + boleta + materia) | ~24–25 | ~16–17 |
+| Descarga de imagen para avatar (misma pipeline sobre la única imagen real) | 29.863 bytes (`f_auto,q_auto`) | **2.889 bytes** (`w_256,c_fill,f_auto,q_auto`) ≈ **−90 %** |
+| Inscripción/grupo/periodo re-resueltos por apertura de materia | hasta 3 veces | **1 vez** (dentro de la validación ligera) |
+
+**Equivalencia old-vs-new de la validación de acceso (datos reales, solo lectura):** 25/25 casos
+coinciden (materia propia → permitida; materia ajena → denegada; materia inexistente → denegada;
+alumno sin inscripción → denegado).
+
+## 3. Detalle de cada cambio
+
+### 6A-1 Visor de noticias
+- `EventoConVisor` (Client Component): botón con `aria-label`, miniatura idéntica (misma URL y
+  `<Image fill unoptimized>`, misma `sizes`). Modal `role="dialog"` + `aria-modal` + botón Cerrar +
+  cierre con Escape + foco al diálogo y restauración al cerrar + `overflow:hidden` del body mientras
+  está abierto + `<img>` plano reutilizando la misma URL (servida por caché del navegador: **0
+  descargas adicionales**).
+- LCP: el modal NO se monta hasta el primer click; el HTML inicial conserva exactamente la misma
+  estructura de imagen que antes.
+
+### 6A-2 Avatar Cloudinary
+- `urlCloudinaryDesdePublicId(publicId, transformaciones = "f_auto,q_auto")` (aditivo, compatible).
+- `urlFotoPerfilAvatar(curp)` = `w_256,c_fill,f_auto,q_auto`.
+- `obtenerUrlFotoPerfilSiExiste` devuelve la URL de avatar (el `api.resource` sigue existiendo como
+  comprobación de existencia; NO se elimina — pendiente 6B persistir existencia).
+- `actionSubirFotoPerfil` devuelve la URL de avatar (consistente con la lectura).
+- `<img>` del avatar con `width={256} height={256}` (el CSS `h-full w-full object-cover` conserva el
+  encuadre; evita depender de la resolución del documento).
+
+### 6A-3 Descargas redundantes
+- En `leerVistaMateriaAlumno`: nueva bandera `tenemosTablaCompleta`. Cuando el ilike devuelve 0 filas
+  (o no hay token) y se descarga la tabla completa, la segunda descarga completa condicional (que era
+  idéntica) se omite. El resultado devuelto es exactamente el mismo (la búsqueda ya se hizo sobre la
+  tabla completa).
+- El fallback legacy de `actionObtenerVistaMateria` se CONSERVA intacto (`!vista || !vista.filas.length`)
+  para no cambiar resultados en tablas legacy mixtas (`__HOJA__`/`datos`/`contenido`).
+
+### 6A-4 Validación ligera
+- Nueva función `verificarAccesoAlumnoMateria(supabase, curp, nombreTabla)` en `catalogo-academico.ts`
+  con 6 consultas que cubren las mismas reglas que la cadena anterior (~15):
+  1) inscripción activa; 2) gm activo del grupo de la inscripción con `tabla_legacy` == solicitada;
+  3) grupo activo; 4) periodo activo; 5) semestre activo (si aplica); 6) materia activa.
+- `actionObtenerVistaMateria` (alumno) la usa; el resto del flujo (mapeo, búsqueda CURP + nombre,
+  vista identificada, fallback legacy, modo directivo/maestro) queda intacto.
+
+## 4. Pruebas ejecutadas
+
+- `npx tsc --noEmit --incremental false` → **exit 0**.
+- `npm run build` → **exit 0** (Next 16.2.6, 10 rutas, sin errores).
+- `npx eslint` sobre los archivos tocados → **0 errores**; 3 warnings preexistentes de imports sin uso
+  en `escolar.ts` (no introducidos).
+- Test de búsqueda existente (`test-columnas-calificaciones.mjs`) → **50 verificaciones, 0 fallos**
+  (CURP, nombre, tildes, orden invertido, inexistente).
+- Equivalencia de autorización old-vs-new contra Supabase real (solo lectura): **25/25 OK**.
+- Medición de cadena nueva y de transformación de avatar (arriba).
+- NOTA: `test-mapeo-columnas-materia.mjs` falla por un harness preexistente (transpila `schema-tabla.ts`
+  sin su dependencia `openapi.ts` desde que se añadió O3; NO es regresión de esta fase).
+
+
+## 5. Riesgos y decisiones
+
+| Tema | Decisión |
+| --- | --- |
+| Identidad (CURP + nombre + `alumno_nombre` + `idInterno` + `tabla_legacy` + `filaCoincideAlumno` + `nombresMismoAlumno`) | **No se tocó.** La búsqueda sigue siendo CURP exacta primero y nombre normalizado después. |
+| RPC `obtener_perfil_alumno` | **No se tocó.** Sigue `SECURITY DEFINER`, `search_path=public`, solo `service_role`. |
+| `api.resource` (existencia de foto) | **Se conserva.** Eliminar la llamada requiere persistencia nueva → pendiente Lote 6B. |
+| Fallback legacy de materia | **Conservado intacto** (no cambia resultados en tablas mixtas). |
+| Semántica de autorización | Validación ligera equivalente verificada 25/25 con datos reales. |
+| Lint global | Fallos preexistentes en `scripts/` y `set-state-in-effect` en `perfil-client.tsx` (código anterior); no introducidos por esta fase. |
+
+## 6. Pendiente (NO en este lote)
+
+- **Lote 6B:** persistir existencia/URL de foto (y noticias) en Supabase al subir para 0 llamadas
+  `api.resource` en lecturas; filtrado PostgREST (CURP exacta + `alumno_nombre` ilike) en boleta/materia
+  cuando las tablas tengan datos; índices (`pg_trgm`/B-tree) con datos representativos; caché server-side
+  de materias permitidas por alumno; `unstable_cache` del spec.
+- Prueba manual en navegador del visor de noticias (abrir/cerrar/Escape/móvil) — requiere entorno UI.
+
+## 7. Estado de Git
+
+- Modificados (8): `app/actions/escolar.ts`, `app/components/eventos-inicio.tsx`,
+  `app/perfil/perfil-client.tsx`, `lib/cloudinary/urls.ts`, `lib/cloudinary/urls-server.ts`,
+  `lib/escolar/catalogo-academico.ts`, `lib/escolar/materia-vista-alumno.ts`,
+  `docs/OPTIMIZACION_RENDIMIENTO_400_500.md`.
+- Nuevos (1): `app/components/evento-visor.tsx`.
+- Sin commit, sin push, sin SQL, sin índices.
+
+## 8. Decisión por optimización
+
+| Optimización | Decisión |
+| --- | --- |
+| 6A-1 Visor de noticias | **CONSERVAR** |
+| 6A-2 Avatar `w_256,c_fill,f_auto,q_auto` | **CONSERVAR** |
+| 6A-3 Eliminar descarga interna redundante (R3) | **CONSERVAR** |
+| 6A-4 Validación ligera `verificarAccesoAlumnoMateria` | **CONSERVAR** |
+| Cambiar condición del fallback legacy de materia | **REVERTIR** (se conservó la condición original para no cambiar resultados) |
+

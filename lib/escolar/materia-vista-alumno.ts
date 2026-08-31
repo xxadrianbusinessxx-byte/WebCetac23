@@ -175,6 +175,12 @@ export async function leerVistaMateriaAlumno(
   let todas: Record<string, unknown>[] = (candidatas ??
     []) as Record<string, unknown>[];
 
+  // FASE 7 (6A-3) — Recordatorio de si `todas` ya es la tabla COMPLETA. Si el
+  // ilike devolvió 0 filas (o no había token), se descarga la tabla completa
+  // una vez; la búsqueda posterior sobre ese set ya es definitiva y no hay que
+  // volver a descargarla (antes se re-descargaba 2–3 veces la misma tabla).
+  let tenemosTablaCompleta = false;
+
   if (error || !todas.length) {
     const { data: todasDb, error: err2 } = await supabase
       .from(tabla)
@@ -182,6 +188,7 @@ export async function leerVistaMateriaAlumno(
       .order("id", { ascending: true });
     if (err2 || !todasDb?.length) return null;
     todas = todasDb as Record<string, unknown>[];
+    tenemosTablaCompleta = true;
   }
 
   const colsDatos = columnasDesdeFilasDb(columnasDb, todas);
@@ -206,7 +213,11 @@ export async function leerVistaMateriaAlumno(
   const idxPrimero = buscarIndiceFilaAlumno(todas, colsDatos, criterio);
   let idx = idxPrimero;
 
-  if (idx < 0 && token) {
+  // FASE 7 (6A-3) — Descarga completa adicional SOLO si las candidatas del
+  // ilike no localizaron al alumno y aún no tenemos la tabla completa. Si ya
+  // la teníamos, el resultado es definitivo (re-descargar la misma tabla
+  // sería trabajo idéntico e innecesario).
+  if (idx < 0 && token && !tenemosTablaCompleta) {
     const { data: todasDb, error: errFull } = await supabase
       .from(tabla)
       .select("*")

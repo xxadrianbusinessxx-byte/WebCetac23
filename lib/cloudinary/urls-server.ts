@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cloudinaryConfigurado, getCloudinary } from "./config";
-import { publicIdPerfil, urlFotoPerfil } from "./urls";
+import { publicIdPerfil, urlFotoPerfilAvatar } from "./urls";
 
 /**
  * O5 — Caché en memoria de la existencia/URL de la foto de perfil (por CURP).
@@ -37,10 +37,16 @@ export async function obtenerUrlFotoPerfilSiExiste(
   let url: string | null = null;
   try {
     const cld = getCloudinary();
-    const res = await cld.api.resource(publicIdPerfil(key), {
+    // api.resource lanza si el recurso NO existe: llegar más allá significa
+    // que la foto existe.
+    await cld.api.resource(publicIdPerfil(key), {
       resource_type: "image",
     });
-    url = res.secure_url ?? urlFotoPerfil(key);
+    // FASE 7 (6A-2) — URL determinista con transformación de AVATAR
+    // (w_256,c_fill,f_auto,q_auto) en lugar del secure_url original sin
+    // transformar. La identidad del recurso (public_id) NO cambia; solo se
+    // optimiza la descarga para su uso como foto de perfil.
+    url = urlFotoPerfilAvatar(key);
   } catch {
     url = null;
   }

@@ -22,6 +22,7 @@
  *     ofrece `inscribirAlumno({ unaActiva: true })`, no una constraint rígida.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { gradoASemestre, semestreActivoDeGrupo } from "./semestres";
 import {
   TABLA_ASIGNACIONES_PROFESOR,
   TABLA_CARRERAS,
@@ -808,6 +809,91 @@ export async function validarAccesoAlumno(
   if (!resuelto) return false;
   const inscripcion = await obtenerInscripcionActiva(supabase, curp);
   return inscripcion?.grupo_id === resuelto.grupoMateria.grupo_id;
+}
+
+/**
+ * FASE 7 (6A-4) — Validación LIGERA de acceso de un alumno a una materia por
+ * `tabla_legacy` (nombre físico de la tabla).
+ *
+ * Equivale, con MENOS consultas, a la cadena anterior que ejecutaba
+ * `actionObtenerVistaMateria`:
+ *   resolverGrupoAlumno (inscripción + grupo + periodo) + semestre +
+ *   resolverMateriasAlumno (grupo + grupo_materias + materias) +
+ *   validarAccesoAlumno (grupo_materia + materia + grupo + inscripción)
+ *   ≈ 15 requests, con inscripción/grupo resueltos hasta 3 veces.
+ *
+ * Verifica EXACTAMENTE las mismas reglas de acceso (6 consultas):
+ *   1) existe la inscripción ACTIVA del alumno;
+ *   2) existe grupo_materias ACTIVO del grupo de esa inscripción con
+ *      `tabla_legacy` == tabla solicitada;
+ *   3) el GRUPO está activo (y aporta periodo_id + grado);
+ *   4) el PERIODO del grupo está activo;
+ *   5) el SEMESTRE del grado está activo (si el grado mapea a semestre);
+ *   6) la MATERIA (catálogo) referenciada está activa.
+ *
+ * NO cambia identidad ni semántica de búsqueda: la localización del alumno
+ * dentro de la tabla de materia sigue usando CURP primero y nombre después
+ * (buscar-en-filas). Esta función solo reduce el trabajo de AUTORIZACIÓN.
+ */
+export async function verificarAccesoAlumnoMateria(
+  supabase: SupabaseClient,
+  curp: string,
+  nombreTablaMateria: string,
+): Promise<boolean> {
+  const tabla = nombreTablaMateria.trim();
+  if (!tabla) return false;
+
+  // 1) Inscripción ACTIVA (misma semántica que obtenerInscripcionActiva).
+  const inscripcion = await obtenerInscripcionActiva(supabase, curp);
+  if (!inscripcion) return false;
+
+  // 2) grupo_materias ACTIVO del grupo de la inscripción con esa tabla_legacy.
+  //    (Se filtra por grupo_id desde el principio, igual que la resolución
+  //    anterior lo hacía por el grupo del alumno.)
+  const { data: gms, error: eGm } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .select("id, grupo_id, materia_id")
+    .eq("grupo_id", inscripcion.grupo_id)
+    .eq("tabla_legacy", tabla)
+    .eq("activo", true)
+    .limit(1);
+  const gm = (gms ?? [])[0];
+  if (eGm || !gm) return false;
+
+  // 3) El GRUPO debe estar ACTIVO (aporta periodo_id + grado para el semestre).
+  const { data: grupo, error: eGr } = await supabase
+    .from(TABLA_GRUPOS)
+    .select("id, periodo_id, grado, activo")
+    .eq("id", gm.grupo_id)
+    .eq("activo", true)
+    .maybeSingle();
+  if (eGr || !grupo) return false;
+
+  // 4) El PERIODO del grupo debe estar ACTIVO.
+  const { data: periodo, error: eP } = await supabase
+    .from(TABLA_PERIODOS)
+    .select("id, activo")
+    .eq("id", grupo.periodo_id)
+    .eq("activo", true)
+    .maybeSingle();
+  if (eP || !periodo) return false;
+
+  // 5) SEMESTRE activo (estructura ausente ⇒ true, mismo criterio que hoy).
+  const semestre = gradoASemestre(grupo.grado);
+  if (semestre !== null && !(await semestreActivoDeGrupo(supabase, grupo))) {
+    return false;
+  }
+
+  // 6) La MATERIA (catálogo) referenciada debe estar ACTIVA.
+  const { data: materia, error: eM } = await supabase
+    .from(TABLA_MATERIAS)
+    .select("id, activo")
+    .eq("id", gm.materia_id)
+    .eq("activo", true)
+    .maybeSingle();
+  if (eM || !materia) return false;
+
+  return true;
 }
 
 /**

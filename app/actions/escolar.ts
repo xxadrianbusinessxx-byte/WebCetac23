@@ -43,7 +43,7 @@ import {
   resolverGrupoAlumno,
   resolverIdentidadesCatalogo,
   resolverMateriasAlumno,
-  validarAccesoAlumno,
+  verificarAccesoAlumnoMateria,
   type CarreraRow,
   type GrupoAlumnoResuelto,
   type GrupoMateriaRow,
@@ -80,7 +80,10 @@ import type {
   MateriaTablaVista,
 } from "@/lib/escolar/types";
 import { subirImagenCloudinary } from "@/lib/cloudinary/upload";
-import { publicIdPerfilUpload } from "@/lib/cloudinary/urls";
+import {
+  publicIdPerfilUpload,
+  urlFotoPerfilAvatar,
+} from "@/lib/cloudinary/urls";
 import { invalidarUrlFotoPerfil } from "@/lib/cloudinary/urls-server";
 import {
   guardarUrlFotoPerfil,
@@ -525,47 +528,27 @@ export async function actionObtenerVistaMateria(
 
   if (sesion?.rol === "alumno" && sesion.curp) {
     // C4.1 — SEGURIDAD: autorización server-side desde el catálogo.
-    // 1) Fuente primaria: inscripción activa → grupo → grupo_materias → materias.
-    // 2) La materia solicitada (idInterno = tabla_legacy) debe pertenecer al grupo.
-    // 3) validarAccesoAlumno() confirma la relación persistida.
-    // 4) Fallback legacy si no hay inscripción resoluble.
-    // C4.14 — si el semestre del grupo está inactivo, el alumno no puede
-    // acceder a la materia (sin caer al fallback legacy).
-    const grupoAcceso = await resolverGrupoAlumno(supabase, sesion.curp);
-    if (grupoAcceso) {
-      const semestreGrupo = gradoASemestre(grupoAcceso.grupo.grado);
-      if (
-        semestreGrupo !== null &&
-        !(await semestreActivoDeGrupo(supabase, grupoAcceso.grupo))
-      ) {
-        return null;
-      }
-    }
-    const materiasCatalogo = await resolverMateriasAlumno(supabase, sesion.curp);
-    const conTablaLegacy = materiasCatalogo.filter((m) => m.tablaLegacy);
-    const permitidoCatalogo = conTablaLegacy.find(
-      (m) => m.tablaLegacy === nombreMateria.trim(),
+    // FASE 7 (6A-4) — Validación LIGERA: en lugar de re-resolver la oferta
+    // (resolverGrupoAlumno + semestre + resolverMateriasAlumno +
+    // validarAccesoAlumno ≈ 15 queries, con inscripción/grupo repetidos),
+    // verifica con 6 consultas las MISMAS reglas: inscripción activa,
+    // grupo_materias activo con tabla_legacy == solicitada, pertenencia al
+    // grupo de la inscripción, grupo activo, periodo activo, semestre activo
+    // y materia activa. NO cambia identidad ni la búsqueda CURP + nombre.
+    const acceso = await verificarAccesoAlumnoMateria(
+      supabase,
+      sesion.curp,
+      nombreMateria,
     );
-
-    if (permitidoCatalogo) {
-      const acceso = await validarAccesoAlumno(
-        supabase,
-        sesion.curp,
-        permitidoCatalogo.grupoMateriaId,
-      );
-      if (!acceso) return null;
-    } else {
-      // C4.24 — La materia debe pertenecer a la inscripción activa del alumno.
-      // Sin inscripción resoluble (o materia ajena al grupo) se DENIEGA; no se
-      // infiere la pertenencia desde ETIQUETAS PERSONALES.
-      return null;
-    }
+    if (!acceso) return null;
 
     // BLOQUE 7B — el alumno SOLO ve su propia fila. Se reutiliza
     // `leerVistaMateriaAlumno` (que usa buscar-en-filas: CURP primero, luego
     // nombre normalizado). Si la lectura optimizada no localiza la fila
-    // (formato legacy o variantes de nombre), se hace un fallback con la
-    // vista completa + búsqueda en memoria (misma lógica de buscar-en-filas).
+    // (formato legacy `__HOJA__`/`datos`/`contenido` o variantes de nombre),
+    // se hace un fallback con la vista completa + búsqueda en memoria (misma
+    // lógica de buscar-en-filas). FASE 7 (6A-3): leerVistaMateriaAlumno ya no
+    // re-descarga internamente la misma tabla (R3 era idéntica a R2).
     const alumno = await buscarAlumnoPorCurp(supabase, sesion.curp);
     const nombreCompleto = alumno
       ? nombreCompletoAlumno(alumno)
@@ -578,6 +561,12 @@ export async function actionObtenerVistaMateria(
       criterio,
     );
 
+    // Fallback con la vista completa + búsqueda en memoria SOLO si la lectura
+    // optimizada no localizó la fila. Se conserva el comportamiento original:
+    // cubre formatos legacy (tabla con fila `__HOJA__`/`datos`/`contenido`)
+    // donde leerVistaMateriaAlumno no puede leer la fila por columnas directas.
+    // FASE 7 (6A-3): la duplicación INTERNA de leerVistaMateriaAlumno ya se
+    // eliminó; este fallback solo añade UNA lectura en el camino de error.
     if (!vista || !vista.filas.length) {
       const completa = await obtenerVistaMateria(supabase, nombreMateria);
       if (completa) {
@@ -700,7 +689,11 @@ export async function actionSubirFotoPerfil(
   // O5 — La foto cambió: invalida la caché para que sea visible de inmediato.
   invalidarUrlFotoPerfil(curp);
 
-  return subida;
+  // FASE 7 (6A-2) — Devuelve la URL de AVATAR (w_256,c_fill,f_auto,q_auto)
+  // consistente con la que devuelve obtenerUrlFotoPerfilSiExiste. La subida ya
+  // ocurrió (mismo public_id determinista), así que la URL transformada apunta
+  // al mismo recurso recién subido.
+  return { ok: true, url: urlFotoPerfilAvatar(curp) };
 }
 
 export async function actionEtiquetasResumen(curp: string) {
