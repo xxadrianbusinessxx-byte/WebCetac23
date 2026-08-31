@@ -10,6 +10,7 @@ import {
   actionObtenerConfiguracionClasesProfesor,
   actionPrevisualizarAsistencias,
 } from "@/app/actions/asistencias";
+import { actionDescargarPlantillaMateria } from "@/app/actions/materias";
 import type {
   ConfiguracionClasesProfesor,
   ResumenAsistencia,
@@ -151,6 +152,13 @@ export function AsistenciasPanel() {
   const [descargando, setDescargando] = useState(false);
   const [mensajeDescarga, setMensajeDescarga] = useState<string | null>(null);
 
+  // BLOQUE 9 (PIEZA 2) — plantilla de MATERIA (CURP | NOMBRE) reutilizando el
+  // mismo selector de grado/grupo/carrera (sin ciclo).
+  const [descargandoMateria, setDescargandoMateria] = useState(false);
+  const [mensajeDescargaMateria, setMensajeDescargaMateria] = useState<
+    string | null
+  >(null);
+
   const [archivo, setArchivo] = useState<File | null>(null);
   const [preview, setPreview] = useState<ResumenAsistencia | null>(null);
   const [confirmando, setConfirmando] = useState(false);
@@ -278,6 +286,39 @@ export function AsistenciasPanel() {
     setMensajeDescarga(
       `Plantilla generada: ${r.alumnos} alumnos · ${r.fechas.length} días de clase.`,
     );
+  }
+
+  // BLOQUE 9 (PIEZA 2) — Descarga la plantilla de MATERIA (CURP | NOMBRE)
+  // para el grado/grupo/carrera ya seleccionados arriba.
+  async function onDescargarPlantillaMateria() {
+    if (!grado || !grupo) return;
+    setDescargandoMateria(true);
+    setMensajeDescargaMateria(null);
+    const r = await actionDescargarPlantillaMateria(grado, grupo, carrera);
+    setDescargandoMateria(false);
+    if (!r.ok) {
+      setMensajeDescargaMateria(r.error);
+      return;
+    }
+    try {
+      const bytes = Uint8Array.from(atob(r.base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = r.nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setMensajeDescargaMateria(
+        `Plantilla de materia generada: ${r.alumnos} alumnos.`,
+      );
+    } catch {
+      setMensajeDescargaMateria("No se pudo generar el archivo.");
+    }
   }
 
   function onArchivoElegido(e: React.ChangeEvent<HTMLInputElement>) {
@@ -450,6 +491,32 @@ export function AsistenciasPanel() {
           {mensajeDescarga && (
             <p className="text-xs font-semibold text-sky-900" role="status">
               {mensajeDescarga}
+            </p>
+          )}
+        </div>
+
+        {/* BLOQUE 9 (PIEZA 2) — Plantilla de MATERIA (CURP | NOMBRE) con el
+            mismo selector de grado/grupo/carrera (sin ciclo). */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <PillButton
+            onClick={onDescargarPlantillaMateria}
+            disabled={!grado || !grupo || descargandoMateria}
+            className="from-slate-400 via-slate-500 to-slate-600"
+          >
+            {descargandoMateria
+              ? "Generando…"
+              : "Descargar plantilla de materia (CURP | NOMBRE)"}
+          </PillButton>
+          {mensajeDescargaMateria && (
+            <p
+              className={`text-xs font-semibold ${
+                mensajeDescargaMateria.includes("generada")
+                  ? "text-sky-900"
+                  : "text-red-700"
+              }`}
+              role="status"
+            >
+              {mensajeDescargaMateria}
             </p>
           )}
         </div>

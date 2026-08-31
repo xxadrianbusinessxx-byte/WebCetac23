@@ -19,6 +19,7 @@ import {
   type MateriaConNombreVisible,
 } from "@/lib/escolar/nombres-visibles";
 import { listarMateriasCompletas } from "@/lib/escolar/tablas-supabase";
+import { generarPlantillaMateriaXlsx } from "@/lib/escolar/materias";
 import {
   resolverAsignacionesProfesor,
   resolverAsignacionesProfesorPorId,
@@ -280,6 +281,32 @@ export async function actionGuardarMapeoColumnasMateria(
     mapeoFisico,
     sesion.matricula ?? "",
   );
+}
+
+/**
+ * BLOQUE 9 (PIEZA 2) — Descarga una plantilla .xlsx de MATERIA (CURP | NOMBRE)
+ * para un grado/grupo/carrera. Mismo patrón de permiso que
+ * `actionDescargarPlantillaAsistencia`: SOLO rol maestro o directivo.
+ * Reutiliza `generarPlantillaMateriaXlsx` → `obtenerAlumnosDelGrupo`.
+ */
+export async function actionDescargarPlantillaMateria(
+  grado: string,
+  grupo: string,
+  carrera: string,
+): Promise<
+  | { ok: true; base64: string; nombreArchivo: string; alumnos: number }
+  | { ok: false; error: string }
+> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+    return {
+      ok: false,
+      error: "No tienes permiso para descargar plantillas de materia.",
+    };
+  }
+
+  const supabase = await createClient();
+  return generarPlantillaMateriaXlsx(supabase, grado, grupo, carrera);
 }
 
 /**
