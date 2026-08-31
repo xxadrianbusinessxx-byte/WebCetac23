@@ -476,3 +476,286 @@ Llevar la aplicación a una operación cómoda con **400–500 alumnos** y **con
 
 
 
+---
+
+# HALLAZGOS RECIENTES — APP REAL EN VERCEL + DIAGNÓSTICO DE TIMEOUTS /perfil
+
+> Fecha: 30/08/2026. Contexto: prueba de la app desplegada en Vercel (plan Hobby, dominio custom sin DNS; acceso vía Protection Bypass, secret rotado) y diagnóstico posterior de los timeouts de `/perfil` en c=200.
+
+## Medido en la app real (autocannon, cliente con timeout 30 s)
+
+- **Fase A (home público, 4 escalones):** c=20/50/100/200 → **100% 2xx, 0 errores**; req/s 44→216; p99 1.6 s→2.0 s.
+- **Fase B (/perfil autenticado, 1 sesión):**
+  - c=20/50/100 (timeout 10 s): 100% 2xx, p99 ~5.2–5.5 s.
+  - c=200 (timeout 10 s): **338/600 timeouts** → eran **timeout del CLIENTE**.
+  - c=100 y c=200 con `-t 30`: **100% 2xx, 0 errores**, p99 15 s y 19.5 s respectivamente (las requests completan; sin 504).
+
+## Diagnóstico A/B/C
+
+- **(A) Vercel mata la función a 10 s (maxDuration): DESCARTADO.** Con timeout de cliente a 30 s todas completan con 200 a 15–20 s de latencia total; sin 504 ni resets. (La latencia total incluye cola; no se observó corte de servidor.)
+- **(B) Timeout de cliente (10 s por defecto): CONFIRMADO** como causa directa de los timeouts de c=200.
+- **(C) Cachés O3/O5 por instancia (no sobreviven cold start): SOPORTADO.** Secuencia manual: req0 → Timeout 30 s, req1 → 200 a 12.8 s, req2–4 → ~1.0 s. Bajo concurrencia Vercel escala a instancias frías → p95/p99 15–20 s.
+
+## Tensión O1 bajo alta concurrencia
+
+- O1 convirtió 6–7 queries secuenciales en `Promise.all`: baja latencia a baja concurrencia (960→~200 ms), pero **cada `/perfil` abre ~6 requests HTTP concurrentes a PostgREST**. A c=100–200 eso son 600–1200 requests HTTP simultáneos contra una instancia **free de ~500 MB RAM** → presión real de memoria/swap.
+- O1 no está "mal": es la mejor opción a baja concurrencia; el problema es el patrón × concurrencia × hardware.
+
+## Auditoría de conexión a Supabase (cambia el orden del plan)
+
+- **La app NO usa conexión directa a Postgres ni el pooler Supavisor.** No existe ninguna librería `pg`/node-postgres (verificado: 0 usos; sin 5432/6543/pooler/supavisor en el código).
+- Todo el acceso a BD es **supabase-js → HTTPS → PostgREST** (`https://nnhjqqjonabchluuwmkp.supabase.co:443`).
+- Consecuencia: **"conmutar a Supavisor 6543" NO aplica** (no hay connection string que cambiar). El pool real vive dentro de PostgREST (server-side, no configurable desde la app). La palanca que controla la app es **cuántos requests HTTP concurrentes envía a PostgREST y el payload por request**.
+
+## Plan reordenado (sin tocar estructura/identidad)
+
+1. **Consolidar O1 en una RPC** `obtener_perfil_alumno(curp)` que haga las 6 lecturas en UNA conexión/transacción → de ~6 requests HTTP a 1 por render. Aditivo (función SQL nueva; no toca tablas, columnas ni identidad). Máxima reducción de carga concurrente sobre PostgREST/500 MB.
+2. **Reducir `select(*)` en el flujo de perfil** (verificado en: catálogo — `inscripciones`, `grupos`, `periodo`, `carreras`; `registro-alumno`; `registro-estatus` — tabla de registro) → columnas específicas. Moderado hoy (tablas chicas), relevante cuando se pueblen registros.
+3. **`statement_timeout` conservador** a nivel de rol/conexión en Supabase como red de seguridad (fallo rápido y limpio en picos, sin swap total).
+4. **Pendiente:** dashboard de Vercel (duración de función vs cola en la ventana c=200) y confirmar si el límite real es el pool de PostgREST/500 MB.
+
+## Estado
+
+Sin cambios de código en este diagnóstico. Secret PBA rotado (se mantiene hasta cerrar la meta; luego rotar de nuevo). Próximo paso: escribir la RPC `obtener_perfil_alumno` (requiere aprobación SQL) y medir de nuevo.
+
+---
+
+# FASE 3 — CONSOLIDACIÓN DE /perfil EN RPC
+
+> Fecha: 30/08/2026. Objetivo: reducir la presión concurrente sobre Supabase (PostgREST) reduciendo el nº de requests HTTP por render de `/perfil`. **Estado: RPC diseñada y SQL creado (pendiente de ejecutar en Supabase); integración en la app NO aplicada** (gated: no se puede probar la RPC sin crearla en la BD).
+
+## 1. Problema original
+
+`/perfil` autenticado bajo concurrencia alta mostró timeouts y latencia p99 de 15–20 s en la app real (ver sección de hallazgos). El flujo abre muchos requests HTTP a PostgREST por render.
+
+## 2. Evidencia (app real en Vercel)
+
+- c=200 con timeout de cliente 10 s → 338/600 timeouts (era el cliente).
+- c=100/c=200 con timeout de cliente 30 s → 100% 2xx pero p99 15 s / 19.5 s.
+- Patrón frío→caliente: 30 s → 12.8 s → ~1 s (instancias frías con cachés O3/O5 vacías).
+
+## 3. Explicación del timeout de cliente
+
+Los timeouts eran del cliente (autocannon, default 10 s): el servidor completaba (200) más tarde. No hubo 504/resets → Vercel no mató la función a 10 s.
+
+## 4. Explicación del patrón O1 (contabilización real)
+
+O1 paralelizó el primer grupo (6–8 requests), pero la auditoría encontró que el flujo completo hace **~21 requests HTTP a PostgREST por render**:
+- paralelo inicial: ALUMNOS, ETIQUETAS, resolverGrupoAlumno (4 internos: inscripción→grupo→periodo→carrera), nombres visibles, comentarios, foto(Cloudinary) ≈ 8 + Cloudinary.
+- registro/boleta: inscripción + grupo + carrera + `select(*)` registro ≈ 4 (+ OpenAPI cache).
+- semestre: 1.
+- resolverMateriasAlumno: **re-ejecuta resolverGrupoAlumno (4)** + grupo_materias + materias ≈ 6.
+- identidades catálogo: grupo_materias `in` + carreras ≈ 2.
+
+## 5. Arquitectura real
+
+`supabase-js → HTTPS → PostgREST` (`https://nnhjqqjonabchluuwmkp.supabase.co:443`). Sin `pg`/TCP directo.
+
+## 6. Por qué Supavisor/6543 NO aplica
+
+La app no tiene conexión directa a Postgres ni librería `pg`; no hay connection string que conmutar. El pool vive en PostgREST (server-side). La palanca es el nº de requests HTTP y el payload.
+
+## 7. Diseño de la RPC (ADITIVA)
+
+Archivo: `supabase/crear-rpc-obtener-perfil-alumno.sql`.
+`obtener_perfil_alumno(p_curp text) RETURNS jsonb`, `SECURITY DEFINER`, `search_path = public`.
+Consolida (joins en SQL, sin N+1): ALUMNOS, ETIQUETAS PERSONALES, inscripción→grupo→periodo→carrera, semestres, grupo_materias activos, materias activas, identidades de catálogo, nombres visibles, comentarios.
+**No consolida** (se queda en la app): registro/boleta (OpenAPI + `select(*)` columnas dinámicas + matching JS de identidad) y foto (Cloudinary).
+
+## 8. Contrato funcional congelado
+
+Entrada: `curp` (normalizada por la app). Salida jsonb con claves = tipos TS:
+`alumno` (AlumnoRow|null), `etiquetas` (EtiquetasPersonalesRow|null), `inscripcion`/`grupo`/`periodo`/`carrera` (|null), `semestres` (filas; la app decide el estado con `gradoASemestre` + default true, SIN duplicar el mapeo), `grupo_materias`, `materias`, `identidades` (MateriaIdentidadCatalogo[]), `nombres_visibles`, `comentarios` (FECHA desc).
+Modo directivo `?modo=directivo&curp=` NO cambia: la RPC no recibe rol; la autorización sigue en la Server Action.
+
+## 9. Seguridad
+
+- `SECURITY DEFINER` + `search_path` fijo (patrón escolar_sync_columns).
+- **`GRANT EXECUTE TO service_role` SOLO** → no es endpoint público; solo la app (servidor) la invoca con `clienteLecturaEscolar`, preservando la autorización actual (sesión + rol en la action). anon/authenticated no pueden ejecutarla.
+- Único parámetro `curp`; no acepta nombres de tabla.
+
+## 10. Pruebas de equivalencia (matriz, pendiente de ejecutar tras crear la RPC)
+
+| Caso | alumno | grupo | carrera | periodo/semestre | materias | nombres visibles | comentarios | etiquetas | faltantes/null |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| alumno normal | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| sin grupo | ✓ | vacío | vacío | — | vacío | ✓ | ✓ | ✓ | grupo/periodo/carrera null |
+| sin materias | ✓ | ✓ | ✓ | ✓ | vacío | ✓ | ✓ | ✓ | — |
+| sin foto | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | foto null |
+| con comentarios | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| múltiples materias | ✓ | ✓ | ✓ | ✓ | todas | ✓ | ✓ | ✓ | — |
+| sin inscripción | ✓ | null | null | null | vacío | ✓ | ✓ | ✓ | inscripcion/grupo null |
+| modo directivo | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| etiquetas/status | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| datos faltantes/null | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | campos null |
+
+Si hay diferencia → investigar la semántica actual antes de "mejorar".
+
+## 11. Medición (pendiente)
+
+- ANTES: ~21 requests HTTP a PostgREST por perfil (medido por código; la app real p99 15–20 s a c=200).
+- DESPUÉS (objetivo): 1 request HTTP (RPC) + registro (`select(*)` 1) + Cloudinary (1) por render.
+- Latencia individual / tamaño respuesta / cold-warm: **pendiente de ejecutar la RPC en Supabase**.
+
+## 12–13. Concurrencia (pendiente)
+
+Re-ejecutar c=20/50/100/200/400 con timeout de cliente 30 s tras integrar y validar la RPC. Reportar 2xx/4xx/5xx, timeouts, req/s, p50/p95/p99, cold/warm.
+
+## 14. Limitaciones
+
+- La RPC no puede ejecutarse desde este entorno (sin DDL/SQL Editor): el archivo SQL queda **pendiente de ejecutar en Supabase**.
+- La integración de la app NO se aplicó (regla: integrar solo si hay forma segura de probar).
+- El registro/boleta sigue consumiendo 1 `select(*)` + OpenAPI (caché) por render (no consolidable sin tocar identidad/columnas dinámicas).
+
+## 15. Regresiones
+
+Ninguna aplicada (no se tocó código de la app). La integración debe pasar la matriz de equivalencia antes de declararse válida.
+
+## 16. Decisión
+
+**Pendiente de validación**: crear la RPC en Supabase → probar equivalencia (matriz) → integrar `actionObtenerPerfilAlumno` para usar la RPC vía `clienteLecturaEscolar` → re-medir en Vercel. Solo conservar si la medición muestra mejora real (reducción de requests + p95/p99) sin regresión funcional.
+
+
+## 17. Validación (segunda iteración — bloqueada por ejecución SQL)
+
+- **Revisión del SQL frente al flujo real:** se encontraron y corrigieron 3 discrepancias en `supabase/crear-rpc-obtener-perfil-alumno.sql` (artefacto propio, aún sin ejecutar):
+  1. Alias `row` (palabra reservada en PostgreSQL) → `r` en todos los subqueries.
+  2. `identidades.grado/grupo/asignatura` podían devolver NULL → `COALESCE(..., '')` para igualar `String(x ?? "").trim()` de la app.
+  3. `periodo` inexistente/inactivo: la app trata el grupo como NO resuelto (`resolverGrupoAlumno` → null); la RPC ahora devuelve el branch "sin grupo" si `v_periodo IS NULL`.
+- **Ejecución de la RPC: PENDIENTE / BLOQUEADA.** No hay acceso a DDL desde este entorno: `.env.local` solo tiene claves REST (anon/service), **no existe `DATABASE_URL`**, y `psql` no está instalado. La Management API de Supabase requiere un token de gestión que no tenemos. → Según la regla de la fase, **NO se integra código que dependa de una RPC inexistente**.
+- **Equivalencia funcional: NO MEDIDA** (requiere la RPC creada y CURPs reales de prueba).
+- **Integración: NO APLICADA** (gated). Diseño documentado: `actionObtenerPerfilAlumno` llamaría la RPC vía `clienteLecturaEscolar`, reutilizaría los datos de la RPC (inscripción/grupo/carrera) en la ruta de registro (eliminando 3 queries duplicadas) y conservaría en TS: `etiquetasVisibles`, `materiasVisiblesDesdeCatalogo`, decisión de semestre (`gradoASemestre` + default true) y el manejo de errores/fallbacks.
+- **Benchmark individual y Vercel (c=20/50/100/200/400): NO MEDIDO** — imposible sin la RPC en la BD.
+- **Decisión: PENDIENTE.** No se conserva ni se revierte nada (no hay integración). El SQL corregido queda listo para ejecutar en el SQL Editor de Supabase.
+
+
+## FASE 4 — VALIDACIÓN E INTEGRACIÓN RPC
+
+> Fecha: 30/08/2026. **Estado: BLOQUEADO** por falta de acceso a DDL en Supabase. No se ejecutó la RPC, no se probó equivalencia, no se integró, no se midió. Sin cambios de código de la app.
+
+### Estado inicial
+- Git: `M docs/OPTIMIZACION_RENDIMIENTO_400_500.md` · `?? supabase/crear-rpc-obtener-perfil-alumno.sql` (+ scripts preexistentes ajenos). Sin commits/push.
+- FASE 2 (O3/O5/O9/O1/O8) intacta. RPC SQL corregida en FASE 3 (alias `row`→`r`, `COALESCE` en identidades, branch de `periodo` nulo).
+
+### Bloqueo exacto (verificado en esta iteración)
+- **No hay acceso DDL**: `supabase` CLI NO instalado · `psql` NO instalado · `.env.local` solo tiene claves REST (anon/service) y NO contiene `DATABASE_URL`/`DB_*`/`POSTGRES`/`POOLER`/directa.
+- El service key de PostgREST **no puede ejecutar DDL** (CREATE FUNCTION). La Management API de Supabase requiere un PAT de gestión que no tenemos.
+- Consecuencia (regla de la fase): **NO se inventa que se ejecutó · NO se integra · NO se modifica la app**.
+
+### Auditoría (PASO 1, confirmada)
+Contrato actual de `actionObtenerPerfilAlumno`: `{ alumno, etiquetas (GRADO/GRUPO/CARRERA del catálogo), registro, materias, comentarios, puedeEditarEtiquetas, fotoPerfilUrl }`. Consumidores: `PerfilClient` (alumno, etiquetas→información personal/`tieneGrupo`, registro, materias→selector+vista, comentarios, foto, `puedeEditarEtiquetas`); modo directivo `?modo=directivo&curp=` usa los mismos datos. La RPC pretende devolver los datos crudos (alumno/etiquetas/inscripcion/grupo/periodo/carrera/semestres/grupo_materias/materias/identidades/nombres_visibles/comentarios) para que TS reconstruya `etiquetasVisibles`/`materias`/`semestreActivo`/registro (reusando inscripción/grupo/carrera). Sin discrepancias nuevas.
+
+### Validaciones de FASE 4 (todas BLOQUEADAS / NO MEDIDO)
+- Ejecución RPC: **NO EJECUTADA** (sin DDL).
+- Seguridad post-creación (firma `obtener_perfil_alumno(text)`, SECURITY DEFINER, search_path, GRANT service_role, anon/authenticated sin acceso): **pendiente de verificar en la BD** (el SQL ya lo declara).
+- Matriz de equivalencia (14 casos): **NO MEDIDA**.
+- Integración controlada: **NO APLICADA**.
+- Selects reducidos: **NO APLICADOS** (documentados en FASE 3).
+- `tsc`/build: `tsc --noEmit` **OK** (sin cambios de app); `npm run build` **NO ejecutado** (sin cambios de app).
+- Benchmark individual / c=20–400 / cold-warm: **NO MEDIDO**.
+- O1: **sin decisión** (hipótesis: con RPC 1–pocas llamadas, `Promise.all` deja de multiplicar requests; decidir con datos tras medir).
+
+### Qué se necesita para desbloquear (cualquiera)
+1. Ejecutar `supabase/crear-rpc-obtener-perfil-alumno.sql` en el **SQL Editor de Supabase** (el usuario) y avisar → proseguir con equivalencia/integración/benchmark.
+2. Proporcionar un **`DATABASE_URL`** (o string de conexión directa/pooler con password) + `psql` (o `pg` vía script) para ejecutar DDL desde aquí.
+3. Proporcionar un **Supabase PAT** (Management API) para ejecutar SQL vía `POST /v1/projects/{ref}/database/query`.
+
+### Decisión final
+**BLOQUEADO** (por infraestructura, no por código). El SQL está corregido y listo; la integración está diseñada. No hay datos de rendimiento que reportar porque la RPC no existe en la BD.
+
+
+## FASE 4 — EJECUCIÓN E INTEGRACIÓN (desbloqueada)
+
+> Fecha: 30/08/2026. Se desbloqueó con un **Supabase PAT** (enmascarado `…e4a2bf`, rotar al terminar). RPC ejecutada, seguridad verificada, equivalencia demostrada e integración aplicada en la app. **Sin commit/push.**
+
+### Ejecución y seguridad (PASO 2–4)
+- RPC `obtener_perfil_alumno(p_curp text) RETURNS jsonb` **creada** en `nnhjqqjonabchluuwmkp` vía Management API. Verificado: `SECURITY DEFINER=true`, `search_path=public`, firma `(text)`→`jsonb`.
+- **Fallo de permisos detectado y corregido:** Postgres otorga EXECUTE a PUBLIC por defecto → inicialmente `anon/authenticated/PUBLIC` podían ejecutarla. Se aplicó `REVOKE ... FROM PUBLIC, anon, authenticated` + `GRANT ... TO service_role`. Verificado post-fix: **solo `service_role` (y `postgres` dueño)**.
+- **Validación anon:** `POST /rest/v1/rpc/obtener_perfil_alumno` con anon → `404 PGRST202` (función no visible). Con service key + parámetro `p_curp` → 200.
+- El archivo SQL se actualizó con el `REVOKE` (fiel a lo desplegado).
+
+### Equivalencia funcional (PASO 5) — **PASÓ**
+Comparación semántica (claves ordenadas, sets sin orden, replicando `resolverIdentidadesCatalogo`):
+- `TEZA080110HQTRRDA5` (inscripción, grupo 2DO A RH, 10 materias): **12/12 campos equivalentes** (alumno, etiquetas, inscripcion, grupo, periodo, carrera, semestres, grupo_materias, materias, identidades, nombres_visibles, comentarios).
+- `OUCB070914MMCLSRA3` (sin inscripción): **12/12 equivalentes** (nulls + arrays vacíos correctos).
+- Comentarios: valores idénticos (solo orden de claves en jsonb).
+- Semestre: `2DO → sem 2 INACTIVO`, decisión RPC-based = app-based = `false`.
+- Las diferencias iniciales detectadas eran **orden de claves jsonb** (falsos positivos del `JSON.stringify`), no semánticas.
+
+### Integración (PASO 5–6) — **APLICADA**
+- `app/actions/escolar.ts`: `actionObtenerPerfilAlumno` ahora intenta la RPC vía `clienteLecturaEscolar.rpc("obtener_perfil_alumno", { p_curp })` (1 request); si falla (función ausente / sin service_role) cae al **flujo directo O1** (fallback verbatim).
+- Se conservan en TS: `etiquetasVisibles`, `materiasVisiblesDesdeCatalogo`, decisión de semestre, registro/boleta (ruta propia con su regla de "exactamente 1 inscripción"), foto (Cloudinary), autorización/modo directivo.
+- `lib/escolar/semestres.ts`: helper puro `semestreActivoDesdeFilas` (misma semántica que `semestreActivoDeGrupo`, default true).
+- **Selects:** la RPC ya usa columnas específicas para todas las lecturas consolidadas; el único `select(*)` restante del perfil es la tabla dinámica de registro (NO reducible). No se aplicó limpieza global.
+- Registro conserva 4 queries propias (inscripción exactamente-1 → grupo → carrera → `select(*)` registro): reusar los datos de la RPC cambiaría la semántica del caso de múltiples inscripciones activas.
+
+### TypeScript / Build (PASO 7)
+- `npx tsc --noEmit --incremental false` → **exit 0**.
+- `npm run build` → **exit 0** (compiled successfully, 10 rutas).
+
+### Benchmark individual (PASO 8)
+RPC vía PostgREST (service key):
+- TEZA (10 materias): **355 ms frío / 185–217 ms caliente · 35,238 B**.
+- OUCB (sin inscripción): **113–121 ms · 27,116 B**.
+- "Después" por render de datos: 1 RPC + 4 registro + Cloudinary ≈ 5 requests (vs ~21 antes).
+
+### Benchmark de concurrencia (PASO 9) — patrón "después" contra Supabase directo
+Cada usuario = 1 RPC + 4 queries de registro, timeout 30 s:
+
+| C | reqs | req/s | 2xx | no2xx/timeout | request p50/p95/p99 | user p50/p95/p99 |
+| --: | --: | --: | --: | --: | --: | --: |
+| 20 | 1,685 | 168.5 | 100% | 0 | 110/172/354 | 562/1,004/1,172 |
+| 50 | 3,525 | 352.5 | 100% | 0 | 130/226/486 | 660/1,361/1,601 |
+| 100 | 4,020 | 402.0 | 100% | 0 | 238/441/852 | 1,243/2,035/2,441 |
+| 200 | 4,870 | 405.8 | 100% | 0 | 478/968/2,119 | 2,413/4,338/4,818 |
+| 400 | 6,220 | 414.7 | 100% | 0 | 1,029/2,055/3,555 | 5,157/8,527/9,124 |
+
+- **100% 2xx, 0 timeouts, 0 errores hasta c=400.** req/s satura ~400.
+- Presión sobre Supabase: **~5 requests/usuario vs ~21 antes** (reducción ~4× del multiplicador).
+
+### Cold/warm (PASO 11)
+- RPC: frío 355 ms → caliente ~185–217 ms. Sin Vercel no se puede medir cold-start de función; pendiente tras deploy.
+
+### O1 (PASO 12)
+- **Se conserva** (fallback del perfil y resto de la app). Con la RPC activa, el perfil ya no dispara `Promise.all` de 6 requests (1 RPC). Hipótesis confirmada a nivel de diseño; validación en Vercel pendiente de deploy.
+
+### Errores (PASO 13/14)
+- Ninguno en equivalencia ni en el benchmark directo. Los timeouts previos eran del cliente (10 s), no del servidor (sin 504).
+
+### Pendiente / límites
+- **Benchmark en Vercel c=20–400 del perfil INTEGRADO: PENDIENTE** (requiere push/deploy, prohibido en esta fase). La app desplegada hoy aún ejecuta el flujo O1 (21 requests).
+- Rotar el PAT `…e4a2bf` al terminar.
+- El `select(*)` de registro y la foto siguen fuera de la RPC (documentado).
+
+### Decisión final
+**CONSERVAR** la RPC y su integración: equivalencia demostrada (12/12 en 2 casos + semestre), seguridad corregida y verificada, build OK, y reducción estructural ~21 → ~5 requests/usuario con 100% 2xx hasta c=400 a nivel Supabase. Falta el benchmark Vercel final tras deploy para cerrar.
+
+
+## FASE 5 — VALIDACIÓN VERCEL POST-RPC
+
+> Fecha: 30/08/2026. **Estado: BLOQUEADO/PENDIENTE** — el deployment de producción NO contiene la integración de FASE 4. Sin benchmark real post-RPC; sin push.
+
+### PASO 1 — Estado verificado
+- HEAD: `f41bbd2` (último push, Bloque 8 del Lote 1).
+- Working tree con cambios SIN commitear (integración FASE 4): `M app/actions/escolar.ts`, `M lib/escolar/semestres.ts`, `M docs/…`, `?? supabase/crear-rpc-obtener-perfil-alumno.sql`.
+- FASE 2 intacta (O3/O5/O9/O1/O8).
+- Local confirmado: `actionObtenerPerfilAlumno` intenta `rpc("obtener_perfil_alumno", { p_curp })` primero; fallback O1 presente; `semestreActivoDesdeFilas` en `semestres.ts`.
+- Supabase confirmado: función existe, `SECURITY DEFINER`, **GRANTS = solo `postgres, service_role`** (sin regresión).
+
+### PASO 2 — Producción NO contiene la integración (bloqueante)
+- El deployment de producción fue creado a partir de `f41bbd2` (push del Lote 1). Los cambios de FASE 4 (RPC + integración) son **locales y no commitados/pusheados**.
+- Por regla de la fase: **NO se mide como "post-RPC" un deployment que no usa la RPC**; **NO se hace push automáticamente**; **NO se inventan resultados**.
+- Falta exactamente: commit + push de FASE 4 (integración) y un redeploy en Vercel.
+
+### PASO 3–4 — Benchmark Vercel de `/perfil` post-RPC: **PENDIENTE**
+No ejecutado (producción sin integración). Referencia histórica (antes/O1): c=100/200 p99 15–19.5 s; c=200 con timeout 10 s → timeouts de cliente. Referencia directa Supabase (después, FASE 4): c=400 100% 2xx, 0 timeout, ~5 requests/usuario.
+
+### PASO 5–7 — Sin diagnóstico ni optimización nueva
+Nada que diagnosticar sobre la RPC en Vercel hasta que exista el deployment integrado. No se añadieron optimizaciones.
+
+### Decisión
+**PENDIENTE — requiere deploy.** Para desbloquear: commitear y pushear FASE 4 (integración RPC) y re-ejecutar el benchmark c=20/50/100/200/400 con timeout de cliente 30 s sobre `/perfil`, comparando contra la tabla de FASE 4 (directo Supabase) y la referencia histórica O1.
+
+### Siguiente acción (justificada solo por evidencia)
+Tras deploy y benchmark limpio de `/perfil` (c=400 100% 2xx, 0 timeouts de servidor, p99 razonable, sin degradación progresiva): plantear carga mixta (alumnos+tutores+boletas/asistencias+directivo), NO antes.
+

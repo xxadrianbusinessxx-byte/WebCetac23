@@ -44,13 +44,23 @@ import {
   resolverIdentidadesCatalogo,
   resolverMateriasAlumno,
   validarAccesoAlumno,
+  type CarreraRow,
+  type GrupoAlumnoResuelto,
+  type GrupoMateriaRow,
+  type GrupoRow,
+  type InscripcionRow,
+  type MateriaIdentidadCatalogo,
+  type MateriaRow,
+  type PeriodoRow,
 } from "@/lib/escolar/catalogo-academico";
 import {
   gradoASemestre,
   semestreActivoDeGrupo,
+  semestreActivoDesdeFilas,
   semestresInactivos,
 } from "@/lib/escolar/semestres";
 import {
+  aliasActivosDesdeFilas,
   listarNombresVisiblesMaterias,
   materiasVisiblesDesdeCatalogo,
   type MateriaConNombreVisible,
@@ -78,6 +88,31 @@ import {
 } from "@/lib/escolar/foto-perfil";
 import { createClient } from "@/lib/supabase/server";
 import { clienteLecturaEscolar } from "@/lib/supabase/service";
+
+/**
+ * FASE 3 — Contrato de salida de la RPC `obtener_perfil_alumno(p_curp)`.
+ * Coincide con el SQL de supabase/crear-rpc-obtener-perfil-alumno.sql y con los
+ * tipos TS que consume el perfil. Las claves que no son "consolidables" (registro
+ * y foto de Cloudinary) se resuelven en la aplicación.
+ */
+type RpcPerfilAlumno = {
+  alumno: AlumnoRow | null;
+  etiquetas: EtiquetasPersonalesRow | null;
+  inscripcion: InscripcionRow | null;
+  grupo: GrupoRow | null;
+  periodo: PeriodoRow | null;
+  carrera: CarreraRow | null;
+  semestres: { periodo_id: string; semestre: number; activo: boolean }[];
+  grupo_materias: GrupoMateriaRow[];
+  materias: MateriaRow[];
+  identidades: MateriaIdentidadCatalogo[];
+  nombres_visibles: {
+    materia_id: string;
+    nombre_visible: string;
+    activo?: boolean;
+  }[];
+  comentarios: ComentarioRow[];
+};
 
 export async function actionObtenerPerfilAlumno(
   curpConsulta?: string | null,
@@ -121,18 +156,93 @@ export async function actionObtenerPerfilAlumno(
     };
   }
 
-  // O1 — Consultas INDEPENDIENTES en paralelo (mismo resultado, menos latencia).
-  // Cadenas dependientes conservadas: alumno → registro; grupo → semestre → materias.
+  // FASE 3 — Intento de RPC consolidada `obtener_perfil_alumno(p_curp)`:
+  // 1 request HTTP a PostgREST en lugar de ~21. Si la función no existe o el
+  // service_role no está disponible, se cae al flujo directo O1 (mismo
+  // resultado). La RPC NO decide roles: la autorización sigue aquí.
   const supabaseLectura = await clienteLecturaEscolar(supabase);
-  const [alumno, etiquetas, grupoCatalogo, aliases, comentarios, fotoPerfilUrl] =
-    await Promise.all([
-      buscarAlumnoPorCurp(supabase, curp),
-      obtenerEtiquetasPersonales(supabaseLectura, curp),
-      resolverGrupoAlumno(supabaseLectura, curp),
-      listarNombresVisiblesMaterias(supabaseLectura),
-      listarComentariosAlumno(supabase, curp),
-      obtenerFotoPerfilAlumno(supabase, curp),
-    ]);
+
+  let rpcData: RpcPerfilAlumno | null = null;
+  try {
+    const { data, error } = await supabaseLectura.rpc(
+      "obtener_perfil_alumno",
+      { p_curp: curp },
+    );
+    if (!error && data) rpcData = data as RpcPerfilAlumno;
+  } catch {
+    rpcData = null;
+  }
+
+  let alumno: AlumnoRow | null = null;
+  let etiquetas: EtiquetasPersonalesRow | null = null;
+  let grupoCatalogo: GrupoAlumnoResuelto | null = null;
+  let aliases: ReadonlyMap<string, string> = new Map();
+  let comentarios: ComentarioRow[] = [];
+  let fotoPerfilUrl: string | null = null;
+  let semestreActivo = true;
+  let tablasLegacy: string[] = [];
+  let identidades: ReadonlyMap<string, MateriaIdentidadCatalogo> = new Map();
+
+  if (rpcData) {
+    // --- Fuente consolidada (RPC) ---
+    alumno = rpcData.alumno;
+    etiquetas = rpcData.etiquetas;
+    comentarios = rpcData.comentarios;
+    fotoPerfilUrl = await obtenerFotoPerfilAlumno(supabase, curp);
+    // inscripción → grupo → periodo (carrera opcional): misma semántica que
+    // resolverGrupoAlumno (null si falta inscripción/grupo/periodo).
+    grupoCatalogo =
+      rpcData.inscripcion && rpcData.grupo && rpcData.periodo
+        ? {
+            inscripcion: rpcData.inscripcion,
+            grupo: rpcData.grupo,
+            periodo: rpcData.periodo,
+            carrera: rpcData.carrera ?? null,
+          }
+        : null;
+    tablasLegacy = (rpcData.grupo_materias ?? [])
+      .map((g) => (g.tabla_legacy ?? "").trim())
+      .filter((t): t is string => Boolean(t));
+    identidades = new Map(
+      (rpcData.identidades ?? []).map((i) => [i.tablaLegacy, i]),
+    );
+    aliases = aliasActivosDesdeFilas(rpcData.nombres_visibles ?? []);
+    semestreActivo = grupoCatalogo
+      ? semestreActivoDesdeFilas(rpcData.semestres ?? [], grupoCatalogo.grupo)
+      : true;
+  } else {
+    // --- Flujo directo O1 (fallback; comportamiento previo exacto) ---
+    // O1 — Consultas INDEPENDIENTES en paralelo (mismo resultado, menos latencia).
+    // Cadenas dependientes conservadas: alumno → registro; grupo → semestre → materias.
+    [alumno, etiquetas, grupoCatalogo, aliases, comentarios, fotoPerfilUrl] =
+      await Promise.all([
+        buscarAlumnoPorCurp(supabase, curp),
+        obtenerEtiquetasPersonales(supabaseLectura, curp),
+        resolverGrupoAlumno(supabaseLectura, curp),
+        listarNombresVisiblesMaterias(supabaseLectura),
+        listarComentariosAlumno(supabase, curp),
+        obtenerFotoPerfilAlumno(supabase, curp),
+      ]);
+    semestreActivo =
+      grupoCatalogo && gradoASemestre(grupoCatalogo.grupo.grado) !== null
+        ? await semestreActivoDeGrupo(supabaseLectura, grupoCatalogo.grupo)
+        : true;
+    const materiasCatalogo =
+      grupoCatalogo && semestreActivo
+        ? await resolverMateriasAlumno(supabaseLectura, curp)
+        : [];
+    tablasLegacy = materiasCatalogo
+      .map((m) => m.tablaLegacy)
+      .filter((t): t is string => Boolean(t));
+    if (grupoCatalogo && semestreActivo) {
+      // C4.28 — identidad desde el catálogo (grupo_materias → grupos → carreras
+      // y materias). El nombre físico de la tabla NUNCA se interpreta.
+      identidades = await resolverIdentidadesCatalogo(
+        supabaseLectura,
+        tablasLegacy,
+      );
+    }
+  }
 
   const nombreCompleto = alumno ? nombreCompletoAlumno(alumno) : "";
   // C4.6 — La carrera ACADÉMICA OFICIAL proviene del catálogo
@@ -152,52 +262,18 @@ export async function actionObtenerPerfilAlumno(
   // (academico_semestres), su oferta de materias queda vacía.
   // C4.24 — sin inscripción activa NO se infiere la oferta desde ETIQUETAS
   // PERSONALES (la identidad académica la define SOLO el directivo).
-  const semestreActivo =
-    grupoCatalogo && gradoASemestre(grupoCatalogo.grupo.grado) !== null
-      ? await semestreActivoDeGrupo(supabaseLectura, grupoCatalogo.grupo)
-      : true;
-  const materiasCatalogo =
-    grupoCatalogo && semestreActivo
-      ? await resolverMateriasAlumno(supabaseLectura, curp)
-      : [];
-  const tablasLegacy = materiasCatalogo
-    .map((m) => m.tablaLegacy)
-    .filter((t): t is string => Boolean(t));
-
-  // C4.24 — La oferta de materias del alumno proviene SOLO de su inscripción
-  // activa (catálogo). Sin inscripción activa → sin oferta (NO se infiere de
-  // ETIQUETAS PERSONALES). Semestre inactivo → oferta vacía (no se cae a un
-  // fallback legacy).
-  let fuente: "CATALOGO" | "SEMESTRE_INACTIVO" | "SIN_INSCRIPCION" =
-    grupoCatalogo
-      ? semestreActivo
-        ? "CATALOGO"
-        : "SEMESTRE_INACTIVO"
-      : "SIN_INSCRIPCION";
   let materias: MateriaConNombreVisible[] = [];
   if (grupoCatalogo && semestreActivo) {
-    // C4.28 — identidad desde el catálogo (grupo_materias → grupos → carreras
-    // y materias). El nombre físico de la tabla NUNCA se interpreta.
-    const identidades = await resolverIdentidadesCatalogo(
-      supabaseLectura,
-      tablasLegacy,
-    );
     materias = materiasVisiblesDesdeCatalogo(
       tablasLegacy,
       identidades,
       aliases,
     );
   }
-  void fuente;
 
   // C4.7 — CARRERA del PERFIL: proviene del CATÁLOGO cuando existe inscripción
   // activa (grupoCatalogo.carrera); vacía si no la hay (no se inventa).
-  // ETIQUETAS.CARRERA permanece almacenada como dato legacy/descriptivo pero
-  // deja de mostrarse como autoridad académica en el perfil.
-  // C4.24 — GRADO/GRUPO también provienen SOLO del catálogo (inscripción que
-  // controla el directivo). Las ETIQUETAS PERSONALES (legacy) dejan de
-  // sobreponerse a la inscripción: si el alumno no tiene inscripción activa,
-  // la identidad académica se muestra vacía (no se infiere de etiquetas).
+  // C4.24 — GRADO/GRUPO también provienen SOLO del catálogo.
   const etiquetasVisibles: EtiquetasPersonalesRow | null = etiquetas
     ? {
         ...etiquetas,

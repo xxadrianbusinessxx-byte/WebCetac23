@@ -115,6 +115,25 @@ export async function semestreActivoDeGrupo(
   return estadoSemestre(supabase, grupo.periodo_id, semestre);
 }
 
+/**
+ * FASE 3 — Versión PURA de `semestreActivoDeGrupo` que decide a partir de filas
+ * ya cargadas de `academico_semestres` (evita una consulta extra cuando la RPC
+ * `obtener_perfil_alumno` ya devolvió los semestres). Conserva exactamente la
+ * semántica de `estadoSemestre`: sin fila para (periodo, semestre) ⇒ true.
+ */
+export function semestreActivoDesdeFilas(
+  filas: ReadonlyArray<{ periodo_id: string; semestre: number; activo: boolean }>,
+  grupo: { periodo_id: string; grado: string },
+): boolean {
+  const semestre = gradoASemestre(grupo.grado);
+  if (semestre === null) return true;
+  const fila = filas.find(
+    (f) => f.periodo_id === grupo.periodo_id && f.semestre === semestre,
+  );
+  if (!fila) return true;
+  return Boolean(fila.activo);
+}
+
 /** Semestres (números) configurados como INACTIVOS (academico_semestres.activo=false). */
 export async function semestresInactivos(
   supabase: SupabaseClient,
