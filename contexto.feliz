@@ -1078,6 +1078,26 @@ SQL pendiente de ejecutar en Supabase (SQL Editor), en este orden:
 requiere un 4º script SQL.)
 
 
+Bloque 10 — Estado: completado — DESACTIVACIÓN DEL SISTEMA DE NOTICIAS PARA
+DIRECTIVOS + IMAGEN FIJA «CREE EN TI» EN EL LOGIN. El directivo ya no publica
+noticias: se eliminó del panel la sección «Publicación + Noticias» (subir
+imagen, publicar, eventos 1/2 y «Noticias recientes»), sus estados y handlers,
+y los imports asociados. El login ya no consulta Cloudinary
+(actionObtenerNoticiasInicio); la sección lateral muestra por ahora la imagen
+fija «cree en ti» (things/cree en ti.jpg → public/decoraciones-imagenes/
+cree-en-ti.jpg). Los módulos de soporte quedan INTACTOS pero sin uso
+(app/actions/noticias.ts, lib/cloudinary/noticias.ts, app/components/evento-visor.tsx);
+para reactivar basta volver a conectarlos. Sin cambios de SQL, tablas,
+autenticación ni identidad. Build verificado (tsc --noEmit OK + next build OK).
+  Rutas exactas de archivos cambiados:
+    - app/components/eventos-inicio.tsx
+    - app/directivo/directivo-client.tsx
+    - app/directivo/page.tsx
+    - app/page.tsx
+    - public/decoraciones-imagenes/cree-en-ti.jpg (nuevo)
+    - contexto.feliz
+
+
   Fin de contexto.feliz
 
 

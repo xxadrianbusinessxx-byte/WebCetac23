@@ -76,7 +76,7 @@ export default async function Home() {
 
           <section className="lg:col-span-4">
             <GlassShell className="flex h-full min-h-[320px] flex-col p-5 sm:p-6">
-              <SectionPill>Eventos</SectionPill>
+              <SectionPill>Cree en ti</SectionPill>
               <EventosInicio />
             </GlassShell>
           </section>
