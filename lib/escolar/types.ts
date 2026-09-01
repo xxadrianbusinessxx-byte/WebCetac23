@@ -25,6 +25,11 @@ export type EtiquetasPersonalesRow = {
   TALLA: string | null;
   VACUNACION: string | null;
   CARRERA: string | null;
+  /** FASE 2 — campos personales DEFINIDOS (aditivos; ver
+   *  supabase/agregar-campos-personales-alumno.sql). Opcionales porque la RPC
+   *  legacy o una BD sin migrar pueden no incluirlos. */
+  EDAD?: string | null;
+  ESTATURA?: string | null;
   EMPTY1: string | null;
   EMPTY2: string | null;
   EMPTY3: string | null;

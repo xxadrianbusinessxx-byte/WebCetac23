@@ -397,7 +397,13 @@ type FilaEtiquetaPertenencia = {
   carrera: string;
 };
 
-/** Lectura SOLO de GRADO/GRUPO/CARRERA de ETIQUETAS PERSONALES (paginada). */
+/**
+ * @deprecated Legacy de migración (C2): lee GRADO/GRUPO/CARRERA desde
+ * ETIQUETAS PERSONALES para sembrar el catálogo. La identidad académica ya se
+ * resuelve desde inscripciones_alumno (filosofia.estructural §5). Se conserva
+ * solo como utilidad histórica de una migración única.
+ * Lectura SOLO de GRADO/GRUPO/CARRERA de ETIQUETAS PERSONALES (paginada).
+ */
 async function leerEtiquetasPertenencia(
   supabase: SupabaseClient,
 ): Promise<FilaEtiquetaPertenencia[]> {
@@ -703,6 +709,11 @@ export async function aplicarInscripcionesDesdeEtiquetas(
  * ========================================================================= */
 
 /**
+ * @deprecated Legacy (C2.6): réplica unidireccional de pertenencia hacia
+ * ETIQUETAS PERSONALES (GRADO/GRUPO/CARRERA). La identidad académica ya no debe
+ * escribirse en ETIQUETAS PERSONALES: la fuente es inscripciones_alumno
+ * (filosofia.estructural §5). Se conserva solo por compatibilidad histórica.
+ *
  * C2.6 — Réplica unidireccional de pertenencia hacia ETIQUETAS PERSONALES.
  * Preparada para la futura carga masiva operativa; NO se llama en C2.
  */

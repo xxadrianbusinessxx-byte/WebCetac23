@@ -19,19 +19,32 @@ type Props = {
   }>;
 };
 
+const MODOS_VALIDOS = ["directivo", "tutor", "maestro"] as const;
+export type ModoPerfil = "alumno" | (typeof MODOS_VALIDOS)[number];
+
 export default async function PerfilPage({ searchParams }: Props) {
   const params = await searchParams;
   const curpConsulta = params.curp ?? params.alumno ?? null;
   const datos = await actionObtenerPerfilAlumno(curpConsulta);
-  const modoDirectivo = params.modo === "directivo";
+  const modoValido = MODOS_VALIDOS.find((m) => m === params.modo);
+  const modo: ModoPerfil = modoValido ?? "alumno";
+
+  // El modo es SOLO presentación; la autorización real se valida en la Server
+  // Action (resolverAccesoAlumno). El vínculo de regreso refleja el rol.
   const urlRegreso =
-    params.desde === "directivo" || modoDirectivo ? "/directivo" : "/perfil";
+    params.desde === "directivo" || modo === "directivo"
+      ? "/directivo"
+      : params.desde === "tutor" || modo === "tutor"
+        ? "/tutor"
+        : params.desde === "profesor" || modo === "maestro"
+          ? "/profesor"
+          : "/perfil";
 
   return (
     <Suspense fallback={null}>
       <PerfilClient
         materias={datos.materias}
-        modoDirectivo={modoDirectivo}
+        modo={modo}
         urlRegreso={urlRegreso}
         datos={datos}
       />

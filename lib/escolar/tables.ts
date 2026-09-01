@@ -30,6 +30,9 @@ export const TABLA_ASIGNACIONES_PROFESOR = "asignaciones_profesor";
 /** C4.14 — Estado activo/inactivo de la oferta por semestre (grado) y periodo. */
 export const TABLA_SEMESTRES = "academico_semestres";
 
+/** FASE 2 — Módulo etiquetas dinámicas (alumno_etiquetas). */
+export const TABLA_ALUMNO_ETIQUETAS = "alumno_etiquetas";
+
 
 
 

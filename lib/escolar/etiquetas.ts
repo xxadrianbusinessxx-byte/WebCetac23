@@ -7,18 +7,35 @@ import {
 import { TABLA_ETIQUETAS_PERSONALES } from "./tables";
 import type { EtiquetasPersonalesRow } from "./types";
 
-const SELECT_ETIQUETAS =
+const SELECT_ETIQUETAS_BASE =
   'CURP, GENERO, GRADO, GRUPO, CORREO, CELULAR, "TIPO DE SANGRE", ALERGIAS, LENTES, "ENFERMEDAD CRONICA", "SALUD MENTAL", "NECESIDAD PSICOLOGICA", PESO, TALLA, VACUNACION, CARRERA, EMPTY1, EMPTY2, EMPTY3, EMPTY4, EMPTY5, EMPTY6, "COMENTARIO PERSONAL"';
+
+/** Campos personales DEFINIDOS añadidos en FASE 2 (aditivos; ver
+ *  supabase/agregar-campos-personales-alumno.sql). */
+const SELECT_ETIQUETAS_EXT = `${SELECT_ETIQUETAS_BASE}, EDAD, ESTATURA`;
 
 export async function obtenerEtiquetasPersonales(
   supabase: SupabaseClient,
   curp: string,
 ): Promise<EtiquetasPersonalesRow | null> {
-  const { data, error } = await supabase
+  const c = curp.trim().toUpperCase();
+  if (!c) return null;
+
+  // Intento principal: lista extendida (EDAD/ESTATURA). Si esas columnas aún
+  // no existen en la BD (migración pendiente), PostgREST devuelve error y se
+  // reintenta con la lista base legacy (no se rompe la lectura).
+  let { data, error } = await supabase
     .from(TABLA_ETIQUETAS_PERSONALES)
-    .select(SELECT_ETIQUETAS)
-    .eq("CURP", curp.trim().toUpperCase())
+    .select(SELECT_ETIQUETAS_EXT)
+    .eq("CURP", c)
     .maybeSingle();
+  if (error && /EDAD|ESTATURA/i.test(error.message)) {
+    ({ data, error } = await supabase
+      .from(TABLA_ETIQUETAS_PERSONALES)
+      .select(SELECT_ETIQUETAS_BASE)
+      .eq("CURP", c)
+      .maybeSingle());
+  }
 
   if (error || !data) return null;
   return data as EtiquetasPersonalesRow;
@@ -90,6 +107,50 @@ export function patchComentarioPersonal(
   texto: string,
 ): Pick<EtiquetasPersonalesRow, "COMENTARIO PERSONAL"> {
   return { "COMENTARIO PERSONAL": texto };
+}
+
+/**
+ * Campos personales PRIMARIOS del alumno (fuente de verdad: ETIQUETAS
+ * PERSONALES legacy; ver supabase/agregar-campos-personales-alumno.sql).
+ * Son campos ESTRUCTURADOS del modelo de datos personales, NO etiquetas
+ * dinámicas (alumno_etiquetas) — ver filosofia.estructural §6.
+ * GRADO/GRUPO/CARRERA NO están aquí (identidad académica del catálogo).
+ */
+export const CAMPOS_PERSONALES_PRIMARIOS = [
+  "GENERO",
+  "CORREO",
+  "CELULAR",
+  "TIPO DE SANGRE",
+  "ALERGIAS",
+  "LENTES",
+  "ENFERMEDAD CRONICA",
+  "SALUD MENTAL",
+  "NECESIDAD PSICOLOGICA",
+  "PESO",
+  "TALLA",
+  "VACUNACION",
+  "EDAD",
+  "ESTATURA",
+] as const;
+
+export type CampoPersonalPrimario = (typeof CAMPOS_PERSONALES_PRIMARIOS)[number];
+
+/**
+ * Construye el patch de ETIQUETAS PERSONALES para los campos personales
+ * primarios. Los valores vacíos se guardan como NULL (no como etiquetas
+ * vacías). Solo se incluyen las claves presentes en `campos`.
+ */
+export function patchCamposPersonales(
+  campos: Partial<Record<CampoPersonalPrimario, unknown>>,
+): Partial<EtiquetasPersonalesRow> {
+  const patch: Partial<EtiquetasPersonalesRow> = {};
+  for (const campo of CAMPOS_PERSONALES_PRIMARIOS) {
+    if (!(campo in campos)) continue;
+    const v = campos[campo];
+    const t = v == null ? "" : String(v).trim();
+    patch[campo] = t || null;
+  }
+  return patch;
 }
 
 /** @deprecated Usar titulosEtiquetasPersonales */

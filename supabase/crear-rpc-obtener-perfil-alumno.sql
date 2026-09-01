@@ -70,11 +70,15 @@ BEGIN
   ) r;
 
   -- ETIQUETAS PERSONALES (columnas exactas de EtiquetasPersonalesRow).
+  -- FASE 2: se añaden EDAD/ESTATURA (campos personales definidos, aditivos).
+  -- GRADO/GRUPO/CARRERA se conservan solo por compatibilidad de lectura; la
+  -- identidad académica la resuelve la app desde inscripcion/grupo/carrera.
   SELECT to_jsonb(r) INTO v_etiquetas
   FROM (
     SELECT "CURP", "GENERO", "GRADO", "GRUPO", "CORREO", "CELULAR",
            "TIPO DE SANGRE", "ALERGIAS", "LENTES", "ENFERMEDAD CRONICA",
            "SALUD MENTAL", "NECESIDAD PSICOLOGICA", "PESO", "TALLA",
+           "EDAD", "ESTATURA",
            "VACUNACION", "CARRERA", "EMPTY1", "EMPTY2", "EMPTY3",
            "EMPTY4", "EMPTY5", "EMPTY6", "COMENTARIO PERSONAL"
     FROM "ETIQUETAS PERSONALES"

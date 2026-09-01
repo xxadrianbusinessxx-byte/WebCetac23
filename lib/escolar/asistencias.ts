@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+﻿import type { SupabaseClient } from "@supabase/supabase-js";
 import { archivoCsvAFilasConValores, matrizACsvTexto } from "./csv";
 import { CURP_ALUMNO_RE } from "./buscar-en-filas";
 import {
@@ -34,6 +34,17 @@ import {
 
 import type { AlumnoRow, EtiquetasPersonalesRow } from "./types";
 
+/**
+ * @deprecated TransiciÃ³n legacy â†’ catÃ¡logo acadÃ©mico.
+ * Mientras sea `true`, los listados de asistencia pueden caer al fallback de
+ * ETIQUETAS PERSONALES (GRADO/GRUPO/CARRERA) cuando el grupo no se resuelve en
+ * el catÃ¡logo o aÃºn no tiene inscripciones. La ruta PRINCIPAL ya usa el
+ * catÃ¡logo (inscripciones_alumno â†’ grupos â†’ carreras).
+ * Cambiar a `false` solo cuando la migraciÃ³n de inscripciones estÃ© verificada.
+ */
+const FALLBACK_LEGACY_ETIQUETAS_ACTIVO = true;
+
+
 
 /**
  * Dominio de ASISTENCIAS DEL PROFESOR (Bloque 5B).
@@ -41,14 +52,14 @@ import type { AlumnoRow, EtiquetasPersonalesRow } from "./types";
  * Cada fila de `asistencia_alumnos` representa el aporte INDEPENDIENTE de UN
  * profesor:
  *
- *   (profesor_clave, curp, grado, grupo, fecha) → clases_asistidas
+ *   (profesor_clave, curp, grado, grupo, fecha) â†’ clases_asistidas
  *
  * Esto permite que varios profesores actualicen su propio aporte mediante
  * UPSERT sin acumular ni sobrescribir el aporte de otro profesor. El total real
  * del alumno se calcula con SUM(clases_asistidas) y NUNCA se almacena.
  *
- * La identidad del profesor SIEMPRE es `profesor_clave` (matrícula de la
- * sesión), nunca un valor del archivo ni del navegador.
+ * La identidad del profesor SIEMPRE es `profesor_clave` (matrÃ­cula de la
+ * sesiÃ³n), nunca un valor del archivo ni del navegador.
  */
 
 export type ContextoAsistencia = {
@@ -77,11 +88,11 @@ export type ResumenAsistencia = {
   sinCambios: number;
   omitidos: number;
   errores: number;
-  /** Días de clase del ciclo en los que el profesor tiene clases según su
-   *  configuración pero que NO vienen en el archivo. Quedan PENDIENTES (no se
+  /** DÃ­as de clase del ciclo en los que el profesor tiene clases segÃºn su
+   *  configuraciÃ³n pero que NO vienen en el archivo. Quedan PENDIENTES (no se
    *  marcan como falta). */
   pendientes: number;
-  /** Discrepancias entre la fila CLASES del archivo y la configuración semanal
+  /** Discrepancias entre la fila CLASES del archivo y la configuraciÃ³n semanal
    *  del profesor (fuente de verdad). Son informativas: NO alteran la config. */
   discrepancias: number;
   omitidosDetalle: string[];
@@ -124,12 +135,12 @@ export type ResultadoAnalisis =
 const TAMANO_PAGINA = 1000;
 const TAMANO_LOTE = 100;
 
-/** Normaliza grado/grupo/carrera a mayúsculas y sin espacios. */
+/** Normaliza grado/grupo/carrera a mayÃºsculas y sin espacios. */
 function norm(texto: string): string {
   return texto.trim().toUpperCase();
 }
 
-/** ¿El texto es un entero no negativo? */
+/** Â¿El texto es un entero no negativo? */
 function esEnteroNoNegativo(texto: string): boolean {
   return /^\d+$/.test(texto.trim());
 }
@@ -142,7 +153,7 @@ function celdaTexto(celda: string | number | null | undefined): string {
 }
 
 
-/** Configuración semanal de clases de un profesor (Bloque 5C). */
+/** ConfiguraciÃ³n semanal de clases de un profesor (Bloque 5C). */
 export type ConfiguracionClasesProfesor = {
   profesor_clave: string;
   lunes: number;
@@ -152,18 +163,18 @@ export type ConfiguracionClasesProfesor = {
   viernes: number;
 };
 
-/** Claves de día de semana → columna de la configuración. */
+/** Claves de dÃ­a de semana â†’ columna de la configuraciÃ³n. */
 const CLAVE_DIA_A_COLUMNA: Record<DiaSemana, keyof ConfiguracionClasesProfesor> = {
   lunes: "lunes",
   martes: "martes",
   miercoles: "miercoles",
   jueves: "jueves",
   viernes: "viernes",
-  sabado: "lunes", // no aplica (no es día escolar)
-  domingo: "lunes", // no aplica (no es día escolar)
+  sabado: "lunes", // no aplica (no es dÃ­a escolar)
+  domingo: "lunes", // no aplica (no es dÃ­a escolar)
 };
 
-/** Configuración vacía por defecto (todas las clases en 0). */
+/** ConfiguraciÃ³n vacÃ­a por defecto (todas las clases en 0). */
 export function configuracionVacia(profesorClave: string): ConfiguracionClasesProfesor {
   return {
     profesor_clave: profesorClave,
@@ -175,7 +186,7 @@ export function configuracionVacia(profesorClave: string): ConfiguracionClasesPr
   };
 }
 
-/** Obtiene la configuración semanal de clases de un profesor (o null si no existe). */
+/** Obtiene la configuraciÃ³n semanal de clases de un profesor (o null si no existe). */
 export async function obtenerConfiguracionClasesProfesor(
   supabase: SupabaseClient,
   profesorClave: string,
@@ -194,9 +205,9 @@ export async function obtenerConfiguracionClasesProfesor(
 }
 
 /**
- * Guarda (UPSERT) la configuración semanal de clases de un profesor.
- * La identidad es `profesor_clave` (de la sesión). Re-guardar actualiza, no
- * duplica. Valida que cada día sea un entero >= 0.
+ * Guarda (UPSERT) la configuraciÃ³n semanal de clases de un profesor.
+ * La identidad es `profesor_clave` (de la sesiÃ³n). Re-guardar actualiza, no
+ * duplica. Valida que cada dÃ­a sea un entero >= 0.
  */
 export async function guardarConfiguracionClasesProfesor(
   supabase: SupabaseClient,
@@ -243,7 +254,7 @@ export async function guardarConfiguracionClasesProfesor(
   return { ok: true };
 }
 
-/** Número de clases que el profesor imparte en una fecha según su configuración. */
+/** NÃºmero de clases que el profesor imparte en una fecha segÃºn su configuraciÃ³n. */
 export function clasesDelProfesorParaFecha(
   config: ConfiguracionClasesProfesor | null,
   fecha: string,
@@ -265,7 +276,7 @@ type ContextoCatalogoAsistencia = {
 };
 
 /**
- * C4.3 — Carga los grupos activos del PERIODO ACTIVO del catálogo, indexados
+ * C4.3 â€” Carga los grupos activos del PERIODO ACTIVO del catÃ¡logo, indexados
  * por identidad normalizada (G2). `periodos` es la autoridad del periodo;
  * `calendario_escolar` permanece responsable de fechas/clases.
  */
@@ -311,14 +322,13 @@ async function cargarContextoCatalogoAsistencia(
   return { periodoNombre: periodo.nombre, periodoId: periodo.id, indice };
 }
 
-/** CURPs con inscripción ACTIVA en un grupo del catálogo (paginado). */
+/** CURPs con inscripciÃ³n ACTIVA en un grupo del catÃ¡logo (paginado). */
 async function obtenerCurpsInscritasGrupo(
   supabase: SupabaseClient,
   grupoId: string,
 ): Promise<Set<string>> {
   const curps = new Set<string>();
   let desde = 0;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const { data, error } = await supabase
       .from(TABLA_INSCRIPCIONES_ALUMNO)
@@ -344,7 +354,6 @@ async function completarNombresAlumnos(
 ): Promise<AlumnoPlantilla[]> {
   const porCurp = new Map<string, string>();
   let desde = 0;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const { data, error } = await supabase
       .from(TABLA_ALUMNOS)
@@ -365,10 +374,10 @@ async function completarNombresAlumnos(
 }
 
 /**
- * C4.3 — Lista los grupos (grado + grupo + carrera) para asistencia.
- * Fuente primaria: catálogo (periodos → grupos → carreras).
+ * C4.3 â€” Lista los grupos (grado + grupo + carrera) para asistencia.
+ * Fuente primaria: catÃ¡logo (periodos â†’ grupos â†’ carreras).
  * Fallback LEGACY temporal (ETIQUETAS PERSONALES) solo si no hay periodo
- * activo o el catálogo no tiene grupos.
+ * activo o el catÃ¡logo no tiene grupos.
  */
 export async function listarGruposAsistencia(
   supabase: SupabaseClient,
@@ -390,18 +399,23 @@ export async function listarGruposAsistencia(
       ),
     );
   }
-  // Fallback LEGACY temporal (sin periodo activo / catálogo sin grupos).
-  return listarGruposAsistenciaLegacy(supabase);
+  // Fallback LEGACY temporal (sin periodo activo / catÃ¡logo sin grupos).
+  if (FALLBACK_LEGACY_ETIQUETAS_ACTIVO) {
+    return listarGruposAsistenciaLegacy(supabase);
+  }
+  return [];
 }
 
-/** Fallback LEGACY: grupos derivados de ETIQUETAS PERSONALES (temporal). */
+/**
+ * @deprecated Fallback LEGACY temporal: grupos derivados de ETIQUETAS
+ * PERSONALES (GRADO/GRUPO/CARRERA). Se eliminarÃ¡ cuando la migraciÃ³n de
+ * inscripciones estÃ© verificada (ver FALLBACK_LEGACY_ETIQUETAS_ACTIVO).
+ */
 async function listarGruposAsistenciaLegacy(
   supabase: SupabaseClient,
 ): Promise<GrupoAsistencia[]> {
   const grupos = new Map<string, GrupoAsistencia>();
   let desde = 0;
-
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const { data, error } = await supabase
       .from(TABLA_ETIQUETAS_PERSONALES)
@@ -432,11 +446,11 @@ async function listarGruposAsistenciaLegacy(
 }
 
 /**
- * C4.3 — Obtiene los alumnos de un grado/grupo/carrera.
- * Fuente primaria: inscripciones_alumno (activas) del grupo del catálogo,
+ * C4.3 â€” Obtiene los alumnos de un grado/grupo/carrera.
+ * Fuente primaria: inscripciones_alumno (activas) del grupo del catÃ¡logo,
  * completando el nombre desde ALUMNOS.
  * Fallback LEGACY temporal (ETIQUETAS PERSONALES) solo si el grupo no se
- * resuelve en el catálogo o aún no tiene inscripciones.
+ * resuelve en el catÃ¡logo o aÃºn no tiene inscripciones.
  */
 export async function obtenerAlumnosDelGrupo(
   supabase: SupabaseClient,
@@ -449,7 +463,7 @@ export async function obtenerAlumnosDelGrupo(
   const c = norm(carrera);
   if (!g || !gr) return [];
 
-  // Fuente primaria: catálogo.
+  // Fuente primaria: catÃ¡logo.
   const catalogo = await cargarContextoCatalogoAsistencia(supabase);
   if (catalogo) {
     const key = `${normalizarGradoCatalogo(g)}|${normalizarGrupoCatalogo(gr)}|${normalizarCarreraCatalogo(c)}`;
@@ -457,16 +471,23 @@ export async function obtenerAlumnosDelGrupo(
     if (item) {
       const curps = await obtenerCurpsInscritasGrupo(supabase, item.id);
       if (curps.size > 0) return completarNombresAlumnos(supabase, curps);
-      // El grupo existe en el catálogo pero aún sin inscripciones → se permite
+      // El grupo existe en el catÃ¡logo pero aÃºn sin inscripciones â†’ se permite
       // el fallback legacy temporal para no perder alumnos pendientes.
     }
   }
 
   // Fallback LEGACY temporal (grupo no resuelto o sin inscripciones).
-  return obtenerAlumnosDelGrupoLegacy(supabase, g, gr, c);
+  if (FALLBACK_LEGACY_ETIQUETAS_ACTIVO) {
+    return obtenerAlumnosDelGrupoLegacy(supabase, g, gr, c);
+  }
+  return [];
 }
 
-/** Fallback LEGACY: CURPs del grupo desde ETIQUETAS PERSONALES (temporal). */
+/**
+ * @deprecated Fallback LEGACY: CURPs del grupo desde ETIQUETAS PERSONALES
+ * (GRADO/GRUPO/CARRERA). Se eliminarÃ¡ cuando la migraciÃ³n de inscripciones
+ * estÃ© verificada (ver FALLBACK_LEGACY_ETIQUETAS_ACTIVO).
+ */
 async function obtenerAlumnosDelGrupoLegacy(
   supabase: SupabaseClient,
   g: string,
@@ -475,7 +496,6 @@ async function obtenerAlumnosDelGrupoLegacy(
 ): Promise<AlumnoPlantilla[]> {
   const curps = new Set<string>();
   let desde = 0;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const { data, error } = await supabase
       .from(TABLA_ETIQUETAS_PERSONALES)
@@ -505,9 +525,9 @@ async function obtenerAlumnosDelGrupoLegacy(
 
 /**
  * Genera la plantilla de asistencias para un grado/grupo/carrera y ciclo.
- * Solo usa días `tipo = 'clase'` del calendario. La plantilla incluye una fila
- * especial `CLASES` (clases impartidas por el profesor por día) y una fila por
- * alumno (asistencia por día).
+ * Solo usa dÃ­as `tipo = 'clase'` del calendario. La plantilla incluye una fila
+ * especial `CLASES` (clases impartidas por el profesor por dÃ­a) y una fila por
+ * alumno (asistencia por dÃ­a).
  */
 export async function generarPlantillaAsistencia(
   supabase: SupabaseClient,
@@ -525,7 +545,7 @@ export async function generarPlantillaAsistencia(
   if (fechas.length === 0) {
     return {
       ok: false,
-      error: `El ciclo ${ciclo} no tiene días de clase configurados en el calendario.`,
+      error: `El ciclo ${ciclo} no tiene dÃ­as de clase configurados en el calendario.`,
     };
   }
 
@@ -538,12 +558,12 @@ export async function generarPlantillaAsistencia(
   if (alumnos.length === 0) {
     return {
       ok: false,
-      error: `No hay alumnos en ${ctx.grado} · grupo ${ctx.grupo}${ctx.carrera ? ` · ${ctx.carrera}` : ""}.`,
+      error: `No hay alumnos en ${ctx.grado} Â· grupo ${ctx.grupo}${ctx.carrera ? ` Â· ${ctx.carrera}` : ""}.`,
     };
   }
 
-  // Configuración semanal del profesor (Bloque 5C). Si no existe, la fila
-  // CLASES queda vacía y la UI indicará que debe configurarla.
+  // ConfiguraciÃ³n semanal del profesor (Bloque 5C). Si no existe, la fila
+  // CLASES queda vacÃ­a y la UI indicarÃ¡ que debe configurarla.
   const config = await obtenerConfiguracionClasesProfesor(
     supabase,
     ctx.profesorClave,
@@ -551,8 +571,8 @@ export async function generarPlantillaAsistencia(
 
   const filas: string[][] = [];
   filas.push(["CURP", "NOMBRE", ...fechas]);
-  // Fila especial: clases impartidas por el profesor por día. Se auto-rellena
-  // según el día REAL de cada fecha del calendario + la configuración semanal.
+  // Fila especial: clases impartidas por el profesor por dÃ­a. Se auto-rellena
+  // segÃºn el dÃ­a REAL de cada fecha del calendario + la configuraciÃ³n semanal.
   filas.push([
     "CLASES",
     ctx.profesorNombre,
@@ -591,7 +611,7 @@ export async function analizarPlantillaAsistencia(
   if (!ciclo) return { ok: false, error: "Indica un ciclo escolar." };
 
   // 1) Parsear archivo conservando los valores crudos (para que las fechas de
-  //    Excel lleguen como serial numérico y no como texto regional).
+  //    Excel lleguen como serial numÃ©rico y no como texto regional).
   let filas: (string | number)[][];
   try {
     const parsed = await archivoCsvAFilasConValores(file);
@@ -605,7 +625,7 @@ export async function analizarPlantillaAsistencia(
     fila.some((cel) => (cel == null ? "" : String(cel)).trim() !== ""),
   );
   if (noVacias.length < 2) {
-    return { ok: false, error: "El archivo está vacío o solo tiene encabezados." };
+    return { ok: false, error: "El archivo estÃ¡ vacÃ­o o solo tiene encabezados." };
   }
 
   const [rawHead, ...rawDatos] = noVacias;
@@ -617,13 +637,13 @@ export async function analizarPlantillaAsistencia(
   const idxCurp = encabezados.findIndex((h) => /^CURP$/i.test(h));
   const idxNombre = encabezados.findIndex((h) => /^NOMBRE$/i.test(h));
   if (idxCurp < 0) {
-    return { ok: false, error: "La plantilla debe incluir una columna «CURP»." };
+    return { ok: false, error: "La plantilla debe incluir una columna Â«CURPÂ»." };
   }
   if (idxNombre < 0) {
-    return { ok: false, error: "La plantilla debe incluir una columna «NOMBRE»." };
+    return { ok: false, error: "La plantilla debe incluir una columna Â«NOMBREÂ»." };
   }
 
-  // 3) Calendario: días válidos de clase del ciclo (fuente de verdad).
+  // 3) Calendario: dÃ­as vÃ¡lidos de clase del ciclo (fuente de verdad).
   const calendario = await obtenerCalendarioEscolar(supabase, ciclo);
   const diasClase = new Set(
     calendario.filter((d) => d.tipo === "clase").map((d) => d.fecha),
@@ -632,10 +652,10 @@ export async function analizarPlantillaAsistencia(
     calendario.filter((d) => d.tipo !== "clase").map((d) => [d.fecha, d.tipo]),
   );
 
-  // 4) Detectar columnas de fecha usando la capa canónica de fechas. Cada
+  // 4) Detectar columnas de fecha usando la capa canÃ³nica de fechas. Cada
   //    encabezado se normaliza UNA SOLA VEZ a YYYY-MM-DD y se valida contra el
-  //    calendario. El CONTRATO INTERNO es: `columna.fecha` (canónica) es la
-  //    ÚNICA representación de la fecha; `columna.indice` localiza la celda del
+  //    calendario. El CONTRATO INTERNO es: `columna.fecha` (canÃ³nica) es la
+  //    ÃšNICA representaciÃ³n de la fecha; `columna.indice` localiza la celda del
   //    alumno. El encabezado original (p.ej. serial Excel "46259") NUNCA vuelve
   //    a usarse para identificar la fecha.
   const deteccion = detectarColumnasFechaAsistencia(
@@ -643,54 +663,54 @@ export async function analizarPlantillaAsistencia(
     calendario,
     [idxCurp, idxNombre],
   );
-  // Columnas reconocidas como días de clase: { indice, fecha }.
+  // Columnas reconocidas como dÃ­as de clase: { indice, fecha }.
   const columnasFecha = deteccion.columnas.map((c) => ({
     indice: c.indice,
     fecha: c.fecha!,
   }));
   if (columnasFecha.length === 0) {
 
-    // Mensaje de error más útil según qué falló.
+    // Mensaje de error mÃ¡s Ãºtil segÃºn quÃ© fallÃ³.
     if (deteccion.ambiguas > 0) {
       const ejemplos = deteccion.todas
         .filter((c) => c.estado === "ambigua")
         .slice(0, 3)
-        .map((c) => `«${c.encabezadoOriginal}» (¿${c.candidatos.join(" o ")}?)`)
+        .map((c) => `Â«${c.encabezadoOriginal}Â» (Â¿${c.candidatos.join(" o ")}?)`)
         .join(", ");
       return {
         ok: false,
-        error: `No se pudieron reconocer las fechas del archivo. ${ejemplos ? `Columnas ambiguas: ${ejemplos}. ` : ""}Asegúrate de que las fechas coincidan con días de clase del ciclo ${ciclo} (formato YYYY-MM-DD).`,
+        error: `No se pudieron reconocer las fechas del archivo. ${ejemplos ? `Columnas ambiguas: ${ejemplos}. ` : ""}AsegÃºrate de que las fechas coincidan con dÃ­as de clase del ciclo ${ciclo} (formato YYYY-MM-DD).`,
       };
     }
     if (deteccion.noDiaClase > 0) {
       const ejemplos = deteccion.todas
         .filter((c) => c.estado === "no_es_dia_clase")
         .slice(0, 3)
-        .map((c) => `«${c.encabezadoOriginal}» → ${c.fecha}`)
+        .map((c) => `Â«${c.encabezadoOriginal}Â» â†’ ${c.fecha}`)
         .join(", ");
       return {
         ok: false,
-        error: `Las fechas del archivo no son días de clase del ciclo ${ciclo}. ${ejemplos ? `Ejemplos: ${ejemplos}. ` : ""}Revisa el calendario escolar o descarga una plantilla nueva.`,
+        error: `Las fechas del archivo no son dÃ­as de clase del ciclo ${ciclo}. ${ejemplos ? `Ejemplos: ${ejemplos}. ` : ""}Revisa el calendario escolar o descarga una plantilla nueva.`,
       };
     }
     return {
       ok: false,
-      error: `La plantilla no tiene columnas de fecha reconocibles. Asegúrate de que las fechas coincidan con días de clase del ciclo ${ciclo} (formato YYYY-MM-DD).`,
+      error: `La plantilla no tiene columnas de fecha reconocibles. AsegÃºrate de que las fechas coincidan con dÃ­as de clase del ciclo ${ciclo} (formato YYYY-MM-DD).`,
     };
   }
   // `columnasFecha` es el CONTRATO INTERNO: cada elemento es
-  //   { indice, fecha } donde `fecha` es YYYY-MM-DD (canónica) y `indice`
+  //   { indice, fecha } donde `fecha` es YYYY-MM-DD (canÃ³nica) y `indice`
   //   localiza la celda del alumno en la fila. El encabezado original
   //   (p.ej. serial Excel "46259") ya NO se usa para identificar la fecha.
 
 
-  // 5) Alumnos del grupo (CURP → nombre).
+  // 5) Alumnos del grupo (CURP â†’ nombre).
 
   const alumnos = await obtenerAlumnosDelGrupo(supabase, g, gr, c);
   const alumnosPorCurp = new Map(alumnos.map((a) => [a.curp, a.nombre]));
 
   // 6) Clases impartidas ya guardadas por este profesor en este grupo (para
-  //    detectar "sin cambios" y como respaldo del máximo).
+  //    detectar "sin cambios" y como respaldo del mÃ¡ximo).
   const { data: clasesPrevias } = await supabase
     .from(TABLA_CLASES_IMPARTIDAS)
     .select("fecha, clases")
@@ -718,8 +738,8 @@ export async function analizarPlantillaAsistencia(
     asistenciasPreviasPorClave.set(`${r.curp}|${r.fecha}`, r.clases_asistidas);
   }
 
-  // 8) Configuración semanal del profesor: FUENTE DE VERDAD de cuántas clases
-  //    imparte por día. La fila CLASES del archivo es solo informativa.
+  // 8) ConfiguraciÃ³n semanal del profesor: FUENTE DE VERDAD de cuÃ¡ntas clases
+  //    imparte por dÃ­a. La fila CLASES del archivo es solo informativa.
   const config = await obtenerConfiguracionClasesProfesor(
     supabase,
     ctx.profesorClave,
@@ -739,10 +759,10 @@ export async function analizarPlantillaAsistencia(
   let errores = 0;
   let discrepancias = 0;
 
-  // 10) Fila CLASES del archivo: se compara contra la configuración semanal
+  // 10) Fila CLASES del archivo: se compara contra la configuraciÃ³n semanal
   //     (fuente de verdad). Las discrepancias son informativas y NO alteran la
-  //     configuración. El valor oficial de `clases_impartidas` es el de la
-  //     configuración semanal.
+  //     configuraciÃ³n. El valor oficial de `clases_impartidas` es el de la
+  //     configuraciÃ³n semanal.
   const clasesArchivoPorFecha = new Map<string, number>();
   for (const fila of rawDatos) {
     const curpCelda = celdaTexto(fila[idxCurp]).toUpperCase();
@@ -751,9 +771,9 @@ export async function analizarPlantillaAsistencia(
     for (const columna of columnasFecha) {
       const fecha = columna.fecha;
       const valor = celdaTexto(fila[columna.indice]);
-      if (valor === "") continue; // celda vacía: no aporta información
+      if (valor === "") continue; // celda vacÃ­a: no aporta informaciÃ³n
       if (!esEnteroNoNegativo(valor)) {
-        erroresDetalle.push(`Fila CLASES: «${valor}» no es un número válido para ${fecha}.`);
+        erroresDetalle.push(`Fila CLASES: Â«${valor}Â» no es un nÃºmero vÃ¡lido para ${fecha}.`);
         errores++;
         continue;
       }
@@ -763,9 +783,9 @@ export async function analizarPlantillaAsistencia(
   }
 
 
-  // 11) Clases oficiales por fecha (desde la configuración semanal). Solo para
-  //     las fechas presentes en el archivo que sean días de clase. La fecha
-  //     SIEMPRE es `columna.fecha` (canónica YYYY-MM-DD).
+  // 11) Clases oficiales por fecha (desde la configuraciÃ³n semanal). Solo para
+  //     las fechas presentes en el archivo que sean dÃ­as de clase. La fecha
+  //     SIEMPRE es `columna.fecha` (canÃ³nica YYYY-MM-DD).
   const clasesOficialesPorFecha = new Map<string, number>();
   for (const columna of columnasFecha) {
     const fecha = columna.fecha;
@@ -776,12 +796,12 @@ export async function analizarPlantillaAsistencia(
     const delArchivo = clasesArchivoPorFecha.get(fecha);
     if (delArchivo !== undefined && delArchivo !== oficial) {
       discrepanciasDetalle.push(
-        `Fila CLASES: el archivo dice ${delArchivo} clases el ${fecha}, pero tu configuración semanal indica ${oficial}. Se usará ${oficial} (configuración).`,
+        `Fila CLASES: el archivo dice ${delArchivo} clases el ${fecha}, pero tu configuraciÃ³n semanal indica ${oficial}. Se usarÃ¡ ${oficial} (configuraciÃ³n).`,
       );
       discrepancias++;
     }
 
-    // `clases_impartidas` registra el dato efectivo (fuente: configuración).
+    // `clases_impartidas` registra el dato efectivo (fuente: configuraciÃ³n).
     clasesImpartidas.push({
       profesor_clave: ctx.profesorClave,
       grado: g,
@@ -792,8 +812,8 @@ export async function analizarPlantillaAsistencia(
     });
   }
 
-  // 12) Días PENDIENTES: días de clase del ciclo en los que el profesor tiene
-  //     clases según su configuración (oficial > 0) pero que NO vienen en el
+  // 12) DÃ­as PENDIENTES: dÃ­as de clase del ciclo en los que el profesor tiene
+  //     clases segÃºn su configuraciÃ³n (oficial > 0) pero que NO vienen en el
   //     archivo. Quedan pendientes (sin registro), NO se marcan como falta.
   const fechasEnArchivo = new Set(columnasFecha.map((c) => c.fecha));
 
@@ -803,7 +823,7 @@ export async function analizarPlantillaAsistencia(
     if (fechasEnArchivo.has(fecha)) continue;
     const oficial = clasesDelProfesorParaFecha(config, fecha);
     if (oficial > 0) {
-      pendientesDetalle.push(`${fecha} (${oficial} clases según tu configuración)`);
+      pendientesDetalle.push(`${fecha} (${oficial} clases segÃºn tu configuraciÃ³n)`);
     }
   }
 
@@ -813,16 +833,16 @@ export async function analizarPlantillaAsistencia(
     if (!curp || curp === "CLASES") continue;
 
 
-    // CURP válido.
+    // CURP vÃ¡lido.
     if (!CURP_ALUMNO_RE.test(curp)) {
-      omitidosDetalle.push(`CURP inválido: «${curp}»`);
+      omitidosDetalle.push(`CURP invÃ¡lido: Â«${curp}Â»`);
       omitidos++;
       continue;
     }
 
     // Evitar duplicados dentro del archivo.
     if (curpsVistos.has(curp)) {
-      omitidosDetalle.push(`CURP duplicado en el archivo: «${curp}»`);
+      omitidosDetalle.push(`CURP duplicado en el archivo: Â«${curp}Â»`);
       omitidos++;
       continue;
     }
@@ -831,7 +851,7 @@ export async function analizarPlantillaAsistencia(
     // Alumno debe pertenecer al grado/grupo seleccionado.
     const nombreEsperado = alumnosPorCurp.get(curp);
     if (nombreEsperado === undefined) {
-      omitidosDetalle.push(`CURP no pertenece a ${g} · grupo ${gr}: «${curp}»`);
+      omitidosDetalle.push(`CURP no pertenece a ${g} Â· grupo ${gr}: Â«${curp}Â»`);
       omitidos++;
       continue;
     }
@@ -844,35 +864,35 @@ export async function analizarPlantillaAsistencia(
       const valor = celdaTexto(fila[columna.indice]);
 
 
-      // Fecha debe ser día de clase. `fecha` es SIEMPRE la canónica YYYY-MM-DD
+      // Fecha debe ser dÃ­a de clase. `fecha` es SIEMPRE la canÃ³nica YYYY-MM-DD
       // (nunca el encabezado original, p.ej. serial Excel "46259").
       if (!diasClase.has(fecha)) {
         const tipo = diasNoClase.get(fecha);
         erroresDetalle.push(
           tipo
-            ? `${curp}: ${fecha} no es día de clase (${tipo}).`
-            : `${curp}: ${fecha} no está en el calendario del ciclo.`,
+            ? `${curp}: ${fecha} no es dÃ­a de clase (${tipo}).`
+            : `${curp}: ${fecha} no estÃ¡ en el calendario del ciclo.`,
         );
         errores++;
         continue;
       }
 
 
-      // Celda VACÍA ≠ 0. Vacío = sin registro = PENDIENTE (no se escribe nada).
+      // Celda VACÃA â‰  0. VacÃ­o = sin registro = PENDIENTE (no se escribe nada).
       if (valor === "") continue;
 
       if (!esEnteroNoNegativo(valor)) {
-        erroresDetalle.push(`${curp}: «${valor}» no es un número válido para ${fecha}.`);
+        erroresDetalle.push(`${curp}: Â«${valor}Â» no es un nÃºmero vÃ¡lido para ${fecha}.`);
         errores++;
         continue;
       }
       const asistencia = Number(valor);
 
-      // No puede superar las clases oficiales del profesor ese día (config).
+      // No puede superar las clases oficiales del profesor ese dÃ­a (config).
       const maxClases = clasesOficialesPorFecha.get(fecha) ?? 0;
       if (asistencia > maxClases) {
         erroresDetalle.push(
-          `${curp}: asistencia ${asistencia} supera las ${maxClases} clases del ${fecha} según tu configuración.`,
+          `${curp}: asistencia ${asistencia} supera las ${maxClases} clases del ${fecha} segÃºn tu configuraciÃ³n.`,
         );
         errores++;
         continue;
@@ -929,7 +949,7 @@ export async function previsualizarAsistencias(
 
 /**
  * Confirma la plantilla: UPSERT en `clases_impartidas` y `asistencia_alumnos`.
- * La identidad del profesor SIEMPRE es `ctx.profesorClave` (de la sesión).
+ * La identidad del profesor SIEMPRE es `ctx.profesorClave` (de la sesiÃ³n).
  * El UPSERT sobre la UNIQUE garantiza que re-subir NO acumule.
  */
 export async function confirmarAsistencias(
@@ -967,21 +987,21 @@ export async function confirmarAsistencias(
 // ============================================================================
 // ESTADOS DERIVADOS DE ASISTENCIA (Bloque 5D)
 // ----------------------------------------------------------------------------
-// Para la futura visualización del alumno/padre (calendario visual) se derivan
+// Para la futura visualizaciÃ³n del alumno/padre (calendario visual) se derivan
 // cuatro estados a partir de los datos existentes. NO se almacenan en ninguna
 // tabla nueva:
 //
-//   asistio   → existe registro y clases_asistidas > 0
-//   falta     → existe registro y clases_asistidas = 0 (0 EXPLÍCITO)
-//   pendiente → día tipo='clase' + el profesor tiene clases ese día (config)
+//   asistio   â†’ existe registro y clases_asistidas > 0
+//   falta     â†’ existe registro y clases_asistidas = 0 (0 EXPLÃCITO)
+//   pendiente â†’ dÃ­a tipo='clase' + el profesor tiene clases ese dÃ­a (config)
 //               + el alumno pertenece al grupo + NO existe registro
-//   sin_clase → el día NO es tipo='clase' (festivo/mantenimiento/descanso) o
-//               el profesor no tiene clases ese día
+//   sin_clase â†’ el dÃ­a NO es tipo='clase' (festivo/mantenimiento/descanso) o
+//               el profesor no tiene clases ese dÃ­a
 //
-// Reglas críticas:
-//   · VACÍO ≠ 0. Sin registro = pendiente, nunca falta.
-//   · Nunca convertir pendiente en falta.
-//   · Nunca almacenar estados ni porcentajes (son derivados).
+// Reglas crÃ­ticas:
+//   Â· VACÃO â‰  0. Sin registro = pendiente, nunca falta.
+//   Â· Nunca convertir pendiente en falta.
+//   Â· Nunca almacenar estados ni porcentajes (son derivados).
 // ============================================================================
 
 export type EstadoAsistencia = "asistio" | "falta" | "pendiente" | "sin_clase";
@@ -991,9 +1011,9 @@ export type DiaEstadoAsistencia = {
   diaSemana: DiaSemana;
   tipo: TipoDiaCalendario;
   estado: EstadoAsistencia;
-  /** Clases que el profesor debería impartir ese día (config semanal). */
+  /** Clases que el profesor deberÃ­a impartir ese dÃ­a (config semanal). */
   clasesEsperadas: number;
-  /** Clases a las que asistió el alumno (null si no hay registro). */
+  /** Clases a las que asistiÃ³ el alumno (null si no hay registro). */
   clasesAsistidas: number | null;
 };
 
@@ -1006,26 +1026,26 @@ export function estadoAsistenciaAlumno(input: {
   clasesEsperadas: number;
   clasesAsistidas: number | null;
 }): EstadoAsistencia {
-  // Día no escolar (festivo/mantenimiento/descanso) → sin_clase.
+  // DÃ­a no escolar (festivo/mantenimiento/descanso) â†’ sin_clase.
   if (input.tipo !== "clase") return "sin_clase";
-  // Día de clase pero el profesor no tiene clases ese día → sin_clase.
+  // DÃ­a de clase pero el profesor no tiene clases ese dÃ­a â†’ sin_clase.
   if (input.clasesEsperadas <= 0) return "sin_clase";
-  // Sin registro → pendiente (nunca falta).
+  // Sin registro â†’ pendiente (nunca falta).
   if (input.clasesAsistidas === null) return "pendiente";
-  // 0 explícito → falta.
+  // 0 explÃ­cito â†’ falta.
   if (input.clasesAsistidas === 0) return "falta";
-  // > 0 → asistió.
+  // > 0 â†’ asistiÃ³.
   return "asistio";
 }
 
 /**
- * ¿El profesor imparte clase en un grado/grupo?
+ * Â¿El profesor imparte clase en un grado/grupo?
  *
  * Se determina a partir de los registros existentes en `clases_impartidas`
- * (fuente real de datos): un profesor "imparte" en un grupo si ya registró
- * clases impartidas en él. NO se crea un mapeo nuevo profesor→grupo; se
- * reutiliza el modelo actual. Útil para restringir a un `maestro` a consultar
- * únicamente los grupos donde realmente da clase.
+ * (fuente real de datos): un profesor "imparte" en un grupo si ya registrÃ³
+ * clases impartidas en Ã©l. NO se crea un mapeo nuevo profesorâ†’grupo; se
+ * reutiliza el modelo actual. Ãštil para restringir a un `maestro` a consultar
+ * Ãºnicamente los grupos donde realmente da clase.
  */
 export async function profesorImparteEnGrupo(
   supabase: SupabaseClient,
@@ -1077,7 +1097,7 @@ export async function obtenerEstadosAsistenciaAlumno(
   const ciclo = norm(input.ciclo);
   if (!g || !gr || !ciclo) return [];
 
-  // 1) Calendario del ciclo (fuente de verdad de días escolares).
+  // 1) Calendario del ciclo (fuente de verdad de dÃ­as escolares).
   const calendario = await obtenerCalendarioEscolar(supabase, ciclo);
   if (calendario.length === 0) return [];
 
@@ -1141,11 +1161,11 @@ export async function obtenerEstadosAsistenciaAlumno(
 
 /**
  * Calcula el porcentaje de asistencia SOLO sobre las clases registradas
- * (asistencias + faltas). Los días pendientes NO entran al denominador.
+ * (asistencias + faltas). Los dÃ­as pendientes NO entran al denominador.
  *
  *   porcentaje = asistencias / (asistencias + faltas)
  *
- * Ejemplo: 18 asistencias + 2 faltas + 5 pendientes → 18/20 = 90%.
+ * Ejemplo: 18 asistencias + 2 faltas + 5 pendientes â†’ 18/20 = 90%.
  * Es un valor DERIVADO: NO se almacena.
  */
 export function calcularPorcentajeAsistencia(

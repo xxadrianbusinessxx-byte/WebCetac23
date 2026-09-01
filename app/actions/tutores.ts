@@ -7,6 +7,7 @@ import {
   cambiarCredencialesTutor,
   crearTutorConAlumnos,
   generarTutoresAutomaticos,
+  listarAlumnosDeTutor,
   listarCredencialesInicialesDeTutores,
   listarCurpsDeTutor,
   listarTutores,
@@ -238,6 +239,16 @@ export async function actionListarCurpsDeTutor(): Promise<string[]> {
   if (sesion?.rol !== "tutor") return [];
   const supabase = await createClient();
   return listarCurpsDeTutor(supabase, sesion.matricula);
+}
+
+/** FASE 2 — Alumnos del tutor autenticado con su nombre completo. */
+export async function actionListarAlumnosDelTutor(): Promise<
+  { curp: string; nombre: string }[]
+> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "tutor") return [];
+  const supabase = await createClient();
+  return listarAlumnosDeTutor(supabase, sesion.matricula);
 }
 
 // ---------------------------------------------------------------------------

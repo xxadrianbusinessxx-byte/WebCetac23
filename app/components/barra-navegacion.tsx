@@ -37,9 +37,16 @@ export function BarraNavegacionGlobal({
   if (rol === "tutor") {
     // El tutor NO tiene perfil de alumno propio en /perfil (quedaría vacío);
     // su espacio es /tutor, por eso no se ofrece el botón "Perfil".
+    // FASE 2 — además del portal se ofrece la sección «Alumno»: índice de
+    // alumnos vinculados (selector) con acceso al perfil de cada uno.
     items.push({
       href: "/tutor",
       label: "Tutor / Padre",
+      activo: pathname.startsWith("/tutor"),
+    });
+    items.push({
+      href: "/tutor?tab=alumnos",
+      label: "Alumno",
       activo: pathname.startsWith("/tutor"),
     });
   } else if (rol === "maestro") {

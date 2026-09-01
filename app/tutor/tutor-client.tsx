@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import {
   actionCambiarCredencialesTutor,
+  actionListarAlumnosDelTutor,
   actionObtenerDatosTutor,
 } from "@/app/actions/tutores";
 import { actionObtenerContextoAlumnoParaTutor } from "@/app/actions/asistencias";
@@ -99,14 +102,20 @@ type Props = {
 
 export function TutorClient({ sesion }: Props) {
   const nombre = sesion?.nombre ?? sesion?.matricula ?? "Tutor";
+  const searchParams = useSearchParams();
   const [tutor, setTutor] = useState<TutorRow | null>(null);
   const [curps, setCurps] = useState<string[]>([]);
+  /** FASE 2 — alumnos con nombre para el selector/índice. */
+  const [alumnos, setAlumnos] = useState<{ curp: string; nombre: string }[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
 
   // Pestaña activa (estructura reutilizada del perfil de alumno).
-  const [tab, setTab] = useState<MainTab>("datos");
+  // El nav «Alumno» apunta a /tutor?tab=alumnos.
+  const [tab, setTab] = useState<MainTab>(() =>
+    searchParams.get("tab") === "alumnos" ? "alumnos" : "datos",
+  );
 
   // Alumno seleccionado para ver su asistencia.
   const [curpSeleccionada, setCurpSeleccionada] = useState("");
@@ -135,7 +144,10 @@ export function TutorClient({ sesion }: Props) {
   }, []);
 
   useEffect(() => {
-    if (tab === "mensajes") void cargarMensajes();
+    if (tab === "mensajes") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void cargarMensajes();
+    }
   }, [tab, cargarMensajes]);
 
   // Formulario de cambio de credenciales.
@@ -146,7 +158,10 @@ export function TutorClient({ sesion }: Props) {
 
   const cargarDatos = useCallback(async () => {
     setCargando(true);
-    const datos = await actionObtenerDatosTutor();
+    const [datos, listaAlumnos] = await Promise.all([
+      actionObtenerDatosTutor(),
+      actionListarAlumnosDelTutor(),
+    ]);
     setCargando(false);
     if (!datos) {
       setError("No se pudieron cargar tus datos de tutor.");
@@ -154,16 +169,19 @@ export function TutorClient({ sesion }: Props) {
     }
     setTutor(datos.tutor);
     setCurps(datos.curps);
+    setAlumnos(listaAlumnos);
     setUsuario(datos.tutor.usuario ?? "");
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void cargarDatos();
   }, [cargarDatos]);
 
   // Al seleccionar un alumno, cargar su contexto (grado/grupo/carrera/nombre).
   useEffect(() => {
     if (!curpSeleccionada) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setContextoAlumno(null);
       return;
     }
@@ -394,30 +412,56 @@ export function TutorClient({ sesion }: Props) {
               {tab === "alumnos" && (
                 <div className="flex flex-col gap-4">
                   <p className="text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
-                    Alumnos a mi cargo ({curps.length})
+                    Alumnos a mi cargo ({alumnos.length})
                   </p>
-                  {curps.length === 0 ? (
+                  {alumnos.length === 0 ? (
                     <p className="text-center text-xs font-semibold text-slate-600">
                       Aún no tienes alumnos vinculados.
                     </p>
+                  ) : alumnos.length === 1 ? (
+                    // Acceso directo al perfil del único alumno.
+                    <div className="flex flex-col items-center gap-3">
+                      <BubblePill className="min-h-[2.5rem]">
+                        {alumnos[0]!.nombre}
+                      </BubblePill>
+                      <Link
+                        href={`/perfil?modo=tutor&curp=${encodeURIComponent(alumnos[0]!.curp)}&desde=tutor`}
+                        className="rounded-full border border-white/70 bg-linear-to-b from-sky-500 via-sky-600 to-sky-700 px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] transition hover:brightness-105"
+                      >
+                        Abrir perfil de {alumnos[0]!.nombre}
+                      </Link>
+                    </div>
                   ) : (
-                    <ul className="flex flex-col gap-1">
-                      {curps.map((curp) => (
-                        <li key={curp}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCurpSeleccionada(curp);
-                              setTab("asistencia");
-                            }}
-                            className={`w-full rounded-xl px-3 py-2 text-left text-xs font-semibold transition ${
-                              curpSeleccionada === curp
-                                ? "border border-sky-500/60 bg-sky-100/90 text-sky-900 shadow-sm"
-                                : "bg-white/70 text-slate-700 hover:bg-white/90"
-                            }`}
-                          >
-                            {curp}
-                          </button>
+                    <ul className="flex flex-col gap-2">
+                      {alumnos.map((a) => (
+                        <li
+                          key={a.curp}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/55 bg-white/70 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]"
+                        >
+                          <span className="min-w-0 text-xs font-bold uppercase tracking-wide text-sky-900">
+                            {a.nombre}
+                            <span className="ml-2 font-semibold normal-case text-slate-500">
+                              {a.curp}
+                            </span>
+                          </span>
+                          <span className="flex gap-2">
+                            <Link
+                              href={`/perfil?modo=tutor&curp=${encodeURIComponent(a.curp)}&desde=tutor`}
+                              className="rounded-full border border-sky-500/50 bg-sky-100/90 px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-wide text-sky-900 hover:bg-white"
+                            >
+                              Ver perfil
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCurpSeleccionada(a.curp);
+                                setTab("asistencia");
+                              }}
+                              className="rounded-full border border-white/70 bg-white/85 px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-wide text-slate-700 hover:bg-white"
+                            >
+                              Asistencia
+                            </button>
+                          </span>
                         </li>
                       ))}
                     </ul>

@@ -2,8 +2,10 @@ import "server-only";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { traerAlumnosExistentes, nombreCompletoAlumno } from "./alumnos";
+import type { AlumnoRow } from "./types";
 import { matrizACsvTexto } from "./csv";
 import {
+  TABLA_ALUMNOS,
   TABLA_TUTORES,
   TABLA_TUTOR_ALUMNOS,
   TABLA_TUTOR_CREDENCIALES_INICIALES,
@@ -446,6 +448,60 @@ export async function listarCurpsDeTutor(
     .eq("activo", true);
   if (error || !data) return [];
   return (data as { curp_alumno: string }[]).map((r) => r.curp_alumno);
+}
+
+/**
+ * FASE 2 — Alumnos de un tutor (relación activa) con su nombre completo.
+ * Una sola consulta a ALUMNOS por lotes (`in`) — sin N+1.
+ */
+export async function listarAlumnosDeTutor(
+  supabase: SupabaseClient,
+  tutorId: string,
+): Promise<{ curp: string; nombre: string }[]> {
+  const curps = await listarCurpsDeTutor(supabase, tutorId);
+  if (curps.length === 0) return [];
+
+  const porCurp = new Map<string, string>();
+  const TAMANO_LOTE = 50;
+  for (let i = 0; i < curps.length; i += TAMANO_LOTE) {
+    const lote = curps.slice(i, i + TAMANO_LOTE);
+    const { data, error } = await supabase
+      .from(TABLA_ALUMNOS)
+      .select("CURP, NOMBRE, P_APELLIDO, S_APELLIDO")
+      .in("CURP", lote);
+    if (error || !data) continue;
+    for (const r of data as AlumnoRow[]) {
+      porCurp.set(String(r.CURP ?? "").trim().toUpperCase(), nombreCompletoAlumno(r));
+    }
+  }
+
+  return curps.map((curp) => ({
+    curp,
+    nombre: porCurp.get(curp.trim().toUpperCase()) ?? curp,
+  }));
+}
+
+/**
+ * FASE 2 — Tutor PRINCIPAL activo de un alumno (o el primer tutor activo si no
+ * hay relación «principal»). Fuente de verdad de la información de contacto
+ * del tutor para el perfil del alumno.
+ */
+export async function obtenerTutorPrincipalDeAlumno(
+  supabase: SupabaseClient,
+  curp: string,
+): Promise<TutorRow | null> {
+  const c = curp.trim().toUpperCase();
+  if (!c) return null;
+  const { data, error } = await supabase
+    .from(TABLA_TUTOR_ALUMNOS)
+    .select("tutor_id")
+    .eq("curp_alumno", c)
+    .eq("activo", true)
+    .order("tipo_relacion", { ascending: true }) // 'principal' < 'secundario'
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  return buscarTutorPorId(supabase, data.tutor_id);
 }
 
 /** ¿El tutor tiene relación activa con el alumno (CURP)? */

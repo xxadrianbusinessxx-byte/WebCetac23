@@ -9,16 +9,20 @@ import {
   actionSubirFotoPerfil,
 } from "@/app/actions/escolar";
 import { actionObtenerMapeoColumnasMateria } from "@/app/actions/materias";
+import { actionGuardarCamposPersonales } from "@/app/actions/etiquetas-dinamicas";
 import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistencia-alumno";
+import { EtiquetasDinamicasPanel } from "@/app/components/etiquetas-dinamicas-panel";
 import { MateriaCalificacionesAlumno } from "@/app/components/materia-calificaciones-alumno";
 import { MateriaSelector } from "@/app/components/materia-selector";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { nombreCompletoAlumno } from "@/lib/escolar/alumnos";
-import { comentarioPersonalDesdeFila } from "@/lib/escolar/etiquetas";
 import {
-  etiquetasVaciasDesdeFila,
-  informacionPersonalDesdeEtiquetas,
-} from "@/lib/escolar/informacion-personal";
+  CAMPOS_PERSONALES_PRIMARIOS,
+  comentarioPersonalDesdeFila,
+} from "@/lib/escolar/etiquetas";
+import { informacionPersonalDesdeEtiquetas } from "@/lib/escolar/informacion-personal";
+import type { AccesoAlumno } from "@/lib/escolar/acceso-alumno";
+import type { AlumnoEtiquetaRow } from "@/lib/escolar/etiquetas-dinamicas";
 import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
 import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
@@ -31,6 +35,7 @@ import type {
 import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
+import type { ModoPerfil } from "./page";
 
 type MainTab = "materia" | "estatus" | "comentarios" | "boleta";
 type MateriaSub = "asignaturas" | "personal";
@@ -90,21 +95,27 @@ type PerfilDatos = {
   comentarios: ComentarioRow[];
   puedeEditarEtiquetas: boolean;
   fotoPerfilUrl: string | null;
+  /** FASE 2 — permisos efectivos calculados en el servidor. */
+  acceso: AccesoAlumno | null;
+  /** FASE 2 — etiquetas dinámicas (alumno_etiquetas). */
+  etiquetasDinamicas: AlumnoEtiquetaRow[];
+  /** FASE 2 — contacto del tutor principal (tutores + tutor_alumnos). */
+  tutorContacto: {
+    nombre: string;
+    telefono: string | null;
+    correo: string | null;
+  } | null;
 };
 
 type Props = {
   materias: readonly MateriaConNombreVisible[];
-  modoDirectivo: boolean;
+  /** SOLO presentación; la autorización real vive en la Server Action. */
+  modo: ModoPerfil;
   urlRegreso: string;
   datos: PerfilDatos;
 };
 
-export function PerfilClient({
-  materias,
-  modoDirectivo,
-  urlRegreso,
-  datos,
-}: Props) {
+export function PerfilClient({ materias, modo, urlRegreso, datos }: Props) {
   const {
     alumno,
     etiquetas,
@@ -112,6 +123,9 @@ export function PerfilClient({
     comentarios,
     puedeEditarEtiquetas,
     fotoPerfilUrl,
+    acceso,
+    etiquetasDinamicas,
+    tutorContacto,
   } = datos;
   const curp = alumno?.CURP ?? "";
   const nombreMostrar = alumno ? nombreCompletoAlumno(alumno) : "Nombre";
@@ -134,26 +148,80 @@ export function PerfilClient({
   const [fotoUrl, setFotoUrl] = useState<string | null>(fotoPerfilUrl);
   const [fotoRota, setFotoRota] = useState(false);
 
+  // FASE 2 — permisos desde el servidor (nunca se infieren de la UI).
+  const puedeEditarDatosPersonales = acceso?.puedeEditarDatosPersonales ?? false;
+  const puedeImportarEtiquetas = acceso?.puedeImportarEtiquetas ?? false;
+  const puedeSubirFoto = acceso?.puedeSubirFoto ?? false;
+  const sinAcceso = !acceso || !acceso.puedeLeer;
+
+  // FASE 2 — campos personales DEFINIDOS (fuente: ETIQUETAS PERSONALES).
+  // Edición disponible solo cuando `acceso.puedeEditarDatosPersonales` es
+  // verdadero (tutor vinculado o directivo); alumno/maestro solo lectura.
+  const [editandoDatos, setEditandoDatos] = useState(false);
+  const [datosPersonales, setDatosPersonales] = useState<Record<string, string>>(
+    () =>
+      Object.fromEntries(
+        CAMPOS_PERSONALES_PRIMARIOS.map((c) => [
+          c,
+          String(etiquetas?.[c] ?? "").trim(),
+        ]),
+      ),
+  );
+  const [guardandoCampos, setGuardandoCampos] = useState(false);
+
   useEffect(() => {
+    // Sincroniza la foto cuando cambia el payload (otro alumno / re-render).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFotoUrl(fotoPerfilUrl);
     setFotoRota(false);
   }, [fotoPerfilUrl]);
 
   useEffect(() => {
+    // Sincroniza el comentario personal editable con el payload del alumno.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setComentarioPersonal(comentarioPersonalDesdeFila(etiquetas));
+  }, [etiquetas]);
+
+  useEffect(() => {
+    // Sincroniza el formulario de datos personales al cambiar el alumno visto
+    // (p. ej. el tutor cambia de hijo).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDatosPersonales(
+      Object.fromEntries(
+        CAMPOS_PERSONALES_PRIMARIOS.map((c) => [
+          c,
+          String(etiquetas?.[c] ?? "").trim(),
+        ]),
+      ),
+    );
   }, [etiquetas]);
 
   const camposPersonales = useMemo(
     () => informacionPersonalDesdeEtiquetas(etiquetas),
     [etiquetas],
   );
-  const etiquetasVacias = useMemo(
-    () => etiquetasVaciasDesdeFila(etiquetas),
-    [etiquetas],
+
+  const etiquetaPorClave = useMemo(
+    () => Object.fromEntries(camposPersonales.map((c) => [c.clave, c.etiqueta])),
+    [camposPersonales],
   );
 
+  const guardarCamposPersonales = async () => {
+    if (!curp || !puedeEditarDatosPersonales) return;
+    setGuardandoCampos(true);
+    setMensaje(null);
+    const r = await actionGuardarCamposPersonales(curp, datosPersonales);
+    setGuardandoCampos(false);
+    if (r.ok) {
+      setMensaje("Datos personales guardados.");
+      setEditandoDatos(false);
+    } else {
+      setMensaje(r.error);
+    }
+  };
+
   const guardarComentario = async () => {
-    if (!curp || !puedeEditarEtiquetas) return;
+    if (!curp || !puedeEditarDatosPersonales) return;
     setGuardando(true);
     setMensaje(null);
     const r = await actionGuardarComentarioPersonal(curp, comentarioPersonal);
@@ -162,7 +230,7 @@ export function PerfilClient({
   };
 
   const onFotoSeleccionada = async (file: File | undefined) => {
-    if (!file || !puedeEditarEtiquetas) return;
+    if (!file || !puedeSubirFoto) return;
     setGuardando(true);
     setMensaje(null);
     const comprimida = await comprimirImagenSiPosible(file);
@@ -188,6 +256,7 @@ export function PerfilClient({
 
   useEffect(() => {
     const primera = materias[0]?.idInterno ?? "";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMateriaSeleccionada((prev) =>
       prev && materias.some((m) => m.idInterno === prev) ? prev : primera,
     );
@@ -195,6 +264,7 @@ export function PerfilClient({
 
   useEffect(() => {
     if (materiaSeleccionada) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       void refrescarMateria(materiaSeleccionada);
       void refrescarPesos(materiaSeleccionada);
     }
@@ -210,23 +280,66 @@ export function PerfilClient({
     materias.find((m) => m.idInterno === materiaSeleccionada)?.nombreVisible ??
     materiaSeleccionada;
 
-  return (
-    <FrutigerBackdrop>
-      <div className="relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 lg:max-w-6xl lg:px-8 lg:pt-8">
-        {modoDirectivo && (
-          <div className="mb-4 flex flex-col items-center gap-3 rounded-2xl border border-amber-400/60 bg-amber-100/90 px-4 py-3 text-center text-sm font-bold text-amber-950 shadow-md">
-            <p>
-              Modo directivo
-              {nombreMostrar !== "Nombre" ? `: ${nombreMostrar}` : ""} — puedes
-              editar contenido sensible (información personal, estatus y boleta).
+  if (sinAcceso) {
+    return (
+      <FrutigerBackdrop>
+        <div className="relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-3xl border border-red-200 bg-red-50/85 p-6 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
+            <p className="text-sm font-extrabold uppercase tracking-wide text-red-800">
+              Sin acceso
+            </p>
+            <p className="mt-2 text-xs font-semibold text-red-700">
+              No tienes permiso para ver este perfil.
             </p>
             <Link
               href={urlRegreso}
-              className="rounded-full border border-amber-600/50 bg-white/90 px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-amber-950 shadow-sm transition hover:bg-white"
+              className="mt-4 inline-block rounded-full border border-red-300 bg-white px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-red-800"
+            >
+              Regresar
+            </Link>
+          </div>
+        </div>
+      </FrutigerBackdrop>
+    );
+  }
+
+  return (
+    <FrutigerBackdrop>
+      <div className="relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 lg:max-w-6xl lg:px-8 lg:pt-8">
+        {modo !== "alumno" && (
+          <div
+            className={`mb-4 flex flex-col items-center gap-3 rounded-2xl border px-4 py-3 text-center text-sm font-bold shadow-md ${
+              modo === "directivo"
+                ? "border-amber-400/60 bg-amber-100/90 text-amber-950"
+                : modo === "tutor"
+                  ? "border-sky-400/60 bg-sky-100/90 text-sky-950"
+                  : "border-slate-400/60 bg-slate-100/90 text-slate-800"
+            }`}
+          >
+            <p>
+              {modo === "directivo"
+                ? "Modo directivo"
+                : modo === "tutor"
+                  ? "Modo tutor"
+                  : "Modo maestro"}
+              {nombreMostrar !== "Nombre" ? `: ${nombreMostrar}` : ""} —{" "}
+              {modo === "directivo"
+                ? "administración completa (incluye importación de etiquetas)."
+                : modo === "tutor"
+                  ? "puedes editar las etiquetas y datos personales de este alumno."
+                  : "consulta de solo lectura."}
+            </p>
+            <Link
+              href={urlRegreso}
+              className="rounded-full border border-current/30 bg-white/90 px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide shadow-sm transition hover:bg-white"
             >
               {urlRegreso === "/directivo"
                 ? "Regresar al panel directivo"
-                : "Regresar a mi perfil"}
+                : urlRegreso === "/tutor"
+                  ? "Regresar al portal del tutor"
+                  : urlRegreso === "/profesor"
+                    ? "Regresar al panel del profesor"
+                    : "Regresar a mi perfil"}
             </Link>
           </div>
         )}
@@ -234,7 +347,7 @@ export function PerfilClient({
         <div className="mb-6 flex flex-col items-stretch gap-4 sm:mb-8 sm:flex-row sm:items-center">
           <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-[1.75rem] border-[3px] border-sky-900/70 bg-white/75 p-2 shadow-[0_10px_28px_rgba(14,165,233,0.2),inset_0_2px_0_rgba(255,255,255,0.95)] backdrop-blur-md sm:h-32 sm:w-32">
             <label
-              className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-linear-to-b from-sky-100/90 to-sky-300/50 ${puedeEditarEtiquetas ? "cursor-pointer" : ""}`}
+              className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-linear-to-b from-sky-100/90 to-sky-300/50 ${puedeSubirFoto ? "cursor-pointer" : ""}`}
             >
               {fotoUrl && !fotoRota ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -260,7 +373,7 @@ export function PerfilClient({
                 className="pointer-events-none absolute inset-x-2 top-1 h-[40%] rounded-b-[100%] bg-linear-to-b from-white/60 to-transparent"
                 aria-hidden
               />
-              {puedeEditarEtiquetas && (
+              {puedeSubirFoto && (
                 <input
                   type="file"
                   accept="image/*"
@@ -374,7 +487,7 @@ export function PerfilClient({
                     <div className="flex min-h-[220px] flex-1 items-center justify-center rounded-[1.5rem] border border-white/45 bg-slate-500/20 px-6 py-16 text-center text-sm font-semibold text-slate-700 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm sm:min-h-[280px]">
                       <p className="max-w-md px-4">
                         {!tieneGrupo
-                          ? "En ETIQUETAS PERSONALES aún no hay grado y grupo. Cuando se actualicen, verás aquí solo las materias de tu carrera."
+                          ? "Sin inscripción activa en el catálogo. Cuando el directivo registre tu grado, grupo y carrera, verás aquí solo las materias de tu carrera."
                           : "No hay materias cargadas para tu grado, grupo y carrera."}
                       </p>
                     </div>
@@ -398,59 +511,144 @@ export function PerfilClient({
                   )
                 ) : (
                   <div className="flex flex-col gap-4">
-                    <div className="inline-flex w-fit rounded-full border border-white/70 bg-white/90 px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-sky-900 shadow-sm">
-                      ETIQUETAS PERSONALES
-                    </div>
-                    {!etiquetas ? (
-                      <p className="text-center text-sm font-semibold text-slate-600">
-                        Sin registro en ETIQUETAS PERSONALES para este CURP.
+                    {/* Identidad y datos académicos (fuente: catálogo) — solo lectura. */}
+                    <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+                      <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                        Identidad y datos académicos (catálogo)
                       </p>
-                    ) : (
-                      <>
-                        <p className="text-center text-[10px] font-bold uppercase tracking-wide text-slate-600">
-                          Datos del plantel (solo lectura). Grado, grupo y carrera
-                          definen tus materias.
-                        </p>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
-                          {camposPersonales.map((c) => {
-                            const destacado =
-                              c.clave === "GRADO" ||
-                              c.clave === "GRUPO" ||
-                              c.clave === "CARRERA";
-                            return (
-                              <BubblePill
-                                key={c.etiqueta}
-                                className={`min-h-[2.75rem] ${destacado ? "border-sky-500/50 bg-sky-100/90 font-extrabold" : ""}`}
-                              >
-                                {c.etiqueta}: {c.valor}
-                              </BubblePill>
-                            );
-                          })}
-                        </div>
-                        {etiquetasVacias.length > 0 && (
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            {etiquetasVacias.map((e, i) => (
-                              <BubblePill key={`vacia-${i}`} className="min-h-[2.5rem]">
-                                {e.titulo}: {e.valor}
-                              </BubblePill>
-                            ))}
-                          </div>
+                      <div className="flex flex-wrap items-center justify-center gap-2">
+                        <BubblePill>Nombre: {nombreMostrar}</BubblePill>
+                        {alumno?.CLAVE ? (
+                          <BubblePill>Clave: {alumno.CLAVE}</BubblePill>
+                        ) : null}
+                        <BubblePill>CURP: {curp || "—"}</BubblePill>
+                        {registro.grado || registro.grupo ? (
+                          <BubblePill className="border-sky-500/50 bg-sky-100/90 font-extrabold">
+                            {registro.grado} · Grupo {registro.grupo}
+                            {registro.carrera ? ` · ${registro.carrera}` : ""}
+                          </BubblePill>
+                        ) : (
+                          <BubblePill>Sin inscripción activa en el catálogo</BubblePill>
                         )}
-                      </>
-                    )}
-                    {alumno && (
-                      <p className="text-center text-[10px] font-semibold text-slate-500">
-                        Alumnos: {nombreMostrar}
-                        {alumno.CLAVE ? ` · Clave ${alumno.CLAVE}` : ""}
+                      </div>
+                    </div>
+
+                    {/* Datos personales definidos (campos estructurados, no etiquetas). */}
+                    <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                          Datos personales
+                        </p>
+                        {puedeEditarDatosPersonales && !editandoDatos && (
+                          <button
+                            type="button"
+                            onClick={() => setEditandoDatos(true)}
+                            className="rounded-full border border-sky-800/40 bg-white/95 px-5 py-1.5 text-[11px] font-extrabold uppercase tracking-wide text-sky-900 shadow-sm hover:bg-white"
+                          >
+                            Editar
+                          </button>
+                        )}
+                      </div>
+
+                      {!puedeEditarDatosPersonales || !editandoDatos ? (
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+                          {camposPersonales.map((c) => (
+                            <BubblePill key={c.etiqueta} className="min-h-[2.75rem]">
+                              {c.etiqueta}: {c.valor}
+                            </BubblePill>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {CAMPOS_PERSONALES_PRIMARIOS.map((campo) => (
+                            <label key={campo} className="flex flex-col gap-1">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                                {etiquetaPorClave[campo] ?? campo}
+                              </span>
+                              <input
+                                type="text"
+                                value={datosPersonales[campo] ?? ""}
+                                onChange={(e) =>
+                                  setDatosPersonales((prev) => ({
+                                    ...prev,
+                                    [campo]: e.target.value,
+                                  }))
+                                }
+                                className="rounded-xl border border-white/70 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-inner outline-none focus:border-sky-600"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                      {puedeEditarDatosPersonales && editandoDatos && (
+                        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            disabled={guardandoCampos}
+                            onClick={() => void guardarCamposPersonales()}
+                            className="rounded-full border border-sky-800/40 bg-white/95 px-6 py-2 text-[11px] font-extrabold uppercase tracking-wide text-sky-900 shadow-sm disabled:opacity-60"
+                          >
+                            Guardar
+                          </button>
+                          <button
+                            type="button"
+                            disabled={guardandoCampos}
+                            onClick={() => {
+                              setEditandoDatos(false);
+                              setDatosPersonales(
+                                Object.fromEntries(
+                                  CAMPOS_PERSONALES_PRIMARIOS.map((c) => [
+                                    c,
+                                    String(etiquetas?.[c] ?? "").trim(),
+                                  ]),
+                                ),
+                              );
+                            }}
+                            className="rounded-full border border-white/70 bg-white/85 px-6 py-2 text-[11px] font-extrabold uppercase tracking-wide text-slate-700 hover:bg-white"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {/* Información del tutor (fuente de verdad: tutores + tutor_alumnos). */}
+                    <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+                      <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                        Datos del tutor
                       </p>
-                    )}
+                      {tutorContacto ? (
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          <BubblePill>Tutor: {tutorContacto.nombre}</BubblePill>
+                          <BubblePill>
+                            Teléfono: {tutorContacto.telefono || "—"}
+                          </BubblePill>
+                          <BubblePill>
+                            Correo: {tutorContacto.correo || "—"}
+                          </BubblePill>
+                        </div>
+                      ) : (
+                        <p className="text-center text-xs font-semibold text-slate-600">
+                          Sin tutor vinculado.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Etiquetas dinámicas (módulo alumno_etiquetas). */}
+                    <EtiquetasDinamicasPanel
+                      curp={curp}
+                      iniciales={etiquetasDinamicas}
+                      puedeEditar={puedeEditarEtiquetas}
+                      puedeImportar={puedeImportarEtiquetas}
+                    />
+
                     <div className="flex flex-col gap-2">
                       <p className="text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
                         Comentario personal
                       </p>
                       <textarea
                         value={comentarioPersonal}
-                        disabled={!puedeEditarEtiquetas}
+                        disabled={!puedeEditarDatosPersonales}
                         maxLength={COMENTARIO_MAX_LENGTH}
                         onChange={(e) =>
                           setComentarioPersonal(
@@ -464,7 +662,7 @@ export function PerfilClient({
                       <p className="text-right text-[10px] font-semibold text-slate-600">
                         {comentarioPersonal.length}/{COMENTARIO_MAX_LENGTH}
                       </p>
-                      {puedeEditarEtiquetas && (
+                      {puedeEditarDatosPersonales && (
                         <button
                           type="button"
                           disabled={guardando}
@@ -494,8 +692,8 @@ export function PerfilClient({
                 )}
                 {!tieneGrupo ? (
                   <p className="text-center text-sm font-semibold text-slate-600">
-                    Sin grado y grupo en ETIQUETAS PERSONALES. El estatus
-                    aparecerá cuando esos campos estén actualizados.
+                    Sin inscripción activa en el catálogo. El estatus
+                    aparecerá cuando el directivo registre grado, grupo y carrera.
                   </p>
                 ) : (
                   <>
@@ -583,8 +781,8 @@ export function PerfilClient({
 
                 {!tieneGrupo ? (
                   <p className="text-center text-sm font-semibold text-slate-600">
-                    Sin grado y grupo en ETIQUETAS PERSONALES. La boleta
-                    aparecerá cuando esos campos estén actualizados.
+                    Sin inscripción activa en el catálogo. La boleta
+                    aparecerá cuando el directivo registre grado, grupo y carrera.
                   </p>
                 ) : (
                   <>

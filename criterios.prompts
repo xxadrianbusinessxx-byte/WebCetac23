@@ -1,0 +1,758 @@
+================================================================================
+  CRITERIOS PARA PROMPTS DE IMPLEMENTACIÓN — WebCetac23 (mi-web-escolar)
+  Archivo: criterios.prompts
+  Propósito: cómo deben diseñarse los prompts de implementación de este
+             proyecto (agrupación, estructura, contratos y validación).
+  Referencia PERMANENTE para quien redacta un prompt, quien lo ejecuta y quien
+  revisa el repositorio.
+
+  Relación con los demás documentos (cada uno cumple una función distinta):
+    · contexto.feliz            → contexto FUNCIONAL actual (qué está hecho).
+    · docs/OPTIMIZACION_*.md    → decisiones, optimizaciones, historial técnico
+                                  y criterios de rendimiento.
+    · filosofia.estructural     → reglas arquitectónicas PERMANENTES de cómo
+                                  debe crecer y modificarse el proyecto.
+    · criterios.prompts         → cómo agrupar y redactar el trabajo de
+                                  implementación (ESTE archivo).
+================================================================================
+
+================================================================================
+A QUIÉN VA DIRIGIDO ESTE DOCUMENTO
+================================================================================
+
+Este documento se dirige de forma EXPLÍCITA a tres públicos:
+
+  1) A QUIEN REDACTE UN PROMPT (usuario o desarrollador del proyecto):
+     define cómo agrupar trabajo en unidades arquitectónicas completas y cómo
+     expresar objetivos, restricciones, límites y validación sin microgestionar
+     cada archivo o función.
+
+  2) A CLINE (el agente de implementación):
+     establece qué debe asumir al recibir un prompt (análisis previo,
+     reutilización de lo existente, seguridad server-side, validación final,
+     informe compacto) y cómo priorizar cuando existan conflictos.
+
+  3) A QUIEN REVISE EL REPOSITORIO (revisores y futuros mantenedores):
+     explica el formato esperado de los prompts y por qué el trabajo llega en
+     unidades grandes y coherentes, para que el análisis del historial no se
+     malinterprete como «hacer todo rápido» ni como «hacer todo en un solo
+     prompt sin importar el riesgo».
+
+  4) MODELO DE IA EN CLINE (DeepSeek v4 Flash):
+     documenta el FORMATO de IA utilizado en Cline para este proyecto. Su
+     finalidad es investigar la forma de aprovechar mejor los recursos de
+     DeepSeek y maximizar su uso, además de dar contexto a quien analice el
+     repositorio sobre cómo se ejecuta el trabajo.
+
+     Detalle de uso:
+     · Cline (extensión de VS Code) ejecuta estos prompts sobre el modelo
+       DeepSeek v4 Flash.
+     · Los criterios de este documento (unidades completas, análisis previo,
+       reutilización, validación en la misma ejecución) están pensados para
+       concentrar el presupuesto del modelo en decisiones útiles y evitar
+       contexto redundante.
+     · Al redactar un prompt para este modelo conviene incluir: contexto
+       mínimo necesario, contratos claros, límites explícitos y validación
+       obligatoria, para que DeepSeek v4 Flash implemente e integre en lugar
+       de re-descubrir la arquitectura.
+
+Este documento NO define funcionalidad del sistema: define la FORMA de trabajo
+para implementarla. Es un complemento de filosofia.estructural.
+
+================================================================================
+PROPÓSITO
+================================================================================
+
+Este documento define cómo deben diseñarse los prompts utilizados para
+implementar nuevas funcionalidades o cambios importantes en este proyecto.
+
+Su objetivo no es reducir artificialmente el número de prompts.
+
+El objetivo es:
+
+> Maximizar la calidad de cada ejecución de Cline, agrupando trabajo
+> relacionado en unidades arquitectónicas completas, sin sacrificar
+> rendimiento, seguridad, mantenibilidad ni claridad.
+
+Un prompt grande no debe significar «hacer todo rápido».
+
+Debe significar:
+
+> resolver una unidad completa de trabajo con análisis, implementación,
+> integración y validación.
+
+================================================================================
+1. PRINCIPIO FUNDAMENTAL
+================================================================================
+
+La cantidad de prompts no es una métrica de calidad.
+
+No se debe dividir una implementación únicamente para utilizar más prompts.
+
+Tampoco se debe meter trabajo no relacionado en un único prompt solamente para
+reducir la cantidad de prompts.
+
+La unidad correcta es:
+
+    unidad arquitectónica + objetivo funcional completo + validación
+
+No:
+
+    archivo + función + pequeño cambio
+
+================================================================================
+2. POCOS PROMPTS, PERO GRANDES Y BIEN DELIMITADOS
+================================================================================
+
+Cuando varias tareas forman parte del mismo flujo funcional, deben resolverse
+preferentemente dentro de un mismo prompt.
+
+Ejemplo INCORRECTO:
+
+    Prompt 1: crea la tabla.
+    Prompt 2: crea el servicio.
+    Prompt 3: crea los permisos.
+    Prompt 4: modifica el perfil.
+    Prompt 5: modifica el tutor.
+    Prompt 6: agrega Excel.
+
+Preferible:
+
+    Prompt único:
+
+    Diseña e implementa el módulo completo de etiquetas personales,
+    desde persistencia hasta integración con perfil, permisos,
+    importación y validación.
+
+    Respeta la arquitectura existente.
+
+Cline puede dividir internamente el trabajo.
+
+El usuario no necesita convertir cada dependencia técnica en una conversación
+separada.
+
+================================================================================
+3. AGRUPAR POR DOMINIO, NO POR ARCHIVO
+================================================================================
+
+Un prompt debe agrupar funcionalidades relacionadas.
+
+Ejemplos de unidades válidas:
+
+    · módulo de etiquetas personales;
+    · flujo completo de tutor → alumno;
+    · autorización de perfiles;
+    · importación/exportación de información;
+    · módulo académico;
+    · sistema de documentos;
+    · configuración administrativa.
+
+No deben definirse unidades como:
+
+    · «modifica archivoA.ts»;
+    · «crea función X»;
+    · «cambia componente Y».
+
+Los archivos son detalles de implementación.
+
+El objetivo del prompt debe describirse desde el comportamiento y la
+arquitectura.
+
+================================================================================
+4. CLINE YA CONOCE EL PROYECTO
+================================================================================
+
+Una vez que Cline haya trabajado correctamente sobre el repositorio y conozca:
+
+    · estructura;
+    · arquitectura;
+    · convenciones;
+    · decisiones previas;
+    · documentos de contexto;
+    · filosofia.estructural;
+    · criterios.prompts;
+
+no es necesario volver a explicarle todo en cada prompt.
+
+Los prompts posteriores deben concentrarse en:
+
+    1. objetivo;
+    2. comportamiento esperado;
+    3. restricciones;
+    4. límites;
+    5. criterios de calidad;
+    6. validación.
+
+Evitar repetir información que ya está documentada.
+
+Esto reduce ruido y facilita que Cline pueda razonar sobre el cambio real.
+
+================================================================================
+5. UN PROMPT GRANDE NO SIGNIFICA IMPLEMENTAR TODO EL PROYECTO
+================================================================================
+
+No utilizar un prompt para pedir:
+
+> «mejora toda la aplicación».
+
+Eso elimina límites y aumenta el riesgo de modificaciones innecesarias.
+
+Un prompt grande debe seguir teniendo una frontera clara.
+
+Correcto:
+
+> «Completa el flujo de gestión de documentos del alumno, incluyendo lectura,
+>  permisos, carga, validación e integración con perfil.»
+
+Incorrecto:
+
+> «Haz todas las mejoras pendientes de la aplicación.»
+
+================================================================================
+6. EL PROMPT DEBE DEFINIR EL RESULTADO, NO DICTAR CADA LÍNEA
+================================================================================
+
+Siempre que Cline ya conozca la arquitectura, preferir:
+
+> «Integra la funcionalidad utilizando la fuente de verdad existente y la capa
+>  de autorización centralizada.»
+
+en lugar de:
+
+> «Edita exactamente estos 7 archivos y crea estas 4 funciones.»
+
+El segundo enfoque puede forzar una solución incorrecta si durante el análisis
+aparece una mejor integración.
+
+Los prompts deben establecer contratos y resultados, no microgestionar la
+implementación.
+
+================================================================================
+7. PERMITIR ANÁLISIS ANTES DE CODIFICAR
+================================================================================
+
+Para trabajos importantes, el prompt debe indicar explícitamente:
+
+> Analiza primero el repositorio y las dependencias relevantes antes de
+> modificar código.
+
+Esto permite que Cline:
+
+    · encuentre implementaciones existentes;
+    · detecte duplicación;
+    · reutilice servicios;
+    · descubra dependencias;
+    · evite crear sistemas paralelos;
+    · respete decisiones anteriores.
+
+El análisis forma parte del trabajo.
+
+================================================================================
+8. REUTILIZAR ANTES DE CREAR
+================================================================================
+
+Antes de crear:
+
+    · función;
+    · componente;
+    · servicio;
+    · repositorio;
+    · acción;
+    · selector;
+    · parser;
+    · helper;
+
+Cline debe buscar si ya existe una implementación reutilizable.
+
+Regla:
+
+> Extender una abstracción correcta existente es preferible a crear una segunda
+> abstracción equivalente.
+
+Pero tampoco debe forzarse la reutilización cuando produzca un acoplamiento
+peor.
+
+================================================================================
+9. NO SACRIFICAR RENDIMIENTO PARA REDUCIR PROMPTS
+================================================================================
+
+Reducir el número de prompts nunca justifica:
+
+    · consultas innecesarias;
+    · N+1 queries;
+    · cargar datos completos cuando solo se necesita una parte;
+    · importar módulos pesados sin necesidad;
+    · estado global innecesario;
+    · duplicación de información;
+    · RPC gigantescas;
+    · componentes cliente innecesariamente grandes;
+    · procesamiento repetido;
+    · operaciones secuenciales evitables.
+
+La prioridad es:
+
+    arquitectura correcta → rendimiento correcto → simplicidad → cantidad de prompts.
+
+No al revés.
+
+================================================================================
+10. NO CREAR ABSTRACCIONES SOLO PARA «MODULARIZAR»
+================================================================================
+
+Modularidad no significa crear capas innecesarias.
+
+Evitar:
+
+    UI → Controller → Manager → Facade → Service → Repository → Adapter → Helper → Database
+
+si el dominio no lo necesita.
+
+La arquitectura debe tener únicamente las capas que aporten una responsabilidad
+real.
+
+La modularidad buscada es:
+
+    módulos independientes y reemplazables
+
+no:
+
+    máximo número de archivos.
+
+
+================================================================================
+11. SEGURIDAD SIEMPRE SERVER-SIDE
+================================================================================
+
+Todo prompt que implique:
+
+    · edición;
+    · eliminación;
+    · acceso a información privada;
+    · importación;
+    · administración;
+    · relaciones tutor/alumno;
+    · permisos;
+
+debe exigir autorización server-side.
+
+Nunca asumir que la UI protege una operación.
+
+La interfaz puede ocultar botones.
+
+La seguridad debe estar en:
+
+    · Server Actions;
+    · servicios autorizados;
+    · validaciones server-side;
+    · consultas restringidas.
+
+================================================================================
+12. FUENTE ÚNICA DE VERDAD
+================================================================================
+
+Antes de implementar una nueva funcionalidad, identificar cuál es la fuente de
+verdad.
+
+No duplicar información simplemente porque sea más conveniente para la UI.
+
+Ejemplo:
+
+    Identidad            → ALUMNOS
+    Identidad académica  → inscripciones_alumno
+    Grupo/carrera        → catálogo académico
+    Relación tutor       → tutor_alumnos
+    Etiquetas dinámicas  → alumno_etiquetas
+
+Si una funcionalidad necesita información existente, debe consumir esa fuente.
+
+No reconstruirla desde datos secundarios o legacy.
+
+================================================================================
+13. LEGACY: AISLAR, NO DESTRUIR SIN NECESIDAD
+================================================================================
+
+Cuando exista código legacy:
+
+    1. identificarlo;
+    2. determinar si sigue siendo necesario;
+    3. aislarlo;
+    4. evitar nuevas dependencias;
+    5. marcarlo como deprecated cuando corresponda;
+    6. mantener compatibilidad si existe riesgo;
+    7. eliminarlo únicamente cuando exista una transición segura.
+
+No realizar limpieza destructiva únicamente porque una nueva arquitectura ya
+existe.
+
+================================================================================
+14. MIGRACIONES
+================================================================================
+
+Las migraciones importantes deben prepararse, revisarse y validarse.
+
+No ejecutar automáticamente:
+
+    · DROP;
+    · DELETE masivo;
+    · cambios destructivos;
+    · migraciones Supabase;
+
+salvo que el usuario lo solicite explícitamente.
+
+Preferir migraciones:
+
+    · idempotentes;
+    · aditivas;
+    · reversibles cuando sea razonable;
+    · compatibles con datos existentes.
+
+================================================================================
+15. UI Y DOMINIO
+================================================================================
+
+La UI debe representar capacidades del dominio.
+
+No debe convertirse en la fuente de permisos.
+
+Ejemplo:
+
+    acceso.puedeEditarDatosPersonales
+
+es preferible a:
+
+    modo === "tutor"
+
+para decidir si una operación es permitida.
+
+Los modos de UI pueden existir para presentación.
+
+Las capacidades deben venir de la capa de autorización.
+
+================================================================================
+16. IMPORTACIONES Y EXPORTACIONES
+================================================================================
+
+Excel, CSV, PDF u otros formatos deben considerarse ADAPTADORES.
+
+No deben contaminar los servicios principales del dominio.
+
+Preferible:
+
+    Archivo
+    → parser
+    → normalización
+    → validación
+    → modelo de dominio
+    → servicio
+
+No:
+
+    Archivo
+    → componente
+    → supabase directamente
+
+El dominio no debe necesitar saber si los datos llegaron desde Excel, UI, API o
+documento.
+
+================================================================================
+17. OPERACIONES MASIVAS
+================================================================================
+
+Para funcionalidades que procesen múltiples alumnos/registros:
+
+    · evitar N+1;
+    · utilizar consultas bulk;
+    · agrupar operaciones;
+    · validar por lotes cuando sea posible;
+    · generar errores por registro;
+    · evitar abortar todo por un error aislado cuando el dominio permita
+      continuar.
+
+Pero tampoco realizar operaciones masivas gigantes sin control.
+
+Priorizar límites razonables y comportamiento predecible.
+
+================================================================================
+18. COMPATIBILIDAD ADITIVA
+================================================================================
+
+Cuando sea posible:
+
+    nuevo comportamiento + compatibilidad anterior
+
+antes que:
+
+    nuevo comportamiento → romper inmediatamente todo lo anterior
+
+Las migraciones pueden realizarse posteriormente.
+
+El código nuevo no debe introducir nuevas dependencias sobre sistemas legacy.
+
+================================================================================
+19. VALIDACIÓN OBLIGATORIA
+================================================================================
+
+Todo prompt de implementación importante debe terminar con validación.
+
+Como mínimo:
+
+    tsc --noEmit
+
+y ESLint de las áreas afectadas.
+
+Además:
+
+    · tests existentes relacionados;
+    · tests nuevos cuando aporten valor;
+    · búsqueda de referencias legacy afectadas;
+    · revisión de imports;
+    · revisión de Server Actions;
+    · revisión de consultas relevantes.
+
+Si una validación falla por un cambio realizado durante el trabajo:
+
+> Cline debe intentar corregirla antes de finalizar.
+
+No entregar deliberadamente código roto para «arreglarlo en el siguiente
+prompt».
+
+================================================================================
+20. NO ARREGLAR COSAS NO RELACIONADAS
+================================================================================
+
+Durante una implementación pueden aparecer problemas preexistentes.
+
+Distinguir:
+
+    · Problema CAUSADO por el cambio   → corregirlo.
+    · Problema PREEXISTENTE no relacionado → documentarlo y no expandir el
+      alcance.
+
+No convertir cada prompt en una limpieza general del repositorio.
+
+
+================================================================================
+21. CUANDO ALGO NO SEA SEGURO
+================================================================================
+
+Si una parte requiere:
+
+    · decisión funcional;
+    · migración destructiva;
+    · credenciales;
+    · ejecución manual;
+    · confirmación del usuario;
+
+Cline debe detener únicamente esa parte.
+
+Debe continuar con todo lo demás que pueda completar de forma segura.
+
+Al final debe indicar claramente:
+
+    · qué quedó terminado;
+    · qué requiere decisión;
+    · por qué.
+
+================================================================================
+22. ORDEN DE PRIORIDAD
+================================================================================
+
+Cuando existan conflictos entre objetivos, utilizar este orden:
+
+    1. Seguridad
+    2. Corrección funcional
+    3. Integridad de datos
+    4. Arquitectura y modularidad
+    5. Compatibilidad
+    6. Rendimiento
+    7. Mantenibilidad
+    8. UX
+    9. Cantidad de prompts
+
+La cantidad de prompts es la última prioridad.
+
+Nunca degradar una solución para ahorrar un prompt.
+
+================================================================================
+23. CRITERIO PARA DECIDIR SI DOS TAREAS DEBEN IR EN EL MISMO PROMPT
+================================================================================
+
+Agruparlas cuando:
+
+    · pertenecen al mismo flujo;
+    · comparten datos;
+    · comparten permisos;
+    · una depende directamente de la otra;
+    · requieren pruebas conjuntas;
+    · forman un único módulo funcional.
+
+Separarlas cuando:
+
+    · tienen dominios independientes;
+    · una podría romper la otra;
+    · requieren migraciones o decisiones diferentes;
+    · el alcance sería demasiado ambiguo;
+    · mezclar ambas aumentaría significativamente el riesgo.
+
+================================================================================
+24. ESTRUCTURA RECOMENDADA DE UN PROMPT
+================================================================================
+
+Los prompts grandes deberían seguir aproximadamente esta estructura:
+
+    OBJETIVO
+
+    ESTADO ACTUAL
+
+    RESULTADO ESPERADO
+
+    REGLAS ARQUITECTÓNICAS
+
+    PERMISOS / SEGURIDAD
+
+    INTEGRACIONES
+
+    COMPATIBILIDAD / LEGACY
+
+    RENDIMIENTO
+
+    LÍMITES
+
+    VALIDACIÓN
+
+    INFORME FINAL
+
+No es obligatorio utilizar exactamente estos títulos.
+
+Lo importante es que el prompt defina claramente el contrato de trabajo.
+
+================================================================================
+25. EL PROMPT DEBE PEDIR ANÁLISIS + IMPLEMENTACIÓN + VALIDACIÓN
+================================================================================
+
+Una unidad completa debe poder expresarse como:
+
+    Analiza primero.
+
+    Implementa la unidad completa.
+
+    Integra con la arquitectura existente.
+
+    No dupliques sistemas.
+
+    Valida.
+
+    Corrige errores provocados por tu trabajo.
+
+    Entrega un informe final.
+
+Eso permite que una sola ejecución cubra:
+
+    análisis
+    → diseño
+    → implementación
+    → integración
+    → pruebas
+    → correcciones
+
+sin convertir cada etapa en un prompt separado.
+
+================================================================================
+26. INFORME FINAL DE CLINE
+================================================================================
+
+Al terminar una implementación importante, pedir un informe compacto:
+
+### Implementado
+
+Qué quedó funcionando.
+
+### Archivos principales
+
+Qué áreas cambiaron.
+
+### Arquitectura
+
+Qué decisiones relevantes se tomaron.
+
+### Seguridad
+
+Qué permisos se validan server-side.
+
+### Rendimiento
+
+Qué medidas importantes se tomaron.
+
+### Validación
+
+Tests, TypeScript y ESLint.
+
+### Legacy
+
+Qué permanece y por qué.
+
+### Pendiente
+
+Solo lo que realmente requiera intervención posterior.
+
+No solicitar explicaciones enormes del código.
+
+================================================================================
+27. REGLA DE ORO
+================================================================================
+
+El objetivo no es:
+
+> «hacer más cosas por prompt».
+
+El objetivo es:
+
+> hacer una unidad arquitectónica completa por prompt, correctamente integrada
+> y validada.
+
+Si una unidad necesita mucho razonamiento, debe tomarse el tiempo necesario.
+
+Si necesita 500 líneas de código o 5, eso no importa.
+
+Si necesita modificar 10 archivos correctamente, tampoco es un problema.
+
+Lo importante es que las modificaciones tengan una responsabilidad clara y que
+el sistema final conserve:
+
+    · modularidad;
+    · bajo acoplamiento;
+    · seguridad;
+    · fuente única de verdad;
+    · rendimiento;
+    · compatibilidad;
+    · mantenibilidad.
+
+================================================================================
+28. PRINCIPIO FINAL
+================================================================================
+
+Menos prompts no es el objetivo.
+
+El objetivo es evitar prompts innecesariamente fragmentados.
+
+La estrategia correcta para este proyecto es:
+
+    Contexto
+    + Arquitectura conocida
+    + Filosofía estructural
+    + Criterios de prompts
+    + Objetivo funcional claro
+    + Análisis profundo
+    + Implementación completa
+    + Validación
+    =
+    Trabajo de alta calidad en pocas ejecuciones
+
+Cuando sea posible completar una unidad completa de forma segura en un único
+prompt, hacerlo.
+
+Cuando dividirla reduzca realmente el riesgo o mejore la calidad, dividirla.
+
+Nunca sacrificar calidad, seguridad, rendimiento o arquitectura únicamente para
+reducir el número de prompts.
+

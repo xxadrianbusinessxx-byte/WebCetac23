@@ -1,11 +1,9 @@
 "use server";
 
-import type { PortalRole } from "@/lib/auth/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import {
   buscarAlumnoPorCurp,
-  buscarAlumnoPorNombre,
   buscarAlumnoPorTexto,
   nombreCompletoAlumno,
   previsualizarSincronizacionAlumnos,
@@ -28,7 +26,6 @@ import {
   etiquetasPersonalesDesdeFila,
   obtenerEtiquetasPersonales,
   patchComentarioPersonal,
-  patchSoloPersonales,
   patchTitulosEtiquetas,
   patchValoresEtiquetas,
   titulosEtiquetasPersonales,
@@ -91,6 +88,14 @@ import {
 } from "@/lib/escolar/foto-perfil";
 import { createClient } from "@/lib/supabase/server";
 import { clienteLecturaEscolar } from "@/lib/supabase/service";
+import {
+  resolverAccesoAlumno,
+  type AccesoAlumno,
+} from "@/lib/escolar/acceso-alumno";
+import { obtenerEtiquetasDinamicas } from "@/lib/escolar/etiquetas-dinamicas-servicio";
+import type { AlumnoEtiquetaRow } from "@/lib/escolar/etiquetas-dinamicas";
+import { obtenerTutorPrincipalDeAlumno } from "@/lib/escolar/tutores";
+import { nombreCompletoTutor } from "@/lib/escolar/tutores-types";
 
 /**
  * FASE 3 — Contrato de salida de la RPC `obtener_perfil_alumno(p_curp)`.
@@ -127,17 +132,24 @@ export async function actionObtenerPerfilAlumno(
   comentarios: ComentarioRow[];
   puedeEditarEtiquetas: boolean;
   fotoPerfilUrl: string | null;
+  /** FASE 2 — permisos efectivos calculados en el servidor (nunca por la UI). */
+  acceso: AccesoAlumno | null;
+  /** FASE 2 — etiquetas dinámicas del módulo alumno_etiquetas. */
+  etiquetasDinamicas: AlumnoEtiquetaRow[];
+  /** FASE 2 — contacto del tutor principal (fuente: tutores + tutor_alumnos). */
+  tutorContacto: {
+    nombre: string;
+    telefono: string | null;
+    correo: string | null;
+  } | null;
 }> {
   const sesion = await obtenerSesionPortal();
   const supabase = await createClient();
 
-  let curp = curpConsulta?.trim().toUpperCase() ?? sesion?.curp;
-  if (!curp && sesion?.matricula) {
-    const { buscarAlumnoPorClave } = await import("@/lib/escolar/alumnos");
-    const a = await buscarAlumnoPorClave(supabase, sesion.matricula);
-    curp = a?.CURP;
-  }
-  if (!curp) {
+  // FASE 2 — autorización centralizada: sesión + rol + CURP objetivo + relación.
+  // El parámetro solo sirve de presentación; la decisión es server-side.
+  const resolucion = await resolverAccesoAlumno(supabase, sesion, curpConsulta);
+  if (!resolucion.ok) {
     return {
       alumno: null,
       etiquetas: null,
@@ -156,8 +168,13 @@ export async function actionObtenerPerfilAlumno(
       comentarios: [],
       puedeEditarEtiquetas: false,
       fotoPerfilUrl: null,
+      acceso: null,
+      etiquetasDinamicas: [],
+      tutorContacto: null,
     };
   }
+  const curp = resolucion.curp;
+  const acceso = resolucion.acceso;
 
   // FASE 3 — Intento de RPC consolidada `obtener_perfil_alumno(p_curp)`:
   // 1 request HTTP a PostgREST en lugar de ~21. Si la función no existe o el
@@ -286,8 +303,21 @@ export async function actionObtenerPerfilAlumno(
       }
     : null;
 
-  const puedeEditarEtiquetas =
-    sesion?.rol === "alumno" || sesion?.rol === "directivo";
+  // FASE 2 — etiquetas dinámicas (módulo separado, sin N+1) + contacto del
+  // tutor principal (fuente de verdad: tutores + tutor_alumnos).
+  const [etiquetasDinamicas, tutor] = await Promise.all([
+    obtenerEtiquetasDinamicas(supabaseLectura, curp),
+    obtenerTutorPrincipalDeAlumno(supabaseLectura, curp),
+  ]);
+  const tutorContacto = tutor
+    ? {
+        nombre: nombreCompletoTutor(tutor),
+        telefono: tutor.telefono,
+        correo: tutor.correo,
+      }
+    : null;
+
+  const puedeEditarEtiquetas = acceso.puedeEditarEtiquetas;
 
   return {
     alumno,
@@ -297,20 +327,29 @@ export async function actionObtenerPerfilAlumno(
     comentarios,
     puedeEditarEtiquetas,
     fotoPerfilUrl,
+    acceso,
+    etiquetasDinamicas,
+    tutorContacto,
   };
 }
 
+/**
+ * @deprecated Legacy (EMPTY1-6 de ETIQUETAS PERSONALES). Usar
+ * `actionGuardarEtiquetasDinamicas` (módulo alumno_etiquetas).
+ * Autorización: solo tutor (con relación) o directivo.
+ */
 export async function actionGuardarEtiquetasPersonales(
   curp: string,
   titulos: [string, string, string],
   valores: [string, string, string],
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
-  if (sesion.rol !== "alumno" && sesion.rol !== "directivo") {
+  const supabase = await createClient();
+  const res = await resolverAccesoAlumno(supabase, sesion, curp);
+  if (!res.ok) return { ok: false, error: res.error };
+  if (!res.acceso.puedeEditarEtiquetas) {
     return { ok: false, error: "No tienes permiso." };
   }
-  const supabase = await createClient();
   return actualizarEtiquetasPersonales(supabase, curp, {
     ...patchTitulosEtiquetas(...titulos),
     ...patchValoresEtiquetas(...valores),
@@ -355,8 +394,10 @@ export async function actionGuardarComentarioPersonal(
   comentario: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
-  if (sesion.rol !== "alumno" && sesion.rol !== "directivo") {
+  const supabase = await createClient();
+  const res = await resolverAccesoAlumno(supabase, sesion, curp);
+  if (!res.ok) return { ok: false, error: res.error };
+  if (!res.acceso.puedeEditarDatosPersonales) {
     return { ok: false, error: "No tienes permiso." };
   }
   if (comentario.length > COMENTARIO_MAX_LENGTH) {
@@ -365,7 +406,6 @@ export async function actionGuardarComentarioPersonal(
       error: `Máximo ${COMENTARIO_MAX_LENGTH} caracteres.`,
     };
   }
-  const supabase = await createClient();
   return actualizarEtiquetasPersonales(
     supabase,
     curp,
@@ -633,7 +673,7 @@ export async function actionSubirFotoPerfil(
   curpConsulta?: string | null,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
+  const supabase = await createClient();
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) {
@@ -643,37 +683,15 @@ export async function actionSubirFotoPerfil(
     return { ok: false, error: "Solo se permiten imágenes." };
   }
 
-  let curp = curpConsulta?.trim().toUpperCase() ?? "";
-
-  if (!curp && sesion.rol === "alumno") {
-    curp =
-      sesion.curp?.trim().toUpperCase() ??
-      (await (async () => {
-        const supabase = await createClient();
-        const { buscarAlumnoPorClave } = await import("@/lib/escolar/alumnos");
-        const a = await buscarAlumnoPorClave(supabase, sesion.matricula);
-        return a?.CURP ?? "";
-      })());
+  // FASE 2 — autorización centralizada (filosofia.estructural §7). La foto es
+  // un dato personal: solo el TUTOR (con relación) o el DIRECTIVO pueden
+  // cambiarla; el ALUMNO conserva lectura (sin escritura propia).
+  const resolucion = await resolverAccesoAlumno(supabase, sesion, curpConsulta);
+  if (!resolucion.ok) return { ok: false, error: resolucion.error };
+  if (!resolucion.acceso.puedeSubirFoto) {
+    return { ok: false, error: "No tienes permiso para cambiar la foto." };
   }
-
-  if (!curp && sesion.rol === "directivo") {
-    return {
-      ok: false,
-      error: "No se indicó el CURP del alumno para guardar la foto.",
-    };
-  }
-
-  if (!curp) {
-    return { ok: false, error: "No se encontró CURP del alumno." };
-  }
-
-  if (
-    sesion.rol === "alumno" &&
-    sesion.curp &&
-    sesion.curp.toUpperCase() !== curp
-  ) {
-    return { ok: false, error: "No puedes cambiar la foto de otro alumno." };
-  }
+  const curp = resolucion.curp;
 
   const buffer = Buffer.from(await archivo.arrayBuffer());
   const subida = await subirImagenCloudinary(
@@ -682,7 +700,6 @@ export async function actionSubirFotoPerfil(
   );
   if (!subida.ok) return subida;
 
-  const supabase = await createClient();
   const guardado = await guardarUrlFotoPerfil(supabase, curp, subida.url);
   if (!guardado.ok) return guardado;
 

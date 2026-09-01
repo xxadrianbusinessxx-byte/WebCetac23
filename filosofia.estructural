@@ -1,0 +1,435 @@
+================================================================================
+  FILOSOFÍA ESTRUCTURAL — WebCetac23 (mi-web-escolar / AulaNube / CETAC)
+  Archivo: filosofia.estructural
+  Propósito: reglas arquitectónicas PERMANENTES sobre cómo debe crecer y
+             modificarse el proyecto. Referencia de diseño para cualquier
+             cambio futuro, sin importar el módulo.
+  Relación con otros documentos (cada uno tiene una función distinta):
+    · contexto.feliz            → contexto FUNCIONAL actual (qué está hecho).
+    · docs/OPTIMIZACION_*.md    → decisiones, optimizaciones, historial técnico
+                                  y criterios de rendimiento.
+    · filosofia.estructural     → CÓMO debe construirse/modificarse (este archivo).
+    · criterios.prompts         → CÓMO deben diseñarse los prompts de
+                                  implementación (agrupación y contratos).
+
+  Este documento NO describe una funcionalidad concreta: describe las reglas de
+  construcción que deben respetarse en TODOS los módulos. Si un cambio entra en
+  conflicto con este documento, primero hay que revisar el diseño, no saltarse
+  la regla.
+================================================================================
+
+================================================================================
+1. PRINCIPIO CENTRAL — ARQUITECTURA MODULAR
+================================================================================
+
+WebCetac23 utiliza una arquitectura MODULAR y de MÓDULOS REEMPLAZABLES.
+
+Siempre que sea técnicamente razonable:
+
+> Un bloque de funcionalidad debe poder reemplazarse, desactivarse, modificarse
+> o evolucionar sin obligar a modificar grandes cantidades de código no
+> relacionado.
+
+Ejemplo conceptual:
+
+    PERFIL
+    │
+    ├── Identidad
+    ├── Académico
+    ├── Datos personales
+    ├── Etiquetas
+    ├── Tutores
+    ├── Comentarios
+    ├── Documentos
+    └── Foto
+
+El perfil actúa como COMPOSITOR / PRESENTADOR de módulos, NO como el lugar
+donde se concentra toda la lógica del sistema.
+
+Objetivo final: si en el futuro se reemplaza un módulo (p. ej. el de etiquetas),
+no debería ser necesario modificar materias, boletas, inscripciones,
+autenticación, tutores o calificaciones, salvo los contratos estrictamente
+necesarios.
+
+La modularidad se aplica CUANDO ES POSIBLE Y RAZONABLE: no es una regla
+dogmática que justifique sobreingeniería.
+
+================================================================================
+2. MODULARIDAD
+================================================================================
+
+Cada funcionalidad importante debe tener límites claros y una responsabilidad
+definida. Un módulo debería poder:
+
+    · reemplazarse
+    · desactivarse
+    · modificarse
+    · ampliarse
+
+sin afectar módulos no relacionados.
+
+Criterios para saber si una pieza es un "módulo":
+
+    - Tiene una fuente de datos propia o un servicio claramente delimitado.
+    - Se puede razonar sobre ella de forma aislada (lee el nombre del archivo
+      y se entiende qué hace).
+    - Sus dependencias son explícitas (imports) y no implícitas (convenciones
+      que solo existen "en el aire").
+    - Tiene un contrato de salida estable (funciones, tipos, acciones).
+
+Ejemplos reales del proyecto: catálogo académico, etiquetas dinámicas,
+tutores, asistencias, justificaciones, documentos, chat/comentarios, foto.
+
+================================================================================
+3. BAJO ACOPLAMIENTO
+================================================================================
+
+Evitar dependencias cruzadas innecesarias entre módulos.
+
+Ejemplo INCORRECTO (cadena de acoplamiento por datos):
+
+    etiquetas personales
+            ↓
+          grado
+            ↓
+          grupo
+            ↓
+         carrera
+            ↓
+         materias
+
+Ejemplo CORRECTO (cada dato sale de su fuente):
+
+    inscripciones
+          ↓
+    identidad académica
+
+
+    alumno_etiquetas
+          ↓
+    información personal configurable
+
+Reglas prácticas de acoplamiento:
+
+    - Un módulo NO debe leer datos de otro módulo para "adivinar" información
+      que ya tiene una fuente oficial (ver §4).
+    - Si dos módulos necesitan el mismo dato, ambos consultan la FUENTE ÚNICA,
+      no uno al otro.
+    - La UI no debe acceder a detalles internos de otro módulo (ver §8).
+    - Preferir composición (el perfil compone módulos) antes que herencia o
+      acoplamiento directo componente→componente→componente.
+
+================================================================================
+4. FUENTE ÚNICA DE VERDAD
+================================================================================
+
+Cada tipo de información debe tener UNA fuente oficial. Un módulo no debe
+crear una segunda fuente de verdad "porque es más fácil", ni inventar datos
+que pertenecen a otro módulo.
+
+Fuentes oficiales de WebCetac23:
+
+    ALUMNOS                    → identidad básica (CURP, nombre, clave)
+    inscripciones_alumno       → pertenencia académica del alumno
+    grupos                     → grado / grupo / carrera (dentro de un periodo)
+    periodos / carreras        → ciclo escolar y catálogo de carreras
+    grupo_materias             → materias de cada grupo (con tabla_legacy como
+                                 puente físico de almacenamiento)
+    materias                   → catálogo de asignaturas
+    asignaciones_profesor      → acceso académico del profesor (qué imparte)
+    academico_semestres        → estado activo/inactivo de la oferta por semestre
+    tutores + tutor_alumnos    → relación tutor ↔ alumno(s)
+    alumno_etiquetas           → etiquetas personales dinámicas
+    ETIQUETAS PERSONALES       → campos DEFINIDOS del modelo de datos personales
+                                 (NO identidad académica, ver §5)
+    ETIQUETAS (STATUS)         → promedios/materias reprobadas (estatus/estrella)
+    COMENTARIOS / COMENTARIOS PROFESORES → chat y comentarios de perfil
+    calendario_escolar, clases_impartidas, asistencia_alumnos → asistencia
+    justificaciones_asistencia → justificaciones de faltas
+    CARPETAS / DOCUMENTOS      → documentos institucionales
+    Cloudinary                 → imágenes (fotos de perfil, noticias)
+
+Consecuencias:
+
+    - Si un dato ya está en una fuente oficial, NINGÚN otro módulo debe
+      re-derivarlo de datos que no le pertenecen.
+    - Los "puentes físicos" (p. ej. grupo_materias.tabla_legacy) son datos de
+      adaptación de almacenamiento, NO identidad de negocio.
+
+================================================================================
+5. SEPARACIÓN ENTRE DATOS ACADÉMICOS Y DATOS PERSONALES
+================================================================================
+
+Esta regla es especialmente importante en WebCetac23.
+
+NUNCA debe volver a utilizarse:
+
+    ETIQUETAS PERSONALES
+
+como fuente de:
+
+    grado
+    grupo
+    carrera
+    materias
+
+La información académica se obtiene EXCLUSIVAMENTE del catálogo académico:
+
+    CURP
+     ↓
+    inscripciones_alumno (activa)
+     ↓
+    grupos → carreras / periodos
+     ↓
+    grupo_materias → materias
+
+Regla operativa:
+
+    - Identidad académica → catálogo académico.
+    - Etiquetas/datos personales → información personal configurable.
+    - Calificaciones → sistema académico correspondiente (tablas de materia /
+      registros legacy + grupo_materias.tabla_legacy como puente).
+    - Fotos → Cloudinary.
+
+Los fallbacks legacy que leen identidad académica desde ETIQUETAS PERSONALES
+están marcados como temporales y deben ir desapareciendo según se migran los
+consumidores.
+
+================================================================================
+6. SEPARACIÓN ENTRE CAMPOS DEFINIDOS Y ETIQUETAS DINÁMICAS
+================================================================================
+
+Los campos estructurados del alumno son DIFERENTES de las etiquetas
+personalizables. NO deben mezclarse los dos modelos para evitar crear una
+estructura nueva.
+
+Ejemplo:
+
+    DATOS PERSONALES (campos definidos)
+    ├── edad
+    ├── altura
+    ├── teléfono del tutor
+    ├── correo del tutor
+    └── otros campos estructurados
+
+    ETIQUETAS (dinámicas, alumno_etiquetas)
+    ├── Deporte      → Fútbol
+    ├── Pasatiempo   → Música
+    ├── Meta         → Universidad
+    └── ...
+
+Reglas:
+
+    - Un campo con significado fijo (edad, teléfono, correo…) es un CAMPO
+      DEFINIDO. Vive en el modelo de datos personales, no como etiqueta.
+    - Una etiqueta es un par (título, valor) creado libremente por el usuario.
+      Máximo 20 por alumno (ver modelo alumno_etiquetas).
+    - Los datos del tutor se resuelven desde tutores + tutor_alumnos; no se
+      duplican como etiquetas.
+
+================================================================================
+7. SEGURIDAD POR SERVIDOR
+================================================================================
+
+Ocultar un botón NO es autorización. La UI solamente REPRESENTA los permisos;
+la seguridad se valida SIEMPRE en el servidor.
+
+Toda operación de escritura (o lectura sensible) debe validar:
+
+    sesión
+    +
+    rol
+    +
+    alumno objetivo
+    +
+    relación / autorización
+
+Patrón actual del proyecto (debe mantenerse):
+
+    - RLS público en tablas + autorización de negocio en Server Actions.
+    - El rol sale de obtenerSesionPortal() (cookie firmada), NUNCA del cliente.
+    - El alumno objetivo (CURP) se valida contra la sesión o contra la
+      relación (p. ej. listarCurpsDeTutor para tutores).
+    - Los permisos de escritura se comprueban en la función server antes de
+      tocar la base de datos.
+
+Aplica especialmente a: editar etiquetas, editar datos personales, importación
+individual, importación global, subida de archivos y cualquier operación de
+escritura.
+
+================================================================================
+8. CONTRATOS ENTRE MÓDULOS
+================================================================================
+
+Los módulos se comunican mediante funciones/servicios claramente definidos
+(Server Actions, funciones de dominio en lib/, RPC), NO accediendo la UI a los
+detalles internos de otros módulos.
+
+Reglas:
+
+    - Los componentes "use client" llaman Server Actions o funciones puras de
+      dominio (tipos/helpers), nunca escriben SQL ni conocen tablas internas de
+      otros módulos salvo a través del contrato.
+    - Los módulos de dominio puro (tipos y helpers) se separan de los de
+      servidor (que hacen I/O), p. ej. tutores-types.ts vs tutores.ts.
+    - El contrato de salida de una RPC o Server Action se documenta en el
+      archivo que lo define (tipos TS + comentario del SQL).
+
+================================================================================
+9. MIGRACIONES SEGURAS
+================================================================================
+
+No eliminar estructuras legacy inmediatamente. Proceso obligatorio:
+
+    identificar
+    ↓
+    migrar
+    ↓
+    verificar
+    ↓
+    cambiar consumidores
+    ↓
+    desactivar dependencia
+    ↓
+    marcar deprecated
+    ↓
+    eliminar cuando sea seguro
+
+Reglas:
+
+    - Las migraciones de datos deben ser idempotentes o tener protección
+      contra ejecución repetida (ON CONFLICT, IF NOT EXISTS, guardas).
+    - Las migraciones de datos NO borran columnas/tablas legacy en el mismo
+      paso: primero se verifica el destino.
+    - Los scripts SQL de migración se documentan en supabase/*.sql y se
+      ejecutan manualmente en el SQL Editor (no hay ejecutor automático).
+
+================================================================================
+10. COMPATIBILIDAD (CAMBIOS ADITIVOS)
+================================================================================
+
+Cuando sea posible, los cambios deben ser ADITIVOS: no romper contratos
+existentes sin necesidad.
+
+Especialmente proteger:
+
+    RPC
+    Server Actions
+    tipos TypeScript
+    payloads
+    componentes
+
+Reglas:
+
+    - Añadir claves nuevas a un payload es preferible a renombrar/eliminar
+      claves existentes.
+    - Si se cambia un contrato, actualizar a la vez TODOS los consumidores y
+      dejar el fallback documentado mientras exista código que lo use.
+    - Las funciones nuevas conviven con las legacy (marcadas @deprecated,
+      ver §14) hasta que los consumidores migren.
+
+================================================================================
+11. RENDIMIENTO
+================================================================================
+
+La modularidad no debe generar N+1 queries ni duplicar consultas existentes.
+
+Reglas:
+
+    - Antes de crear una consulta nueva, revisar si la información ya está
+      disponible en una consulta/RPC existente (p. ej. la RPC obtener_perfil_alumno).
+    - Agrupar consultas independientes en Promise.all; conservar las cadenas
+      dependientes (inscripción → grupo → carrera; grupo → semestre → materias).
+    - Preferir consultas por lote (.in(), jsonb_agg en RPC) antes que bucles
+      1×N de queries.
+    - Los índices necesarios se declaran en el SQL del módulo.
+    - Medir cuando el cambio toque rutas calientes (/perfil, listados del
+      directivo). Ver docs/OPTIMIZACION_RENDIMIENTO_400_500.md.
+
+================================================================================
+12. IMPORTACIONES
+================================================================================
+
+Los importadores de archivos (CSV/Excel) deben separar las fases:
+
+    lectura
+    ↓
+    normalización
+    ↓
+    identificación de columnas
+    ↓
+    validación
+    ↓
+    aplicación
+
+Reglas:
+
+    - La lógica de importación debe ser REUTILIZABLE y compartida:
+        · lib/escolar/csv.ts              → lectura (CSV/Excel).
+        · lib/escolar/mapeo-columnas.ts   → identificación de columnas por aliases.
+        · normalizadores (nombres, grado/grupo/carrera, CURP) → capas puras.
+    - Antes de crear un sistema de identificación de columnas nuevo, reutilizar
+      el existente (mapeo-columnas.ts / columnas-calificaciones.ts).
+    - Las importaciones que escriben en varios alumnos validan TODO antes de
+      escribir (patrón preview bloqueante de carga-academica.ts) y devuelven
+      reportes de errores parciales (alumnos no encontrados, duplicados,
+      valores vacíos, límites).
+    - El formato aceptado por cada importador se valida en servidor (extensión
+      y tipo), no solo en el input del navegador.
+
+================================================================================
+13. DESACTIVACIÓN DE MÓDULOS
+================================================================================
+
+Siempre que sea razonable, un módulo debe poder desactivarse mediante
+configuración / feature flag SIN eliminar físicamente todo su código.
+
+Utilidad:
+
+    - Migraciones por fases (apagar el módulo viejo, encender el nuevo).
+    - Pruebas y rollback rápido.
+    - Mantener contratos de salida aunque la implementación interna cambie.
+
+Formas aceptadas según el caso:
+
+    - Constante/flag en lib/ (p. ej. en la tabla de constantes del módulo).
+    - Variable de entorno (sin afectar al cliente).
+    - Fila de configuración en una tabla del catálogo.
+
+Un flag de desactivación NO reemplaza la autorización (§7): si el módulo
+escribe, las Server Actions siguen validando sesión/rol/relación.
+
+================================================================================
+14. LEGACY
+================================================================================
+
+El código legacy no debe seguir siendo una dependencia silenciosa.
+
+Reglas:
+
+    - Cuando exista una implementación nueva, el código viejo se marca con
+      @deprecated en la firma y un comentario que indique la alternativa.
+    - Las dependencias legacy se eliminan SOLO después de: identificarlas,
+      comprobar qué las utiliza, reemplazar los consumidores, verificar y
+      desactivar la dependencia (§9).
+    - Los fallbacks legacy que afectan a la identidad (p. ej. leer grado/grupo/
+      carrera desde ETIQUETAS PERSONALES) están documentados como temporales;
+      deben quedar gated y luego eliminarse, nunca ampliarse.
+
+================================================================================
+15. NOTAS DE APLICACIÓN
+================================================================================
+
+    - Este documento es la referencia para revisar diseños nuevos: antes de
+      implementar, verificar contra §2 (modularidad), §3 (acoplamiento),
+      §4 (fuente única) y §7 (seguridad).
+    - La FORMA de trabajo (cómo agrupar y redactar prompts, análisis previo,
+      validación final) se define en criterios.prompts; este documento define
+      las REGLAS arquitectónicas.
+    - Los documentos no se duplican entre sí: contexto.feliz describe el
+      estado, OPTIMIZACION describe decisiones de rendimiento, este archivo
+      define las reglas permanentes, y criterios.prompts define la forma de
+      trabajo. Si una decisión cambia de estado, se actualiza contexto.feliz;
+      si cambia una regla permanente, se actualiza este documento con
+      justificación.
+

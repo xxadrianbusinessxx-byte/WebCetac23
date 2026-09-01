@@ -920,6 +920,49 @@ export async function validarAccesoProfesor(
   return !error && Boolean(data);
 }
 
+/**
+ * FASE 2 — ¿El profesor (por CLAVE) imparte en el grupo de la inscripción
+ * ACTIVA del alumno?
+ *
+ * Fuente única académica: asignaciones_profesor → grupo_materias → grupos →
+ * inscripciones_alumno. Se usa para autorizar la consulta del perfil de un
+ * alumno por parte de un maestro (solo lectura). NO usa ETIQUETAS PERSONALES.
+ */
+export async function profesorTieneAccesoAlumno(
+  supabase: SupabaseClient,
+  profesorClave: string,
+  curp: string,
+): Promise<boolean> {
+  const clave = normClave(profesorClave);
+  const c = curp.trim().toUpperCase();
+  if (!clave || !c) return false;
+
+  const inscripcion = await obtenerInscripcionActiva(supabase, c);
+  if (!inscripcion) return false;
+
+  const { data: asignaciones, error: e1 } = await supabase
+    .from(TABLA_ASIGNACIONES_PROFESOR)
+    .select("grupo_materia_id")
+    .eq("profesor_clave", clave)
+    .eq("activo", true);
+  if (e1 || !asignaciones?.length) return false;
+
+  const gmIds = [
+    ...new Set(
+      (asignaciones as { grupo_materia_id: string }[]).map((a) => a.grupo_materia_id),
+    ),
+  ];
+  const { data: gms, error: e2 } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .select("grupo_id")
+    .in("id", gmIds);
+  if (e2 || !gms?.length) return false;
+
+  return (gms as { grupo_id: string }[]).some(
+    (g) => g.grupo_id === inscripcion.grupo_id,
+  );
+}
+
 /* ---------------------------------------------------------------------------
  * CO-DOCENCIA (G4)
  * La BD permite varios profesores ACTIVOS para el mismo `grupo_materia`

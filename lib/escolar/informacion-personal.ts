@@ -1,8 +1,18 @@
+import {
+  CAMPOS_PERSONALES_PRIMARIOS,
+  type CampoPersonalPrimario,
+} from "./etiquetas";
 import type { EtiquetasPersonalesRow } from "./types";
 
 const FOTO_PREFIX = "__FOTO__";
 
-/** Carrera escolar real (ignora URLs de foto guardadas por error en CARRERA). */
+/**
+ * @deprecated Identidad académica NO se resuelve desde ETIQUETAS PERSONALES
+ * (filosofia.estructural §5): grado/grupo/carrera vienen del catálogo
+ * (inscripciones_alumno → grupos → carreras). Esta función solo queda para el
+ * fallback legacy temporal de asistencias (marcado @deprecated también).
+ * Carrera escolar real (ignora URLs de foto guardadas por error en CARRERA).
+ */
 export function carreraEscolarDesdeEtiquetas(
   row: EtiquetasPersonalesRow | null | undefined,
 ): string {
@@ -19,34 +29,40 @@ export type CampoInformacionPersonal = {
   valor: string;
 };
 
-const CAMPOS_ORDEN: { clave: keyof EtiquetasPersonalesRow; etiqueta: string }[] =
-  [
-    { clave: "GENERO", etiqueta: "Género" },
-    { clave: "GRADO", etiqueta: "Grado" },
-    { clave: "GRUPO", etiqueta: "Grupo" },
-    { clave: "CARRERA", etiqueta: "Carrera" },
-    { clave: "CORREO", etiqueta: "Correo" },
-    { clave: "CELULAR", etiqueta: "Celular" },
-    { clave: "TIPO DE SANGRE", etiqueta: "Tipo de sangre" },
-    { clave: "ALERGIAS", etiqueta: "Alergias" },
-    { clave: "LENTES", etiqueta: "Lentes" },
-    { clave: "ENFERMEDAD CRONICA", etiqueta: "Enfermedad crónica" },
-    { clave: "SALUD MENTAL", etiqueta: "Salud mental" },
-    { clave: "NECESIDAD PSICOLOGICA", etiqueta: "Necesidad psicológica" },
-    { clave: "PESO", etiqueta: "Peso" },
-    { clave: "TALLA", etiqueta: "Talla" },
-    { clave: "VACUNACION", etiqueta: "Vacunación" },
-  ];
+/**
+ * Campos personales DEFINIDOS (fuente: ETIQUETAS PERSONALES).
+ * GRADO/GRUPO/CARRERA quedan FUERA: son identidad académica del catálogo.
+ * La lista proviene de CAMPOS_PERSONALES_PRIMARIOS (etiquetas.ts) para que la
+ * UI editable y la presentación de solo lectura compartan la MISMA fuente.
+ */
+const ETIQUETAS_LABEL: Record<CampoPersonalPrimario, string> = {
+  GENERO: "Género",
+  CORREO: "Correo",
+  CELULAR: "Celular",
+  "TIPO DE SANGRE": "Tipo de sangre",
+  ALERGIAS: "Alergias",
+  LENTES: "Lentes",
+  "ENFERMEDAD CRONICA": "Enfermedad crónica",
+  "SALUD MENTAL": "Salud mental",
+  "NECESIDAD PSICOLOGICA": "Necesidad psicológica",
+  PESO: "Peso",
+  TALLA: "Talla",
+  VACUNACION: "Vacunación",
+  EDAD: "Edad",
+  ESTATURA: "Estatura",
+};
+
+const CAMPOS_ORDEN: { clave: CampoPersonalPrimario; etiqueta: string }[] =
+  CAMPOS_PERSONALES_PRIMARIOS.map((clave) => ({
+    clave,
+    etiqueta: ETIQUETAS_LABEL[clave],
+  }));
 
 function valorCelda(
   row: EtiquetasPersonalesRow | null,
   clave: keyof EtiquetasPersonalesRow,
 ): string {
   if (!row) return "—";
-  if (clave === "CARRERA") {
-    const c = carreraEscolarDesdeEtiquetas(row);
-    return c || "—";
-  }
   const v = row[clave];
   const t = v == null ? "" : String(v).trim();
   return t || "—";
@@ -54,12 +70,7 @@ function valorCelda(
 
 /**
  * Campos de ETIQUETAS PERSONALES para mostrar en el perfil (solo lectura).
- *
- * C4.6 — DECISIÓN CARRERA: se mantiene TEMPORALMENTE como dato descriptivo
- * (opción C) para no romper la UI del perfil. La fuente OFICIAL de la carrera
- * académica es el catálogo (inscripción activa → grupo → carrera). Cuando se
- * ajuste el payload del perfil (C4.7) este campo pasará a resolverse desde el
- * catálogo (opción B), eliminando la doble autoridad. No se borra la columna.
+ * La identidad académica (grado/grupo/carrera) se muestra desde el catálogo.
  */
 export function informacionPersonalDesdeEtiquetas(
   row: EtiquetasPersonalesRow | null,
@@ -75,7 +86,11 @@ export function informacionPersonalDesdeEtiquetas(
   return base;
 }
 
-/** Etiquetas vacías personalizadas (EMPTY1–3 título, EMPTY4–6 valor). */
+/**
+ * @deprecated Etiquetas EMPTY1-6 legacy (ETIQUETAS PERSONALES). Reemplazadas
+ * funcionalmente por `alumno_etiquetas` (módulo etiquetas-dinamicas). Se
+ * conserva solo por compatibilidad de lectura durante la transición.
+ */
 export function etiquetasVaciasDesdeFila(
   row: EtiquetasPersonalesRow | null,
 ): { titulo: string; valor: string }[] {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { actionListarAlumnosGruposProfesor } from "@/app/actions/asistencias";
 import { normalizarNombre } from "@/lib/escolar/nombres";
@@ -181,11 +182,11 @@ export function BuscadorAlumnoProfesor({
                 ) : (
                   <ul className="flex flex-col gap-1">
                     {alumnosFiltrados.map((a) => (
-                      <li key={a.curp}>
+                      <li key={a.curp} className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => elegirAlumno(a)}
-                          className={`w-full rounded-xl border px-3 py-2 text-left text-[11px] font-bold transition hover:brightness-105 ${
+                          className={`flex-1 rounded-xl border px-3 py-2 text-left text-[11px] font-bold transition hover:brightness-105 ${
                             alumnoSel?.curp === a.curp
                               ? "border-sky-500/60 bg-sky-100/90 text-sky-900"
                               : "border-white/60 bg-white/80 text-sky-900 hover:bg-white"
@@ -198,6 +199,16 @@ export function BuscadorAlumnoProfesor({
                             {a.curp}
                           </span>
                         </button>
+                        {/* FASE 2 — consulta del perfil del alumno (solo
+                            lectura, autorizada server-side por el grupo del
+                            maestro). */}
+                        <Link
+                          href={`/perfil?modo=maestro&curp=${encodeURIComponent(a.curp)}&desde=profesor`}
+                          title="Ver perfil del alumno"
+                          className="shrink-0 rounded-xl border border-sky-500/50 bg-sky-100/90 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
+                        >
+                          Perfil
+                        </Link>
                       </li>
                     ))}
                   </ul>

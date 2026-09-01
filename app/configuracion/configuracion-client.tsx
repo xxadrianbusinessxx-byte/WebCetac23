@@ -10,6 +10,7 @@ import {
   actionAplicarCargaAcademica,
   actionPrevisualizarCargaAcademica,
 } from "@/app/actions/carga-academica";
+import { actionImportarEtiquetasGlobal } from "@/app/actions/etiquetas-dinamicas";
 import type {
   PreviewCargaAcademica,
   ResultadoAplicarCarga,
@@ -120,6 +121,37 @@ export function ConfiguracionClient({ sesion, periodos }: Props) {
   const [previsualizandoAcademica, setPrevisualizandoAcademica] = useState(false);
   const [aplicandoAcademica, setAplicandoAcademica] = useState(false);
   const [confirmadoAcademica, setConfirmadoAcademica] = useState(false);
+
+  // --- Importación masiva de etiquetas (FASE 2, solo directivo) ---
+  type ResumenImportacionEtiquetas = {
+    procesados: number;
+    actualizados: number;
+    omitidos: number;
+    alumnosNoEncontrados: string[];
+    errores: string[];
+    duplicadosCurp: string[];
+  };
+  const [archivoEtiquetas, setArchivoEtiquetas] = useState<File | null>(null);
+  const [importandoEtiquetas, setImportandoEtiquetas] = useState(false);
+  const [resumenEtiquetas, setResumenEtiquetas] =
+    useState<ResumenImportacionEtiquetas | null>(null);
+  const [errorEtiquetas, setErrorEtiquetas] = useState<string | null>(null);
+
+  async function onImportarEtiquetas() {
+    if (!archivoEtiquetas) {
+      setErrorEtiquetas("Selecciona un archivo Excel.");
+      return;
+    }
+    setImportandoEtiquetas(true);
+    setErrorEtiquetas(null);
+    setResumenEtiquetas(null);
+    const fd = new FormData();
+    fd.set("archivo", archivoEtiquetas);
+    const r = await actionImportarEtiquetasGlobal(fd);
+    setImportandoEtiquetas(false);
+    if (r.ok) setResumenEtiquetas(r.resumen);
+    else setErrorEtiquetas(r.error);
+  }
 
   async function onArchivoElegido(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
@@ -794,6 +826,110 @@ export function ConfiguracionClient({ sesion, periodos }: Props) {
 
         {/* Tutores / Padres */}
         <TutoresPanel />
+
+        {/* Importación masiva de etiquetas (FASE 2, solo directivo) */}
+        <section
+          className="relative mt-6 overflow-hidden rounded-[2rem] border-[3px] border-emerald-800/50 bg-emerald-100/35 p-3 shadow-[0_12px_40px_rgba(16,185,129,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
+          aria-label="Importar etiquetas personales en masa"
+        >
+          <div className="relative z-[1] flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+              <h2 className="text-sm font-extrabold uppercase tracking-wide text-emerald-900">
+                Importar etiquetas personales (masivo)
+              </h2>
+              <PanelTab className="mx-auto w-fit">
+                Excel con CURP + columnas de etiquetas
+              </PanelTab>
+            </div>
+
+            <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:p-6">
+              <p className="mb-3 text-center text-xs font-semibold text-slate-700">
+                Sube un archivo{" "}
+                <span className="font-extrabold text-emerald-800">
+                  Excel (.xlsx / .xls)
+                </span>{" "}
+                con una columna{" "}
+                <span className="font-extrabold text-emerald-800">CURP</span> y,
+                en el resto de columnas, los títulos de etiquetas (ej.
+                «Deporte», «Pasatiempo»). Cada fila reemplaza el conjunto de
+                etiquetas de ese alumno. Los errores por fila no detienen el
+                archivo.
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={(e) => {
+                    setArchivoEtiquetas(e.target.files?.[0] ?? null);
+                    setErrorEtiquetas(null);
+                    setResumenEtiquetas(null);
+                  }}
+                  aria-label="Seleccionar Excel de etiquetas"
+                  className="max-w-xs rounded-xl border border-white/70 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-inner outline-none"
+                />
+                <GreyActionPill
+                  onClick={() => void onImportarEtiquetas()}
+                  disabled={importandoEtiquetas || !archivoEtiquetas}
+                  className={importandoEtiquetas ? "opacity-70" : ""}
+                >
+                  {importandoEtiquetas ? "Importando…" : "Importar etiquetas"}
+                </GreyActionPill>
+              </div>
+
+              {errorEtiquetas && (
+                <p
+                  className="mt-3 text-center text-xs font-semibold text-red-700"
+                  role="alert"
+                >
+                  {errorEtiquetas}
+                </p>
+              )}
+
+              {resumenEtiquetas && (
+                <div className="mt-3 rounded-2xl border border-emerald-400/50 bg-emerald-100/70 p-3">
+                  <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
+                    Resumen de la importación
+                  </p>
+                  <ul className="flex flex-col gap-1 text-xs font-semibold text-emerald-900">
+                    <li>✅ Alumnos procesados: {resumenEtiquetas.procesados}</li>
+                    <li>✏️ Actualizados: {resumenEtiquetas.actualizados}</li>
+                    <li>⏭️ Omitidos: {resumenEtiquetas.omitidos}</li>
+                    {resumenEtiquetas.alumnosNoEncontrados.length > 0 && (
+                      <li className="text-red-700">
+                        No encontrados: {resumenEtiquetas.alumnosNoEncontrados.length} —{" "}
+                        {resumenEtiquetas.alumnosNoEncontrados.slice(0, 10).join(", ")}
+                        {resumenEtiquetas.alumnosNoEncontrados.length > 10 ? "…" : ""}
+                      </li>
+                    )}
+                    {resumenEtiquetas.duplicadosCurp.length > 0 && (
+                      <li className="text-amber-700">
+                        CURP duplicadas en el archivo:{" "}
+                        {resumenEtiquetas.duplicadosCurp.length}
+                      </li>
+                    )}
+                    {resumenEtiquetas.errores.length > 0 && (
+                      <li className="text-red-700">
+                        Errores: {resumenEtiquetas.errores.length}
+                      </li>
+                    )}
+                  </ul>
+                  {resumenEtiquetas.errores.length > 0 && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
+                        Ver errores
+                      </summary>
+                      <ul className="mt-1 max-h-32 overflow-y-auto rounded-xl bg-white/60 p-2 text-[11px] font-semibold text-slate-700">
+                        {resumenEtiquetas.errores.slice(0, 40).map((e, i) => (
+                          <li key={i}>{e}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
     </FrutigerBackdrop>
   );
