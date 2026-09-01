@@ -1,5 +1,3 @@
-import * as XLSX from "xlsx";
-
 /** Convierte hoja Excel a texto CSV (UTF-8). */
 export function matrizACsvTexto(filas: string[][]): string {
   return filas
@@ -62,6 +60,9 @@ export async function archivoCsvAFilas(
   }
 
   if (nombre.endsWith(".xlsx") || nombre.endsWith(".xls")) {
+    // FASE 9: xlsx (~334 KB) se carga BAJO DEMANDA — solo se descarga cuando
+    // el usuario sube un Excel real. El CSV no necesita esta librería.
+    const XLSX = await import("xlsx");
     const buffer = await file.arrayBuffer();
     const libro = XLSX.read(buffer, { type: "array" });
     const hoja = libro.Sheets[libro.SheetNames[0]];
@@ -109,6 +110,9 @@ export async function archivoCsvAFilasConValores(
   }
 
   if (nombre.endsWith(".xlsx") || nombre.endsWith(".xls")) {
+    // FASE 9: xlsx (~334 KB) se carga BAJO DEMANDA — solo se descarga cuando
+    // el usuario sube un Excel real. El CSV no necesita esta librería.
+    const XLSX = await import("xlsx");
     const buffer = await file.arrayBuffer();
     const libro = XLSX.read(buffer, { type: "array" });
     const hoja = libro.Sheets[libro.SheetNames[0]];

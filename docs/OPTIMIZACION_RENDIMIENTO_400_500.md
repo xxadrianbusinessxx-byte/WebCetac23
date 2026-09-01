@@ -1380,3 +1380,224 @@ pérdida de datos.
 - Nuevos (1): `lib/escolar/exportar-xlsx.ts`.
 - Commit y push realizados.
 
+---
+
+# FASE 9 — PERFILADO REAL DE FRONTEND + PREPARACIÓN PARA 1,000 USUARIOS CONCURRENTES
+
+> Fecha: 01/09/2026. Diagnóstico del frontend (bundle real) y de las capas no
+> estructurales, con objetivo arquitectónico de **1,000 sesiones/usuarios
+> concurrentes** y viabilidad como producto reutilizable (misma base de código,
+> otras instituciones). Metodología aplicada: medir → identificar → hipótesis →
+> costo/beneficio → modificar → volver a medir. NO se crearon índices, NO se
+> migraron tablas, NO se rediseñó el catálogo, NO se añadieron dependencias ni
+> servicios externos (sin Redis, sin React Query, sin Redux/Zustand).
+
+## 0. Capacidad objetivo — límite de la afirmación
+
+- **1,000 usuarios concurrentes es un OBJETIVO de ingeniería, NO un benchmark
+  demostrado.** No se afirma soporte hasta ejecutar una prueba real.
+- El benchmark previo llegó a **600 concurrentes sin errores pero con
+  saturación progresiva de latencia** (FASE 6). Ese resultado NO se interpreta
+  como evidencia de 1,000.
+- Se distinguen conceptos: usuarios concurrentes ≠ requests concurrentes ≠ RPS
+  ≠ consultas simultáneas a PostgreSQL. Los escenarios de carga deben
+  construirse con esa distinción.
+
+## 1. Herramientas de medición usadas
+
+- `npx next build` (Next.js 16.2.6, Turbopack) → tabla de rutas + manifests.
+- `npx next experimental-analyze -o` → analizador INTEGRADO (sin instalar
+  `@next/bundle-analyzer`): escribe `route-bundle-stats.json` con el JS inicial
+  **por ruta** y los chunks del first load. Suficiente para este diagnóstico.
+- Grep de marcadores (`SheetJS`, `pako`, `image-compression`) sobre los chunks
+  de `.next/static/chunks` para atribuir responsables.
+- `@next/bundle-analyzer` NO fue necesario; queda como herramienta de
+  desarrollo disponible si se requiere granularidad por módulo.
+
+## 2. Métrica principal — JS inicial por ruta (sin comprimir)
+
+Medición ANTES/DESPUÉS (mismo build, mismo analizador):
+
+| Ruta | JS inicial ANTES | JS inicial DESPUÉS | Δ |
+| --- | ---: | ---: | ---: |
+| /configuracion | 957,167 B | 632,668 B | **−324,499 B (−33.9 %)** |
+| /profesor | 951,101 B | 626,602 B | **−324,499 B (−34.1 %)** |
+| /directivo | 946,487 B | 622,102 B | **−324,385 B (−34.3 %)** |
+| /perfil | 599,029 B | 607,596 B | +8,567 B (+1.4 %) |
+| /tutor | 567,953 B | 576,520 B | +8,567 B (+1.5 %) |
+| /documentos | 558,744 B | 567,311 B | +8,567 B (+1.5 %) |
+| /chat | 548,462 B | 557,029 B | +8,567 B (+1.6 %) |
+| / (login) | 540,922 B | 549,489 B | +8,567 B (+1.6 %) |
+
+- El incremento de +8,567 B en TODAS las rutas es la instrumentación de Web
+  Vitals (§4.2), costo explícito y documentado.
+- El descenso de ~325 KB en las 3 rutas administrativas es el lazy-load de
+  `xlsx` (§4.1).
+
+### Composición del bundle
+
+| Chunk | Tamaño | Contenido / responsable | Rutas |
+| --- | ---: | --- | --- |
+| 10u3y4bw1ayzs.js | 227 KB | react-dom (framework) | todas |
+| 0kwr9olydeggm.js + 0pqt~8bl3ukh4.js + 0mdos_vzyyhck.js + 00p-41jq4urj5.js + turbopack-0… | ~229 KB | core de Next.js / runtime | todas |
+| 0f.9wrani9kky.js | 54 KB | componentes cliente compartidos (layout/nav) | todas |
+| 108mdf6jxuj.p.js | 26 KB | BarraNavegacionGlobal + next/image | todas |
+| 120b4d544xmeo.js | 334 KB | **xlsx (SheetJS)** — ANTES en first load | /configuracion /profesor /directivo |
+| 0re93s3idfto..js | 434 KB | **xlsx (SheetJS)** — DESPUÉS: chunk async (bajo demanda) | ninguna en first load |
+| 042d3-ircrugp.js / 0iejqz_6wfuv_.js / 0o2v6mv2y-yv~.js / 17zbg6t66y784.js | 36–82 KB | paneles/páginas administrativas | por ruta |
+
+- El framework (react-dom + Next core) es ~460 KB sin comprimir en todas las
+  rutas: es costo inherente de Next.js + React, NO accionable en esta fase.
+- La app aporta ~80 KB compartidos + los chunks específicos de cada ruta.
+
+## 3. Hallazgos clave
+
+1. **xlsx llega al cliente** por `lib/escolar/csv.ts`, importado desde
+   `materia-mapeo-columnas.tsx`, `configuracion-client.tsx` y
+   `reconocimiento-academico.tsx` (Client Components). Confirmado por el chunk
+   de 334 KB con marcador `SheetJS`.
+2. **`browser-image-compression` NO está en el first load**: ya se carga con
+   `await import()` en `lib/imagen/comprimir.ts` (chunk async aparte, ~51 KB).
+   Correcto; no requiere cambio.
+3. **`materias.ts` / `exportar-xlsx.ts`** importan `xlsx` solo en servidor
+   (Server Actions / `server-only`); no contaminan el bundle cliente.
+4. Los paneles de profesor/directivo/configuración se montan de forma
+   **incondicional** en el primer render de su página (no tras pestañas), por
+   lo que NO son candidatos a `dynamic()` «tras interacción».
+5. Las páginas de perfil/tutor usan pestañas, pero su JS específico es pequeño
+   (60 KB / 29 KB); el split de pestañas no está justificado por medición.
+
+## 4. Cambios implementados (categoría A — justificados por medición)
+
+### 4.1 Lazy-load de `xlsx` (elimina 334 KB del first load en 3 rutas)
+
+| Campo | Detalle |
+| --- | --- |
+| Problema | 334 KB (xlsx/SheetJS) en el JS inicial de /configuracion, /profesor y /directivo; solo se usa al subir archivos Excel. |
+| Hipótesis | Convertir el import a `await import("xlsx")` saca la librería del first load sin cambiar comportamiento (mismo patrón ya usado para browser-image-compression). |
+| Cambio | `lib/escolar/csv.ts`: `import * as XLSX from "xlsx"` → `const XLSX = await import("xlsx")` dentro de `archivoCsvAFilas` y `archivoCsvAFilasConValores`. |
+| Medición antes | /configuracion 957 KB · /profesor 951 KB · /directivo 946 KB (JS inicial sin comprimir). |
+| Medición después | /configuracion 633 KB · /profesor 627 KB · /directivo 622 KB. |
+| Beneficio | −33.9/−34.1/−34.3 % de JS inicial en las 3 rutas administrativas; el CSV (uso más frecuente) no descarga nunca la librería. |
+| Riesgo | El primer Excel descarga el chunk lazy (~434 KB sin comprimir) en el momento de subir; retardo puntual aceptable. Server-side verificado (Node: `await import("xlsx")` + parseo OK). Sin cambio de contrato ni de resultados. |
+
+### 4.2 Instrumentación mínima de Web Vitals
+
+| Campo | Detalle |
+| --- | --- |
+| Problema | Sin medición de campo no se puede distinguir problema de DB vs servidor vs red vs JS/render. |
+| Hipótesis | `useReportWebVitals` (estrategia recomendada por Next.js) aporta TTFB/FCP/LCP/CLS/INP con costo mínimo. |
+| Cambio | `app/components/web-vitals.tsx` (nuevo, client component, devuelve null) + montaje en `app/layout.tsx`. Desarrollo: consola del navegador. Producción: opt-in `NEXT_PUBLIC_WEB_VITALS="1"` (sin red adicional, sin DB, sin dependencias). |
+| Medición | +8,567 B sin comprimir (~3 KB gzip) por ruta. |
+| Beneficio | Poder atribuir el problema por capa durante las pruebas de carga y en el campo. |
+| Riesgo | +1.5 % de JS en rutas no administrativas; desactivado por defecto en producción. |
+
+
+
+
+## 5. Client Components — evaluación (A. Bundle / B. Client Components)
+
+| Componente | Ruta | Impacto | ¿Server Component? | ¿dynamic()? | Justificación |
+| --- | --- | --- | --- | --- | --- |
+| xlsx (vía csv.ts) | /configuracion, /profesor, /directivo | 334 KB | No (se parsea en cliente para preview) | **SÍ (lazy, implementado)** | Solo se usa al subir Excel. |
+| Paneles admin (AsistenciasPanel, TutoresPanel, MateriasConfigPanel, JustificacionesAdmin, CalendarioEscolarPanel) | /profesor, /configuracion, /directivo | 36–82 KB por ruta | No | No por ahora | Son el primer render de su página; dividirlos sin pestañas no reduce first load. |
+| MateriaMapeoColumnas / MateriaTablaVista | /profesor, /directivo | parte de los 36–82 KB | No | No | Necesario al entrar; ya no arrastra xlsx. |
+| BarraNavegacionGlobal | todas | 26 KB (con next/image) | No (usa estado de sesión) | No | Necesario en el primer render. |
+| WebVitals | todas | +8.5 KB | No (useReportWebVitals) | — | Instrumentación opt-in. |
+
+## 6. Dependencias (C)
+
+- **xlsx**: lazy-load implementado (§4.1). Sustituir la librería (p. ej.
+  exceljs) NO está justificado: el problema era el peso en first load, ya
+  resuelto sin tocar la librería; cambiar añade riesgo de compatibilidad sin
+  beneficio medible.
+- **browser-image-compression**: ya lazy; mantener.
+- **cloudinary / @supabase/supabase-js**: solo servidor / solo cliente según
+  módulo (`lib/cloudinary/*`, `lib/supabase/*`); sin cambios.
+
+## 7. Backend — diagnóstico SOLO lectura (D)
+
+- **select("*") hotspots** (no accionables en esta fase):
+  - `lib/escolar/hoja-tabla.ts` (carga completa de una tabla de materia),
+  - `lib/escolar/materia-vista-alumno.ts` (ya optimizado en FASE 7: validación
+    ligera + sin re-descarga redundante),
+  - `lib/escolar/etiquetas-status.ts` y `lib/escolar/registro-estatus.ts`
+    (lecturas `.limit(5000)` de tablas de estatus).
+- `select("*")` sobre tablas del catálogo (periodos, grupos, carreras,
+  inscripciones) es de costo bajo (tablas pequeñas) y queda documentado.
+- **OpenAPI**: caché TTL 60 s por instancia (O3), spec ~681 KB, invalidación
+  tras DDL. Costo real: 1 descarga por instancia/TTL (no por request). Hipótesis
+  futura (B): RPC mínima de metadata vía `information_schema`/`pg_catalog` para
+  reducir bytes/latencia; NO implementada en esta fase (requiere tocar DB).
+
+## 8. Índices — SOLO candidatos documentados (E) — NO creados
+
+| Tabla | Campo | Consulta que lo usa | Frecuencia | Índice candidato | Prioridad |
+| --- | --- | --- | --- | --- | --- |
+| tablas de materia (legacy) | `alumno_nombre` | búsqueda ilike en materia-vista-alumno | alta (alumnos) | pg_trgm GIN | Alta (requiere datos) |
+| ETIQUETAS (STATUS) | CURP | lectura por CURP (estrella/estatus) | media | B-tree CURP | Media |
+| justificaciones_asistencia | curp_alumno / estado / created_at | listados admin y por alumno | media | B-tree compuesto | Media |
+| asistencia_alumnos | (profesor_clave, grado, grupo, fecha) | ya documentado en esquema | alta | (ya existe UNIQUE/índices en SQL) | — |
+
+La implementación de índices pertenece a la fase estructural (categoría C),
+cuando se confirmen con `pg_stat_statements` / `EXPLAIN` / datos reales.
+
+
+## 9. Cambios NO implementados (G) — clasificación
+
+- **A (no estructural, candidatos futuros):**
+  - `dynamic()` de secciones internas si en el futuro se agrupan tras pestañas
+    dentro de las páginas admin (hoy no aplica por medición).
+  - Split de pestañas de /perfil y /tutor si el JS específico crece.
+- **B (infraestructura pequeña, documentados):**
+  - RPC mínima de metadata para reemplazar el consumo del spec OpenAPI.
+  - Sink server-side opcional para Web Vitals (hoy solo consola/opt-in).
+- **C (estructurales, POSPUESTOS — prohibidos en esta fase):**
+  - Índices definitivos; migración de las ~240 tablas; catálogo definitivo;
+    `select(*)`→columnas en tablas legacy; rediseño materia/grupo.
+
+## 10. Respuesta a la pregunta de la fase
+
+> ¿Qué impide actualmente que WebCetac23 tenga margen suficiente para llegar a
+> 1,000 usuarios concurrentes y qué podemos mejorar sin tocar la estructura de
+> datos?
+
+- **El frontend ya NO es el cuello estructural.** Tras esta fase, las rutas
+  más pesadas pasan de ~950 KB a ~630 KB de JS inicial, y la librería más
+  pesada (xlsx) se carga bajo demanda. El bundle por ruta (~630 KB) sigue
+  siendo mejorable con más splitting, pero el tamaño de JS no explica la
+  saturación de latencia observada a 600 concurrentes.
+- **Lo que realmente limita el margen es la capa de datos/servidor:**
+  - round-trips y `select("*")` sobre tablas de materia legacy (hasta 400–500
+    filas × ~38 columnas por materia);
+  - dependencia del spec OpenAPI (~681 KB por instancia/TTL) para resolver
+    esquemas dinámicos;
+  - lecturas amplias de estatus/registro (`.limit(5000)`).
+- **Sin tocar estructura, lo accionable ya está hecho** (lazy xlsx + Web
+  Vitals). El siguiente salto real de capacidad pertenece a la fase de índices
+  y rediseño de datos (categoría C), con `pg_stat_statements`/`EXPLAIN` y
+  benchmark a 1,000.
+
+## 11. Tabla final de decisiones
+
+| Optimización | Impacto | Costo | Riesgo | Estructural | Implementar ahora |
+| --- | ---: | ---: | ---: | --- | --- |
+| Lazy `xlsx` (csv.ts) | ALTO (−325 KB / −34 % en 3 rutas) | Bajo | Bajo | No | **SÍ (implementado)** |
+| Web Vitals opt-in | Medio (diagnóstico por capa) | Bajo (+8.5 KB/ruta) | Bajo | No | **SÍ (implementado)** |
+| dynamic() de paneles admin | Bajo | Medio | Medio | No | No (sin medición que lo justifique) |
+| RPC metadata OpenAPI | Medio | Medio | Medio | B | No (fase B documentada) |
+| `select(*)`→columnas en legacy | Alto | Alto | Alto | **SÍ** | No (fase C) |
+| Índices (pg_trgm / B-tree) | Alto | Medio | Medio | **SÍ** | No (fase C) |
+| Migración 240 tablas / catálogo definitivo | Alto | Alto | Alto | **SÍ** | No (fase C) |
+
+## 12. Validación y estado de Git
+
+- `npx tsc --noEmit` → OK. `eslint` (archivos tocados) → OK.
+- `npx next build` (Turbopack) → OK. `npx next experimental-analyze -o` → OK.
+- Prueba de `await import("xlsx")` + parseo (Node) → OK.
+- Archivos modificados: `lib/escolar/csv.ts`, `app/layout.tsx`,
+  `app/components/web-vitals.tsx` (nuevo), `filosofia.estructural`,
+  `docs/OPTIMIZACION_RENDIMIENTO_400_500.md`, `contexto.feliz`.
+- Sin commit/push aún en el momento de escribir esta sección (se commitea con
+  el resto de la fase).
+

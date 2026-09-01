@@ -1,7 +1,7 @@
 ================================================================================
   CONTEXTO DEL PROYECTO — mi-web-escolar (AulaNube / CETAC)
   Archivo: contexto.feliz
-  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11)
+  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11 + FASE 9)
 ================================================================================
 
 Este documento resume lo implementado hasta ahora y lo que falta por hacer.
@@ -1130,6 +1130,46 @@ en .xlsx: CURP, nombres con ñ/acentos y fechas conservados exactos).
     - app/actions/tutores.ts
     - app/components/asistencias-panel.tsx
     - app/components/tutores-panel.tsx
+    - docs/OPTIMIZACION_RENDIMIENTO_400_500.md
+    - contexto.feliz
+
+
+Bloque 12 — FASE 9 — PERFILADO REAL DE FRONTEND + PREPARACIÓN PARA 1,000
+USUARIOS CONCURRENTES. Diagnóstico del bundle con el analizador integrado de
+Next.js (`next experimental-analyze -o`, sin dependencias nuevas). Objetivo:
+1,000 usuarios concurrentes como meta arquitectónica de producto, sin
+rediseñar datos todavía (metodología: medir → hipótesis → costo/beneficio →
+modificar → volver a medir).
+  Hallazgos:
+    · xlsx (SheetJS, 334 KB) llegaba al cliente vía lib/escolar/csv.ts en el
+      JS inicial de /configuracion, /profesor y /directivo.
+    · browser-image-compression ya era lazy (chunk async aparte); sin cambios.
+    · Framework (react-dom + core Next) ≈ 460 KB en todas las rutas: inherente.
+  Cambios implementados (categoría A, justificados por medición):
+    · Lazy xlsx: lib/escolar/csv.ts usa `await import("xlsx")` dentro de
+      archivoCsvAFilas y archivoCsvAFilasConValores (mismo patrón que
+      browser-image-compression). JS inicial: /configuracion 957→633 KB
+      (−33.9 %), /profesor 951→627 KB (−34.1 %), /directivo 946→622 KB
+      (−34.3 %). El chunk de xlsx se descarga solo al subir un Excel real.
+    · Web Vitals: app/components/web-vitals.tsx (nuevo) + montaje en
+      app/layout.tsx. Dev: consola del navegador. Producción: opt-in
+      NEXT_PUBLIC_WEB_VITALS=1. Costo: +8.5 KB por ruta (~3 KB gzip), sin red
+      adicional, sin DB.
+  Documentación:
+    · filosofia.estructural §16 (nuevo): principio «No optimizar una capa si el
+      costo del problema pertenece a otra capa» (DB/JS/red).
+    · docs/OPTIMIZACION_RENDIMIENTO_400_500.md FASE 9: bundle por ruta,
+      client components, dependencias, backend (select * / OpenAPI), índices
+      candidatos (SOLO documentados, NO creados), clasificación A/B/C y tabla
+      final de decisiones.
+  Sin índices, sin migraciones, sin catálogo nuevo, sin dependencias ni
+  servicios externos. Validación: tsc OK, eslint OK, build OK, análisis OK,
+  prueba dynamic import xlsx (Node) OK.
+  Rutas exactas de archivos cambiados:
+    - lib/escolar/csv.ts
+    - app/layout.tsx
+    - app/components/web-vitals.tsx (nuevo)
+    - filosofia.estructural
     - docs/OPTIMIZACION_RENDIMIENTO_400_500.md
     - contexto.feliz
 

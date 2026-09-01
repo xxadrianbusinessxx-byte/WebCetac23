@@ -4,6 +4,7 @@ import "./globals.css";
 import { actionTieneAccesoDocumentos } from "./actions/documentos";
 import { BarraNavegacionGlobal } from "./components/barra-navegacion";
 import { DecoracionFondo } from "./components/decoracion-fondo";
+import { WebVitals } from "./components/web-vitals";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 
 const nunito = Nunito({
@@ -32,6 +33,8 @@ export default async function RootLayout({
   return (
     <html lang="es" className={`${nunito.variable} h-full antialiased`}>
       <body className="min-h-full font-sans text-slate-800">
+        {/* FASE 9 — instrumentación de Web Vitals (dev + opt-in en producción). */}
+        <WebVitals />
         {/* C4.27-A/B — Fondo global vivo montado UNA sola vez (fixed, decorativo). */}
         <DecoracionFondo />
         {/* C4.27-C/D — Barra de navegación global (franja sticky, con logo CETAC). */}

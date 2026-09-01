@@ -433,3 +433,31 @@ Reglas:
       si cambia una regla permanente, se actualiza este documento con
       justificación.
 
+===============================================================================
+16. OPTIMIZACIÓN POR CAPAS
+===============================================================================
+
+> No optimizar una capa si el costo del problema pertenece a otra capa.
+
+Si el cuello de botella está en PostgreSQL,
+no resolverlo agregando complejidad al frontend.
+
+Si el cuello de botella está en JavaScript,
+no resolverlo agregando caché de base de datos.
+
+Si el cuello de botella está en red,
+no resolverlo rediseñando el dominio.
+
+Reglas de aplicación:
+
+    - Primero identificar la capa responsable del problema (medición), después
+      optimizar esa capa. Las optimizaciones compensatorias en otra capa solo
+      añaden complejidad global sin resolver la causa.
+    - Una optimización puede cruzar de capa solo si es la única forma razonable
+      de reducir el costo real (p. ej. reducir JavaScript enviado al cliente
+      también baja carga de red) y debe documentarse como tal.
+    - En rendimiento: si el costo es de base de datos, la solución pertenece a
+      la fase de índices/rediseño de datos (ver docs/OPTIMIZACION_*.md); no se
+      disfraza con cachés ni abstracciones en el frontend.
+
+
