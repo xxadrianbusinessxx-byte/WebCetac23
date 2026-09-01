@@ -274,18 +274,25 @@ export function AsistenciasPanel() {
       setMensajeDescarga(r.error);
       return;
     }
-    const blob = new Blob([r.csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `asistencias_${grado}_${grupo}${carrera ? `_${carrera}` : ""}_${ciclo}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setMensajeDescarga(
-      `Plantilla generada: ${r.alumnos} alumnos · ${r.fechas.length} días de clase.`,
-    );
+    try {
+      const bytes = Uint8Array.from(atob(r.base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = r.nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setMensajeDescarga(
+        `Plantilla generada: ${r.alumnos} alumnos · ${r.fechas.length} días de clase.`,
+      );
+    } catch {
+      setMensajeDescarga("No se pudo generar el archivo.");
+    }
   }
 
   // BLOQUE 9 (PIEZA 2) — Descarga la plantilla de MATERIA (CURP | NOMBRE)

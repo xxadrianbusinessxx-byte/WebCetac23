@@ -91,7 +91,7 @@ type ResultadoMasivo = {
   omitidosDetalle: string[];
   errores: number;
   erroresDetalle: string[];
-  csv: string;
+  base64: string;
 };
 
 type TutorConCredenciales = {
@@ -232,19 +232,22 @@ export function TutoresPanel() {
       omitidosDetalle: res.omitidosDetalle,
       errores: res.errores,
       erroresDetalle: res.erroresDetalle,
-      csv: res.csv,
+      base64: res.base64,
     });
     setPreview(null);
     await abrirListaTutores();
   }
 
-  function onDescargarCsv() {
+  function onDescargarExcel() {
     if (!resultado) return;
-    const blob = new Blob([resultado.csv], { type: "text/csv;charset=utf-8" });
+    const bytes = Uint8Array.from(atob(resultado.base64), (c) => c.charCodeAt(0));
+    const blob = new Blob([bytes], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "credenciales_tutores.csv";
+    a.download = "credenciales_tutores.xlsx";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -629,7 +632,7 @@ export function TutoresPanel() {
           <p className="mb-4 text-center text-xs font-semibold text-slate-700">
             Crea automáticamente un tutor individual para cada alumno que aún no
             tenga uno. Los alumnos ya cubiertos se omiten. Al final podrás
-            descargar el CSV con las credenciales iniciales.
+            descargar el Excel (.xlsx) con las credenciales iniciales.
           </p>
 
           {!preview && !resultado && (
@@ -693,8 +696,8 @@ export function TutoresPanel() {
               )}
               {resultado.creados > 0 && (
                 <div className="flex justify-center">
-                  <GreyActionPill onClick={onDescargarCsv}>
-                    Descargar CSV de credenciales
+                  <GreyActionPill onClick={onDescargarExcel}>
+                    Descargar Excel de credenciales
                   </GreyActionPill>
                 </div>
               )}

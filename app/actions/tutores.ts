@@ -270,8 +270,9 @@ export async function actionPrevisualizarGeneracionTutores(): Promise<
 
 /**
  * Ejecuta la generación masiva de tutores para los alumnos restantes (solo
- * directivo). Devuelve el resumen y el CSV con las credenciales iniciales de
- * los recién creados (solo en memoria, para descargar una sola vez).
+ * directivo). Devuelve el resumen y el Excel (.xlsx) con las credenciales
+ * iniciales de los recién creados (solo en memoria, para descargar una sola
+ * vez).
  */
 export async function actionGenerarTutoresAutomaticos(): Promise<
   | ResultadoGeneracionTutores

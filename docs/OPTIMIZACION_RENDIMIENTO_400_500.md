@@ -1329,3 +1329,54 @@ alumno sin inscripción → denegado).
 | 6A-4 Validación ligera `verificarAccesoAlumnoMateria` | **CONSERVAR** |
 | Cambiar condición del fallback legacy de materia | **REVERTIR** (se conservó la condición original para no cambiar resultados) |
 
+---
+
+# FASE 8 — ENTREGABLES EN .XLSX (INTEGRIDAD DE DATOS)
+
+> Fecha: 01/09/2026. Cambio transversal de formato de entrega: TODOS los
+> archivos que la plataforma genera y descarga (plantillas de asistencias,
+> credenciales de tutores; la plantilla de materia ya era .xlsx) se exportan
+> como .xlsx, NUNCA .csv. Motivo: el CSV corrompe/exporta mal datos de nombres
+> (acentos/ñ), CURP y fechas cuando se abre en Excel. No es una optimización de
+> rendimiento: es una optimización de INTEGRIDAD de los entregables. La
+> lectura/subida de CSV se conserva intacta (parsing existente).
+
+## 1. Qué se implementó
+
+- Nuevo helper server-only `lib/escolar/exportar-xlsx.ts` → `matrizAXlsxBase64`
+  (matriz de filas → .xlsx en base64 con anchos de columna). Único estándar
+  para entregables.
+- Plantilla de asistencias (`lib/escolar/asistencias.ts`,
+  `app/actions/asistencias.ts`, `app/components/asistencias-panel.tsx`):
+  `PlantillaAsistencia.csv` → `base64` + `nombreArchivo`; la descarga ahora
+  arma un Blob .xlsx (MIME Excel) con el nombre generado en el servidor
+  (`asistencias_<grado>_<grupo>_<carrera>_<ciclo>.xlsx`).
+- Credenciales de tutores (`lib/escolar/tutores.ts`,
+  `app/components/tutores-panel.tsx`): `ResultadoGeneracionTutores.csv` →
+  `base64` + `nombreArchivo` (`credenciales_tutores.xlsx`); botón y textos de
+  UI actualizados («Descargar Excel de credenciales»).
+
+## 2. Evidencia (integridad de datos)
+
+Prueba de ida y vuelta con el MISMO código del helper: matriz con CURP, nombres
+con acentos/ñ («ÑOÑO LÓPEZ, JOSÉ») y fechas ISO («2026-08-20») → .xlsx →
+relectura: todos los valores se conservan EXACTOS (CURP intacto, ñ intacta,
+fechas como texto). En CSV, Excel re-parsea fechas y normaliza valores, con
+pérdida de datos.
+
+## 3. Pruebas ejecutadas
+
+- `tsc --noEmit` → OK (sin errores).
+- ESLint sobre los 7 archivos → OK (0 errores; 1 warning pre-existente ajeno:
+  `cargandoGrupos` sin uso en asistencias-panel.tsx).
+- Prueba de integridad .xlsx (ida y vuelta) → OK.
+
+## 4. Estado de Git
+
+- Modificados (8): `app/actions/asistencias.ts`, `app/actions/tutores.ts`,
+  `app/components/asistencias-panel.tsx`, `app/components/tutores-panel.tsx`,
+  `lib/escolar/asistencias.ts`, `lib/escolar/tutores.ts`,
+  `docs/OPTIMIZACION_RENDIMIENTO_400_500.md`, `contexto.feliz`.
+- Nuevos (1): `lib/escolar/exportar-xlsx.ts`.
+- Commit y push realizados.
+

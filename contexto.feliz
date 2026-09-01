@@ -1,7 +1,7 @@
 ================================================================================
   CONTEXTO DEL PROYECTO — mi-web-escolar (AulaNube / CETAC)
   Archivo: contexto.feliz
-  Actualizado: agosto 2026 (bloques 6E-6L + 7A-7C.2)
+  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11)
 ================================================================================
 
 Este documento resume lo implementado hasta ahora y lo que falta por hacer.
@@ -1097,6 +1097,41 @@ autenticación ni identidad. Build verificado (tsc --noEmit OK + next build OK).
     - public/decoraciones-imagenes/cree-en-ti.jpg (nuevo)
     - contexto.feliz
 
+
+
+Bloque 11 — Estado: completado — ENTREGABLES EN .XLSX (NUNCA .CSV): plantilla
+de asistencias (profesor) y credenciales de tutores (directivo) ahora se
+generan y descargan como .xlsx. El CSV corrompía o exportaba mal datos de
+nombres (acentos/ñ), CURP y fechas; .xlsx los preserva exactos. La LECTURA de
+CSV al SUBIR se mantiene intacta (solo cambió lo que la plataforma ENTREGA).
+  · lib/escolar/exportar-xlsx.ts (nuevo): helper server-only matrizAXlsxBase64
+    (matriz → .xlsx en base64, con anchos de columna). Estándar de entregables.
+  · lib/escolar/asistencias.ts: generarPlantillaAsistencia devuelve base64 +
+    nombreArchivo (.xlsx) en vez de CSV; nombre
+    asistencias_<grado>_<grupo>_<carrera>_<ciclo>.xlsx.
+  · app/actions/asistencias.ts: actionDescargarPlantillaAsistencia devuelve
+    base64 + nombreArchivo.
+  · app/components/asistencias-panel.tsx: descarga la plantilla de asistencias
+    como Blob .xlsx (MIME Excel) con el nombre generado en el servidor.
+  · lib/escolar/tutores.ts: generarTutoresAutomaticos entrega
+    credenciales_tutores.xlsx (base64) en vez de CSV.
+  · app/components/tutores-panel.tsx: botón «Descargar Excel de credenciales»
+    (.xlsx) y textos de UI actualizados.
+  · app/actions/tutores.ts: doc actualizada.
+La plantilla de materia ya era .xlsx (Bloque 9 PIEZA 2). Los .csv restantes en
+la app son solo lectura/parsing de subida y scripts de migración puntuales.
+Build verificado (tsc --noEmit OK + eslint OK + prueba de integridad de datos
+en .xlsx: CURP, nombres con ñ/acentos y fechas conservados exactos).
+  Rutas exactas de archivos cambiados:
+    - lib/escolar/exportar-xlsx.ts (nuevo)
+    - lib/escolar/asistencias.ts
+    - lib/escolar/tutores.ts
+    - app/actions/asistencias.ts
+    - app/actions/tutores.ts
+    - app/components/asistencias-panel.tsx
+    - app/components/tutores-panel.tsx
+    - docs/OPTIMIZACION_RENDIMIENTO_400_500.md
+    - contexto.feliz
 
   Fin de contexto.feliz
 

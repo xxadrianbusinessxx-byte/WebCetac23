@@ -76,7 +76,13 @@ export async function actionDescargarPlantillaAsistencia(
   carrera: string,
   ciclo: string,
 ): Promise<
-  | { ok: true; csv: string; fechas: string[]; alumnos: number }
+  | {
+      ok: true;
+      base64: string;
+      nombreArchivo: string;
+      fechas: string[];
+      alumnos: number;
+    }
   | { ok: false; error: string }
 > {
   const sesion = await obtenerSesionPortal();
@@ -97,7 +103,8 @@ export async function actionDescargarPlantillaAsistencia(
   if (!resultado.ok) return resultado;
   return {
     ok: true,
-    csv: resultado.plantilla.csv,
+    base64: resultado.plantilla.base64,
+    nombreArchivo: resultado.plantilla.nombreArchivo,
     fechas: resultado.plantilla.fechas,
     alumnos: resultado.plantilla.alumnos.length,
   };

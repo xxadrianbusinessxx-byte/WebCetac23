@@ -3,7 +3,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { traerAlumnosExistentes, nombreCompletoAlumno } from "./alumnos";
 import type { AlumnoRow } from "./types";
-import { matrizACsvTexto } from "./csv";
+import { matrizAXlsxBase64 } from "./exportar-xlsx";
 import {
   TABLA_ALUMNOS,
   TABLA_TUTORES,
@@ -971,7 +971,9 @@ export type ResultadoGeneracionTutores = {
   omitidosDetalle: string[];
   errores: number;
   erroresDetalle: string[];
-  csv: string;
+  /** Contenido binario del .xlsx con las credenciales en base64 (para descargar). */
+  base64: string;
+  nombreArchivo: string;
   filasCsv: FilaCredencialesCsv[];
 };
 
@@ -983,8 +985,8 @@ export type ResultadoGeneracionTutores = {
  *   N+1 y para que funcione en varias sesiones/días.
  * - Un alumno con datos corruptos NO detiene la corrida: se reporta como error
  *   puntual y se continúa con el resto.
- * - Devuelve el CSV con las credenciales iniciales de los recién creados
- *   (solo en memoria, nunca se persiste la contraseña en texto plano).
+ * - Devuelve el Excel (.xlsx) con las credenciales iniciales de los recién
+ *   creados (solo en memoria, nunca se persiste la contraseña en texto plano).
  */
 export async function generarTutoresAutomaticos(
   supabase: SupabaseClient,
@@ -1030,15 +1032,20 @@ export async function generarTutoresAutomaticos(
     });
   }
 
-  const csv = matrizACsvTexto([
-    ["clave_tutor", "usuario", "contraseña_inicial", "alumno_vinculado"],
-    ...filasCsv.map((f) => [
-      f.clave_tutor,
-      f.usuario,
-      f.contraseñaInicial,
-      f.alumnoVinculado,
-    ]),
-  ]);
+  // Entregable SIEMPRE en .xlsx (el CSV corrompe o exporta mal CURP y nombres).
+  const base64 = matrizAXlsxBase64(
+    [
+      ["clave_tutor", "usuario", "contraseña_inicial", "alumno_vinculado"],
+      ...filasCsv.map((f) => [
+        f.clave_tutor,
+        f.usuario,
+        f.contraseñaInicial,
+        f.alumnoVinculado,
+      ]),
+    ],
+    "Credenciales",
+    [18, 28, 28, 60],
+  );
 
   return {
     ok: true,
@@ -1048,7 +1055,8 @@ export async function generarTutoresAutomaticos(
     omitidosDetalle,
     errores: erroresDetalle.length,
     erroresDetalle,
-    csv,
+    base64,
+    nombreArchivo: "credenciales_tutores.xlsx",
     filasCsv,
   };
 }

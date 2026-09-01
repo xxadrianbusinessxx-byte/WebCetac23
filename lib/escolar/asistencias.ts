@@ -1,5 +1,6 @@
 ﻿import type { SupabaseClient } from "@supabase/supabase-js";
-import { archivoCsvAFilasConValores, matrizACsvTexto } from "./csv";
+import { archivoCsvAFilasConValores } from "./csv";
+import { matrizAXlsxBase64 } from "./exportar-xlsx";
 import { CURP_ALUMNO_RE } from "./buscar-en-filas";
 import {
   diaSemanaDesdeFecha,
@@ -79,7 +80,9 @@ export type AlumnoPlantilla = {
 export type PlantillaAsistencia = {
   fechas: string[];
   alumnos: AlumnoPlantilla[];
-  csv: string;
+  /** Contenido binario del .xlsx en base64 (para descargar en el cliente). */
+  base64: string;
+  nombreArchivo: string;
 };
 
 export type ResumenAsistencia = {
@@ -582,12 +585,23 @@ export async function generarPlantillaAsistencia(
     filas.push([a.curp, a.nombre, ...fechas.map(() => "")]);
   }
 
+  const nombreBase = [ctx.grado, ctx.grupo, ctx.carrera]
+    .filter(Boolean)
+    .join("_")
+    .replace(/\s+/g, "_");
+
   return {
     ok: true,
     plantilla: {
       fechas,
       alumnos,
-      csv: matrizACsvTexto(filas),
+      // Entregable SIEMPRE en .xlsx (el CSV corrompe CURP, nombres y fechas).
+      base64: matrizAXlsxBase64(
+        filas,
+        "Asistencias",
+        [20, 50, ...fechas.map(() => 11)],
+      ),
+      nombreArchivo: `asistencias_${nombreBase || "grupo"}_${ctx.ciclo}.xlsx`,
     },
   };
 }
