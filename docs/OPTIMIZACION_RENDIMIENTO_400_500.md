@@ -1601,3 +1601,328 @@ cuando se confirmen con `pg_stat_statements` / `EXPLAIN` / datos reales.
 - Sin commit/push aún en el momento de escribir esta sección (se commitea con
   el resto de la fase).
 
+---
+
+# FASE 10 — PERFILADO REAL DE DATOS + PRUEBAS DE CARGA
+
+> Fecha: 01/09/2026. Medición real del proveedor de datos (Supabase/PostgREST)
+> y de las operaciones críticas de la app, con el objetivo de diseño de **1,000
+> usuarios concurrentes**. Metodología: baseline → mapeo → medición → prueba de
+> carga → clasificar (A/B/C) → implementar solo con evidencia → volver a medir.
+> NO se crearon índices, NO se migraron tablas, NO se rediseñó el catálogo, NO
+> se introdujeron servicios ni dependencias.
+>
+> **1,000 concurrentes sigue siendo un OBJETIVO de diseño, NO una afirmación
+> demostrada.** Esta fase aporta evidencia sobre dónde está el límite actual.
+
+## 0. Baseline (antes de cualquier cambio)
+
+- HEAD: `e9713b0` (FASE 9, confirmado en `origin/main`).
+- `npx tsc --noEmit` → OK · `eslint` → OK · `npx next build` (Turbopack) → OK.
+- Entorno de medición: máquina local → Supabase remoto
+  (`https://nnhjqqjonabchluuwmkp.supabase.co`, proyecto real). RTT base
+  observado ≈ 100–160 ms por request (red pública). Los valores absolutos
+  dependen de la ruta de red (Vercel→Supabase sería más corto); las
+  conclusiones relativas (degradación, error rate, throughput) son válidas.
+- Herramientas: scripts propios de Node (`scripts/fase10-perfil-datos.mjs`,
+  `scripts/fase10-carga.mjs`) con la SERVICE ROLE key. Sin herramientas
+  externas (no había k6/autocannon/ab). Solo LECTURA; sin escrituras.
+
+## 1. Operaciones críticas mapeadas
+
+| Operación | Ruta | Función/consulta | Tablas |
+| --- | --- | --- | --- |
+| Login alumno | / | `buscarAlumnoPorNombre` → ALUMNOS range(0,4999) | ALUMNOS |
+| Login profesor | / | `buscarProfesorPorNombre` → PROFESORES range(0,4999) | PROFESORES |
+| Login tutor | / | `buscarTutorPorUsuario` → tutores eq(usuario) | tutores |
+| Alumnos estrella (home) | / | `actionAlumnosEstrella` → ALUMNOS range + ESTATUS limit(5000) | ALUMNOS, ETIQUETAS (STATUS) |
+| Vista materia alumno | /perfil | `leerVistaMateriaAlumno` → select(*) de tabla legacy + ilike | tablas de materia |
+| Estatus alumno | /perfil | `obtenerEtiquetasStatusPorCurp` / `listarEtiquetasStatus` | ETIQUETAS (STATUS) |
+| Oferta profesor | /profesor | `resolverAsignacionesProfesor` → asignaciones → grupo_materias → grupos → carreras | catálogo |
+| Panel directivo | /directivo | `listarTutores`, `listarCredencialesInicialesDeTutores` | tutores, tutor_credenciales_iniciales |
+| OpenAPI metadata | servidor | `obtenerSpecOpenAPI` → GET /rest/v1/ | — (spec) |
+
+## 2. Datos reales (conteos exactos)
+
+| Tabla | Filas |
+| --- | ---: |
+| ALUMNOS | 471 |
+| PROFESORES | 19 |
+| tutores | 463 |
+| tutor_alumnos | 465 |
+| tutor_credenciales_iniciales | 455 |
+| ETIQUETAS (STATUS) | **2** |
+| inscripciones_alumno | 453 |
+| asignaciones_profesor | **4** |
+| grupo_materias | 253 |
+| grupos | 24 |
+| periodos / carreras / materias | 1 / 2 / 15 |
+| asistencia_alumnos | 3,863 |
+| clases_impartidas | 81 |
+| calendario_escolar | 234 |
+| tablas de materia legacy (~240) | **0 filas** |
+
+
+
+## 3. OpenAPI — medición warm/cold real
+
+- Spec real descargado de `/rest/v1/`: **907,339 B (~887 KB)** — mayor que la
+  referencia de FASE 9 (~681 KB).
+- Cold a nivel HTTP (sin caché de app): **284–510 ms** por descarga (3
+  intentos). Sin headers de caché de Supabase (`cache-control=-`).
+- En la app, la caché O3 (TTL 60 s, por instancia) convierte el cold en
+  1 descarga por instancia/TTL y el warm en 0 ms (memoria). El miss path
+  cuesta ~300–500 ms + ~887 KB de parseo; bajo concurrencia, N instancias
+  serverless pueden hacer N descargas simultáneas al expirar el TTL.
+- **Conclusión:** el cold miss es un coste real y repetible, pero NO es el
+  cuello principal bajo carga (se amortiza en 60 s por instancia). La RPC de
+  metadata (categoría B/C) reduciría bytes y latencia, pero NO se implementa
+  en esta fase (requiere tocar DB/PostgREST).
+
+## 4. Latencia y payload por operación crítica (5 runs, máquina local → Supabase)
+
+| Operación | p50 | payload | Notas |
+| --- | ---: | ---: | --- |
+| ALUMNOS range(0,4999) [login alumno] | ~127–159 ms | **54,591 B** | 471 filas en cada intento de login |
+| PROFESORES range(0,4999) [login profesor] | ~112–117 ms | 2,638 B | 19 filas |
+| tutores eq(usuario) [login tutor] | ~110–115 ms | 85 B | filtrado, mínimo |
+| ETIQUETAS (STATUS) eq(CURP) | ~105–108 ms | 85 B | sin coincidencia |
+| ETIQUETAS (STATUS) limit(5000) | ~105–107 ms | 110 B | solo 2 filas hoy |
+| inscripciones_alumno eq(curp) | ~107 ms | 83 B | sin coincidencia |
+| asignaciones_profesor eq(clave) | ~109 ms | 83 B | solo 4 filas |
+| grupo_materias eq(activo) | ~114 ms | **69,370 B** | 253 filas |
+| tutores range(0,4999) [directivo] | ~121–175 ms | **215,170 B** | payload más pesado |
+| tutor_credenciales_iniciales | ~130–143 ms | **161,491 B** | 455 filas |
+| ETIQUETAS PERSONALES eq(grado,grupo) | ~110 ms | 83 B | fallback legacy |
+
+- El RTT base (~100–110 ms) domina la latencia de las consultas pequeñas; el
+  costo real se manifiesta en PAYLOAD y en la cantidad de consultas por
+  operación.
+- Hotspots de payload: **ALUMNOS range (54 KB, cada login)**, **tutores range
+  (215 KB, panel directivo)**, **credenciales (161 KB)** y **grupo_materias
+  (69 KB)**.
+
+## 5. Clasificación de `select("*")` / consultas amplias
+
+| Consulta | Tabla | Frecuencia | Filas | Payload | Impacto real |
+| --- | --- | --- | --- | --- | --- |
+| ALUMNOS range(0,4999) | ALUMNOS | alta (login + home) | 471 | 54 KB | **ALTO hoy** (home, cada visita) |
+| tutores range(0,4999) | tutores | baja (directivo) | 463 | 215 KB | medio (panel directivo) |
+| tutor_credenciales_iniciales * | tutores_credenciales | baja | 455 | 161 KB | medio |
+| ETIQUETAS (STATUS) limit(5000) | ESTATUS | media | **2** | ~0 | **bajo hoy** (riesgo a escala) |
+| tablas de materia select(*) | legacy | alta (alumnos) | **0** | 0 | **cero hoy** (riesgo estructural) |
+| grupos/grupo_materias select(*) | catálogo | media | 24/253 | 6–69 KB | bajo–medio |
+
+`select("*")` por sí mismo NO es el problema: el problema es el volumen de
+filas/payload en las operaciones de alta frecuencia. Hoy la única de alta
+frecuencia con payload relevante es la del login/home (ALUMNOS range).
+
+
+## 6. Pruebas de carga (capa de datos Supabase/PostgREST)
+
+Patrones de consulta con mezcla por rol (60 % login alumno, 20 % login
+profesor, 10 % login tutor, 5 % tutores directivo, 5 % grupo_materias).
+SERVICE ROLE key (sin RLS) para medir el costo real de las consultas. Solo
+lectura. Budget por nivel: 200–300 requests.
+
+### 6.1 Escenario A — carga homogénea progresiva
+
+| Nivel (conc) | OK | Errores | p50 | p95 | p99 | rps |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 25 | 100 % | 0 | 148 ms | 1,020 ms | 1,066 ms | 99 |
+| 50 | 100 % | 0 | 185 ms | 361 ms | 458 ms | 215 |
+| 75 | 100 % | 0 | 281 ms | 493 ms | 582 ms | 215 |
+| 100 | 100 % | 0 | 403 ms | 814 ms | 952 ms | 178 |
+| 125 | 100 % | 0 | 458 ms | 873 ms | 1,272 ms | 199 |
+| 150 | 100 % | 0 | 503 ms | 1,077 ms | 1,265 ms | 223 |
+| 200 | 100 % | 0 | 647 ms | 1,254 ms | 1,285 ms | 224 |
+| 300 | 100 % | 0 | 1,325 ms | 1,424 ms | 1,444 ms | 190 |
+| 500 | 100 % | 0 | 1,202 ms | 1,347 ms | 1,389 ms | 138 |
+| 750 | 100 % | 0 | 849 ms | 1,011 ms | 1,055 ms | 171 |
+| 1,000 | 100 % | 0 | 763 ms | 1,078 ms | 1,088 ms | 175 |
+
+### 6.2 Escenario C — pico sobre la operación crítica (login ALUMNOS range)
+
+| conc | reqs | OK | p50 | p95 | p99 | rps |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 300 | 600 | 100 % | 1,296 ms | 3,280 ms | 3,319 ms | 170 |
+
+### 6.3 Escenario D — carga sostenida mixta
+
+| conc | duración | reqs | OK | p50 | p95 | p99 | rps |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 200 | 20 s | 5,614 | 100 % | 665 ms | 1,357 ms | 2,153 ms | 274 |
+
+### 6.4 Resultado de carga
+
+- **0 errores y 0 timeouts en TODOS los niveles hasta 1,000 concurrentes.**
+- **Punto de degradación no lineal: ~100 requests concurrentes** — el p50 se
+  duplica entre conc=50 (185 ms) y conc=100 (403 ms), y se dispara en conc=300
+  (p50 1.3 s).
+- El throughput se estabiliza en ~200–225 rps entre conc=75 y 200 y no crece
+  con la concurrencia → indica un límite de pool/encolamiento del proveedor
+  (PostgREST/DB), no del cliente.
+- El pico de login (la consulta más pesada) alcanza **p95 ≈ 3.3 s a conc=300**
+  sin errores: es la operación con peor latencia bajo presión.
+
+## 7. Punto de degradación — interpretación
+
+La degradación comienza en **~100 requests concurrentes a la capa de datos**
+(latencia x2) y se vuelve severa en **~300+** (p50 1.3 s), con throughput
+planchado. Para 1,000 USUARIOS concurrentes (no requests), si cada sesión
+genera ~2–5 requests con pausas de pensamiento, la carga efectiva puede caer
+en la zona 100–500 requests concurrentes: la capa de datos aguanta sin
+errores pero con latencias de cientos de ms a segundos (UX degradada, no
+fallo). El componente que más empuja la latencia es la operación de login
+(ALUMNOS range, 54 KB) y el panel directivo (tutores + credenciales,
+~376 KB combinados).
+
+## 8. Cuellos de botella (ordenados por impacto)
+
+1. **ALUMNOS range(0,4999) en login y home** — payload 54 KB en la ruta de
+   máximo tráfico (cada visita a / y cada intento de login). Es la operación
+   que peor escala bajo pico (p95 3.3 s).
+2. **Payload del panel directivo** — tutores (215 KB) + credenciales
+   (161 KB) + grupo_materias (69 KB) en una sola vista.
+3. **OpenAPI cold miss** — 887 KB / 284–510 ms por instancia/TTL; repetible en
+   frío y bajo N instancias serverless.
+4. **Estructura legacy vacía** (tablas de materia con 0 filas) — hoy cuesta
+   cero, pero es el riesgo estructural principal si se cargan calificaciones
+   (select(*) de 400–500 filas × ~38 columnas por materia).
+
+## 9. Cambios implementados (solo A, con evidencia y re-medición)
+
+### A-1 — Home: eliminar la descarga del roster completo de ALUMNOS
+
+| Campo | Detalle |
+| --- | --- |
+| Problema | `actionAlumnosEstrella` (página de inicio, pre-login, máximo tráfico) descargaba ALUMNOS range(0,4999) — 471 filas, **54,510 B** — en cada visita. |
+| Hipótesis | Partir de ETIQUETAS (STATUS) (fuente del promedio), tomar los top-N CURP y consultar ALUMNOS con `in()` (solo N filas). |
+| Cambio | `lib/escolar/alumnos-estrella.ts`: `obtenerAlumnosEstrella` ya no hace el range completo; usa `listarEtiquetasStatus` + `ALUMNOS.in("CURP", topN)`. |
+| Medición antes | payload 54,510 B / query en cada visita a /. |
+| Medición después | payload **29 B** (con ESTATUS actual de 2 filas no consulta ALUMNOS); cuando haya datos, solo N filas. |
+| Beneficio | Elimina el payload más repetido del sistema (−54 KB por visita a /). |
+| Riesgo | Bajo: si un CURP de ESTATUS no existiera en ALUMNOS, el resultado puede tener menos de N elementos (documentado en el código); en datos reales los CURP de ESTATUS provienen de ALUMNOS. Comportamiento equivalente verificado con datos reales. |
+
+
+## 10. Cambios descartados (B evaluados y NO implementados)
+
+| Candidato | Evidencia | Motivo de no implementar |
+| --- | --- | --- |
+| Login: filtrar ALUMNOS con ilike en servidor antes del matching JS | login es la operación de peor latencia bajo pico | Riesgo de regresión de comportamiento: el matching usa `nombresCoinciden` (normaliza acentos/orden); un ilike podría excluir coincidencias válidas. Requiere diseño y prueba dedicada (candidato B). |
+| Login: paralelizar búsquedas profesor/alumno/tutor | 2–3 consultas secuenciales por intento | Envía 3 consultas por intento incluso cuando el rol acierta a la primera (más carga de datos bajo pico de login); además es código de autenticación (bloqueo amplio). No es claramente beneficioso. |
+| Sink server-side de Web Vitals | +8.5 KB en FASE 9 | No hay evidencia de que el frontend sea el cuello (FASE 10); añadiría red/almacenamiento sin necesidad. |
+| RPC metadata OpenAPI | 887 KB / 284–510 ms cold | Requiere tocar DB/PostgREST → categoría C; documentada, no implementada. |
+
+## 11. Candidatos estructurales (C) — documentados, NO implementados
+
+### CANDIDATO ESTRUCTURAL 1 — Índice/búsqueda en ALUMNOS para login y home
+
+- Problema: login y home descargan ALUMNOS completo (range 0–4999) para hacer
+  matching en JS.
+- Evidencia: 54,510 B por operación; p95 3.3 s bajo pico de login (FASE 10).
+- Consulta afectada: `buscarAlumnoPorNombre`, `actionAlumnosEstrella` (ya
+  reducido en A-1).
+- Tabla(s): ALUMNOS.
+- Hipótesis: un filtro PostgREST (ilike sobre NOMBRE/P_APELLIDO/S_APELLIDO con
+  pg_trgm, o eq sobre CURP/CLAVE) reduciría el payload y el escaneo.
+- Cambio propuesto: índice `pg_trgm` GIN sobre las columnas de nombre + cambio
+  de la capa de búsqueda conservando el matching normalizado como fallback.
+- Beneficio esperado: login sin descarga de roster; payload 54 KB → centenares
+  de B.
+- Riesgo: cambio de comportamiento en el matching de nombres (acentos/orden);
+  requiere prueba de regresión sobre el login.
+- Datos confirmados: 471 filas; login es la operación de peor latencia bajo
+  pico.
+- Datos faltantes: patrón real de login (¿nombre completo? ¿CURP? ¿clave?),
+  tasa de logins por hora, distribución de nombres duplicados.
+- Cómo validar: benchmark de login antes/después + matriz de nombres reales.
+- Prioridad: ALTA (una vez confirmados los datos de uso).
+
+### CANDIDATO ESTRUCTURAL 2 — Carga de tablas de materia legacy (select *)
+
+- Problema: a escala, `leerVistaMateriaAlumno` y `leerHojaDesdeTabla` hacen
+  `select(*)` de tablas legacy (hasta 400–500 filas × ~38 columnas por
+  materia).
+- Evidencia: hoy 0 filas (coste cero); riesgo estructural para cuando se
+  carguen calificaciones.
+- Consulta afectada: `leerVistaMateriaAlumno`, `leerHojaDesdeTabla`.
+- Tabla(s): ~240 tablas de materia + ~24 de registros.
+- Hipótesis: selección de columnas por mapeo + filtro PostgREST por
+  `alumno_nombre` (ya existe validación ligera, FASE 7) + pg_trgm.
+- Cambio propuesto: `select(*)` → columnas mapeadas; índice pg_trgm sobre
+  `alumno_nombre` en las tablas que lo tengan.
+- Beneficio esperado: de carga completa (~500 filas) a fila(s) del alumno.
+- Riesgo: alto (240 tablas, mapeo de columnas dinámico).
+- Datos confirmados: tablas vacías hoy; esquema dinámico vía OpenAPI.
+- Datos faltantes: cuántas tablas tienen `alumno_nombre`; filas por tabla una
+  vez cargadas; columnas realmente consumidas por la UI.
+- Cómo validar: probar con 1–2 materias con datos reales.
+- Prioridad: ALTA (al cargar calificaciones).
+
+### CANDIDATO ESTRUCTURAL 3 — RPC de metadata para reemplazar OpenAPI
+
+- Problema: cold miss de 887 KB / 284–510 ms por instancia/TTL.
+- Evidencia: FASE 10 (§3).
+- Cambio propuesto: función PostgreSQL que consulte `information_schema`/
+  `pg_catalog` y devuelva solo las columnas necesarias.
+- Beneficio esperado: de 887 KB a KB; latencia cold de ~400 ms a decenas de ms.
+- Riesgo: bajo–medio; requiere mantener la fuente de verdad del esquema.
+- Datos faltantes: frecuencia real de cold miss en producción (número de
+  instancias Vercel).
+- Prioridad: MEDIA.
+
+### CANDIDATO ESTRUCTURAL 4 — Panel directivo: reducir payload de tutores
+
+- Problema: tutores (215 KB) + credenciales (161 KB) en una sola vista.
+- Evidencia: FASE 10 (§4).
+- Cambio propuesto: paginación/select de columnas; índice en
+  `tutor_credenciales_iniciales.tutor_id`.
+- Beneficio esperado: payload del panel de ~376 KB a lo necesario.
+- Datos faltantes: cuántas columnas consume realmente la UI del panel.
+- Prioridad: MEDIA.
+
+
+## 12. Datos que todavía faltan para decisiones estructurales
+
+- Patrón real de distribución de carga por rol y por hora (60/20/10/5/5 es
+  hipótesis, no dato de la escuela).
+- Frecuencia real de logins (para justificar el índice de ALUMNOS).
+- Nº de instancias Vercel/región (para cuantificar cold misses de OpenAPI).
+- Filas por tabla de materia cuando existan calificaciones cargadas.
+- `pg_stat_statements` de producción (no disponible desde esta máquina sin
+  acceso SQL; documentado como herramienta pendiente).
+
+## 13. Matriz de decisión
+
+| Hallazgo | Capa | Evidencia | Hipótesis | Cambio | Riesgo | Resultado | Decisión |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ALUMNOS range en home | Datos | 54.5 KB/visita (medido) | in() sobre top-N | A-1 | Bajo | 54.5 KB → 29 B | **IMPLEMENTADO** |
+| Login ALUMNOS range | Datos | p95 3.3 s en pico | filtro PostgREST + pg_trgm | C-1 | Alto | — | Documentar |
+| OpenAPI cold | Servidor/Datos | 887 KB / 284–510 ms | RPC metadata | C-3 | Bajo | — | Documentar |
+| Materias legacy select(*) | Datos | 0 filas hoy | columnas + pg_trgm | C-2 | Alto | — | Documentar |
+| Panel directivo payload | Datos | 376 KB | paginación/select | C-4 | Medio | — | Documentar |
+| Capa de datos bajo 1,000 | Datos | 0 errores, p50 0.8–1.3 s | pool/encolamiento | — | — | Estable sin errores | Observar |
+
+## 14. Capacidad observada (resumen de la fase)
+
+```
+50:     Excelente (0 err, p50 185 ms)
+100:    Bueno — inicio de degradación no lineal (p50 403 ms)
+200:    Aceptable (0 err, p50 647 ms, ~224 rps)
+300:    Degradación clara (p50 1.3 s)
+500:    Sin errores, latencia alta (p50 1.2 s)
+750:    Sin errores (p50 0.85 s)
+1000:   Estable sin errores (p50 0.76 s, p95 ~1.1 s)
+```
+
+## 15. Validación y estado de Git
+
+- `npx tsc --noEmit` → OK · `eslint` → OK · `npx next build` (Turbopack) → OK.
+- Verificación funcional de A-1 con datos reales (payload 54,510 B → 29 B;
+  resultado [] equivalente con ESTATUS actual).
+- Archivos modificados: `lib/escolar/alumnos-estrella.ts` (A-1),
+  `scripts/fase10-perfil-datos.mjs` (nuevo), `scripts/fase10-carga.mjs`
+  (nuevo), `docs/OPTIMIZACION_RENDIMIENTO_400_500.md`, `contexto.feliz`.
+- Sin commit/push aún en el momento de escribir esta sección.
+

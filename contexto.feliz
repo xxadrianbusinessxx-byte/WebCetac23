@@ -1,7 +1,7 @@
 ================================================================================
   CONTEXTO DEL PROYECTO — mi-web-escolar (AulaNube / CETAC)
   Archivo: contexto.feliz
-  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11 + FASE 9)
+  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11 + FASE 9 + FASE 10)
 ================================================================================
 
 Este documento resume lo implementado hasta ahora y lo que falta por hacer.
@@ -1170,6 +1170,48 @@ modificar → volver a medir).
     - app/layout.tsx
     - app/components/web-vitals.tsx (nuevo)
     - filosofia.estructural
+    - docs/OPTIMIZACION_RENDIMIENTO_400_500.md
+    - contexto.feliz
+
+
+Bloque 13 — FASE 10 — PERFILADO REAL DE DATOS + PRUEBAS DE CARGA. Medición
+real de la capa de datos (Supabase/PostgREST) y de las operaciones críticas.
+Metodología: baseline → mapeo → medición → carga → clasificar (A/B/C) →
+implementar solo con evidencia → re-medir. Sin índices, sin migraciones, sin
+dependencias ni servicios externos.
+  Datos reales (conteos exactos):
+    · ALUMNOS 471 · PROFESORES 19 · tutores 463 · credenciales 455.
+    · ETIQUETAS (STATUS) solo 2 filas · asignaciones_profesor 4.
+    · Tablas de materia legacy ~240 con 0 filas (riesgo estructural futuro).
+  Medición por operación (máquina local → Supabase):
+    · ALUMNOS range(0,4999): 54.5 KB (login y home) — payload más repetido.
+    · tutores range: 215 KB · tutor_credenciales: 161 KB (panel directivo).
+    · grupo_materias: 69 KB. OpenAPI real: 887 KB / 284–510 ms cold.
+  Pruebas de carga (solo lectura, mezcla por rol):
+    · 0 errores / 0 timeouts hasta 1,000 concurrentes.
+    · Degradación no lineal desde ~100 requests concurrentes (p50 se duplica)
+      y severa en ~300 (p50 1.3 s); throughput plancha ~200–225 rps.
+    · Pico de login (ALUMNOS range) a conc=300: p95 ≈ 3.3 s, sin errores.
+    · Sostenido conc=200 20 s: 5,614 reqs, 0 errores, 274 rps.
+  Cambio implementado (A-1, categoría A con evidencia y re-medición):
+    · lib/escolar/alumnos-estrella.ts: la home ya NO descarga el roster
+      completo de ALUMNOS; parte de ETIQUETAS (STATUS) (top-N por promedio) y
+      consulta solo esos alumnos con in(). Payload: 54,510 B → 29 B (con
+      ESTATUS actual ni consulta ALUMNOS). Comportamiento equivalente.
+  Descartados (B): ilike en login (riesgo de regresión del matching de
+  nombres), paralelizar login (más carga bajo pico), sink Web Vitals server-
+  side (sin evidencia de cuello de frontend).
+  Candidatos estructurales (C, documentados, NO implementados):
+    C-1 Índice/búsqueda pg_trgm en ALUMNOS (login). C-2 columnas+pg_trgm en
+    tablas de materia legacy. C-3 RPC metadata OpenAPI. C-4 paginación/select
+    en panel directivo.
+  Herramientas nuevas (solo scripts de diagnóstico, no son dependencias):
+    · scripts/fase10-perfil-datos.mjs y scripts/fase10-carga.mjs.
+  Validación: tsc OK, eslint OK, build OK, verificación funcional A-1 OK.
+  Rutas exactas de archivos cambiados:
+    - lib/escolar/alumnos-estrella.ts
+    - scripts/fase10-perfil-datos.mjs (nuevo)
+    - scripts/fase10-carga.mjs (nuevo)
     - docs/OPTIMIZACION_RENDIMIENTO_400_500.md
     - contexto.feliz
 
