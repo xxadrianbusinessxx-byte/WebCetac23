@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import {
   actionGuardarEvaluacion,
   actionListarCiclosConEvaluaciones,
+  actionSetActivoEvaluacion,
 } from "@/app/actions/evaluaciones";
 
-const btn = "rounded-full bg-linear-to-b from-sky-500 via-sky-600 to-sky-700 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white";
+const input = "rounded-lg border border-white/70 bg-white/90 px-2 py-1 text-xs font-semibold text-slate-700";
+const btn = "rounded-full bg-sky-600 px-3 py-1.5 text-[10px] font-extrabold uppercase text-white disabled:opacity-50";
 
-type Ev = { id?: string; numero: string; nombre: string; inicio: string; fin: string };
+type Ev = { id?: string; numero: number; nombre: string; inicio: string; fin: string; activo: boolean };
 
 export function PasoEvaluacion({ periodoId, avisar }: {
   periodoId: string;
@@ -22,10 +24,11 @@ export function PasoEvaluacion({ periodoId, avisar }: {
     const ciclo = r.ciclos.find((c) => c.periodo.id === periodoId);
     setEvs((ciclo?.evaluaciones ?? []).map((e) => ({
       id: e.id,
-      numero: String(e.numero),
+      numero: Number(e.numero),
       nombre: e.nombre,
       inicio: e.fecha_inicio,
       fin: e.fecha_fin,
+      activo: e.activo !== false,
     })));
   }
 
@@ -36,19 +39,45 @@ export function PasoEvaluacion({ periodoId, avisar }: {
       const ciclo = r.ciclos.find((c) => c.periodo.id === periodoId);
       setEvs((ciclo?.evaluaciones ?? []).map((e) => ({
         id: e.id,
-        numero: String(e.numero),
+        numero: Number(e.numero),
         nombre: e.nombre,
         inicio: e.fecha_inicio,
         fin: e.fecha_fin,
+        activo: e.activo !== false,
       })));
     });
     return () => { activo = false; };
   }, [periodoId]);
 
+  function cambiar(id: string | undefined, campo: keyof Ev, valor: string | boolean) {
+    setEvs((prev) => prev.map((e) => (e.id === id ? { ...e, [campo]: valor } : e)));
+  }
+
   async function agregar() {
     const sig = evs.length + 1;
     const r = await actionGuardarEvaluacion({ periodoId, numero: sig, nombre: `Parcial ${sig}`, fechaInicio: "", fechaFin: "" });
-    avisar(r.ok, r.ok ? (r.mensaje ?? "Parcial guardado.") : (r.error ?? "Error"));
+    avisar(r.ok, r.ok ? (r.mensaje ?? "Parcial creado.") : (r.error ?? "Error"));
+    if (r.ok) await cargar();
+  }
+
+  async function guardarFila(e: Ev) {
+    if (!e.id || !e.nombre.trim()) return;
+    const r = await actionGuardarEvaluacion({
+      id: e.id,
+      periodoId,
+      numero: e.numero,
+      nombre: e.nombre.trim(),
+      fechaInicio: e.inicio || "",
+      fechaFin: e.fin || "",
+    });
+    avisar(r.ok, r.ok ? (r.mensaje ?? "Parcial actualizado.") : (r.error ?? "Error"));
+    if (r.ok) await cargar();
+  }
+
+  async function desactivar(e: Ev) {
+    if (!e.id) return;
+    const r = await actionSetActivoEvaluacion(periodoId, e.id, false);
+    avisar(r.ok, r.ok ? (r.mensaje ?? "Parcial desactivado.") : (r.error ?? "Error"));
     if (r.ok) await cargar();
   }
 
@@ -63,13 +92,36 @@ export function PasoEvaluacion({ periodoId, avisar }: {
         <table className="w-full text-left text-[11px]">
           <thead>
             <tr className="text-[10px] uppercase text-slate-500">
-              <th className="py-1 pr-2">#</th><th className="py-1 pr-2">Nombre</th><th className="py-1 pr-2">Inicio</th><th className="py-1 pr-2">Fin</th>
+              <th className="py-1 pr-2">#</th><th className="py-1 pr-2">Nombre</th>
+              <th className="py-1 pr-2">Inicio</th><th className="py-1 pr-2">Fin</th>
+              <th className="py-1 pr-2">Estado</th><th className="py-1 pr-2">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {evs.map((e) => (
               <tr key={e.id ?? e.nombre} className="border-t border-white/60 text-slate-700">
-                <td className="py-1 pr-2">{e.numero}</td><td className="py-1 pr-2">{e.nombre}</td><td className="py-1 pr-2">{e.inicio}</td><td className="py-1 pr-2">{e.fin}</td>
+                <td className="py-1 pr-2">{e.numero}</td>
+                <td className="py-1 pr-2">
+                  <input className={input} value={e.nombre} disabled={!e.id || !e.activo}
+                    onChange={(ev) => cambiar(e.id, "nombre", ev.target.value)} />
+                </td>
+                <td className="py-1 pr-2">
+                  <input type="date" className={input} value={e.inicio} disabled={!e.id || !e.activo}
+                    onChange={(ev) => cambiar(e.id, "inicio", ev.target.value)} />
+                </td>
+                <td className="py-1 pr-2">
+                  <input type="date" className={input} value={e.fin} disabled={!e.id || !e.activo}
+                    onChange={(ev) => cambiar(e.id, "fin", ev.target.value)} />
+                </td>
+                <td className="py-1 pr-2">{e.activo ? "activo" : "inactivo"}</td>
+                <td className="flex gap-1 py-1 pr-2">
+                  <button type="button" className={btn} disabled={!e.id || !e.activo}
+                    onClick={() => void guardarFila(e)}>Guardar</button>
+                  {e.id && e.activo && (
+                    <button type="button" className={`${btn} !bg-slate-500`}
+                      onClick={() => void desactivar(e)}>Desactivar</button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -81,3 +133,4 @@ export function PasoEvaluacion({ periodoId, avisar }: {
     </div>
   );
 }
+

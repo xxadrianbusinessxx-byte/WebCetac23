@@ -253,6 +253,7 @@ export type ConteosCiclo = {
   parciales: number;
   diasClase: number;
   horarios?: number;
+  evaluaciones?: number;
 };
 
 /** Valida la integridad de un ciclo con datos reales (envuelve al dominio puro). */
@@ -403,6 +404,12 @@ export async function validarIntegridadCiclo(
       mensaje: "El ciclo no tiene horario programado (se puede configurar más adelante).",
     });
   }
+  if (filasParciales.length === 0) {
+    advertenciasHorario.push({
+      codigo: "sin_evaluaciones",
+      mensaje: "El ciclo no tiene evaluaciones/parciales configurados (no bloquea).",
+    });
+  }
 
   const resultado = validarIntegridadCicloPura({
     periodo,
@@ -426,6 +433,7 @@ export async function validarIntegridadCiclo(
       parciales: filasParciales.length,
       diasClase,
       horarios: bloques.length,
+      evaluaciones: filasParciales.length,
     },
   };
 }
