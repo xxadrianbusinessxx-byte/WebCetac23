@@ -45,6 +45,12 @@ export function CicloConfigurador({ periodoIdInicial }: { periodoIdInicial?: str
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function refrescarDetalle() {
+    if (!periodoId) return;
+    const d = await actionDetalleCicloAdmin(periodoId);
+    if (d.ok) setDetalle(d.detalle);
+  }
+
   async function seleccionar(id: string) {
     if (!id) return;
     setPeriodoId(id); setDetalle(null);
@@ -88,7 +94,7 @@ export function CicloConfigurador({ periodoIdInicial }: { periodoIdInicial?: str
         <div className="min-h-[24rem] rounded-2xl border border-white/60 bg-white/50 p-3">
           {!periodoId ? <p className="text-xs font-semibold text-slate-600">Selecciona o crea un ciclo.</p>
             : paso === "datos" ? <PasoDatos periodoId={periodoId} detalle={detalle} avisar={avisar} />
-            : paso === "academico" ? <PasoAcademico periodoId={periodoId} detalle={detalle} avisar={avisar} />
+            : paso === "academico" ? <PasoAcademico periodoId={periodoId} detalle={detalle} avisar={avisar} onCambio={() => void refrescarDetalle()} />
             : paso === "alumnos" ? <PasoAlumnos periodoId={periodoId} avisar={avisar} />
             : paso === "evaluacion" ? <PasoEvaluacion periodoId={periodoId} avisar={avisar} />
             : paso === "calendario" ? <PasoCalendario periodoId={periodoId} nombreCiclo={sel?.nombre ?? ""} />

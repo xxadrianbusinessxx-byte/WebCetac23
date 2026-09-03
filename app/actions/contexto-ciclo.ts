@@ -2,9 +2,11 @@
 
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import {
+  cargarMateriasDesdeCatalogo,
   clonarContextoAcademico,
   verContextoAcademicoPeriodo,
   type ContextoAcademicoPeriodo,
+  type ResultadoCargaMateriasCatalogo,
   type ResultadoClonContexto,
 } from "@/lib/escolar/contexto-ciclo";
 import { TABLA_PERIODOS } from "@/lib/escolar/tables";
@@ -86,4 +88,30 @@ export async function actionClonarContextoAcademico(
     periodoOrigenId,
     periodoDestinoId,
   });
+}
+
+/**
+ * Carga las materias del catálogo legacy (misma fuente que el panel de
+ * materias: listarNombresVisiblesMaterias) hacia un ciclo DESTINO, creando los
+ * grupos que falten y vinculando grupo_materias solo donde no existía la pareja.
+ * SEGURIDAD: rol `directivo` (mismo patrón que actionClonarContextoAcademico).
+ */
+export async function actionCargarMateriasDesdeCatalogo(
+  periodoDestinoId: string,
+): Promise<ResultadoCargaMateriasCatalogo> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return {
+      ok: false,
+      error: "No autorizado: se requiere rol directivo.",
+      gruposCreados: 0,
+      gruposYaExistentes: 0,
+      materiasVinculadas: 0,
+      materiasYaVinculadas: 0,
+      materiasCatalogoCreadas: 0,
+      sinInterpretar: 0,
+    };
+  }
+  const supabase = await createClient();
+  return cargarMateriasDesdeCatalogo(supabase, periodoDestinoId);
 }
