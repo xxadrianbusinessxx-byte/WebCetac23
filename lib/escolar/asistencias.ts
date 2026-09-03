@@ -1,3 +1,5 @@
+import { obtenerCicloOperativoGlobal } from "./ciclo-estado";
+
 ﻿import type { SupabaseClient } from "@supabase/supabase-js";
 import { archivoCsvAFilasConValores } from "./csv";
 import { matrizAXlsxBase64 } from "./exportar-xlsx";
@@ -315,14 +317,9 @@ type ContextoCatalogoAsistencia = {
 async function cargarContextoCatalogoAsistencia(
   supabase: SupabaseClient,
 ): Promise<ContextoCatalogoAsistencia | null> {
-  const { data: periodos } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("*")
-    .eq("activo", true)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  const periodo = periodos?.[0] as PeriodoRow | undefined;
-  if (!periodo) return null;
+  const r = await obtenerCicloOperativoGlobal(supabase);
+  if (!r.ok || !r.periodo) return null;
+  const periodo = r.periodo as unknown as PeriodoRow;
 
   const { data: grupos } = await supabase
     .from(TABLA_GRUPOS)

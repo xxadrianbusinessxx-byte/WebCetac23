@@ -113,6 +113,55 @@ export async function listarPeriodos(
   return { filas: (sinEstado.data ?? []) as FilaPeriodoEstado[], esquema: false };
 }
 
+/**
+ * F1 — Resolución del CICLO GLOBAL (operativo). Autoridad: estado='operativo'.
+ * Fallback legacy EXPLÍCITO a activo=true solo si no existe columna estado o no
+ * hay ningún OPERATIVO. NUNCA elige arbitrariamente: ante múltiples OPERATIVOS
+ * (o múltiples activos legacy) devuelve error para que se corrija.
+ */
+export type ResolucionCicloOperativo = {
+  ok: boolean;
+  periodo: FilaPeriodoEstado | null;
+  via: "estado" | "fallback_activo" | "ninguno" | null;
+  error?: string | null;
+};
+
+export async function obtenerCicloOperativoGlobal(
+  supabase: SupabaseClient,
+): Promise<ResolucionCicloOperativo> {
+  const { filas, esquema, error } = await listarPeriodos(supabase);
+  if (error) return { ok: false, periodo: null, via: null, error };
+  if (esquema) {
+    const operativos = filas.filter(
+      (f) => resolverEstadoPeriodo(f) === ESTADO_OPERATIVO,
+    );
+    if (operativos.length > 1) {
+      return {
+        ok: false,
+        periodo: null,
+        via: null,
+        error: `F1: ${operativos.length} periodos OPERATIVO simultáneos (${operativos.map((o) => o.nombre).join(", ")}). Corregir la inconsistencia antes de continuar.`,
+      };
+    }
+    if (operativos.length === 1) {
+      return { ok: true, periodo: operativos[0]!, via: "estado", error: null };
+    }
+  }
+  const legacy = filas.filter((f) => Boolean(f.activo));
+  if (legacy.length > 1) {
+    return {
+      ok: false,
+      periodo: null,
+      via: null,
+      error: `F1: ${legacy.length} periodos legacy activo=true simultáneos (${legacy.map((o) => o.nombre).join(", ")}). Corregir la inconsistencia antes de continuar.`,
+    };
+  }
+  if (legacy.length === 1) {
+    return { ok: true, periodo: legacy[0]!, via: "fallback_activo", error: null };
+  }
+  return { ok: true, periodo: null, via: "ninguno", error: null };
+}
+
 const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**

@@ -1,3 +1,5 @@
+import { obtenerCicloOperativoGlobal } from "./ciclo-estado";
+
 /**
  * C4.14 — CONTROL DE OFERTA ACADÉMICA POR SEMESTRE.
  *
@@ -220,17 +222,21 @@ export async function listarSemestresOferta(
     return { ok: false, error: esquema.error ?? ERROR_ESQUEMA_SEMESTRES_PENDIENTE };
   }
 
-  const [{ data: periodos, error: e0 }, { data: filas, error: e1 }, { data: grupos, error: e2 }, { data: gms, error: e3 }] =
+  const ciclo = await obtenerCicloOperativoGlobal(supabase);
+  if (!ciclo.ok) return { ok: false, error: ciclo.error ?? "F1: no hay un único ciclo OPERATIVO." };
+  const periodos = ciclo.periodo
+    ? [{ id: ciclo.periodo.id, nombre: ciclo.periodo.nombre }]
+    : [];
+  const [{ data: filas, error: e1 }, { data: grupos, error: e2 }, { data: gms, error: e3 }] =
     await Promise.all([
-      supabase.from(TABLA_PERIODOS).select("id, nombre").eq("activo", true),
       supabase.from(TABLA_SEMESTRES).select("periodo_id, semestre, activo"),
       supabase.from(TABLA_GRUPOS).select("id, grado, periodo_id, activo"),
       supabase.from(TABLA_GRUPO_MATERIAS).select("id, grupo_id").eq("activo", true),
     ]);
-  if (e0 || e1 || e2 || e3) {
+  if (e1 || e2 || e3) {
     return {
       ok: false,
-      error: e0?.message ?? e1?.message ?? e2?.message ?? e3?.message ?? "Error al listar semestres.",
+      error: e1?.message ?? e2?.message ?? e3?.message ?? "Error al listar semestres.",
     };
   }
 

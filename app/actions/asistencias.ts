@@ -1,4 +1,6 @@
 "use server";
+import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo-estado";
+
 
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { createClient } from "@/lib/supabase/server";
@@ -773,14 +775,8 @@ export async function actionObtenerCicloActual(): Promise<
     return { ok: false, error: "No tienes permiso para consultar asistencias." };
   }
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("nombre")
-    .eq("activo", true)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, ciclo: data ? String(data.nombre) : null };
+  const r = await obtenerCicloOperativoGlobal(supabase);
+  if (!r.ok) return { ok: false, error: r.error ?? "F1: no hay un único ciclo OPERATIVO." };
+  return { ok: true, ciclo: r.periodo ? String(r.periodo.nombre) : null };
 }
 

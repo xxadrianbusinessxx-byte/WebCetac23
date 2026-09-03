@@ -1,3 +1,5 @@
+import { obtenerCicloOperativoGlobal } from "./ciclo-estado";
+
 /**
  * C3.1 — CARGA MASIVA DE ALUMNOS + PERTENENCIA ACADÉMICA
  *
@@ -254,14 +256,26 @@ async function cargarIndiceGrupos(
   supabase: SupabaseClient,
   periodoNombre: string,
 ): Promise<Map<string, GrupoRow[]> | null> {
-  const { data: periodo } = await supabase
+  const con = await supabase
     .from(TABLA_PERIODOS)
-    .select("*")
+    .select("id, activo, estado")
     .eq("nombre", periodoNombre.trim())
-    .eq("activo", true)
     .maybeSingle();
+  const sinEsquema =
+    Boolean(con.error) && /42703|does not exist/i.test(String(con.error?.message ?? ""));
+  const { data: periodo } = sinEsquema
+    ? await supabase
+        .from(TABLA_PERIODOS)
+        .select("id, activo")
+        .eq("nombre", periodoNombre.trim())
+        .maybeSingle()
+    : con;
   if (!periodo) return null;
-  const pid = (periodo as PeriodoRow).id;
+  const esOperativo = sinEsquema
+    ? Boolean((periodo as { activo: boolean }).activo)
+    : String((periodo as { estado?: string | null }).estado ?? "").toLowerCase() === "operativo";
+  if (!esOperativo) return null;
+  const pid = String((periodo as { id: string }).id);
 
   const { data: grupos } = await supabase
     .from(TABLA_GRUPOS)

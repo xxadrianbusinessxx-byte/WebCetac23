@@ -210,6 +210,44 @@ function datosValidos(overrides = {}) {
   ok("F4: orquestador deja BORRADOR activo=false", fila && fila.activo === false && fila.estado === "borrador", JSON.stringify(fila));
 }
 
+/* F1 — resolución del CICLO GLOBAL (obtenerCicloOperativoGlobal). */
+{
+  const periodos = [
+    { id: "A", nombre: "2026-2027", activo: true, estado: "operativo", fecha_inicio: null, fecha_fin: null },
+    { id: "B", nombre: "2025-2026", activo: false, estado: "historico", fecha_inicio: null, fecha_fin: null },
+  ];
+  const sb = clientePeriodos(periodos, true);
+  const r = await M.obtenerCicloOperativoGlobal(sb);
+  ok("F1 caso1: operativo por estado → A", r.ok && r.periodo?.id === "A" && r.via === "estado", JSON.stringify(r));
+}
+{
+  const periodos = [{ id: "A", nombre: "2026-2027", activo: true }];
+  const sb = clientePeriodos(periodos, false);
+  const r = await M.obtenerCicloOperativoGlobal(sb);
+  ok("F1 caso2: legacy activo=true → A (fallback)", r.ok && r.periodo?.id === "A" && r.via === "fallback_activo", JSON.stringify(r));
+}
+{
+  const periodos = [{ id: "A", nombre: "2026-2027", activo: false, estado: "operativo", fecha_inicio: null, fecha_fin: null }];
+  const sb = clientePeriodos(periodos, true);
+  const r = await M.obtenerCicloOperativoGlobal(sb);
+  ok("F1 caso3: activo=false pero estado=operativo → A (estado manda)", r.ok && r.periodo?.id === "A" && r.via === "estado", JSON.stringify(r));
+}
+{
+  const periodos = [
+    { id: "A", nombre: "2026-2027", activo: true, estado: "operativo", fecha_inicio: null, fecha_fin: null },
+    { id: "B", nombre: "2027-2028", activo: true, estado: "operativo", fecha_inicio: null, fecha_fin: null },
+  ];
+  const sb = clientePeriodos(periodos, true);
+  const r = await M.obtenerCicloOperativoGlobal(sb);
+  ok("F1 caso4: dos OPERATIVO → error (sin elección arbitraria)", !r.ok && /OPERATIVO simultáneos/.test(r.error ?? ""), JSON.stringify(r));
+}
+{
+  const periodos = [];
+  const sb = clientePeriodos(periodos, true);
+  const r = await M.obtenerCicloOperativoGlobal(sb);
+  ok("F1 caso5: sin operativo ni legacy → null controlado", r.ok && r.periodo === null && r.via === "ninguno", JSON.stringify(r));
+}
+
 console.log(`Resultado: ${pasadas} pasadas, ${fallidas} fallidas`);
 if (fallidas > 0) process.exit(1);
 

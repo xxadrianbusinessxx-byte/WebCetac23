@@ -1,4 +1,6 @@
 "use server";
+import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo-estado";
+
 
 /**
  * C3.1 — Server Actions de CARGA MASIVA (ALUMNOS + PERTENENCIA ACADÉMICA).
@@ -168,22 +170,22 @@ export async function actionListarCatalogoReconocimiento(): Promise<
   }
 
   const supabase = await createClient();
-  const [
-    { data: periodos, error: e0 },
-    { data: carreras, error: e1 },
-    { data: grupos, error: e2 },
-  ] = await Promise.all([
-    supabase.from(TABLA_PERIODOS).select("id, nombre").eq("activo", true),
-    supabase.from(TABLA_CARRERAS).select("id, clave, nombre").eq("activo", true),
-    supabase
-      .from(TABLA_GRUPOS)
-      .select("id, periodo_id, grado, nombre, carrera_id, activo"),
-  ]);
-  if (e0 || e1 || e2) {
+  const ciclo = await obtenerCicloOperativoGlobal(supabase);
+  if (!ciclo.ok) return { ok: false, error: ciclo.error ?? "F1: no hay un único ciclo OPERATIVO." };
+  const periodos = ciclo.periodo
+    ? [{ id: ciclo.periodo.id, nombre: ciclo.periodo.nombre }]
+    : [];
+  const [{ data: carreras, error: e1 }, { data: grupos, error: e2 }] =
+    await Promise.all([
+      supabase.from(TABLA_CARRERAS).select("id, clave, nombre").eq("activo", true),
+      supabase
+        .from(TABLA_GRUPOS)
+        .select("id, periodo_id, grado, nombre, carrera_id, activo"),
+    ]);
+  if (e1 || e2) {
     return {
       ok: false,
-      error:
-        e0?.message ?? e1?.message ?? e2?.message ?? "Error al cargar el catálogo.",
+      error: e1?.message ?? e2?.message ?? "Error al cargar el catálogo.",
     };
   }
 

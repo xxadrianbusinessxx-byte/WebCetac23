@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { createClient } from "@/lib/supabase/server";
-import { TABLA_PERIODOS } from "@/lib/escolar/tables";
+import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo-estado";
 import { ConfiguracionClient } from "./configuracion-client";
 import { SemestresOfertaAdmin } from "../directivo/semestres-admin";
 import { AsignacionesProfesorAdmin } from "../directivo/asignaciones-admin";
@@ -19,16 +19,11 @@ export default async function ConfiguracionPage() {
   if (!sesion) redirect("/login");
   if (sesion.rol !== "directivo") redirect("/perfil");
 
-  // Periodos activos para el contexto académico de la carga (solo lectura).
+  // Ciclo OPERATIVO (estado) para el contexto académico de la carga (lectura).
   const supabase = await createClient();
-  const { data: periodosData } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("nombre")
-    .eq("activo", true)
-    .order("created_at", { ascending: false });
-  const periodos = (periodosData ?? [])
-    .map((p) => String(p?.nombre ?? "").trim())
-    .filter(Boolean);
+  const ciclo = await obtenerCicloOperativoGlobal(supabase);
+  const periodos =
+    ciclo.ok && ciclo.periodo ? [String(ciclo.periodo.nombre).trim()] : [];
 
   return (
     <>
