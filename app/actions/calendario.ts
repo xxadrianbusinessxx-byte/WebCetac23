@@ -4,9 +4,13 @@ import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import {
   contarDiasLaborables,
   eliminarDiaCalendario,
+  eliminarDiaCalendarioDePeriodo,
   establecerCalendarioBase,
+  establecerCalendarioBaseDePeriodo,
   guardarDiaCalendario,
+  guardarDiaCalendarioDePeriodo,
   listarCiclosEscolares,
+  obtenerCalendarioDePeriodo,
   obtenerCalendarioEscolar,
   type DiaCalendarioRow,
 } from "@/lib/escolar/calendario";
@@ -127,4 +131,78 @@ export async function actionEliminarDiaCalendario(
 
   const supabase = await createClient();
   return eliminarDiaCalendario(supabase, ciclo, fecha);
+}
+
+/* ===========================================================================
+ * F5 — FLUJO NUEVO POR PERIODO (calendario_escolar.periodo_id).
+ * Las versiones `*DePeriodo` son la API del CicloConfigurador. Las acciones
+ * con `ciclo: string` quedan como LEGACY para consumidores antiguos.
+ * ========================================================================= */
+
+/** Lee los días del calendario de un periodo (flujo nuevo). */
+export async function actionObtenerCalendarioDePeriodo(
+  periodoId: string,
+  periodoNombre: string,
+): Promise<DiaCalendarioRow[]> {
+  const sesion = await obtenerSesionPortal();
+  if (!sesion) return [];
+  const supabase = await createClient();
+  return obtenerCalendarioDePeriodo(supabase, periodoId, periodoNombre);
+}
+
+/** Establece la base (lunes a viernes = clase) del calendario de un periodo. */
+export async function actionEstablecerCalendarioBaseDePeriodo(
+  periodoId: string,
+  periodoNombre: string,
+  inicio: string,
+  fin: string,
+): Promise<{ ok: true; generados: number } | { ok: false; error: string }> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return { ok: false, error: "Solo directivos pueden configurar el calendario." };
+  }
+  const supabase = await createClient();
+  return establecerCalendarioBaseDePeriodo(supabase, {
+    periodoId,
+    periodoNombre,
+    inicio,
+    fin,
+    creadoPor: sesion.nombre ?? sesion.matricula,
+  });
+}
+
+/** Guarda (UPSERT) un día del calendario de un periodo. */
+export async function actionGuardarDiaCalendarioDePeriodo(
+  periodoId: string,
+  periodoNombre: string,
+  fecha: string,
+  tipo: TipoDiaCalendario,
+  descripcion?: string | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return { ok: false, error: "Solo directivos pueden modificar el calendario." };
+  }
+  const supabase = await createClient();
+  return guardarDiaCalendarioDePeriodo(supabase, {
+    periodoId,
+    periodoNombre,
+    fecha,
+    tipo,
+    descripcion,
+    creadoPor: sesion.nombre ?? sesion.matricula,
+  });
+}
+
+/** Elimina un día del calendario de un periodo. */
+export async function actionEliminarDiaCalendarioDePeriodo(
+  periodoId: string,
+  fecha: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return { ok: false, error: "Solo directivos pueden modificar el calendario." };
+  }
+  const supabase = await createClient();
+  return eliminarDiaCalendarioDePeriodo(supabase, periodoId, fecha);
 }

@@ -51,13 +51,13 @@ ok("index activa con actionSetActivoCiclo(periodoId,true)", /actionSetActivoCicl
 
 // 4) Hallazgo F0 (estado actual, se codifica): calendario aún por ciclo_escolar TEXT.
 const pasoCalendario = leer("app/components/ciclo-configurador/paso-calendario.tsx");
-ok("paso-calendario recibe nombreCiclo (LEGACY documentado F5)",
-  pasoCalendario.includes("cicloInicial={nombreCiclo}"));
+ok("paso-calendario conserva periodoId (F5)",
+  pasoCalendario.includes("periodoIdInicial={periodoId}") && !pasoCalendario.includes("cicloInicial="));
 const calendarioLib = leer("lib/escolar/calendario.ts");
-ok("lib/calendario aún usa ciclo_escolar (LEGACY documentado F5)",
+ok("lib/calendario mantiene legacy ciclo_escolar aislado (LEGACY CONTROLADO F5)",
   (calendarioLib.match(/\.eq\("ciclo_escolar"/g) ?? []).length >= 1);
-ok("calendario conoce periodo_id (plan F5 existe)",
-  calendarioLib.includes("periodo_id"));
+ok("calendario conoce periodo_id en el flujo nuevo (F5)",
+  calendarioLib.includes("obtenerCalendarioDePeriodo") && calendarioLib.includes('"periodo_id"'));
 
 // 5) Activación: autoridad actual TS (hallazgo F8).
 const cicloEstado = leer("lib/escolar/ciclo-estado.ts");

@@ -318,6 +318,124 @@ export async function obtenerCalendarioDePeriodo(
   return (data ?? []) as DiaCalendarioRow[];
 }
 
+/** Valida la fila común de escritura (tipo + fecha). */
+function validarEscrituraDia(
+  tipo: TipoDiaCalendario,
+  fecha: string,
+): string | null {
+  if (!esTipoDiaCalendario(tipo)) return "El tipo de día no es válido.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return "La fecha no es válida.";
+  return null;
+}
+
+/**
+ * F5 — UPSERT de un día por PERIODO (raíz periodo_id). Escribe también
+ * `ciclo_escolar` (nombre normalizado) para respetar la UNIQUE legacy
+ * (ciclo_escolar, fecha) y no duplicar con el flujo antiguo.
+ */
+export async function guardarDiaCalendarioDePeriodo(
+  supabase: SupabaseClient,
+  input: {
+    periodoId: string;
+    periodoNombre: string;
+    fecha: string;
+    tipo: TipoDiaCalendario;
+    descripcion?: string | null;
+    creadoPor?: string | null;
+  },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ciclo = normalizarCicloEscolar(input.periodoNombre);
+  if (!ciclo) return { ok: false, error: "Indica el nombre del periodo." };
+  const err = validarEscrituraDia(input.tipo, input.fecha);
+  if (err) return { ok: false, error: err };
+
+  const { error } = await supabase
+    .from(TABLA_CALENDARIO_ESCOLAR)
+    .upsert(
+      {
+        periodo_id: input.periodoId,
+        ciclo_escolar: ciclo,
+        fecha: input.fecha,
+        tipo: input.tipo,
+        descripcion: input.descripcion?.trim() || null,
+        creado_por: input.creadoPor?.trim() || null,
+      },
+      { onConflict: "ciclo_escolar,fecha" },
+    );
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** F5 — Elimina un día del calendario por periodo (periodo_id + fecha). */
+export async function eliminarDiaCalendarioDePeriodo(
+  supabase: SupabaseClient,
+  periodoId: string,
+  fecha: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { error } = await supabase
+    .from(TABLA_CALENDARIO_ESCOLAR)
+    .delete()
+    .eq("periodo_id", periodoId)
+    .eq("fecha", fecha);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * F5 — Establece la base del calendario de un PERIODO (días laborables =
+ * clase), respetando excepciones existentes leídas por periodo_id.
+ */
+export async function establecerCalendarioBaseDePeriodo(
+  supabase: SupabaseClient,
+  input: {
+    periodoId: string;
+    periodoNombre: string;
+    inicio: string;
+    fin: string;
+    creadoPor?: string | null;
+  },
+): Promise<{ ok: true; generados: number } | { ok: false; error: string }> {
+  const ciclo = normalizarCicloEscolar(input.periodoNombre);
+  if (!ciclo) return { ok: false, error: "Indica el nombre del periodo." };
+  const inicio = new Date(`${input.inicio}T00:00:00`);
+  const fin = new Date(`${input.fin}T00:00:00`);
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime())) {
+    return { ok: false, error: "El rango de fechas no es válido." };
+  }
+  if (inicio.getTime() > fin.getTime()) {
+    return { ok: false, error: "La fecha inicial no puede ser posterior a la final." };
+  }
+  const dias = generarDiasLaborables(inicio, fin);
+  if (dias.length === 0) {
+    return { ok: false, error: "El rango no contiene días laborables." };
+  }
+  const existentes = await obtenerCalendarioDePeriodo(
+    supabase,
+    input.periodoId,
+    input.periodoNombre,
+  );
+  const porFecha = new Map(existentes.map((d) => [d.fecha, d]));
+  const filas = dias
+    .filter((fecha) => {
+      const existente = porFecha.get(fecha);
+      return !existente || existente.tipo === "clase";
+    })
+    .map((fecha) => ({
+      periodo_id: input.periodoId,
+      ciclo_escolar: ciclo,
+      fecha,
+      tipo: "clase" as TipoDiaCalendario,
+      descripcion: null,
+      creado_por: input.creadoPor?.trim() || null,
+    }));
+  if (filas.length === 0) return { ok: true, generados: 0 };
+  const { error } = await supabase
+    .from(TABLA_CALENDARIO_ESCOLAR)
+    .upsert(filas, { onConflict: "ciclo_escolar,fecha" });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, generados: filas.length };
+}
+
 /** Conteo de días `clase` de un periodo (para validarIntegridadCiclo). */
 export async function contarDiasClaseDePeriodo(
   supabase: SupabaseClient,

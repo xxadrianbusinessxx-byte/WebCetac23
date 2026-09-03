@@ -4,10 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   actionEliminarDiaCalendario,
+  actionEliminarDiaCalendarioDePeriodo,
   actionEstablecerCalendarioBase,
+  actionEstablecerCalendarioBaseDePeriodo,
   actionGuardarDiaCalendario,
+  actionGuardarDiaCalendarioDePeriodo,
   actionListarCiclosEscolares,
   actionObtenerCalendario,
+  actionObtenerCalendarioDePeriodo,
   actionPrevisualizarCalendarioBase,
 } from "@/app/actions/calendario";
 import type { DiaCalendarioRow } from "@/lib/escolar/calendario";
@@ -106,11 +110,12 @@ const NOMBRES_MESES = [
 
 const NOMBRES_DIAS = ["L", "M", "M", "J", "V", "S", "D"];
 
-export function CalendarioEscolarPanel({ cicloInicial }: { cicloInicial?: string } = {}) {
+export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodoNombre }: { cicloInicial?: string; periodoIdInicial?: string; periodoNombre?: string } = {}) {
 
   // Ciclo seleccionado y lista de ciclos existentes.
   const [ciclos, setCiclos] = useState<string[]>([]);
   const [ciclo, setCiclo] = useState("");
+  const modoPeriodo = Boolean(periodoIdInicial);
   const [dias, setDias] = useState<DiaCalendarioRow[]>([]);
   const [cargando, setCargando] = useState(false);
 
@@ -138,6 +143,10 @@ export function CalendarioEscolarPanel({ cicloInicial }: { cicloInicial?: string
   const [error, setError] = useState<string | null>(null);
 
   const cargarCiclos = useCallback(async () => {
+    if (modoPeriodo) {
+      setCiclos([]);
+      return;
+    }
     const lista = await actionListarCiclosEscolares();
     setCiclos(lista);
     if (lista.length > 0 && !ciclo) {
@@ -147,11 +156,13 @@ export function CalendarioEscolarPanel({ cicloInicial }: { cicloInicial?: string
   }, [ciclo, cicloInicial]);
 
   useEffect(() => {
+    if (modoPeriodo) return;
     void cargarCiclos();
   }, [cargarCiclos]);
 
   // Contexto explícito: si el workspace cambia de ciclo, el panel le sigue.
   useEffect(() => {
+    if (modoPeriodo) return;
     const preferido = cicloInicial?.trim().toUpperCase();
     if (preferido && ciclos.includes(preferido)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -160,19 +171,22 @@ export function CalendarioEscolarPanel({ cicloInicial }: { cicloInicial?: string
   }, [cicloInicial, ciclos]);
 
   const cargarDias = useCallback(async (c: string) => {
-    if (!c) {
+    if (!c && !modoPeriodo) {
       setDias([]);
       return;
     }
     setCargando(true);
-    const filas = await actionObtenerCalendario(c);
+    const filas = modoPeriodo
+      ? await actionObtenerCalendarioDePeriodo(periodoIdInicial ?? "", periodoNombre ?? "")
+      : await actionObtenerCalendario(c);
     setDias(filas);
     setCargando(false);
-  }, []);
+  }, [modoPeriodo, periodoIdInicial, periodoNombre]);
 
+  const claveCarga = modoPeriodo ? `periodo:${periodoIdInicial ?? ""}` : ciclo;
   useEffect(() => {
-    void cargarDias(ciclo);
-  }, [ciclo, cargarDias]);
+    void cargarDias(claveCarga);
+  }, [claveCarga, cargarDias]);
 
   // Mapa fecha -> día para el mes visible.
   const diasPorFecha = useMemo(() => {
@@ -224,8 +238,12 @@ export function CalendarioEscolarPanel({ cicloInicial }: { cicloInicial?: string
   async function onGenerarBase() {
     setError(null);
     setMensaje(null);
-    const cicloFinal = nuevoCiclo.trim() || ciclo;
-    if (!cicloFinal) {
+    if (modoPeriodo && !periodoIdInicial) {
+      setError("Falta el periodo (periodoId).");
+      return;
+    }
+    const cicloFinal = modoPeriodo ? (periodoNombre ?? "") : (nuevoCiclo.trim() || ciclo);
+    if (!cicloFinal && !modoPeriodo) {
       setError("Indica el ciclo escolar.");
       return;
     }
@@ -234,18 +252,23 @@ export function CalendarioEscolarPanel({ cicloInicial }: { cicloInicial?: string
       return;
     }
     setGenerando(true);
-    const res = await actionEstablecerCalendarioBase(cicloFinal, inicio, fin);
+    const res = modoPeriodo
+      ? await actionEstablecerCalendarioBaseDePeriodo(periodoIdInicial ?? "", periodoNombre ?? "", inicio, fin)
+      : await actionEstablecerCalendarioBase(cicloFinal, inicio, fin);
     setGenerando(false);
     if (res.ok) {
       setMensaje(
         `Calendario base listo: ${res.generados} día(s) marcado(s) como clase.`,
       );
-      setNuevoCiclo("");
       setPreviewMsg(null);
-      await cargarCiclos();
-
-      setCiclo(cicloFinal);
-      await cargarDias(cicloFinal);
+      if (modoPeriodo) {
+        await cargarDias(`periodo:${periodoIdInicial ?? ""}`);
+      } else {
+        setNuevoCiclo("");
+        await cargarCiclos();
+        setCiclo(cicloFinal);
+        await cargarDias(cicloFinal);
+      }
     } else {
       setError(res.error);
     }
@@ -265,12 +288,20 @@ export function CalendarioEscolarPanel({ cicloInicial }: { cicloInicial?: string
     setGuardando(true);
     setError(null);
     setMensaje(null);
-    const res = await actionGuardarDiaCalendario(
-      ciclo,
-      seleccionado,
-      tipoSeleccionado,
-      descripcionSeleccionada,
-    );
+    const res = modoPeriodo
+      ? await actionGuardarDiaCalendarioDePeriodo(
+          periodoIdInicial ?? "",
+          periodoNombre ?? "",
+          seleccionado,
+          tipoSeleccionado,
+          descripcionSeleccionada,
+        )
+      : await actionGuardarDiaCalendario(
+          ciclo,
+          seleccionado,
+          tipoSeleccionado,
+          descripcionSeleccionada,
+        );
     setGuardando(false);
     if (res.ok) {
       setMensaje(
@@ -287,7 +318,9 @@ export function CalendarioEscolarPanel({ cicloInicial }: { cicloInicial?: string
     setGuardando(true);
     setError(null);
     setMensaje(null);
-    const res = await actionEliminarDiaCalendario(ciclo, seleccionado);
+    const res = modoPeriodo
+      ? await actionEliminarDiaCalendarioDePeriodo(periodoIdInicial ?? "", seleccionado)
+      : await actionEliminarDiaCalendario(ciclo, seleccionado);
     setGuardando(false);
     if (res.ok) {
       setMensaje(`Día ${seleccionado} eliminado del calendario.`);
