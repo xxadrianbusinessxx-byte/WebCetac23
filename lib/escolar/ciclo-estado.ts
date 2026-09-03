@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { contarDiasClaseDePeriodo } from "./calendario";
 import {
-  TABLA_CALENDARIO_ESCOLAR,
   TABLA_GRUPOS,
   TABLA_GRUPO_MATERIAS,
   TABLA_INSCRIPCIONES_ALUMNO,
@@ -249,17 +249,16 @@ export async function validarIntegridadCiclo(
   const filasGrupos = (grupos ?? []) as Array<{ id: string; grado: string; nombre: string; carrera_id: string | null; activo: boolean }>;
   const grupoIds = filasGrupos.map((g) => g.id);
 
-  const [{ data: inscripciones, error: eI }, { data: gms, error: eGM }, { data: calendario, error: eC }] = await Promise.all([
+  const [{ data: inscripciones, error: eI }, { data: gms, error: eGM }] = await Promise.all([
     grupoIds.length
       ? supabase.from(TABLA_INSCRIPCIONES_ALUMNO).select("curp, grupo_id, activo").in("grupo_id", grupoIds)
       : Promise.resolve({ data: [], error: null }),
     grupoIds.length
       ? supabase.from(TABLA_GRUPO_MATERIAS).select("grupo_id, materia_id, activo").in("grupo_id", grupoIds)
       : Promise.resolve({ data: [], error: null }),
-    supabase.from(TABLA_CALENDARIO_ESCOLAR).select("fecha").eq("ciclo_escolar", periodo.nombre).eq("tipo", "clase"),
   ]);
-  if (eI || eGM || eC) {
-    return { ok: false, ...base, errores: [{ codigo: "error_lectura", mensaje: eI?.message ?? eGM?.message ?? eC?.message ?? "Error de lectura." }], advertencias: [] };
+  if (eI || eGM) {
+    return { ok: false, ...base, errores: [{ codigo: "error_lectura", mensaje: eI?.message ?? eGM?.message ?? "Error de lectura." }], advertencias: [] };
   }
 
   const filasGm = (gms ?? []) as Array<{ grupo_id: string; materia_id: string; activo: boolean }>;
@@ -281,7 +280,8 @@ export async function validarIntegridadCiclo(
   }
 
   const filasInscripciones = (inscripciones ?? []) as Array<{ curp: string; grupo_id: string; activo: boolean }>;
-  const diasClase = ((calendario ?? []) as Array<{ fecha: string }>).length;
+  // F5 — días de clase por PERIODO (columna periodo_id si existe; fallback texto).
+  const diasClase = await contarDiasClaseDePeriodo(supabase, periodo);
   const filasParciales = (parciales ?? []) as Array<{
     id: string; numero: number; nombre: string; fecha_inicio: string; fecha_fin: string; activo: boolean;
   }>;

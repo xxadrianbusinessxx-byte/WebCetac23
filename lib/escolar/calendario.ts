@@ -277,3 +277,88 @@ export async function establecerCalendarioBase(
   if (error) return { ok: false, error: error.message };
   return { ok: true, generados: filas.length };
 }
+
+/* ---------------------------------------------------------------------------
+ * F5 — CALENDARIO POR PERIODO (raíz: periodo_id; texto legacy compat)
+ * ------------------------------------------------------------------------- */
+
+const ERROR_COL = /42703|does not exist|could not find the table|in the schema cache/i;
+
+/** ¿Existe `calendario_escolar.periodo_id`? (una consulta de 1 fila). */
+export async function verificarColumnaPeriodoIdCalendario(
+  supabase: SupabaseClient,
+): Promise<boolean> {
+  const { error } = await supabase.from(TABLA_CALENDARIO_ESCOLAR).select("periodo_id").limit(1);
+  if (!error) return true;
+  if (ERROR_COL.test(String(error.message ?? ""))) return false;
+  return false;
+}
+
+/**
+ * Días de un calendario por PERIODO. Si la columna `periodo_id` existe usa
+ * esa relación; si no (migración F5 pendiente) cae al texto legacy por nombre
+ * exacto del periodo (compatibilidad; NUNCA heurística inventada).
+ */
+export async function obtenerCalendarioDePeriodo(
+  supabase: SupabaseClient,
+  periodoId: string,
+  periodoNombre: string,
+): Promise<DiaCalendarioRow[]> {
+  const conColumna = await verificarColumnaPeriodoIdCalendario(supabase);
+  const base = supabase.from(TABLA_CALENDARIO_ESCOLAR).select(SELECT_DIA);
+  if (conColumna) {
+    const { data, error } = await base.eq("periodo_id", periodoId).order("fecha", { ascending: true });
+    if (error) return [];
+    return (data ?? []) as DiaCalendarioRow[];
+  }
+  const nombre = normalizarCicloEscolar(periodoNombre);
+  if (!nombre) return [];
+  const { data, error } = await base.eq("ciclo_escolar", nombre).order("fecha", { ascending: true });
+  if (error) return [];
+  return (data ?? []) as DiaCalendarioRow[];
+}
+
+/** Conteo de días `clase` de un periodo (para validarIntegridadCiclo). */
+export async function contarDiasClaseDePeriodo(
+  supabase: SupabaseClient,
+  periodo: { id: string; nombre: string },
+): Promise<number> {
+  const dias = await obtenerCalendarioDePeriodo(supabase, periodo.id, periodo.nombre);
+  return dias.filter((d) => d.tipo === "clase").length;
+}
+
+/** Fila del plan de backfill calendario→periodo (diagnóstico F5, sin escribir). */
+export type PlanBackfillCalendario = {
+  calId: string;
+  ciclo: string;
+  fecha: string;
+  periodoId: string | null;
+  estado: "match" | "sin_match" | "ambiguo";
+};
+
+/**
+ * Plan Puro de backfill: relaciona cada calendario con su periodo por NOMBRE
+ * EXACTO normalizado. `ambiguo` = varios periodos normalizados iguales;
+ * `sin_match` = huérfano. Nunca inventa relaciones.
+ */
+export function planBackfillCalendario(
+  calendario: Array<{ id: string; ciclo_escolar: string; fecha: string }>,
+  periodos: Array<{ id: string; nombre: string }>,
+): PlanBackfillCalendario[] {
+  const porNombre = new Map<string, string[]>();
+  for (const p of periodos) {
+    const n = normalizarCicloEscolar(p.nombre);
+    if (!n) continue;
+    const lista = porNombre.get(n) ?? [];
+    lista.push(p.id);
+    porNombre.set(n, lista);
+  }
+  return calendario.map((c) => {
+    const n = normalizarCicloEscolar(c.ciclo_escolar);
+    const ids = n ? (porNombre.get(n) ?? []) : [];
+    if (ids.length === 1) {
+      return { calId: c.id, ciclo: c.ciclo_escolar, fecha: c.fecha, periodoId: ids[0]!, estado: "match" };
+    }
+    return { calId: c.id, ciclo: c.ciclo_escolar, fecha: c.fecha, periodoId: null, estado: ids.length > 1 ? "ambiguo" : "sin_match" };
+  });
+}
