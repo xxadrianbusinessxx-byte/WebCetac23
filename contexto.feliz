@@ -1,7 +1,7 @@
 ================================================================================
   CONTEXTO DEL PROYECTO — mi-web-escolar (AulaNube / CETAC)
   Archivo: contexto.feliz
-  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11 + FASE 9 + FASE 10 + FASE HORARIO [Bloque 13] + FASE CICLO [Bloque 14] + FASE CONSOLIDACIÓN [Bloque 15])
+  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11 + FASE 9 + FASE 10 + FASE HORARIO [Bloque 13] + FASE CICLO [Bloque 14] + FASE CONSOLIDACIÓN [Bloque 15] + P0 + F1-F3 + F4-F7 [orquestación, calendario por periodo, validación roster/horario, contexto de asistencia; ver docs/F4_..F7_*.md])
 ================================================================================
 
 Este documento resume lo implementado hasta ahora y lo que falta por hacer.
