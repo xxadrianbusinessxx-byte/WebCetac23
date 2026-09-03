@@ -8,16 +8,17 @@
   --border-glass: rgba(255, 255, 255, 0.65);
   --grass-soft: rgba(134, 239, 172, 0.15);
 
-  /* C4.27-B — Fondo global vivo Ocean/Glass (PRYDA / Frutiger Aero) */
-  --app-bg-base: #081d3a;
-  --app-bg-secondary: #0c2749;
-  --app-bg-deep: #041224;
+  /* C4.27-E — Fondo global vivo Ocean/Glass (PRYDA / Frutiger Aero) */
+  --app-bg-base: #0a2242;
+  --app-bg-secondary: #0e2c52;
+  --app-bg-deep: #061729;
   --app-bg-glow: #38bdf8;
+  --app-bg-glow-aqua: #67e8f9;
   --app-bg-glow-cyan: #22d3ee;
   --app-bg-glow-teal: #14b8a6;
   --app-bg-glow-blue: #3b82f6;
-  --app-bg-glow-opacity: 0.32;
-  --app-bg-light-opacity: 0.8;
+  --app-bg-glow-opacity: 0.36;
+  --app-bg-light-opacity: 0.85;
   --app-bg-animation-duration: 24s;
   --app-bg-animation-duration-slow: 30s;
   --app-bg-blur: 90px;
@@ -106,24 +107,24 @@
   background:
     radial-gradient(
       130% 80% at 8% -12%,
-      color-mix(in srgb, var(--app-bg-glow) 18%, transparent) 0%,
+      color-mix(in srgb, var(--app-bg-glow) 20%, transparent) 0%,
       transparent 55%
     ),
     radial-gradient(
       130% 80% at 92% -14%,
-      color-mix(in srgb, var(--app-bg-glow-cyan) 14%, transparent) 0%,
+      color-mix(in srgb, var(--app-bg-glow-aqua) 17%, transparent) 0%,
       transparent 55%
     ),
     radial-gradient(
       160% 100% at 50% 118%,
-      color-mix(in srgb, var(--app-bg-glow-blue) 24%, transparent) 0%,
+      color-mix(in srgb, var(--app-bg-glow-blue) 27%, transparent) 0%,
       transparent 58%
     ),
     linear-gradient(
       175deg,
-      #11335c 0%,
+      #12375f 0%,
       var(--app-bg-secondary) 28%,
-      #0a2144 52%,
+      #0b2547 52%,
       var(--app-bg-base) 76%,
       var(--app-bg-deep) 100%
     );
@@ -139,34 +140,34 @@
   background:
     radial-gradient(
       70% 34% at 50% 14%,
-      rgba(186, 230, 253, 0.27) 0%,
+      rgba(186, 230, 253, 0.32) 0%,
       transparent 60%
     ),
     radial-gradient(
       48% 58% at 8% 58%,
-      rgba(125, 211, 252, 0.23) 0%,
+      rgba(125, 211, 252, 0.27) 0%,
       transparent 62%
     ),
     radial-gradient(
       52% 62% at 92% 46%,
-      rgba(165, 243, 252, 0.2) 0%,
+      rgba(103, 232, 249, 0.25) 0%,
       transparent 62%
     ),
     radial-gradient(
       58% 40% at 34% 112%,
-      rgba(56, 189, 248, 0.17) 0%,
+      rgba(56, 189, 248, 0.2) 0%,
       transparent 62%
     ),
     linear-gradient(
       90deg,
-      rgba(125, 211, 252, 0.14) 0%,
+      rgba(125, 211, 252, 0.16) 0%,
       transparent 9%,
       transparent 91%,
-      rgba(165, 243, 252, 0.14) 100%
+      rgba(165, 243, 252, 0.16) 100%
     ),
     linear-gradient(
       180deg,
-      rgba(165, 243, 252, 0.14) 0%,
+      rgba(165, 243, 252, 0.16) 0%,
       transparent 14%
     );
   animation: app-bg-breathe var(--app-bg-animation-duration) ease-in-out infinite alternate;
@@ -188,9 +189,9 @@
   height: 96vmin;
   left: -22%;
   top: -26%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--app-bg-glow) 56%, transparent), transparent 60%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--app-bg-glow) 60%, transparent), transparent 60%);
   filter: blur(110px);
-  opacity: 0.32;
+  opacity: 0.36;
   animation: app-bg-drift-a calc(var(--app-bg-animation-duration-slow) * 1.25) ease-in-out infinite alternate;
 }
 
@@ -199,9 +200,9 @@
   height: 84vmin;
   right: -20%;
   top: 6%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--app-bg-glow-cyan) 47%, transparent), transparent 60%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--app-bg-glow-aqua) 51%, transparent), transparent 60%);
   filter: blur(95px);
-  opacity: 0.36;
+  opacity: 0.4;
   animation: app-bg-drift-b var(--app-bg-animation-duration-slow) ease-in-out infinite alternate;
 }
 
@@ -210,9 +211,9 @@
   height: 104vmin;
   left: -18%;
   bottom: -36%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--app-bg-glow-blue) 41%, transparent), transparent 60%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--app-bg-glow-blue) 45%, transparent), transparent 60%);
   filter: blur(120px);
-  opacity: 0.28;
+  opacity: 0.32;
   animation: app-bg-drift-c calc(var(--app-bg-animation-duration-slow) * 0.85) ease-in-out infinite alternate;
 }
 
@@ -221,9 +222,9 @@
   height: 60vmin;
   right: -6%;
   bottom: 2%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--app-bg-glow-teal) 35%, transparent), transparent 60%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--app-bg-glow-teal) 40%, transparent), transparent 60%);
   filter: blur(60px);
-  opacity: 0.4;
+  opacity: 0.44;
   animation: app-bg-drift-d calc(var(--app-bg-animation-duration-slow) * 1.15) ease-in-out infinite alternate;
 }
 
@@ -286,7 +287,71 @@
   animation: app-bg-ribbon-d 26s ease-in-out infinite alternate;
 }
 
-/* CAPA 5 — Viñeta extremadamente sutil: profundidad sin apagar la iluminación. */
+/* CAPA 5 — Sheen: banda diagonal de luz muy tenue que se desplaza en 40s+
+   para que el fondo nunca se perciba como un degradado estático. */
+.app-bg-sheen {
+  position: absolute;
+  top: -35%;
+  left: -22%;
+  width: 72%;
+  height: 170%;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(165, 243, 252, 0.06) 46%,
+    rgba(186, 230, 253, 0.1) 52%,
+    transparent 70%
+  );
+  transform: rotate(8deg);
+  animation: app-bg-sheen 44s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+/* CAPA 6 — Burbujas / destellos submarinos muy sutiles (CSS puro, sin JS).
+   Pocos elementos; solo animan transform/opacity. */
+.app-bg-bubbles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.app-bg-bubble {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at 35% 30%,
+    rgba(224, 242, 254, 0.85) 0%,
+    rgba(125, 211, 252, 0.32) 42%,
+    rgba(56, 189, 248, 0.08) 72%,
+    transparent 100%
+  );
+  filter: blur(0.5px);
+  opacity: 0;
+  animation: app-bg-float 26s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.app-bg-bubble:nth-child(1) { animation-duration: 27s; animation-delay: -3s; }
+.app-bg-bubble:nth-child(2) { animation-duration: 33s; animation-delay: -14s; }
+.app-bg-bubble:nth-child(3) { animation-duration: 24s; animation-delay: -8s; }
+.app-bg-bubble:nth-child(4) { animation-duration: 38s; animation-delay: -21s; }
+.app-bg-bubble:nth-child(5) { animation-duration: 30s; animation-delay: -5s; }
+.app-bg-bubble:nth-child(6) { animation-duration: 22s; animation-delay: -17s; }
+.app-bg-bubble:nth-child(7) { animation-duration: 35s; animation-delay: -10s; }
+.app-bg-bubble:nth-child(8) { animation-duration: 28s; animation-delay: -25s; }
+.app-bg-bubble:nth-child(9) { animation-duration: 40s; animation-delay: -7s; }
+.app-bg-bubble:nth-child(10) { animation-duration: 26s; animation-delay: -19s; }
+.app-bg-bubble:nth-child(11) { animation-duration: 32s; animation-delay: -12s; }
+.app-bg-bubble:nth-child(12) { animation-duration: 23s; animation-delay: -2s; }
+
+/* En móvil/tablet pequeña se reducen para preservar fluidez. */
+@media (max-width: 640px) {
+  .app-bg-bubble:nth-child(n + 7) {
+    display: none;
+  }
+}
+
+/* CAPA 7 — Viñeta extremadamente sutil: profundidad sin apagar la iluminación. */
 .app-bg-vignette {
   position: absolute;
   inset: 0;
@@ -381,6 +446,32 @@
   }
 }
 
+@keyframes app-bg-float {
+  0% {
+    transform: translate3d(0, 7vh, 0) scale(0.9);
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.38;
+  }
+  55% {
+    opacity: 0.26;
+  }
+  100% {
+    transform: translate3d(1.5vw, -16vh, 0) scale(1.06);
+    opacity: 0;
+  }
+}
+
+@keyframes app-bg-sheen {
+  from {
+    transform: rotate(8deg) translate3d(-6%, 0, 0);
+  }
+  to {
+    transform: rotate(8deg) translate3d(6%, 0, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [style*="decor-drift"] {
     animation: none !important;
@@ -388,8 +479,14 @@
   .app-bg-light,
   .app-bg-glow,
   .app-bg-ribbon,
+  .app-bg-sheen,
+  .app-bg-bubble,
   .app-nav-bar__glow {
     animation: none !important;
+  }
+  /* Se conserva la estética: burbujas estáticas muy tenues. */
+  .app-bg-bubble {
+    opacity: 0.1;
   }
 }
 

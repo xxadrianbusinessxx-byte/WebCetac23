@@ -4,13 +4,22 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
   actionCrearCicloEscolar,
+  actionDetalleCicloAdmin,
   actionGuardarEvaluacion,
   actionGuardarRangoCiclo,
+  actionListarCiclosAdmin,
   actionListarCiclosConEvaluaciones,
   actionSetActivoCiclo,
   actionSetActivoEvaluacion,
+  type CicloAdminListado,
   type CicloEvaluacionListado,
+  type DetalleCicloAdmin,
 } from "@/app/actions/evaluaciones";
+import {
+  actionBuscarAlumnosInscripcion,
+  actionInscribirAlumnoEnCiclo,
+  actionListarGruposPeriodo,
+} from "@/app/actions/inscripciones-admin";
 
 /**
  * FASE CICLO — Panel del directivo: ciclos escolares + periodos de evaluación.
@@ -44,6 +53,20 @@ export function CicloEvaluacionesAdmin() {
 
   const [draftsCiclo, setDraftsCiclo] = useState<Record<string, CicloDraft>>({});
   const [draftsEval, setDraftsEval] = useState<Record<string, EvalDraft>>({});
+
+  // F2 — estado conceptual por ciclo (BORRADOR/OPERATIVO/HISTORICO) + detalle.
+  const [adminById, setAdminById] = useState<Record<string, CicloAdminListado>>({});
+  const [detalleOpen, setDetalleOpen] = useState<Record<string, boolean>>({});
+  const [detalle, setDetalle] = useState<Record<string, DetalleCicloAdmin | "cargando">>({});
+
+  // F3 — inscripción administrativa dentro del detalle del ciclo.
+  const [gruposCiclo, setGruposCiclo] = useState<
+    Record<string, Array<{ id: string; grado: string; grupo: string; carreraClave: string; activo: boolean }> | "cargando">
+  >({});
+  const [busqueda, setBusqueda] = useState("");
+  const [resultados, setResultados] = useState<Array<{ curp: string; nombre: string }>>([]);
+  const [curpSel, setCurpSel] = useState("");
+  const [grupoSel, setGrupoSel] = useState("");
 
   const aplicarResultado = useCallback(
     (r: { ok: true; ciclos: CicloEvaluacionListado[] } | { ok: false; error: string }) => {
@@ -79,16 +102,38 @@ export function CicloEvaluacionesAdmin() {
     [],
   );
 
+  // F2 — carga ligera del listado administrativo + ciclos con evaluaciones.
   const recargar = useCallback(async () => {
-    const r = await actionListarCiclosConEvaluaciones();
+    const [r, adm] = await Promise.all([
+      actionListarCiclosConEvaluaciones(),
+      actionListarCiclosAdmin(),
+    ]);
     aplicarResultado(r);
+    if (adm.ok) {
+      const m: Record<string, CicloAdminListado> = {};
+      for (const c of adm.ciclos) m[c.id] = c;
+      setAdminById(m);
+      setDetalle({});
+    } else {
+      setMensaje({ tipo: "err", texto: adm.error });
+    }
   }, [aplicarResultado]);
 
   useEffect(() => {
     let activo = true;
-    void actionListarCiclosConEvaluaciones().then((r) => {
+    void Promise.all([
+      actionListarCiclosConEvaluaciones(),
+      actionListarCiclosAdmin(),
+    ]).then(([r, adm]) => {
       if (!activo) return;
       aplicarResultado(r);
+      if (adm.ok) {
+        const m: Record<string, CicloAdminListado> = {};
+        for (const c of adm.ciclos) m[c.id] = c;
+        setAdminById(m);
+      } else {
+        setMensaje({ tipo: "err", texto: adm.error });
+      }
     });
     return () => {
       activo = false;
@@ -129,10 +174,104 @@ export function CicloEvaluacionesAdmin() {
     if (r.ok) await recargar();
   }
 
-  async function onToggleCiclo(item: CicloEvaluacionListado) {
-    const r = await actionSetActivoCiclo(item.periodo.id, !item.periodo.activo);
+  // F2 — etiqueta conceptual (BORRADOR/OPERATIVO/HISTORICO) o compatibilidad.
+  function estadoVisible(id: string): { etiqueta: string; clase: string } {
+    const ad = adminById[id];
+    if (ad?.esquema) {
+      if (ad.estado === "operativo") return { etiqueta: "OPERATIVO", clase: "bg-emerald-200 text-emerald-900" };
+      if (ad.estado === "borrador") return { etiqueta: "BORRADOR", clase: "bg-amber-200 text-amber-900" };
+      return { etiqueta: "HISTORICO", clase: "bg-slate-300 text-slate-700" };
+    }
+    return ad?.activo
+      ? { etiqueta: "OPERATIVO", clase: "bg-emerald-200 text-emerald-900" }
+      : { etiqueta: "INACTIVO · esquema F1 pendiente", clase: "bg-orange-200 text-orange-900" };
+  }
+
+  // F2 — el botón "Activar" valida primero (F1) y solo entonces llama al server;
+  // la protección real sigue siendo la Server Action (setActivoCiclo → F1).
+  async function cargarDetalle(id: string) {
+    setDetalle((p) => ({ ...p, [id]: "cargando" }));
+    setGruposCiclo((p) => ({ ...p, [id]: "cargando" }));
+    const [r, g] = await Promise.all([
+      actionDetalleCicloAdmin(id),
+      actionListarGruposPeriodo(id),
+    ]);
+    if (!r.ok) {
+      setMensaje({ tipo: "err", texto: r.error });
+      setDetalle((p) => {
+        const n = { ...p };
+        delete n[id];
+        return n;
+      });
+      setGruposCiclo((p) => ({ ...p, [id]: [] }));
+      return;
+    }
+    setDetalle((p) => ({ ...p, [id]: r.detalle }));
+    setGruposCiclo((p) => ({ ...p, [id]: g.ok ? g.grupos : [] }));
+    setResultados([]);
+    setCurpSel("");
+    setGrupoSel("");
+  }
+
+  function alternarDetalle(id: string) {
+    const abierto = detalleOpen[id] === true;
+    setDetalleOpen({ ...detalleOpen, [id]: !abierto });
+    if (!abierto && detalle[id] === undefined) void cargarDetalle(id);
+  }
+
+  async function onActivarCiclo(id: string) {
+    setDetalle((p) => ({ ...p, [id]: "cargando" }));
+    const d = await actionDetalleCicloAdmin(id);
+    if (!d.ok) {
+      setMensaje({ tipo: "err", texto: d.error });
+      return;
+    }
+    setDetalle((p) => ({ ...p, [id]: d.detalle }));
+    if (!d.detalle.ok) {
+      const bloqueos = d.detalle.errores.map((e) => `· ${e.mensaje}`).join("\n");
+      setMensaje({
+        tipo: "err",
+        texto: `El ciclo tiene bloqueantes de integridad y NO puede activarse:\n${bloqueos}`,
+      });
+      return;
+    }
+    const r = await actionSetActivoCiclo(id, true);
+    avisarRes(r);
+    if (r.ok) {
+      setDetalleOpen({});
+      await recargar();
+    }
+  }
+
+  async function onDesactivarCiclo(id: string) {
+    const r = await actionSetActivoCiclo(id, false);
     avisarRes(r);
     if (r.ok) await recargar();
+  }
+
+  async function onBuscarAlumnos() {
+    const r = await actionBuscarAlumnosInscripcion(busqueda);
+    if (!r.ok) {
+      setMensaje({ tipo: "err", texto: r.error });
+      setResultados([]);
+      return;
+    }
+    setResultados(r.alumnos);
+    if (r.alumnos.length === 1) setCurpSel(r.alumnos[0]!.curp);
+  }
+
+  async function onRegistrarInscripcion(id: string) {
+    if (!curpSel.trim() || !grupoSel) {
+      setMensaje({ tipo: "err", texto: "Selecciona un alumno (CURP) y un grupo." });
+      return;
+    }
+    const r = await actionInscribirAlumnoEnCiclo({ curp: curpSel, grupoId: grupoSel, periodoId: id });
+    avisarRes(r);
+    if (r.ok) {
+      setResultados([]);
+      setCurpSel("");
+      await cargarDetalle(id);
+    }
   }
 
   function agregarParcial(periodoId: string) {
@@ -270,22 +409,204 @@ export function CicloEvaluacionesAdmin() {
                     {c.nombre}{" "}
                     <span
                       className={`ml-2 rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase ${
-                        c.activo
-                          ? "bg-emerald-200 text-emerald-900"
-                          : "bg-red-200 text-red-800"
+                        estadoVisible(c.id).clase
                       }`}
                     >
-                      {c.activo ? "Activo" : "Inactivo"}
+                      {estadoVisible(c.id).etiqueta}
                     </span>
+                    {!adminById[c.id]?.esquema && !c.activo && (
+                      <span className="ml-2 inline-block rounded-full bg-orange-100 px-2 py-0.5 text-[9px] font-bold text-orange-800">
+                        esquema F1 pendiente (aplicar SQL)
+                      </span>
+                    )}
                   </p>
-                  <button
-                    type="button"
-                    className={accionCls}
-                    onClick={() => void onToggleCiclo(item)}
-                  >
-                    {c.activo ? "Desactivar ciclo" : "Activar ciclo"}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <button type="button" className={accionCls} onClick={() => alternarDetalle(c.id)}>
+                      {detalleOpen[c.id]
+                        ? "Cerrar estado"
+                        : c.activo
+                          ? "Estado / Administrar"
+                          : "Continuar configuración"}
+                    </button>
+                    {c.activo ? (
+                      <button
+                        type="button"
+                        className={`${accionCls} !from-rose-500 !via-rose-600 !to-rose-700`}
+                        onClick={() => void onDesactivarCiclo(c.id)}
+                      >
+                        Desactivar (histórico)
+                      </button>
+                    ) : adminById[c.id]?.esquema && adminById[c.id]?.estado === "historico" ? null : (
+                      <button type="button" className={accionCls} onClick={() => void onActivarCiclo(c.id)}>
+                        Activar ciclo
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {detalleOpen[c.id] && (
+                  <div className="mt-3 rounded-2xl border border-indigo-200 bg-white/70 p-3">
+                    {detalle[c.id] === "cargando" ? (
+                      <p className="text-[11px] font-semibold text-slate-600">Validando integridad…</p>
+                    ) : detalle[c.id] ? (
+                      (() => {
+                        const dd = detalle[c.id] as DetalleCicloAdmin;
+                        const historico =
+                          adminById[c.id]?.esquema && adminById[c.id]?.estado === "historico";
+                        return (
+                          <div className="flex flex-col gap-2">
+                            <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+                              <span className="rounded-xl bg-white/80 px-2 py-1 text-[10px] font-bold text-slate-600">
+                                Grupos: {dd.conteos.grupos}
+                              </span>
+                              <span className="rounded-xl bg-white/80 px-2 py-1 text-[10px] font-bold text-slate-600">
+                                Materias activas: {dd.conteos.materiasActivas}
+                              </span>
+                              <span className="rounded-xl bg-white/80 px-2 py-1 text-[10px] font-bold text-slate-600">
+                                Inscritos activos: {dd.conteos.inscripcionesActivas}
+                              </span>
+                              <span className="rounded-xl bg-white/80 px-2 py-1 text-[10px] font-bold text-slate-600">
+                                Parciales: {dd.conteos.parciales}
+                              </span>
+                              <span className="rounded-xl bg-white/80 px-2 py-1 text-[10px] font-bold text-slate-600">
+                                Días clase: {dd.conteos.diasClase}
+                              </span>
+                              <span
+                                className={`rounded-xl px-2 py-1 text-[10px] font-extrabold uppercase ${
+                                  dd.ok ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {dd.ok ? "Puede activarse" : "NO puede activarse"}
+                              </span>
+                            </div>
+                            {!dd.ok && (
+                              <div className="rounded-xl bg-red-50 p-2">
+                                <p className="text-[10px] font-extrabold uppercase tracking-wide text-red-700">
+                                  Bloqueantes
+                                </p>
+                                <ul className="mt-1 list-inside list-disc text-[11px] font-semibold text-red-800">
+                                  {dd.errores.map((e) => (
+                                    <li key={e.codigo}>{e.mensaje}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {dd.advertencias.length > 0 && (
+                              <div className="rounded-xl bg-amber-50 p-2">
+                                <p className="text-[10px] font-extrabold uppercase tracking-wide text-amber-700">
+                                  Advertencias
+                                </p>
+                                <ul className="mt-1 list-inside list-disc text-[11px] font-semibold text-amber-800">
+                                  {dd.advertencias.map((e) => (
+                                    <li key={e.codigo}>{e.mensaje}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button type="button" className={accionCls} onClick={() => void cargarDetalle(c.id)}>
+                                Validar nuevamente
+                              </button>
+                              {!c.activo && !historico && (
+                                <button
+                                  type="button"
+                                  className={accionCls}
+                                  disabled={!dd.ok}
+                                  onClick={() => void onActivarCiclo(c.id)}
+                                >
+                                  {dd.ok ? "Activar ciclo (OPERATIVO)" : "Activar bloqueado"}
+                                </button>
+                              )}
+                              {historico && (
+                                <span className="text-[10px] font-bold uppercase text-slate-500">
+                                  Solo consulta (histórico)
+                                </span>
+                              )}
+                            </div>
+                            <div className="rounded-xl border border-sky-200 bg-sky-50 p-2">
+                              <p className="text-[10px] font-extrabold uppercase tracking-wide text-sky-800">
+                                Registrar alumnos (preparación académica)
+                              </p>
+                              {historico ? (
+                                <p className="mt-1 text-[10px] font-semibold text-slate-500">
+                                  Ciclo histórico: solo consulta.
+                                </p>
+                              ) : (
+                                <div className="mt-2 flex flex-col gap-2">
+                                  <div className="flex flex-wrap items-center gap-1">
+                                    <input
+                                      className={`${inputCls} min-w-[10rem] flex-1`}
+                                      placeholder="Buscar CURP o nombre del alumno"
+                                      value={busqueda}
+                                      onChange={(e) => setBusqueda(e.target.value)}
+                                    />
+                                    <button
+                                      type="button"
+                                      className={accionCls}
+                                      onClick={() => void onBuscarAlumnos()}
+                                    >
+                                      Buscar
+                                    </button>
+                                  </div>
+                                  {resultados.length > 0 && (
+                                    <div className="flex max-h-28 flex-col gap-1 overflow-y-auto rounded-xl bg-white/80 p-1">
+                                      {resultados.map((a) => (
+                                        <button
+                                          key={a.curp}
+                                          type="button"
+                                          className={`rounded-lg px-2 py-1 text-left text-[10px] font-semibold ${
+                                            curpSel === a.curp
+                                              ? "bg-sky-200 text-sky-900"
+                                              : "bg-white text-slate-700 hover:bg-sky-100"
+                                          }`}
+                                          onClick={() => setCurpSel(a.curp)}
+                                        >
+                                          {a.curp} — {a.nombre}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {curpSel && (
+                                    <p className="text-[10px] font-bold text-slate-700">
+                                      CURP seleccionada: {curpSel}
+                                    </p>
+                                  )}
+                                  <select
+                                    className={inputCls}
+                                    value={grupoSel}
+                                    onChange={(e) => setGrupoSel(e.target.value)}
+                                  >
+                                    <option value="">Grupo destino…</option>
+                                    {gruposCiclo[c.id] !== "cargando" &&
+                                      Array.isArray(gruposCiclo[c.id]) &&
+                                      (gruposCiclo[c.id] as Array<{
+                                        id: string;
+                                        grado: string;
+                                        grupo: string;
+                                        carreraClave: string;
+                                      }>).map((g) => (
+                                        <option key={g.id} value={g.id}>
+                                          {g.grado} {g.grupo}
+                                          {g.carreraClave ? ` · ${g.carreraClave}` : " · sin carrera"}
+                                        </option>
+                                      ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    className={`${accionCls} !from-emerald-500 !via-emerald-600 !to-emerald-700`}
+                                    disabled={!curpSel || !grupoSel}
+                                    onClick={() => void onRegistrarInscripcion(c.id)}
+                                  >
+                                    Registrar inscripción
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()
+                    ) : null}
+                  </div>
+                )}
                 <p className="mt-1 text-[10px] font-semibold text-slate-600">
                   Rango del ciclo (opcional)
                 </p>

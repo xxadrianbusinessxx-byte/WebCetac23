@@ -25,6 +25,7 @@ import {
   TABLA_GRUPOS,
   TABLA_GRUPO_MATERIAS,
 } from "./tables";
+import { configuracionPermitidaEnPeriodo } from "./ciclo-estado";
 
 export const ERROR_ESQUEMA_SEMESTRES_PENDIENTE =
   "Esquema C4.14 pendiente: aplicar supabase/crear-tablas-semestres.sql (tabla academico_semestres) antes de administrar semestres.";
@@ -174,17 +175,14 @@ export async function setEstadoSemestre(
     return { ok: false, error: esquema.error ?? ERROR_ESQUEMA_SEMESTRES_PENDIENTE };
   }
 
-  // El periodo objetivo debe existir y estar activo.
-  const { data: periodo, error: eP } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("id, nombre")
-    .eq("id", periodoId)
-    .eq("activo", true)
-    .maybeSingle();
-  if (eP) return { ok: false, error: eP.message };
-  if (!periodo) {
-    return { ok: false, error: "El periodo no existe o no está activo." };
+  // F1 — La oferta por semestre debe poder configurarse sobre un ciclo
+  // BORRADOR (o OPERATIVO). Solo se bloquea sobre ciclos HISTORICO.
+  const permitido = await configuracionPermitidaEnPeriodo(supabase, periodoId);
+  if (!permitido.ok) {
+    return { ok: false, error: permitido.error ?? "El periodo no existe." };
   }
+  const periodo = permitido.periodo;
+  if (!periodo) return { ok: false, error: "El periodo no existe." };
 
   const { error } = await supabase.from(TABLA_SEMESTRES).upsert(
     { periodo_id: periodoId, semestre, activo },

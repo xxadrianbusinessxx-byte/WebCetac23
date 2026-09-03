@@ -1,5 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  activarCicloOperativo,
+  configuracionPermitidaEnPeriodo,
+  crearCicloBorrador,
+  marcarCicloNoOperativo,
+} from "./ciclo-estado";
+import {
   TABLA_PERIODOS,
   TABLA_PERIODOS_EVALUACION,
 } from "./tables";
@@ -357,43 +363,19 @@ export async function listarCiclosConEvaluaciones(
   };
 }
 
-/** Crea un ciclo escolar (nombre único). Nunca elimina históricos. */
+/**
+ * F1 — Crea un ciclo en estado BORRADOR. NUNCA activa. Nombre único.
+ * Delega en `crearCicloBorrador` (lib/escolar/ciclo-estado.ts).
+ */
 export async function crearCicloEscolar(
   supabase: SupabaseClient,
   input: { nombre: string; fechaInicio?: string; fechaFin?: string },
 ): Promise<ResultadoAccion> {
-  const nombre = (input.nombre ?? "").trim().toUpperCase();
-  if (!nombre) return { ok: false, error: "Indica el nombre del ciclo (ej. 2026-2027)." };
-  const fechaInicio = input.fechaInicio
-    ? normalizarFechaEvaluacion(input.fechaInicio)
-    : null;
-  const fechaFin = input.fechaFin ? normalizarFechaEvaluacion(input.fechaFin) : null;
-  if (input.fechaInicio && !fechaInicio) {
-    return { ok: false, error: "Fecha de inicio inválida." };
+  const r = await crearCicloBorrador(supabase, input);
+  if (!r.ok) {
+    return { ok: false, error: ("error" in r && r.error) || "No se pudo crear el ciclo." };
   }
-  if (input.fechaFin && !fechaFin) {
-    return { ok: false, error: "Fecha de cierre inválida." };
-  }
-  if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
-    return { ok: false, error: "El cierre del ciclo no puede ser anterior al inicio." };
-  }
-  const { data: dup, error: eDup } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("id")
-    .eq("nombre", nombre)
-    .limit(1)
-    .maybeSingle();
-  if (eDup) return { ok: false, error: eDup.message };
-  if (dup) return { ok: false, error: `El ciclo «${nombre}» ya existe.` };
-
-  const { error } = await supabase.from(TABLA_PERIODOS).insert({
-    nombre,
-    activo: true,
-    fecha_inicio: fechaInicio,
-    fecha_fin: fechaFin,
-  });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, mensaje: `Ciclo «${nombre}» creado.` };
+  return { ok: true, mensaje: "mensaje" in r ? r.mensaje : undefined };
 }
 
 /** Actualiza rango de fechas del ciclo (aditivo; null limpia el rango). */
@@ -423,27 +405,32 @@ export async function actualizarRangoCiclo(
   return { ok: true, mensaje: "Rango del ciclo actualizado." };
 }
 
-/** Activa/desactiva un ciclo (UPDATE; nunca DELETE). */
+/**
+ * F1 — Activa/desactiva un ciclo con reglas de dominio (nunca DELETE).
+ *
+ * - `activo=true`  → `activarCicloOperativo`: valida integridad, garantiza
+ *   exclusividad (un solo OPERATIVO) y pasa el ciclo anterior a HISTORICO.
+ * - `activo=false` → `marcarCicloNoOperativo`: OPERATIVO → HISTORICO.
+ *
+ * Un ciclo vacío/incompleto NO puede activarse.
+ */
 export async function setActivoCiclo(
   supabase: SupabaseClient,
   periodoId: string,
   activo: boolean,
 ): Promise<ResultadoAccion> {
-  const { data: periodo, error: eP } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("nombre")
-    .eq("id", periodoId)
-    .maybeSingle();
-  if (eP || !periodo) return { ok: false, error: eP?.message ?? "Ciclo inexistente." };
-  const { error } = await supabase
-    .from(TABLA_PERIODOS)
-    .update({ activo })
-    .eq("id", periodoId);
-  if (error) return { ok: false, error: error.message };
-  return {
-    ok: true,
-    mensaje: `Ciclo ${String(periodo.nombre)} ${activo ? "activado" : "desactivado"}.`,
-  };
+  if (activo) {
+    const r = await activarCicloOperativo(supabase, periodoId);
+    if (!r.ok) {
+      return { ok: false, error: ("error" in r && r.error) || "No se pudo activar el ciclo." };
+    }
+    return { ok: true, mensaje: "mensaje" in r ? r.mensaje : undefined };
+  }
+  const r = await marcarCicloNoOperativo(supabase, periodoId);
+  if (!r.ok) {
+    return { ok: false, error: ("error" in r && r.error) || "No se pudo desactivar el ciclo." };
+  }
+  return { ok: true, mensaje: "mensaje" in r ? r.mensaje : undefined };
 }
 
 /** Guarda (crea/actualiza) un parcial validando fechas y solapamientos. */
@@ -459,14 +446,11 @@ export async function guardarPeriodoEvaluacion(
   const v = validacion.valor;
   const periodoId = (input.periodoId ?? "").trim();
 
-  const { data: periodo, error: eP } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("id, nombre")
-    .eq("id", periodoId)
-    .eq("activo", true)
-    .maybeSingle();
-  if (eP || !periodo) {
-    return { ok: false, error: eP?.message ?? "El ciclo no existe o está inactivo." };
+  // F1 — Configurar parciales debe poder hacerse sobre un ciclo BORRADOR (o
+  // OPERATIVO). Solo se bloquea sobre ciclos HISTORICO (cuando hay esquema).
+  const permitido = await configuracionPermitidaEnPeriodo(supabase, periodoId);
+  if (!permitido.ok) {
+    return { ok: false, error: permitido.error ?? "El ciclo no existe o no admite configuración." };
   }
 
   const esquema = await verificarEsquemaEvaluaciones(supabase);
