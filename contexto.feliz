@@ -1323,3 +1323,44 @@ Bloque 15 — FASE CONSOLIDACIÓN (contexto académico del ciclo). Implementado.
   clases_impartidas/asistencia_alumnos (documentado en
   docs/CICLO_EVALUACIONES_MODULO.md).
 · Pruebas: 30/30 (ciclos, parciales, resolución fecha, clonación de contexto).
+===============================================================================
+Bloque 16 — CICLOS: cargar materias según catálogo + Activar en el selector.
+Estado: implementado. Commits atómicos por pieza; tsc --noEmit y next build
+limpios. npm run lint reporta SOLO errores/advertencias preexistentes (ninguno
+en los archivos tocados por este bloque).
+===============================================================================
+· PIEZA A — «Cargar materias según catálogo» en PasoAcademico (segunda vía
+  junto a «Copiar estructura»; el directivo elige). Nueva función
+  cargarMateriasDesdeCatalogo(supabase, periodoDestinoId) en
+  lib/escolar/contexto-ciclo.ts:
+    - fuente idéntica a MateriasConfigPanel (listarNombresVisiblesMaterias);
+    - cada tabla legacy se interpreta SOLO con el patrón
+      [GRADO][CARRERA][GRUPO]MAT### de ampliar-materias-15-aliases.sql
+      (MC = MECATRONICA);
+    - grupos del destino resueltos o creados con el mismo patrón de
+      clonarContextoAcademico;
+    - materia_id del catálogo `materias` reutilizando el vínculo existente de
+      grupo_materias (nunca inventa claves nuevas; fallback por nombre/clave
+      normalizado, incluido sufijo romano de grado);
+    - grupo_materias solo para parejas (grupo_id, materia_id) inexistentes,
+      con tabla_legacy exacta + activo=true.
+  NO crea tablas físicas, NO borra nada y NO toca materias_nombres_visibles.
+  Server Action actionCargarMateriasDesdeCatalogo(periodoId) en
+  app/actions/contexto-ciclo.ts (rol directivo, patrón de la acción de clonar).
+  UI: botón propio + refresco del resumen (grupos · materias asignadas) vía
+  onCambio/refrescarDetalle en CicloConfigurador.
+· PIEZA B — Botón «Activar» por fila en el selector/lista de ciclos de
+  app/components/ciclo-configurador/index.tsx. Llama a la MISMA Server Action
+  del Paso 7 (actionSetActivoCiclo → setActivoCiclo/activarCicloOperativo); no
+  se duplica lógica. Deshabilitado cuando el ciclo ya es el OPERATIVO actual
+  (mismo criterio que usa PasoValidacion). El selector <select> pasa a lista
+  de filas (clic en el nombre = seleccionar).
+· PRUEBA REAL (borrador vacío AGO2026-DIC2026, 2026-09-03):
+    10 grupos creados → 1RO A/B/C/D · 3RO A MECATRONICA · 3RO A RH ·
+    3RO B RH · 5TO A MECATRONICA · 5TO A RH · 5TO B RH.
+    101 materias vinculadas (101/101 alias interpretados; tabla_legacy
+    presente en el 100%). 0 materias nuevas en el catálogo `materias`
+    (sigue en 15), 0 carreras nuevas, 0 tablas físicas nuevas (solo filas
+    nuevas en `grupos` y `grupo_materias`).
+    Re-ejecución: 0 grupos creados y 0 vínculos nuevos (idempotente).
+
