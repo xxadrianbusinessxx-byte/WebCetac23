@@ -4,6 +4,7 @@ import {
   configuracionPermitidaEnPeriodo,
   crearCicloBorrador,
   marcarCicloNoOperativo,
+  validarIntegridadCiclo,
 } from "./ciclo-estado";
 import {
   TABLA_PERIODOS,
@@ -420,6 +421,18 @@ export async function setActivoCiclo(
   activo: boolean,
 ): Promise<ResultadoAccion> {
   if (activo) {
+    // F7 — validación amigable previa (contrato único del servidor). La UI la
+    // muestra vía actionDetalleCicloAdmin; aquí se re-ejecuta antes de la RPC.
+    const previa = await validarIntegridadCiclo(supabase, periodoId);
+    if (!previa.ok) {
+      const detalle = (previa.errores ?? [])
+        .map((e) => `· ${e.mensaje}`)
+        .join("\n");
+      return {
+        ok: false,
+        error: `El ciclo no supera la validación integral:\n${detalle}`,
+      };
+    }
     // F8 — autoridad única: RPC transaccional. Sin secuencia multi-paso aquí.
     const r = await activarCicloOperativoAtomico(supabase, periodoId);
     if (!r.ok) {
