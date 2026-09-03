@@ -55,3 +55,22 @@ NINGUNO (ni preparado ni ejecutado en esta fase).
 ### 7. Siguiente fase recomendada
 Desbloquear F2 con la parametrización `periodoId` del pipeline existente antes de
 avanzar a F3; en paralelo mantener cerradas F4–F8.
+
+## 8. DESBLOQUEO F2 — hallazgo definitivo (2026-09-03, sesión 2)
+Auditoría profunda de `lib/escolar/carga-academica.ts` (leerFilasConContexto +
+ResumenAcademico con `gruposInexistentes`, `ambiguos`, `nuevasInscripciones`):
+el pipeline **NO crea `grupos` ni `grupo_materias`**. Es un importador de ROSTER
+de ALUMNOS que resuelve los grupos ya existentes del periodo (operativo) por
+identidad académica; si el grupo no existe lo cuenta como `gruposInexistentes`.
+Por tanto:
+- Parametrizar por `periodoId` NO es suficiente para “cargar estructura
+  académica” (grados/grupos/carreras/materias/`grupo_materias`) en un BORRADOR:
+  esa funcionalidad no existe en ningún pipeline del repo (el wizard solo
+  **clona** estructura desde otro periodo).
+- Implementarla exigiría crear un comportamiento de importación nuevo (crear
+  grupos/gm) → violaría la regla de oro “no crear otro importador” sin una
+  decisión de producto, o depender de un flujo productivo no verificable aquí.
+- **CONCLUSIÓN: F2 permanece BLOCKED por ausencia de modelo/código**, no por
+  parametrización. Para desbloquear se requiere decisión explícita de producto
+  entre: (a) clonar estructura (ya disponible en `PasoAcademico`) + roster por
+  `periodoId`, o (b) autorizar un importador nuevo de estructura académica.
