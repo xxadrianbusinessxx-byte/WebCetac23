@@ -573,6 +573,47 @@ export async function activarCicloOperativo(
   };
 }
 
+/**
+ * F8 — Activación ATOMICA única vía RPC `activar_ciclo_operativo(periodo_id)`.
+ * La Server Action NUNCA replica la secuencia de escrituras en el flujo nuevo.
+ * Si la RPC no está desplegada devuelve error explícito (sin fallback multi-paso).
+ */
+export type ResultadoActivacionAtomica = {
+  ok: boolean;
+  mensaje?: string;
+  error?: string;
+  rpc: boolean;
+};
+
+export async function activarCicloOperativoAtomico(
+  supabase: SupabaseClient,
+  periodoId: string,
+): Promise<ResultadoActivacionAtomica> {
+  const { data, error } = await supabase.rpc("activar_ciclo_operativo", {
+    p_periodo: periodoId,
+  });
+  if (error) {
+    const msg = String(error?.message ?? "");
+    if (/PGRST202|Could not find the function|function .* does not exist/i.test(msg)) {
+      return {
+        ok: false,
+        rpc: false,
+        error:
+          "La RPC activar_ciclo_operativo no está disponible. Aplica supabase/crear-rpc-activar-ciclo-f4.sql (la activación nueva es atómica; no se permite la secuencia multi-paso).",
+      };
+    }
+    return { ok: false, rpc: true, error: msg };
+  }
+  return {
+    ok: true,
+    rpc: true,
+    mensaje:
+      typeof data === "string" && data
+        ? data
+        : "Ciclo activado como OPERATIVO (exclusivo).",
+  };
+}
+
 /** Desactiva un ciclo OPERATIVO → HISTORICO (o deja inactivo el que ya lo está). */
 export async function marcarCicloNoOperativo(
   supabase: SupabaseClient,

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  activarCicloOperativo,
+  activarCicloOperativoAtomico,
   configuracionPermitidaEnPeriodo,
   crearCicloBorrador,
   marcarCicloNoOperativo,
@@ -420,11 +420,12 @@ export async function setActivoCiclo(
   activo: boolean,
 ): Promise<ResultadoAccion> {
   if (activo) {
-    const r = await activarCicloOperativo(supabase, periodoId);
+    // F8 — autoridad única: RPC transaccional. Sin secuencia multi-paso aquí.
+    const r = await activarCicloOperativoAtomico(supabase, periodoId);
     if (!r.ok) {
-      return { ok: false, error: ("error" in r && r.error) || "No se pudo activar el ciclo." };
+      return { ok: false, error: r.error ?? "No se pudo activar el ciclo." };
     }
-    return { ok: true, mensaje: "mensaje" in r ? r.mensaje : undefined };
+    return { ok: true, mensaje: r.mensaje };
   }
   const r = await marcarCicloNoOperativo(supabase, periodoId);
   if (!r.ok) {

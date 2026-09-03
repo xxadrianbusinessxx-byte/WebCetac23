@@ -55,6 +55,11 @@ BEGIN
   -- Exclusividad: todo lo demás pasa a no operativo.
   SELECT count(*) INTO v_otros FROM public.periodos WHERE activo IS TRUE AND id <> p_periodo;
 
+  -- Idempotencia explícita: ya es el único OPERATIVO → respuesta controlada.
+  IF v_tiene_estado AND v_estado = 'operativo' AND v_otros = 0 THEN
+    RETURN format('ciclo %s ya es el único OPERATIVO', v_nombre);
+  END IF;
+
   IF v_tiene_estado THEN
     UPDATE public.periodos SET activo = FALSE, estado = 'historico' WHERE activo IS TRUE AND id <> p_periodo;
     UPDATE public.periodos SET activo = TRUE, estado = 'operativo' WHERE id = p_periodo;
@@ -80,6 +85,16 @@ BEGIN
     WHERE g.periodo_id = p_periodo
     ORDER BY i.curp, i.created_at DESC, i.id DESC
   );
+
+  -- Auditoría DENTRO de la transacción, no bloqueante (si la tabla/columnas no
+  -- existen o el insert falla, se ignora; nunca aborta una activación válida).
+  BEGIN
+    INSERT INTO public.ciclo_transiciones
+      (periodo_id, operacion, estado_anterior, estado_nuevo, actor, resultado, detalle)
+    VALUES (p_periodo, 'activar', v_estado, 'operativo', NULL, 'ok',
+      format('ciclo %s activado como operativo (exclusivo). Otros desactivados: %s', v_nombre, v_otros));
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
 
   RETURN format('ciclo %s activado como operativo (exclusivo). Otros desactivados: %s', v_nombre, v_otros);
 END;
