@@ -26,6 +26,7 @@ import {
 
 import { CalendarioEscolarPanel } from "../components/calendario-escolar-panel";
 import { CicloEvaluacionesAdmin } from "../components/ciclo-evaluaciones-admin";
+import { ContextoAcademicoPanel } from "../components/contexto-academico-panel";
 import { HorarioEscolarPanel } from "../components/horario-escolar-panel";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
@@ -828,6 +829,9 @@ export function ConfiguracionClient({ sesion, periodos }: Props) {
 
         {/* Ciclo escolar y periodos de evaluación (FASE CICLO) */}
         <CicloEvaluacionesAdmin />
+
+        {/* Contexto académico del ciclo (grupos y materias) */}
+        <ContextoAcademicoPanel />
 
         {/* Calendario escolar */}
         <CalendarioEscolarPanel />

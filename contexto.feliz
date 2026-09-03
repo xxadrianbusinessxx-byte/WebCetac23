@@ -1,7 +1,7 @@
 ================================================================================
   CONTEXTO DEL PROYECTO — mi-web-escolar (AulaNube / CETAC)
   Archivo: contexto.feliz
-  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11 + FASE 9 + FASE 10 + FASE HORARIO [Bloque 13] + FASE CICLO [Bloque 14])
+  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11 + FASE 9 + FASE 10 + FASE HORARIO [Bloque 13] + FASE CICLO [Bloque 14] + FASE CONSOLIDACIÓN [Bloque 15])
 ================================================================================
 
 Este documento resume lo implementado hasta ahora y lo que falta por hacer.
@@ -1299,3 +1299,27 @@ Modelo temporal del ciclo escolar:
   duplicados, resolución fecha→ciclo→parcial, detección de ciclo en archivo).
 · Documentación: docs/CICLO_EVALUACIONES_MODULO.md.
 Pendiente humano: ejecutar supabase/crear-periodos-evaluacion.sql en Supabase.
+
+
+===============================================================================
+Bloque 15 — FASE CONSOLIDACIÓN (contexto académico del ciclo). Implementado.
+===============================================================================
+· Problema estructural resuelto: un periodo podía crearse sin grupos y la
+  importación de roster/horario rechazaba todo. Solución GENERAL en
+  lib/escolar/contexto-ciclo.ts: clonar la estructura (grupos + grupo_materias)
+  desde un ciclo origen al ciclo nuevo reutilizando carreras/materias por ID
+  (sin duplicar catálogo, sin borrar históricos, idempotente). El horario
+  importado valida contra ese contexto.
+· Plan puro planificarGruposAClonar (probado: no duplica en re-ejecución;
+  distingue MECATRONICA vs RH del mismo grado/grupo).
+· Actions solo directivo (app/actions/contexto-ciclo.ts) + panel
+  ContextoAcademicoPanel en /configuracion.
+· Asistencias: actionObtenerCicloActual() preselecciona el ciclo ACTIVO del
+  catálogo en el panel del profesor (el sistema lo resuelve).
+· No modificado deliberadamente: visualizador de materias por grado+grupo+
+  carrera, calendario_escolar por día y modelo de asistencia. El detalle
+  asistencia por bloque/materia por alumno NO es derivable del modelo actual
+  (conteos por profesor/día); evolucionarlo exigiría materia en
+  clases_impartidas/asistencia_alumnos (documentado en
+  docs/CICLO_EVALUACIONES_MODULO.md).
+· Pruebas: 30/30 (ciclos, parciales, resolución fecha, clonación de contexto).

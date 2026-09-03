@@ -10,6 +10,7 @@
  * Uso (recompilar tras cambios en lib/escolar/evaluaciones.ts o
  * lib/escolar/horario-importar.ts):
  *   npx tsc lib/escolar/evaluaciones.ts lib/escolar/horario-importar.ts ^
+ *     lib/escolar/contexto-ciclo.ts ^
  *     --outDir scripts/.tmp-evaluaciones --module commonjs --target es2020 ^
  *     --moduleResolution node --esModuleInterop --skipLibCheck
  *   node scripts/test-evaluaciones.mjs
@@ -22,6 +23,7 @@ const require = createRequire(import.meta.url);
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), ".tmp-evaluaciones");
 const m = require(path.join(dir, "evaluaciones.js"));
 const hor = require(path.join(dir, "horario-importar.js"));
+const ctx = require(path.join(dir, "contexto-ciclo.js"));
 
 let pasadas = 0;
 let fallidas = 0;
@@ -146,6 +148,31 @@ ok("detecta 2026-2027 en archivo", hor.detectarCicloEnFilasHorario([["Horario 20
 ok("detecta otro ciclo", hor.detectarCicloEnFilasHorario([["Ciclo escolar 2027-2028"]]) === "2027-2028");
 ok("sin ciclo → null", hor.detectarCicloEnFilasHorario([["Carrera", "Grado", "Grupo"]]) === null);
 ok("ciclos ambiguos → null", hor.detectarCicloEnFilasHorario([["2026-2027"], ["2027-2028"]]) === null);
+
+console.log("\n5) Plan de clonación de contexto académico (grupos)");
+const origenGrupos = [
+  { id: "o1", grado: "1RO", nombre: "A", carreraId: null, carreraClave: "" },
+  { id: "o2", grado: "3RO", nombre: "A", carreraId: "c-mc", carreraClave: "MECATRONICA" },
+  { id: "o3", grado: "3RO", nombre: "A", carreraId: "c-rh", carreraClave: "RH" },
+];
+const destinoCon1 = [
+  { id: "d1", grado: "1RO", nombre: "A", carreraId: null, carreraClave: "" },
+];
+const plan = ctx.planificarGruposAClonar(origenGrupos, destinoCon1);
+ok(
+  "ciclo nuevo detecta 2 grupos por crear y 1 existente",
+  plan.gruposPorCrear.length === 2 && plan.gruposCoincidentes === 1,
+);
+const plan2 = ctx.planificarGruposAClonar(origenGrupos, []);
+ok("sin grupos en destino → crea todos", plan2.gruposPorCrear.length === 3);
+const plan3 = ctx.planificarGruposAClonar(origenGrupos, destinoCon1);
+ok("distingue MECATRONICA vs RH del mismo grado/grupo", plan3.gruposPorCrear.some((g) => g.carreraClave === "MECATRONICA") && plan3.gruposPorCrear.some((g) => g.carreraClave === "RH"));
+const planReimport = ctx.planificarGruposAClonar(origenGrupos, [
+  ...destinoCon1,
+  { id: "d2", grado: "3RO", nombre: "A", carreraId: "c-mc", carreraClave: "MECATRONICA" },
+  { id: "d3", grado: "3RO", nombre: "A", carreraId: "c-rh", carreraClave: "RH" },
+]);
+ok("re-ejecutar no duplica (0 por crear)", planReimport.gruposPorCrear.length === 0 && planReimport.gruposCoincidentes === 3);
 
 console.log(`\nRESULTADO: ${pasadas} pasadas, ${fallidas} fallidas`);
 if (fallidas > 0) process.exit(1);

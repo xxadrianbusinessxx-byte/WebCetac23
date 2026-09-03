@@ -7,6 +7,7 @@ import {
   actionDescargarPlantillaAsistencia,
   actionListarGruposAsistencia,
   actionObtenerMateriasHorarioGrupo,
+  actionObtenerCicloActual,
   actionPrevisualizarAsistencias,
   type MateriaHorarioUI,
 } from "@/app/actions/asistencias";
@@ -187,6 +188,10 @@ export function AsistenciasPanel() {
       if (r.ok) {
         setGrupos(r.data.grupos);
         setCiclos(r.data.ciclos);
+    void actionObtenerCicloActual().then((cr) => {
+      if (!activo) return;
+      if (cr.ok && cr.ciclo) setCiclo(cr.ciclo);
+    });
       } else {
         setErrorGrupos(r.error);
       }

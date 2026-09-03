@@ -97,4 +97,42 @@ manda el ciclo seleccionado por el directivo (nada de constantes hardcodeadas).
 | `app/actions/evaluaciones.ts` | Server Actions (solo directivo) |
 | `app/components/ciclo-evaluaciones-admin.tsx` | Panel directivo |
 | `lib/escolar/horario-importar.ts` | Detección/validación del ciclo del archivo |
-| `scripts/test-evaluaciones.mjs` | Pruebas puras (26 casos) |
+
+| `scripts/test-evaluaciones.mjs` | Pruebas puras (30 casos) |
+
+## Consolidación (FASE CONSOLIDACIÓN) — Contexto académico del ciclo
+
+**Problema real detectado:** un `periodos` puede crearse sin `grupos` que lo
+referencien, por lo que la importación de roster/horario rechaza todas las
+filas (“grupo inexistente en el periodo”). No era un caso puntual de un ciclo:
+es estructural y se resolvió de forma GENERAL.
+
+**Solución (sin duplicar catálogo):**
+- El catálogo ya modela la oferta por ciclo: `grupos.periodo_id`,
+  `grupo_materias.grupo_id → materias`, `carreras` globales.
+- Nuevo módulo `lib/escolar/contexto-ciclo.ts`:
+  - `verContextoAcademicoPeriodo` → grupos + nº de materias activas del ciclo
+    (2–3 consultas, sin N+1).
+  - `planificarGruposAClonar` (PURA, probada) → calcula qué grupos faltan en el
+    destino usando identidad normalizada (grado|grupo|carrera).
+  - `clonarContextoAcademico` → crea en el DESTINO los grupos faltantes y
+    vincula las materias del ORIGEN por `materia_id` (nunca copia carreras ni
+    materias; nunca borra históricos; re-ejecutar no duplica).
+- Actions `app/actions/contexto-ciclo.ts` (solo directivo) y panel
+  `app/components/contexto-academico-panel.tsx` en `/configuracion`.
+
+**Flujo resultante:** crear/configurar ciclo → copiar grupos+materias desde un
+ciclo existente → importar horario validando contra ese contexto.
+
+**Ciclo automático en asistencias:** `actionObtenerCicloActual()` resuelve el
+ciclo ACTIVO del catálogo; el panel del profesor lo preselecciona (no tiene que
+escribirlo) y sigue pudiendo cambiarlo si opera otro ciclo.
+
+**No modificado deliberadamente:** visualizador de materias por grado+grupo+
+carrera (se reutiliza vía el catálogo), calendario por día
+(`calendario_escolar`) y modelo de asistencia (la fecha deriva ciclo→parcial;
+no se añadió `parcial_id`). El detalle por bloque/materia de un alumno no es
+derivable del modelo actual de asistencia (solo conteos por profesor/día);
+requeriría almacenar la materia en `clases_impartidas`/`asistencia_alumnos`
+(cambio de esquema no incluido en esta fase; documentado como evolución).
+

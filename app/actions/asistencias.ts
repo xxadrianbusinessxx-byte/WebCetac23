@@ -759,3 +759,28 @@ export async function actionObtenerMateriasHorarioGrupo(input: {
   return { ok: true, usaHorario: true, aviso: null, materias, porDiaGrupo };
 }
 
+/**
+ * FASE CONSOLIDACIÓN — Ciclo escolar ACTIVO del catálogo (resolución
+ * automática para el profesor, que NO debe seleccionar el ciclo manualmente
+ * si el sistema puede resolverlo). Solo lectura para maestro/directivo.
+ */
+export async function actionObtenerCicloActual(): Promise<
+  | { ok: true; ciclo: string | null }
+  | { ok: false; error: string }
+> {
+  const sesion = await obtenerSesionPortal();
+  if (!sesion || (sesion.rol !== "maestro" && sesion.rol !== "directivo")) {
+    return { ok: false, error: "No tienes permiso para consultar asistencias." };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from(TABLA_PERIODOS)
+    .select("nombre")
+    .eq("activo", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, ciclo: data ? String(data.nombre) : null };
+}
+
