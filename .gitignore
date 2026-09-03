@@ -44,6 +44,9 @@ next-env.d.ts
 # test build output (compiled JS for scripts/test-fechas.mjs)
 /scripts/.tmp-fechas/
 
+# test build output (compiled JS para scripts/test-evaluaciones.mjs)
+/scripts/.tmp-evaluaciones/
+
 # runtime logs
 dev-server.log
 *.log

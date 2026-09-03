@@ -359,7 +359,7 @@ export async function actionDescargarPlantillaHorario(): Promise<
   if (sesion?.rol !== "directivo" && sesion?.rol !== "maestro") {
     return { ok: false, error: "No tienes permiso para descargar la plantilla." };
   }
-  const plantilla = plantillaHorarioParaDescarga();
+  const plantilla = await plantillaHorarioParaDescarga();
   return {
     ok: true,
     base64: plantilla.base64,

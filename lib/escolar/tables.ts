@@ -27,6 +27,9 @@ export const TABLA_MENSAJES_JUSTIFICACION = "mensajes_justificacion";
 
 /** Catálogo académico (FASE C1). Tablas nuevas; ver supabase/crear-tablas-catalogo-academico.sql. */
 export const TABLA_PERIODOS = "periodos";
+/** FASE CICLO — periodos de evaluación (parciales) dentro de un ciclo escolar.
+ *  Ver supabase/crear-periodos-evaluacion.sql y lib/escolar/evaluaciones.ts. */
+export const TABLA_PERIODOS_EVALUACION = "periodos_evaluacion";
 export const TABLA_CARRERAS = "carreras";
 export const TABLA_MATERIAS = "materias";
 export const TABLA_GRUPOS = "grupos";

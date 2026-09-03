@@ -1,7 +1,7 @@
 ================================================================================
   CONTEXTO DEL PROYECTO — mi-web-escolar (AulaNube / CETAC)
   Archivo: contexto.feliz
-  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11 + FASE 9 + FASE 10 + FASE HORARIO [Bloque 13])
+  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11 + FASE 9 + FASE 10 + FASE HORARIO [Bloque 13] + FASE CICLO [Bloque 14])
 ================================================================================
 
 Este documento resume lo implementado hasta ahora y lo que falta por hacer.
@@ -1270,3 +1270,32 @@ versionada por periodo/ciclo. Hitos y hallazgos finales:
     detalle), por lo que se usa ÚNICAMENTE como validación cruzada/aviso y nunca
     se persiste. «Sin profesor asignado» = NULL; alias de carrera MC→MECATRONICA.
   · Documentación del módulo: docs/HORARIO_SEMANAL_MODULO.md.
+
+
+===============================================================================
+Bloque 14 — FASE CICLO (periodos de evaluación por ciclo). Estado: implementado.
+===============================================================================
+Modelo temporal del ciclo escolar:
+  periodos (ciclo) → periodos_evaluacion (parciales configurables) → fecha.
+· SQL PREPARADO (NO ejecutado): supabase/crear-periodos-evaluacion.sql
+  (tabla periodos_evaluacion + columnas aditivas fecha_inicio/fecha_fin en
+  periodos; índices; constraint de no-solapamiento opcional con btree_gist;
+  idempotente y re-ejecutable).
+· Módulo: lib/escolar/evaluaciones.ts — validación, solapamientos, resolución
+  pura (resolverCicloEvaluacionLocal / resolverEvaluacionPorFechaLocal) y
+  repositorio con resolvers de 1 y 2 consultas (sin N+1).
+· Server Actions: app/actions/evaluaciones.ts (solo directivo).
+· UI directivo: CicloEvaluacionesAdmin en /configuracion — crear/activar/
+  desactivar ciclo, rango del ciclo y parciales editables por ciclo.
+· HORARIO: sigue versionado por periodo_id; el importador detecta el ciclo en
+  el archivo (20XX-20XX) y lo contrasta con el seleccionado; si NO coinciden
+  BLOQUEA (nunca mezcla horarios de ciclos). El ciclo del archivo de referencia
+  no está en el Excel: manda el ciclo seleccionado.
+· Asistencias/calificaciones NO ganan columna parcial: la fecha resuelve
+  ciclo→parcial cuando se necesita (derivación determinista).
+· Hallazgo: academico_semestres = oferta por grado (1RO→6TO), no eval temporal;
+  «Parcial N» en calificaciones es categoría de columnas Excel, no estructura.
+· Pruebas puras: scripts/test-evaluaciones.mjs (26 casos: fechas, solapamientos,
+  duplicados, resolución fecha→ciclo→parcial, detección de ciclo en archivo).
+· Documentación: docs/CICLO_EVALUACIONES_MODULO.md.
+Pendiente humano: ejecutar supabase/crear-periodos-evaluacion.sql en Supabase.

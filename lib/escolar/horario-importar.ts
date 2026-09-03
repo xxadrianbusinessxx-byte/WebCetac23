@@ -8,7 +8,6 @@ import {
   type MateriaRow,
 } from "./catalogo-academico";
 import { TABLA_HORARIO_SEMANAL, TABLA_MATERIAS, TABLA_PERIODOS } from "./tables";
-import { matrizAXlsxBase64 } from "./exportar-xlsx";
 import {
   buscarGrupoEnLista,
   clavesEquivalenciaMateria,
@@ -750,6 +749,31 @@ export type ContextoImportacionHorario = {
   creadoPor: string | null;
 };
 
+/** Detecta un ciclo escolar (20XX-20XX) en las primeras celdas del archivo. */
+export function detectarCicloEnFilasHorario(
+  filas: (string | number)[][],
+): string | null {
+  const encontrados: string[] = [];
+  const topeFilas = Math.min(filas.length, 25);
+  for (let i = 0; i < topeFilas; i++) {
+    const fila = filas[i]!;
+    const topeCols = Math.min(fila.length, 15);
+    for (let c = 0; c < topeCols; c++) {
+      const celda = fila[c];
+      const texto =
+        typeof celda === "string"
+          ? celda
+          : typeof celda === "number"
+            ? String(celda)
+            : "";
+      const m = texto.match(/(20\d{2})\s*[-–—/]\s*(20\d{2})/);
+      if (m) encontrados.push(`${m[1]}-${m[2]}`.toUpperCase());
+    }
+  }
+  const unicos = [...new Set(encontrados)];
+  return unicos.length === 1 ? unicos[0]! : null;
+}
+
 export async function analizarImportacionHorario(
   supabase: SupabaseClient,
   file: File,
@@ -798,6 +822,19 @@ export async function analizarImportacionHorario(
     );
   }
   const filasHoja = leido.hojas.get(detalle.hoja) ?? [];
+
+  // FASE CICLO — si el archivo identifica explícitamente el ciclo, debe
+  // coincidir con el ciclo seleccionado. Nunca se mezclan ciclos en silencio.
+  const cicloEnArchivo = detectarCicloEnFilasHorario(filasHoja);
+  if (
+    cicloEnArchivo &&
+    normalizarTextoCatalogo(cicloEnArchivo) !== normalizarTextoCatalogo(periodoNombre)
+  ) {
+    return base(
+      `El archivo pertenece al ciclo «${cicloEnArchivo}» y el ciclo seleccionado es «${periodoNombre}». Bloqueado: no se mezclan horarios de ciclos distintos.`,
+    );
+  }
+
   const columnas = detectarColumnasHorario(detalle.headers);
   const faltantes = columnasObligatoriasHorario(columnas);
   if (faltantes.length > 0) {
@@ -955,6 +992,11 @@ export async function analizarImportacionHorario(
   if (grupos.length === 0) {
     advertencias.push(
       `El periodo ${periodoNombre} no tiene grupos en el catálogo: todas las filas se rechazan.`,
+    );
+  }
+  if (cicloEnArchivo) {
+    advertencias.push(
+      `Ciclo detectado en el archivo: ${cicloEnArchivo} (coincide con el seleccionado).`,
     );
   }
 
@@ -1168,10 +1210,10 @@ export async function aplicarImportacionHorario(
  * El directivo la descarga, la conserva y la vuelve a subir cuando necesite
  * actualizar el horario. La importación es idempotente por clave natural.
  */
-export function plantillaHorarioParaDescarga(): {
+export async function plantillaHorarioParaDescarga(): Promise<{
   base64: string;
   nombreArchivo: string;
-} {
+}> {
   const encabezados = [
     "Carrera",
     "Grado",
@@ -1215,9 +1257,10 @@ export function plantillaHorarioParaDescarga(): {
     ],
   ];
   return {
-    base64: matrizAXlsxBase64(filas, "Horario Completo", [
-      26, 7, 7, 9, 11, 12, 12, 15, 48, 26, 16,
-    ]),
+    base64: await (async () => {
+      const { matrizAXlsxBase64: aoa } = await import("./exportar-xlsx");
+      return aoa(filas, "Horario Completo", [26, 7, 7, 9, 11, 12, 12, 15, 48, 26, 16]);
+    })(),
     nombreArchivo: "plantilla_horario_semanal.xlsx",
   };
 }
