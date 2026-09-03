@@ -25,6 +25,7 @@ import {
 } from "@/lib/escolar/mapeo-columnas";
 
 import { CalendarioEscolarPanel } from "../components/calendario-escolar-panel";
+import { HorarioEscolarPanel } from "../components/horario-escolar-panel";
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
 import { GlossyPersonIcon } from "../components/glossy-person-icon";
 import { TutoresPanel } from "../components/tutores-panel";
@@ -820,6 +821,9 @@ export function ConfiguracionClient({ sesion, periodos }: Props) {
 
           </div>
         </div>
+
+        {/* Horario escolar (FASE HORARIO) */}
+        <HorarioEscolarPanel />
 
         {/* Calendario escolar */}
         <CalendarioEscolarPanel />

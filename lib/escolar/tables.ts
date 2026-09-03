@@ -12,6 +12,12 @@ export const TABLA_CALENDARIO_ESCOLAR = "calendario_escolar";
 export const TABLA_CLASES_IMPARTIDAS = "clases_impartidas";
 export const TABLA_ASISTENCIA_ALUMNOS = "asistencia_alumnos";
 export const TABLA_CONFIGURACION_CLASES_PROFESOR = "configuracion_clases_profesor";
+/**
+ * HORARIO SEMANAL OFICIAL (ciclo escolar).
+ * Fuente única de verdad de «qué clases están programadas para un grupo en un
+ * día de la semana». NO es asistencia: ver supabase/crear-horario-semanal.sql.
+ */
+export const TABLA_HORARIO_SEMANAL = "horario_semanal";
 export const TABLA_TUTORES = "tutores";
 export const TABLA_TUTOR_ALUMNOS = "tutor_alumnos";
 export const TABLA_TUTOR_CREDENCIALES_INICIALES = "tutor_credenciales_iniciales";

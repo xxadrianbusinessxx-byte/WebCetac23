@@ -6,22 +6,22 @@ import { listarCiclosEscolares } from "@/lib/escolar/calendario";
 import {
   calcularPorcentajeAsistencia,
   confirmarAsistencias,
-  configuracionVacia,
   generarPlantillaAsistencia,
-  guardarConfiguracionClasesProfesor,
   listarGruposAsistencia,
   obtenerAlumnosDelGrupo,
-  obtenerConfiguracionClasesProfesor,
   obtenerEstadosAsistenciaAlumno,
   previsualizarAsistencias,
   profesorImparteEnGrupo,
-  type ConfiguracionClasesProfesor,
-
   type DiaEstadoAsistencia,
   type PlanAsistencia,
   type ResumenAsistencia,
 } from "@/lib/escolar/asistencias";
 import { resolverAsignacionesProfesor } from "@/lib/escolar/catalogo-academico";
+import {
+  consultarHorarioGrupoPorIdentidad,
+  materiasDelHorario,
+  totalBloquesGrupoPorDia,
+} from "@/lib/escolar/horario-semanal";
 
 import {
   TABLA_ASISTENCIA_ALUMNOS,
@@ -75,6 +75,7 @@ export async function actionDescargarPlantillaAsistencia(
   grupo: string,
   carrera: string,
   ciclo: string,
+  materiaClave: string,
 ): Promise<
   | {
       ok: true;
@@ -82,6 +83,10 @@ export async function actionDescargarPlantillaAsistencia(
       nombreArchivo: string;
       fechas: string[];
       alumnos: number;
+      /** FASE HORARIO — true cuando la fila CLASES se derivó del horario. */
+      usaHorario: boolean;
+      /** Aviso de la derivación (p. ej. sin asignación en el grupo). */
+      aviso?: string | null;
     }
   | { ok: false; error: string }
 > {
@@ -90,12 +95,17 @@ export async function actionDescargarPlantillaAsistencia(
     return { ok: false, error: "No tienes permiso para gestionar asistencias." };
   }
 
+  if (!materiaClave.trim()) {
+    return { ok: false, error: "Selecciona la materia para generar la plantilla." };
+  }
+
   const supabase = await createClient();
   const resultado = await generarPlantillaAsistencia(supabase, {
     grado,
     grupo,
     carrera,
     ciclo,
+    materiaClave,
     profesorClave: sesion.matricula,
     profesorNombre: sesion.nombre || sesion.matricula,
   });
@@ -107,6 +117,8 @@ export async function actionDescargarPlantillaAsistencia(
     nombreArchivo: resultado.plantilla.nombreArchivo,
     fechas: resultado.plantilla.fechas,
     alumnos: resultado.plantilla.alumnos.length,
+    usaHorario: resultado.plantilla.usaHorario,
+    aviso: resultado.plantilla.aviso,
   };
 }
 
@@ -116,6 +128,7 @@ export async function actionPrevisualizarAsistencias(
   grupo: string,
   carrera: string,
   ciclo: string,
+  materiaClave: string,
 ): Promise<
   | { ok: true; resumen: ResumenAsistencia; plan: PlanAsistencia }
   | { ok: false; error: string }
@@ -129,6 +142,9 @@ export async function actionPrevisualizarAsistencias(
   if (!(archivo instanceof File) || archivo.size === 0) {
     return { ok: false, error: "Selecciona un archivo válido." };
   }
+  if (!materiaClave.trim()) {
+    return { ok: false, error: "Selecciona la materia para analizar la plantilla." };
+  }
 
   const supabase = await createClient();
   const resultado = await previsualizarAsistencias(supabase, archivo, {
@@ -136,6 +152,7 @@ export async function actionPrevisualizarAsistencias(
     grupo,
     carrera,
     ciclo,
+    materiaClave,
     profesorClave: sesion.matricula,
     profesorNombre: sesion.nombre || sesion.matricula,
   });
@@ -150,6 +167,7 @@ export async function actionConfirmarAsistencias(
   grupo: string,
   carrera: string,
   ciclo: string,
+  materiaClave: string,
 ): Promise<
   | { ok: true; resumen: ResumenAsistencia }
   | { ok: false; error: string }
@@ -163,6 +181,9 @@ export async function actionConfirmarAsistencias(
   if (!(archivo instanceof File) || archivo.size === 0) {
     return { ok: false, error: "Selecciona un archivo válido." };
   }
+  if (!materiaClave.trim()) {
+    return { ok: false, error: "Selecciona la materia para guardar la plantilla." };
+  }
 
   const supabase = await createClient();
   const resultado = await confirmarAsistencias(supabase, archivo, {
@@ -170,64 +191,13 @@ export async function actionConfirmarAsistencias(
     grupo,
     carrera,
     ciclo,
+    materiaClave,
     profesorClave: sesion.matricula,
     profesorNombre: sesion.nombre || sesion.matricula,
   });
 
   if (!resultado.ok) return resultado;
   return { ok: true, resumen: resultado.plan.resumen };
-}
-
-/**
- * Obtiene la configuración semanal de clases del profesor actual (Bloque 5C).
- * Si aún no existe, devuelve una configuración vacía (todos los días en 0).
- */
-export async function actionObtenerConfiguracionClasesProfesor(): Promise<
-  | { ok: true; config: ConfiguracionClasesProfesor }
-  | { ok: false; error: string }
-> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
-    return { ok: false, error: "No tienes permiso para gestionar asistencias." };
-  }
-
-  const supabase = await createClient();
-  const config = await obtenerConfiguracionClasesProfesor(
-    supabase,
-    sesion.matricula,
-  );
-
-  return {
-    ok: true,
-    config: config ?? configuracionVacia(sesion.matricula),
-  };
-}
-
-/**
- * Guarda (UPSERT) la configuración semanal de clases del profesor actual.
- * La identidad SIEMPRE es `sesion.matricula`. Re-guardar actualiza, no duplica.
- */
-export async function actionGuardarConfiguracionClasesProfesor(input: {
-  lunes: number;
-  martes: number;
-  miercoles: number;
-  jueves: number;
-  viernes: number;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
-    return { ok: false, error: "No tienes permiso para gestionar asistencias." };
-  }
-
-  const supabase = await createClient();
-  return guardarConfiguracionClasesProfesor(supabase, {
-    profesorClave: sesion.matricula,
-    lunes: input.lunes,
-    martes: input.martes,
-    miercoles: input.miercoles,
-    jueves: input.jueves,
-    viernes: input.viernes,
-  });
 }
 
 /**
@@ -728,6 +698,64 @@ export async function actionListarAlumnosGruposProfesor(): Promise<
   return { ok: true, grupos: porGrupo };
 }
 
+/**
+ * FASE HORARIO — Materias disponibles en el horario oficial del grupo.
+ * Cualquier profesor puede descargar la plantilla de una materia; el sistema
+ * calcula automáticamente cuántas clases tiene esa materia cada día.
+ */
+export type MateriaHorarioUI = {
+  clave: string;
+  nombre: string;
+  totalSemana: number;
+  porDia: Record<string, number>;
+};
 
-
+export async function actionObtenerMateriasHorarioGrupo(input: {
+  grado: string;
+  grupo: string;
+  carrera: string;
+  ciclo: string;
+}): Promise<
+  | {
+      ok: true;
+      usaHorario: boolean;
+      aviso: string | null;
+      materias: MateriaHorarioUI[];
+      porDiaGrupo: Record<string, number>;
+    }
+  | { ok: false; error: string }
+> {
+  const sesion = await obtenerSesionPortal();
+  if (!sesion || (sesion.rol !== "maestro" && sesion.rol !== "directivo")) {
+    return { ok: false, error: "No tienes permiso para gestionar asistencias." };
+  }
+  const supabase = await createClient();
+  const consulta = await consultarHorarioGrupoPorIdentidad(supabase, {
+    ciclo: input.ciclo,
+    grado: input.grado,
+    grupo: input.grupo,
+    carrera: input.carrera,
+  });
+  if (!consulta) {
+    return {
+      ok: true,
+      usaHorario: false,
+      aviso: "El grupo no tiene horario oficial cargado para este periodo.",
+      materias: [],
+      porDiaGrupo: {},
+    };
+  }
+  const materias: MateriaHorarioUI[] = materiasDelHorario(
+    consulta.bloques,
+  ).map((m) => ({
+    clave: m.clave,
+    nombre: m.nombre,
+    totalSemana: m.totalSemana,
+    porDia: { ...m.porDia } as Record<string, number>,
+  }));
+  const porDiaGrupo = totalBloquesGrupoPorDia(
+    consulta.bloques,
+  ) as Record<string, number>;
+  return { ok: true, usaHorario: true, aviso: null, materias, porDiaGrupo };
+}
 

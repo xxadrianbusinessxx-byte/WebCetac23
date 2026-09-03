@@ -1,7 +1,7 @@
 ================================================================================
   CONTEXTO DEL PROYECTO — mi-web-escolar (AulaNube / CETAC)
   Archivo: contexto.feliz
-  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11 + FASE 9 + FASE 10)
+  Actualizado: septiembre 2026 (bloques 6E-6L + 7A-7C.2 + Bloque 11 + FASE 9 + FASE 10 + FASE HORARIO [Bloque 13])
 ================================================================================
 
 Este documento resume lo implementado hasta ahora y lo que falta por hacer.
@@ -1225,3 +1225,48 @@ dependencias ni servicios externos.
 ================================================================================
   Fin de contexto.feliz
 ================================================================================
+
+
+===============================================================================
+Bloque 13 — FASE HORARIO (Horario semanal oficial). Estado: implementado.
+===============================================================================
+Nueva fuente única de verdad de «qué clases están programadas por grupo y día»,
+versionada por periodo/ciclo. Hitos y hallazgos finales:
+
+  · SQL PREPARADO (NO ejecutado) supabase/crear-horario-semanal.sql, AHORA 100%
+    IDEMPOTENTE: CREATE TABLE/INDEX IF NOT EXISTS, DROP TRIGGER IF EXISTS +
+    CREATE TRIGGER, DROP POLICY IF EXISTS + CREATE POLICY (Postgres no admite
+    CREATE POLICY IF NOT EXISTS), COMMENT ON TABLE. Re-ejecutable sin errores
+    42710/42601.
+  · Módulos nuevos: lib/escolar/horario-semanal.ts (lectura/derivación y
+    materias del horario) y lib/escolar/horario-importar.ts (importación Excel
+    idempotente por clave natural + plantilla de descarga .xlsx del directivo).
+  · DECISIÓN FINAL (ajuste posterior a la revisión): el profesor NO se asigna
+    desde el documento y NO se restringe por asignaciones_profesor. Del Excel se
+    extrae grado, grupo, carrera, materia y fecha inicio/fin. En la UI de
+    asistencias el profesor elige la MATERIA (lista derivada del horario) y el
+    sistema calcula automáticamente cuántas clases tiene esa materia cada día
+    (fila CLASES = bloques de esa materia; materia repetida el mismo día suma).
+    Cualquier profesor puede descargar la plantilla de una materia.
+  · SE QUITÓ la opción manual «guardar clases por día»: eliminadas del panel y
+    de las Server Actions (actionObtener/GuardarConfiguracionClasesProfesor).
+    configuracion_clases_profesor se conserva SOLO como legacy/compatibilidad
+    (FALLBACK_LEGACY_CONFIG_CLASES_ACTIVO = false; no se consulta).
+  · Server Actions: app/actions/horario.ts (importar SOLO directivo; consultas
+    autorizadas) y app/actions/asistencias.ts (plantilla por materia con
+    materiaClave; actionObtenerMateriasHorarioGrupo).
+  · UI directivo: HorarioEscolarPanel en /configuracion (importar + consultar +
+    botón «Descargar plantilla del horario»).
+  · UI profesor: asistencias-panel reorganizado (horario del grupo, chips de
+    materias, selector de materia, clases por día automático, descarga/análisis
+    por materia). Sin configuración manual.
+  · UI alumno/tutor/profesor: HorarioAlumnoResumen muestra el horario semanal
+    del grupo (materia/horas) junto al calendario de asistencia; también en el
+    buscador del profesor (para justificaciones).
+  · Hallazgos del archivo real (things/CETAC23_Horario_Ago2026-Ene2027 (1).xlsx):
+    el detalle contiene 2 bloques SOLAPADOS (5°A viernes 09:40–11:20 vs
+    10:30–11:20) que la importación detecta y bloquea hasta corregirlos; la hoja
+    «Resumen Clases por Día» está desactualizada (solo 1° cuadra con el
+    detalle), por lo que se usa ÚNICAMENTE como validación cruzada/aviso y nunca
+    se persiste. «Sin profesor asignado» = NULL; alias de carrera MC→MECATRONICA.
+  · Documentación del módulo: docs/HORARIO_SEMANAL_MODULO.md.

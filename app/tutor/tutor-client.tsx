@@ -15,6 +15,7 @@ import {
   type MensajeJustificacionConDetalle,
 } from "@/app/actions/justificaciones";
 import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistencia-alumno";
+import { HorarioAlumnoResumen } from "@/app/components/horario-alumno-resumen";
 import type { PortalSessionPayload } from "@/lib/auth/types";
 
 import { FrutigerBackdrop } from "../components/frutiger-backdrop";
@@ -499,7 +500,9 @@ export function TutorClient({ sesion }: Props) {
                           Cargando alumno…
                         </p>
                       ) : contextoAlumno ? (
-                        <CalendarioAsistenciaAlumno
+                        <div className="flex flex-col gap-3">
+                          <HorarioAlumnoResumen curp={contextoAlumno.curp} />
+                          <CalendarioAsistenciaAlumno
                           curp={contextoAlumno.curp}
                           grado={contextoAlumno.grado}
                           grupo={contextoAlumno.grupo}
@@ -508,6 +511,7 @@ export function TutorClient({ sesion }: Props) {
                           nombreAlumno={contextoAlumno.nombre}
                           permitirJustificacion
                         />
+                        </div>
                       ) : (
                         <p className="text-center text-xs font-semibold text-slate-600">
                           Selecciona un alumno para ver su asistencia.

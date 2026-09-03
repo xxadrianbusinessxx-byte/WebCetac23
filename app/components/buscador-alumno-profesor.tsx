@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { actionListarAlumnosGruposProfesor } from "@/app/actions/asistencias";
 import { normalizarNombre } from "@/lib/escolar/nombres";
 import { CalendarioAsistenciaAlumno } from "./calendario-asistencia-alumno";
+import { HorarioAlumnoResumen } from "./horario-alumno-resumen";
 
 type GrupoConAlumnos = {
   grado: string;
@@ -219,7 +220,8 @@ export function BuscadorAlumnoProfesor({
         </div>
 
         {alumnoSel && (
-          <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+          <div className="flex flex-col gap-4 rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+            <HorarioAlumnoResumen curp={alumnoSel.curp} />
             <CalendarioAsistenciaAlumno
               curp={alumnoSel.curp}
               grado={alumnoSel.grado}

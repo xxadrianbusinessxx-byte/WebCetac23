@@ -33,6 +33,8 @@ import {
 } from "./tables";
 
 
+import { obtenerConteosHorarioMateria } from "./horario-semanal";
+
 import type { AlumnoRow, EtiquetasPersonalesRow } from "./types";
 
 /**
@@ -44,6 +46,20 @@ import type { AlumnoRow, EtiquetasPersonalesRow } from "./types";
  * Cambiar a `false` solo cuando la migraciÃ³n de inscripciones estÃ© verificada.
  */
 const FALLBACK_LEGACY_ETIQUETAS_ACTIVO = true;
+
+/**
+ * FASE HORARIO — Control de compatibilidad (LEGACY).
+ *
+ * `configuracion_clases_profesor` perdió su autoridad como fuente de la
+ * cantidad de clases por día: ahora el HORARIO SEMANAL OFICIAL
+ * (`horario_semanal`, módulo lib/escolar/horario-semanal.ts) determina los
+ * bloques programados. Mientras sea `true`, si el grupo/periodo NO tiene
+ * horario cargado se conserva el comportamiento anterior (configuración
+ * manual) para no romper flujos en curso. Marcar a `false` solo cuando la
+ * migración de todos los grupos activos a horario esté verificada.
+ * La tabla NO se elimina físicamente (ver supabase/crear-horario-semanal.sql).
+ */
+export const FALLBACK_LEGACY_CONFIG_CLASES_ACTIVO = false;
 
 
 
@@ -70,6 +86,9 @@ export type ContextoAsistencia = {
   ciclo: string;
   profesorClave: string;
   profesorNombre: string;
+  /** FASE HORARIO — materia del horario oficial (clave normalizada) para
+   *  derivar la fila CLASES contando sus bloques por día. */
+  materiaClave?: string;
 };
 
 export type AlumnoPlantilla = {
@@ -83,6 +102,10 @@ export type PlantillaAsistencia = {
   /** Contenido binario del .xlsx en base64 (para descargar en el cliente). */
   base64: string;
   nombreArchivo: string;
+  /** FASE HORARIO — true cuando la fila CLASES se derivó del horario oficial. */
+  usaHorario: boolean;
+  /** Aviso de la derivación (p. ej. sin asignación en el grupo). */
+  aviso?: string | null;
 };
 
 export type ResumenAsistencia = {
@@ -102,6 +125,12 @@ export type ResumenAsistencia = {
   erroresDetalle: string[];
   pendientesDetalle: string[];
   discrepanciasDetalle: string[];
+  /** FASE HORARIO — 'horario' (oficial) | 'configuracion' (legacy). */
+  fuenteClases: "horario" | "configuracion";
+  /** true = la fila CLASES se derivó del horario oficial del grupo. */
+  usaHorario: boolean;
+  /** Aviso de la derivación (p. ej. sin asignación en el grupo). */
+  aviso?: string | null;
 };
 
 
@@ -527,6 +556,59 @@ async function obtenerAlumnosDelGrupoLegacy(
 }
 
 /**
+ * FASE HORARIO — Clases oficiales por fecha para la fila CLASES de una materia.
+ *
+ * Fuente: HORARIO SEMANAL OFICIAL (bloques de la materia seleccionada en el
+ * grupo). Cualquier profesor puede generar la plantilla de una materia; el
+ * sistema calcula automáticamente cuántas clases tiene esa materia cada día.
+ */
+async function resolverClasesOficialesParaPlantilla(
+  supabase: SupabaseClient,
+  ctx: ContextoAsistencia,
+  fechas: string[],
+): Promise<
+  | {
+      ok: true;
+      usaHorario: boolean;
+      aviso: string | null;
+      porFecha: Map<string, number>;
+    }
+  | { ok: false; error: string }
+> {
+  // FASE HORARIO — la cantidad de clases por día sale del HORARIO OFICIAL de
+  // la materia seleccionada (bloques por día). No depende de asignaciones ni
+  // de configuración manual del profesor.
+  if (!ctx.materiaClave) {
+    return { ok: false, error: "Selecciona la materia para generar la plantilla." };
+  }
+  const materia = await obtenerConteosHorarioMateria(supabase, {
+    ciclo: ctx.ciclo,
+    grado: ctx.grado,
+    grupo: ctx.grupo,
+    carrera: ctx.carrera,
+    materiaClave: ctx.materiaClave,
+    fechas,
+  });
+  if (!materia.usaHorario) {
+    return {
+      ok: false,
+      error:
+        materia.aviso ??
+        "El grupo no tiene horario oficial cargado para este periodo.",
+    };
+  }
+  if (!materia.materiaEncontrada) {
+    return { ok: false, error: materia.aviso ?? "La materia no se encontró." };
+  }
+  return {
+    ok: true,
+    usaHorario: true,
+    aviso: null,
+    porFecha: materia.conteosPorFecha,
+  };
+}
+
+/**
  * Genera la plantilla de asistencias para un grado/grupo/carrera y ciclo.
  * Solo usa dÃ­as `tipo = 'clase'` del calendario. La plantilla incluye una fila
  * especial `CLASES` (clases impartidas por el profesor por dÃ­a) y una fila por
@@ -565,21 +647,22 @@ export async function generarPlantillaAsistencia(
     };
   }
 
-  // ConfiguraciÃ³n semanal del profesor (Bloque 5C). Si no existe, la fila
-  // CLASES queda vacÃ­a y la UI indicarÃ¡ que debe configurarla.
-  const config = await obtenerConfiguracionClasesProfesor(
+  // FASE HORARIO — la fila CLASES se deriva del horario oficial del grupo
+  // (bloques programados del profesor); la configuracion legacy solo se usa
+  // como respaldo temporal mientras el grupo no tenga horario cargado.
+  const clases = await resolverClasesOficialesParaPlantilla(
     supabase,
-    ctx.profesorClave,
+    ctx,
+    fechas,
   );
+  if (!clases.ok) return { ok: false, error: clases.error };
 
   const filas: string[][] = [];
   filas.push(["CURP", "NOMBRE", ...fechas]);
-  // Fila especial: clases impartidas por el profesor por dÃ­a. Se auto-rellena
-  // segÃºn el dÃ­a REAL de cada fecha del calendario + la configuraciÃ³n semanal.
   filas.push([
     "CLASES",
     ctx.profesorNombre,
-    ...fechas.map((f) => String(clasesDelProfesorParaFecha(config, f))),
+    ...fechas.map((f) => String(clases.porFecha.get(f) ?? 0)),
   ]);
   for (const a of alumnos) {
     filas.push([a.curp, a.nombre, ...fechas.map(() => "")]);
@@ -602,6 +685,8 @@ export async function generarPlantillaAsistencia(
         [20, 50, ...fechas.map(() => 11)],
       ),
       nombreArchivo: `asistencias_${nombreBase || "grupo"}_${ctx.ciclo}.xlsx`,
+      usaHorario: clases.usaHorario,
+      aviso: clases.aviso,
     },
   };
 }
@@ -752,12 +837,23 @@ export async function analizarPlantillaAsistencia(
     asistenciasPreviasPorClave.set(`${r.curp}|${r.fecha}`, r.clases_asistidas);
   }
 
-  // 8) ConfiguraciÃ³n semanal del profesor: FUENTE DE VERDAD de cuÃ¡ntas clases
-  //    imparte por dÃ­a. La fila CLASES del archivo es solo informativa.
-  const config = await obtenerConfiguracionClasesProfesor(
+  // 8) Clases oficiales por fecha. Fuente: HORARIO OFICIAL (bloques del
+  //    profesor); respaldo legacy temporal = configuracion_clases_profesor.
+  //    La fila CLASES del archivo es solo informativa.
+  const fechasCiclo = [...diasClase].sort();
+  const oficialesPlantilla = await resolverClasesOficialesParaPlantilla(
     supabase,
-    ctx.profesorClave,
+    ctx,
+    fechasCiclo,
   );
+  if (!oficialesPlantilla.ok) {
+    return { ok: false, error: oficialesPlantilla.error };
+  }
+  const usaHorario = oficialesPlantilla.usaHorario;
+  const avisoClases = oficialesPlantilla.aviso;
+  const fuenteClases: "horario" | "configuracion" = usaHorario
+    ? "horario"
+    : "configuracion";
 
   // 9) Recorrer filas.
   const clasesImpartidas: PlanAsistencia["clasesImpartidas"] = [];
@@ -773,10 +869,10 @@ export async function analizarPlantillaAsistencia(
   let errores = 0;
   let discrepancias = 0;
 
-  // 10) Fila CLASES del archivo: se compara contra la configuraciÃ³n semanal
-  //     (fuente de verdad). Las discrepancias son informativas y NO alteran la
-  //     configuraciÃ³n. El valor oficial de `clases_impartidas` es el de la
-  //     configuraciÃ³n semanal.
+  // 10) Fila CLASES del archivo: se compara contra la fuente oficial
+  //     (horario o configuracion legacy). Las discrepancias son informativas
+  //     y NO alteran la fuente. El valor oficial de `clases_impartidas` es el
+  //     de la fuente oficial.
   const clasesArchivoPorFecha = new Map<string, number>();
   for (const fila of rawDatos) {
     const curpCelda = celdaTexto(fila[idxCurp]).toUpperCase();
@@ -797,25 +893,24 @@ export async function analizarPlantillaAsistencia(
   }
 
 
-  // 11) Clases oficiales por fecha (desde la configuraciÃ³n semanal). Solo para
-  //     las fechas presentes en el archivo que sean dÃ­as de clase. La fecha
-  //     SIEMPRE es `columna.fecha` (canÃ³nica YYYY-MM-DD).
+  // 11) Clases oficiales por fecha (fuente: horario oficial o config legacy).
+  //     Solo para las fechas presentes en el archivo que sean dÃ­as de clase.
   const clasesOficialesPorFecha = new Map<string, number>();
   for (const columna of columnasFecha) {
     const fecha = columna.fecha;
     if (!diasClase.has(fecha)) continue;
-    const oficial = clasesDelProfesorParaFecha(config, fecha);
+    const oficial = oficialesPlantilla.porFecha.get(fecha) ?? 0;
     clasesOficialesPorFecha.set(fecha, oficial);
 
     const delArchivo = clasesArchivoPorFecha.get(fecha);
     if (delArchivo !== undefined && delArchivo !== oficial) {
       discrepanciasDetalle.push(
-        `Fila CLASES: el archivo dice ${delArchivo} clases el ${fecha}, pero tu configuraciÃ³n semanal indica ${oficial}. Se usarÃ¡ ${oficial} (configuraciÃ³n).`,
+        `Fila CLASES: el archivo dice ${delArchivo} clases el ${fecha}, pero la fuente oficial (${fuenteClases}) indica ${oficial}. Se usarÃ¡ ${oficial}.`,
       );
       discrepancias++;
     }
 
-    // `clases_impartidas` registra el dato efectivo (fuente: configuraciÃ³n).
+    // `clases_impartidas` registra el dato efectivo (fuente oficial).
     clasesImpartidas.push({
       profesor_clave: ctx.profesorClave,
       grado: g,
@@ -827,7 +922,7 @@ export async function analizarPlantillaAsistencia(
   }
 
   // 12) DÃ­as PENDIENTES: dÃ­as de clase del ciclo en los que el profesor tiene
-  //     clases segÃºn su configuraciÃ³n (oficial > 0) pero que NO vienen en el
+  //     clases segÃºn la fuente oficial (oficial > 0) pero que NO vienen en el
   //     archivo. Quedan pendientes (sin registro), NO se marcan como falta.
   const fechasEnArchivo = new Set(columnasFecha.map((c) => c.fecha));
 
@@ -835,9 +930,11 @@ export async function analizarPlantillaAsistencia(
   const diasClaseOrdenados = [...diasClase].sort();
   for (const fecha of diasClaseOrdenados) {
     if (fechasEnArchivo.has(fecha)) continue;
-    const oficial = clasesDelProfesorParaFecha(config, fecha);
+    const oficial = oficialesPlantilla.porFecha.get(fecha) ?? 0;
     if (oficial > 0) {
-      pendientesDetalle.push(`${fecha} (${oficial} clases segÃºn tu configuraciÃ³n)`);
+      pendientesDetalle.push(
+        `${fecha} (${oficial} clases segÃºn ${fuenteClases === "horario" ? "el horario oficial" : "tu configuraciÃ³n"})`,
+      );
     }
   }
 
@@ -902,11 +999,11 @@ export async function analizarPlantillaAsistencia(
       }
       const asistencia = Number(valor);
 
-      // No puede superar las clases oficiales del profesor ese dÃ­a (config).
+      // No puede superar las clases oficiales del profesor ese dÃ­a.
       const maxClases = clasesOficialesPorFecha.get(fecha) ?? 0;
       if (asistencia > maxClases) {
         erroresDetalle.push(
-          `${curp}: asistencia ${asistencia} supera las ${maxClases} clases del ${fecha} segÃºn tu configuraciÃ³n.`,
+          `${curp}: asistencia ${asistencia} supera las ${maxClases} clases del ${fecha} segÃºn la fuente oficial (${fuenteClases}).`,
         );
         errores++;
         continue;
@@ -946,6 +1043,9 @@ export async function analizarPlantillaAsistencia(
         erroresDetalle,
         pendientesDetalle,
         discrepanciasDetalle,
+        fuenteClases,
+        usaHorario,
+        aviso: avisoClases,
       },
     },
   };
@@ -975,6 +1075,13 @@ export async function confirmarAsistencias(
   if (!analisis.ok) return analisis;
 
   const { plan } = analisis;
+
+  // FASE HORARIO — si la fuente es el horario oficial pero el profesor no
+  // puede atribuirse bloques (sin asignación en el grupo o sin materias
+  // suyas), NO se escribe: evita sobrescribir registros previos con ceros.
+  if (plan.resumen.usaHorario && plan.resumen.aviso) {
+    return { ok: false, error: plan.resumen.aviso };
+  }
 
   // UPSERT clases_impartidas (profesor + grado + grupo + fecha).
   for (let i = 0; i < plan.clasesImpartidas.length; i += TAMANO_LOTE) {

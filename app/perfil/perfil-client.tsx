@@ -11,6 +11,7 @@ import {
 import { actionObtenerMapeoColumnasMateria } from "@/app/actions/materias";
 import { actionGuardarCamposPersonales } from "@/app/actions/etiquetas-dinamicas";
 import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistencia-alumno";
+import { HorarioAlumnoResumen } from "@/app/components/horario-alumno-resumen";
 import { EtiquetasDinamicasPanel } from "@/app/components/etiquetas-dinamicas-panel";
 import { MateriaCalificacionesAlumno } from "@/app/components/materia-calificaciones-alumno";
 import { MateriaSelector } from "@/app/components/materia-selector";
@@ -729,6 +730,7 @@ export function PerfilClient({ materias, modo, urlRegreso, datos }: Props) {
                 {/* Asistencia del alumno */}
                 {tieneGrupo && curp && (
                   <div className="mt-2 flex flex-col gap-4 rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+                    <HorarioAlumnoResumen curp={curp} />
                     <CalendarioAsistenciaAlumno
                       curp={curp}
                       grado={etiquetas?.GRADO?.trim() ?? ""}
