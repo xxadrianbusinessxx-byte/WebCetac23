@@ -101,7 +101,7 @@ function etiquetaGrupo(g: GrupoFiltro): string {
   return `${g.grado} ${g.grupo}${g.carrera ? ` · ${g.carrera}` : ""}`.trim();
 }
 
-export function HorarioEscolarPanel() {
+export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: string } = {}) {
   const [periodos, setPeriodos] = useState<PeriodoCatalogoSimple[]>([]);
   const [periodoId, setPeriodoId] = useState("");
   const [grupos, setGrupos] = useState<GrupoFiltro[]>([]);
@@ -130,13 +130,26 @@ export function HorarioEscolarPanel() {
       if (!activo) return;
       if (r.ok) {
         setPeriodos(r.periodos);
-        if (r.periodos.length > 0) setPeriodoId(r.periodos[0]!.id);
+        const inicial =
+          periodoIdInicial && r.periodos.some((p) => p.id === periodoIdInicial)
+            ? periodoIdInicial
+            : (r.periodos[0]?.id ?? "");
+        setPeriodoId(inicial);
       }
     });
     return () => {
       activo = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Contexto explícito del workspace: si cambia el ciclo, el panel le sigue.
+  useEffect(() => {
+    if (periodoIdInicial && periodos.some((p) => p.id === periodoIdInicial)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPeriodoId(periodoIdInicial);
+    }
+  }, [periodoIdInicial, periodos]);
 
   // Cargar grupos del periodo seleccionado.
   useEffect(() => {

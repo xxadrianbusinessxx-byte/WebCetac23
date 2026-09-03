@@ -106,7 +106,7 @@ const NOMBRES_MESES = [
 
 const NOMBRES_DIAS = ["L", "M", "M", "J", "V", "S", "D"];
 
-export function CalendarioEscolarPanel() {
+export function CalendarioEscolarPanel({ cicloInicial }: { cicloInicial?: string } = {}) {
 
   // Ciclo seleccionado y lista de ciclos existentes.
   const [ciclos, setCiclos] = useState<string[]>([]);
@@ -140,12 +140,24 @@ export function CalendarioEscolarPanel() {
   const cargarCiclos = useCallback(async () => {
     const lista = await actionListarCiclosEscolares();
     setCiclos(lista);
-    if (lista.length > 0 && !ciclo) setCiclo(lista[0]!);
-  }, [ciclo]);
+    if (lista.length > 0 && !ciclo) {
+      const preferido = cicloInicial?.trim().toUpperCase();
+      setCiclo(preferido && lista.includes(preferido) ? preferido : lista[0]!);
+    }
+  }, [ciclo, cicloInicial]);
 
   useEffect(() => {
     void cargarCiclos();
   }, [cargarCiclos]);
+
+  // Contexto explícito: si el workspace cambia de ciclo, el panel le sigue.
+  useEffect(() => {
+    const preferido = cicloInicial?.trim().toUpperCase();
+    if (preferido && ciclos.includes(preferido)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCiclo(preferido);
+    }
+  }, [cicloInicial, ciclos]);
 
   const cargarDias = useCallback(async (c: string) => {
     if (!c) {
