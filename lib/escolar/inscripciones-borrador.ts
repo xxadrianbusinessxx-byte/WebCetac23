@@ -84,6 +84,121 @@ export async function listarGruposPeriodoAdmin(
 }
 
 
+export type InscripcionAdminCiclo = {
+  id: string;
+  curp: string;
+  nombreAlumno: string;
+  grupoId: string;
+  grado: string;
+  grupo: string;
+  carreraClave: string;
+  activo: boolean;
+  created_at: string;
+};
+
+/**
+ * F3 — Lista SOLO LECTURA de inscripciones de un período concreto (para la UI
+ * del wizard: verificar qué alumnos quedaron preparados en B sin contaminar).
+ * Devuelve filas de `inscripciones_alumno` cuyo grupo pertenece al período.
+ * No escribe y nunca toca otros períodos.
+ */
+export async function listarInscripcionesPeriodoAdmin(
+  supabase: SupabaseClient,
+  periodoId: string,
+): Promise<{ ok: boolean; inscripciones?: InscripcionAdminCiclo[]; error?: string }> {
+  const permiso = await configuracionPermitidaEnPeriodo(supabase, periodoId);
+  if (!permiso.ok) return { ok: false, error: permiso.error };
+
+  const { data: grupos, error: eG } = await supabase
+    .from(TABLA_GRUPOS)
+    .select("id, grado, nombre, carrera_id")
+    .eq("periodo_id", periodoId);
+  if (eG) return { ok: false, error: eG.message };
+  const filasGrupos = (grupos ?? []) as Array<{
+    id: string;
+    grado: string;
+    nombre: string;
+    carrera_id: string | null;
+  }>;
+  const grupoIds = filasGrupos.map((g) => g.id);
+  if (grupoIds.length === 0) return { ok: true, inscripciones: [] };
+
+  const carreraIds = [
+    ...new Set(filasGrupos.map((g) => g.carrera_id).filter((x): x is string => Boolean(x))),
+  ];
+  const clavePorId = new Map<string, string>();
+  if (carreraIds.length > 0) {
+    const { data: carreras, error: eC } = await supabase
+      .from(TABLA_CARRERAS)
+      .select("id, clave")
+      .in("id", carreraIds);
+    if (eC) return { ok: false, error: eC.message };
+    for (const c of (carreras ?? []) as Array<{ id: string; clave: string }>) {
+      clavePorId.set(c.id, c.clave);
+    }
+  }
+  const grupoPorId = new Map(filasGrupos.map((g) => [g.id, g]));
+
+  const { data: inscripciones, error: eI } = await supabase
+    .from(TABLA_INSCRIPCIONES_ALUMNO)
+    .select("id, curp, grupo_id, activo, created_at")
+    .in("grupo_id", grupoIds);
+  if (eI) return { ok: false, error: eI.message };
+  const filasIns = (inscripciones ?? []) as Array<{
+    id: string;
+    curp: string;
+    grupo_id: string;
+    activo: boolean;
+    created_at: string | null;
+  }>;
+  if (filasIns.length === 0) return { ok: true, inscripciones: [] };
+
+  const curps = [...new Set(filasIns.map((x) => x.curp))];
+  const nombrePorCurp = new Map<string, string>();
+  const { data: alumnos, error: eA } = await supabase
+    .from(TABLA_ALUMNOS)
+    .select("CURP, NOMBRE, P_APELLIDO, S_APELLIDO")
+    .in("CURP", curps);
+  if (eA) return { ok: false, error: eA.message };
+  for (const a of (alumnos ?? []) as Array<{
+    CURP: string;
+    NOMBRE?: string | null;
+    P_APELLIDO?: string | null;
+    S_APELLIDO?: string | null;
+  }>) {
+    const nombre = [a.NOMBRE, a.P_APELLIDO, a.S_APELLIDO]
+      .filter((v): v is string => Boolean(v && String(v).trim()))
+      .join(" ")
+      .trim();
+    nombrePorCurp.set(String(a.CURP).toUpperCase(), nombre);
+  }
+
+  const salida: InscripcionAdminCiclo[] = filasIns
+    .map((x) => {
+      const g = grupoPorId.get(x.grupo_id);
+      return {
+        id: x.id,
+        curp: x.curp,
+        nombreAlumno: nombrePorCurp.get(x.curp.toUpperCase()) ?? "",
+        grupoId: x.grupo_id,
+        grado: g?.grado ?? "",
+        grupo: g?.nombre ?? "",
+        carreraClave: g?.carrera_id ? (clavePorId.get(g.carrera_id) ?? "") : "",
+        activo: Boolean(x.activo),
+        created_at: x.created_at ?? "",
+      };
+    })
+    .sort((a, b) => {
+      const ga = `${a.grado}|${a.grupo}`;
+      const gb = `${b.grado}|${b.grupo}`;
+      if (ga !== gb) return ga < gb ? -1 : 1;
+      return a.curp < b.curp ? -1 : a.curp > b.curp ? 1 : 0;
+    });
+
+  return { ok: true, inscripciones: salida };
+}
+
+
 export type AlumnoCandidato = { curp: string; nombre: string };
 
 /**

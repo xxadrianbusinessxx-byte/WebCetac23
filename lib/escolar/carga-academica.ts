@@ -1,7 +1,5 @@
-import { obtenerCicloOperativoGlobal } from "./ciclo-estado";
-
 /**
- * C3.1 — CARGA MASIVA DE ALUMNOS + PERTENENCIA ACADÉMICA
+ * C3.1/F3 — CARGA MASIVA DE ALUMNOS + PERTENENCIA ACADÉMICA
  *
  * Extiende el pipeline existente de carga (ALUMNOS) para resolver, en la misma
  * operación, la PERTENENCIA ACADÉMICA contra el catálogo (inscripciones_alumno).
@@ -18,10 +16,19 @@ import { obtenerCicloOperativoGlobal } from "./ciclo-estado";
  *     (la Server Action valida rol directivo).
  *   - Bloquea la escritura si existen AMBIGUOS, GRUPOS INEXISTENTES o
  *     CONFLICTOS ACADÉMICOS por CURP duplicada.
- *   - Cambios de grupo: nunca DELETE; se desactiva la activa anterior y se
- *     activa la nueva (historial conservado vía inscribirAlumno/unaActiva).
+ *   - F3 (ruta con `periodoId`): una carga dirigida a un período NUNCA
+ *     modifica, desactiva ni sustituye inscripciones de otro período. El
+ *     destino se resuelve por `periodos.id`, los grupos por
+ *     `grupos.periodo_id = periodoId AND activo`, y la inscripción se aplica
+ *     con `inscribirAlumnoEnCiclo` (BORRADOR → activo=false). La clasificación
+ *     (SIN_CAMBIO / NUEVA_INSCRIPCION / CAMBIO_DE_GRUPO) se calcula SOLO
+ *     dentro del período destino.
+ *   - Cambios de grupo (ruta legacy sin periodoId): nunca DELETE; se desactiva
+ *     la activa anterior y se activa la nueva (historial conservado vía
+ *     inscribirAlumno/unaActiva).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { pareceCurp, normalizarCurp } from "./buscar-en-filas";
 import {
   normalizarCarreraCatalogo,
@@ -32,14 +39,19 @@ import {
   type CarreraRow,
   type GrupoRow,
   type InscripcionRow,
-  type PeriodoRow,
 } from "./catalogo-academico";
 import {
   analizarRoster,
   sincronizarAlumnosDesdeArchivo,
-  type ResultadoSincronizacionAlumnos,
 } from "./alumnos";
 import { archivoCsvAFilas } from "./csv";
+import {
+  ESTADO_HISTORICO,
+  consultarPeriodo,
+  resolverEstadoPeriodo,
+  type FilaPeriodoEstado,
+} from "./ciclo-estado";
+import { inscribirAlumnoEnCiclo } from "./inscripciones-borrador";
 import {
   detectarColumnasRoster,
   mapeoRosterValido,
@@ -49,6 +61,7 @@ import {
 import {
   TABLA_CARRERAS,
   TABLA_GRUPOS,
+  TABLA_INSCRIPCIONES_ALUMNO,
   TABLA_PERIODOS,
 } from "./tables";
 
@@ -56,9 +69,17 @@ import {
  * TIPOS
  * ------------------------------------------------------------------------- */
 
-/** Contexto académico externo (modo B: Excel sin columnas G/G/C). */
+/**
+ * Contexto académico externo (modo B: Excel sin columnas G/G/C).
+ *
+ * F3: `periodoId` presente → ruta nueva (destino = `periodos.id = periodoId`,
+ * BORRADOR u OPERATIVO; grupos por `grupos.periodo_id`). `periodoId` ausente →
+ * ruta legacy (destino por `periodoNombre` + ciclo operativo global). Se
+ * conserva `periodoNombre` por compatibilidad con consumidores legacy.
+ */
 export type ContextoAcademico = {
   periodoNombre: string;
+  periodoId?: string;
   grado: string;
   grupo: string;
   carrera: string;
@@ -251,36 +272,55 @@ async function leerFilasConContexto(
   };
 }
 
-/** Índice de grupos activos del periodo por identidad normalizada G2. */
+/**
+ * Índice de grupos activos por identidad normalizada G2.
+ *
+ * F3: si `periodoId` está presente el destino se resuelve EXCLUSIVAMENTE por
+ * `grupos.periodo_id = periodoId AND grupos.activo = true` (no depende de
+ * `periodoNombre` ni de que el período sea OPERATIVO; BORRADOR también carga).
+ * Sin `periodoId` se mantiene la semántica legacy (período por nombre y solo
+ * si es el ciclo operativo).
+ */
 async function cargarIndiceGrupos(
   supabase: SupabaseClient,
   periodoNombre: string,
+  periodoId?: string,
 ): Promise<Map<string, GrupoRow[]> | null> {
-  const con = await supabase
-    .from(TABLA_PERIODOS)
-    .select("id, activo, estado")
-    .eq("nombre", periodoNombre.trim())
-    .maybeSingle();
-  const sinEsquema =
-    Boolean(con.error) && /42703|does not exist/i.test(String(con.error?.message ?? ""));
-  const { data: periodo } = sinEsquema
-    ? await supabase
-        .from(TABLA_PERIODOS)
-        .select("id, activo")
-        .eq("nombre", periodoNombre.trim())
-        .maybeSingle()
-    : con;
-  if (!periodo) return null;
-  const esOperativo = sinEsquema
-    ? Boolean((periodo as { activo: boolean }).activo)
-    : String((periodo as { estado?: string | null }).estado ?? "").toLowerCase() === "operativo";
-  if (!esOperativo) return null;
-  const pid = String((periodo as { id: string }).id);
+  const pid = periodoId?.trim() || "";
+  if (!pid) {
+    const con = await supabase
+      .from(TABLA_PERIODOS)
+      .select("id, activo, estado")
+      .eq("nombre", periodoNombre.trim())
+      .maybeSingle();
+    const sinEsquema =
+      Boolean(con.error) && /42703|does not exist/i.test(String(con.error?.message ?? ""));
+    const { data: periodo } = sinEsquema
+      ? await supabase
+          .from(TABLA_PERIODOS)
+          .select("id, activo")
+          .eq("nombre", periodoNombre.trim())
+          .maybeSingle()
+      : con;
+    if (!periodo) return null;
+    const esOperativo = sinEsquema
+      ? Boolean((periodo as { activo: boolean }).activo)
+      : String((periodo as { estado?: string | null }).estado ?? "").toLowerCase() === "operativo";
+    if (!esOperativo) return null;
+    return construirIndiceGrupos(supabase, String((periodo as { id: string }).id));
+  }
+  return construirIndiceGrupos(supabase, pid);
+}
 
+/** Grupos activos de un período (por id) indexados por clave normalizada G2. */
+async function construirIndiceGrupos(
+  supabase: SupabaseClient,
+  periodoId: string,
+): Promise<Map<string, GrupoRow[]> | null> {
   const { data: grupos } = await supabase
     .from(TABLA_GRUPOS)
     .select("*")
-    .eq("periodo_id", pid)
+    .eq("periodo_id", periodoId)
     .eq("activo", true);
   const filasGrupos = (grupos ?? []) as GrupoRow[];
 
@@ -308,6 +348,68 @@ async function cargarIndiceGrupos(
     indice.set(key, arr);
   }
   return indice;
+}
+
+/**
+ * F3 — Inscripción relevante de un alumno DENTRO de un período concreto
+ * (no global). Consulta únicamente filas cuyo grupo pertenezca a
+ * `grupos.periodo_id = periodoId`. Prefiere la fila `activo=true`; en un
+ * BORRADOR (todas inactivas) devuelve la más reciente. Devuelve null si el
+ * alumno no tiene ninguna fila en ese período.
+ *
+ * NUNCA se usa para la ruta legacy: `obtenerInscripcionActiva(curp)` (global)
+ * sigue intacta y es la que consumen los flujos sin `periodoId`.
+ */
+export async function obtenerInscripcionActivaEnPeriodo(
+  supabase: SupabaseClient,
+  curp: string,
+  periodoId: string,
+): Promise<InscripcionRow | null> {
+  const c = (curp ?? "").trim().toUpperCase();
+  const pid = (periodoId ?? "").trim();
+  if (!c || !pid) return null;
+
+  const { data: grupos, error: eG } = await supabase
+    .from(TABLA_GRUPOS)
+    .select("id")
+    .eq("periodo_id", pid)
+    .eq("activo", true);
+  if (eG) return null;
+  const grupoIds = ((grupos ?? []) as Array<{ id: string }>).map((g) => g.id);
+  if (grupoIds.length === 0) return null;
+
+  const { data, error } = await supabase
+    .from(TABLA_INSCRIPCIONES_ALUMNO)
+    .select("*")
+    .eq("curp", c)
+    .in("grupo_id", grupoIds)
+    .order("created_at", { ascending: false });
+  if (error || !data?.length) return null;
+  const filas = data as InscripcionRow[];
+  return filas.find((f) => f.activo) ?? filas[0]!;
+}
+
+/**
+ * F3 — Valida el período destino de una carga dirigida (`periodoId` presente).
+ * Estados permitidos: BORRADOR u OPERATIVO. Rechaza HISTORICO e inexistente.
+ * Reutiliza los helpers existentes (`consultarPeriodo`, `resolverEstadoPeriodo`)
+ * y NO depende de `obtenerCicloOperativoGlobal()`.
+ */
+export async function validarPeriodoDestinoCarga(
+  supabase: SupabaseClient,
+  periodoId: string,
+): Promise<{ ok: true; periodo: FilaPeriodoEstado; esquema: boolean } | { ok: false; error: string }> {
+  const pid = (periodoId ?? "").trim();
+  if (!pid) return { ok: false, error: "Indica el periodoId destino." };
+  const r = await consultarPeriodo(supabase, pid);
+  if (r.error) return { ok: false, error: r.error };
+  if (!r.periodo) {
+    return { ok: false, error: "El periodo destino no existe (periodo_inexistente)." };
+  }
+  if (r.esquema && resolverEstadoPeriodo(r.periodo) === ESTADO_HISTORICO) {
+    return { ok: false, error: "No se puede cargar alumnos sobre un periodo HISTORICO." };
+  }
+  return { ok: true, periodo: r.periodo, esquema: r.esquema };
 }
 
 /**
@@ -368,9 +470,32 @@ export async function previsualizarCargaAcademica(
 
     const contexto = opts?.contexto;
     const periodoUtilizado = contexto?.periodoNombre?.trim() || null;
-    const indice = periodoUtilizado
-      ? await cargarIndiceGrupos(supabase, periodoUtilizado)
-      : null;
+    const pidDestino = contexto?.periodoId?.trim() || "";
+    let indice: Map<string, GrupoRow[]> | null = null;
+    let periodoMostrado: string | null = periodoUtilizado;
+    if (pidDestino) {
+      // F3 — destino por `periodos.id`; BORRADOR/OPERATIVO permitidos.
+      const val = await validarPeriodoDestinoCarga(supabase, pidDestino);
+      if (!val.ok) {
+        return {
+          ok: false,
+          error: val.error,
+          mapeo: parseo.mapeo,
+          periodoUtilizado: null,
+          alumnos: vacioAlumnos(),
+          academico: vacioAcademico(),
+          bloqueaEscritura: false,
+          detalle: [],
+        };
+      }
+      periodoMostrado = val.periodo.nombre || pidDestino;
+      indice = await cargarIndiceGrupos(supabase, "", pidDestino);
+    } else {
+      // Ruta legacy (sin periodoId): destino por nombre del ciclo operativo.
+      indice = periodoUtilizado
+        ? await cargarIndiceGrupos(supabase, periodoUtilizado)
+        : null;
+    }
 
     const academico: ResumenAcademico = vacioAcademico();
     const detalle: DetalleCargaAcademica[] = [];
@@ -396,7 +521,7 @@ export async function previsualizarCargaAcademica(
       }
 
       const final = contextoFinal(fila, contexto);
-      if (!final || !periodoUtilizado || !indice) {
+      if (!final || !indice) {
         academico.sinDatosAcademicos++;
         detalle.push({ ...baseFila, estado: "SIN_DATOS_ACADEMICOS" });
         continue;
@@ -439,8 +564,12 @@ export async function previsualizarCargaAcademica(
       }
 
       const grupoDestino = candidatos[0]!;
-      const inscripcionActiva: InscripcionRow | null =
-        await obtenerInscripcionActiva(supabase, fila.curp);
+      // F3 — En la ruta con `periodoId` la clasificación se calcula SOLO dentro
+      // del período destino (nunca con la inscripción activa global, que podría
+      // pertenecer al OPERATIVO A y falsear un CAMBIO_DE_GRUPO).
+      const inscripcionActiva: InscripcionRow | null = pidDestino
+        ? await obtenerInscripcionActivaEnPeriodo(supabase, fila.curp, pidDestino)
+        : await obtenerInscripcionActiva(supabase, fila.curp);
 
       if (!inscripcionActiva) {
         academico.nuevasInscripciones++;
@@ -541,7 +670,7 @@ export async function previsualizarCargaAcademica(
     return {
       ok: true,
       mapeo: parseo.mapeo,
-      periodoUtilizado,
+      periodoUtilizado: periodoMostrado,
       alumnos,
       academico,
       bloqueaEscritura:
@@ -644,6 +773,14 @@ export async function aplicarCargaAcademica(
   }
 
   // FASE 2 — INSCRIPCIONES (solo registros válidos de la preview).
+  // F3: con `periodoId` presente la inscripción usa SIEMPRE
+  // `inscribirAlumnoEnCiclo` (BORRADOR → activo=false, referencia cruzada de
+  // grupo→periodo, período no preparable rechazado, alumno inexistente
+  // rechazado, sin duplicación). La ruta legacy conserva `inscribirAlumno`
+  // con `unaActiva` (semántica operativo global). NUNCA se usa `unaActiva`
+  // en la ruta con `periodoId`.
+  const pidDestino = opts?.contexto?.periodoId?.trim() || "";
+  const rutaPeriodo = Boolean(pidDestino);
   let nuevas = 0;
   let cambiosDeGrupo = 0;
   let errores = 0;
@@ -651,9 +788,15 @@ export async function aplicarCargaAcademica(
   for (const d of preview.detalle) {
     if (d.estado !== "NUEVA_INSCRIPCION" && d.estado !== "CAMBIO_DE_GRUPO") continue;
     if (!d.grupoDestinoId) continue;
-    const r = await inscribirAlumno(supabase, d.curp, d.grupoDestinoId, {
-      unaActiva: d.estado === "CAMBIO_DE_GRUPO",
-    });
+    const r = rutaPeriodo
+      ? await inscribirAlumnoEnCiclo(supabase, {
+          curp: d.curp,
+          grupoId: d.grupoDestinoId,
+          periodoId: pidDestino,
+        })
+      : await inscribirAlumno(supabase, d.curp, d.grupoDestinoId, {
+          unaActiva: d.estado === "CAMBIO_DE_GRUPO",
+        });
     if (!r.ok) {
       errores++;
       erroresDetalle.push(`${d.curp}: ${r.error}`);

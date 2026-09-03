@@ -44,6 +44,13 @@ next-env.d.ts
 # test build output (compiled JS for scripts/test-fechas.mjs)
 /scripts/.tmp-fechas/
 
+# test build output (compiled JS para scripts/test-ciclo-estado.mjs)
+/scripts/.tmp-ciclo-estado/
+
+# test build output (compiled JS para scripts/test-ciclo-f3-pipeline.mjs)
+/scripts/.tmp-cf3/
+/scripts/.tmp-insc-f3/
+
 # test build output (compiled JS para scripts/test-evaluaciones.mjs)
 /scripts/.tmp-evaluaciones/
 

@@ -6,8 +6,10 @@ import {
   buscarAlumnosCandidatos,
   inscribirAlumnoEnCiclo,
   listarGruposPeriodoAdmin,
+  listarInscripcionesPeriodoAdmin,
   type AlumnoCandidato,
   type GrupoAdminCiclo,
+  type InscripcionAdminCiclo,
 } from "@/lib/escolar/inscripciones-borrador";
 
 /**
@@ -39,6 +41,20 @@ export async function actionBuscarAlumnosInscripcion(texto: string): Promise<
   const r = await buscarAlumnosCandidatos(supabase, texto);
   if (!r.ok) return { ok: false, error: r.error ?? "Error al buscar alumnos." };
   return { ok: true, alumnos: r.alumnos ?? [] };
+}
+
+/** Lista (SOLO LECTURA) de inscripciones del período para la UI del wizard. */
+export async function actionListarInscripcionesPeriodo(
+  periodoId: string,
+): Promise<
+  { ok: true; inscripciones: InscripcionAdminCiclo[] } | { ok: false; error: string }
+> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const supabase = await createClient();
+  const r = await listarInscripcionesPeriodoAdmin(supabase, periodoId);
+  if (!r.ok) return { ok: false, error: r.error ?? "Error al listar inscripciones." };
+  return { ok: true, inscripciones: r.inscripciones ?? [] };
 }
 
 /** Inscribe/registra un alumno en un grupo de un periodo explícito. */

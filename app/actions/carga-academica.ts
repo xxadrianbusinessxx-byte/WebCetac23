@@ -27,7 +27,6 @@ import { mapeoRosterValido, type MapeoRoster } from "@/lib/escolar/mapeo-columna
 import {
   TABLA_CARRERAS,
   TABLA_GRUPOS,
-  TABLA_PERIODOS,
 } from "@/lib/escolar/tables";
 import { gradoASemestre } from "@/lib/escolar/semestres";
 
@@ -49,12 +48,16 @@ function extraerMapeoOError(
 }
 
 function extraerContexto(formData: FormData): ContextoAcademico | undefined {
+  const periodoId = String(formData.get("periodoId") ?? "").trim();
   const periodoNombre = String(formData.get("periodoNombre") ?? "").trim();
   const grado = String(formData.get("grado") ?? "").trim();
   const grupo = String(formData.get("grupo") ?? "").trim();
   const carrera = String(formData.get("carrera") ?? "").trim();
-  if (!periodoNombre) return undefined;
-  return { periodoNombre, grado, grupo, carrera };
+  // F3: `periodoId` presente → flujo nuevo (destino por id). `periodoId`
+  // ausente → flujo legacy (destino por periodoNombre/ciclo operativo).
+  // NO se convierte `periodoId → periodoNombre → ciclo operativo`.
+  if (!periodoId && !periodoNombre) return undefined;
+  return { periodoNombre, periodoId: periodoId || undefined, grado, grupo, carrera };
 }
 
 function archivoDeFormData(formData: FormData): File | null {
