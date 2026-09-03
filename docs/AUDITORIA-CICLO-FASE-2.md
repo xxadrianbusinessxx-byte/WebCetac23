@@ -4,6 +4,10 @@ Rama: `feature/ciclo-f1-f7-sin-push` · Fecha: 2026-09-03
 
 ## Estado: BLOCKED (no se implementa F2 sin cerrar los bloqueadores)
 
+> DECISIÓN DE PRODUCTO (sesión 2): la estructura académica del BORRADOR se obtiene
+> mediante clonación (`actionClonarContextoAcademico`); el Excel se usa solo para
+> roster/inscripciones de alumnos (ver docs/AUDITORIA-CICLO-FASE-3.md).
+
 ### 1. Arquitectura encontrada (VERIFICADO EN CÓDIGO)
 - Pipeline de carga masiva existente: `actionPrevisualizarCargaAcademica`
   (SOLO LECTURA) + `actionAplicarCargaAcademica` (confirmación explícita por rol)
