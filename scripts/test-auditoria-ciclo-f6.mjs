@@ -43,5 +43,15 @@ ok("sin vigente en flujo horario", !/vigente/.test(paso + panel + ce));
 // 4) Estado actual honesto: validarIntegridadCiclo NO incorpora horario todavía.
 ok("validarIntegridadCiclo existe (contrato F7 único)", /export async function validarIntegridadCiclo/.test(ce));
 
+// 5) F6.1 — horario integrado en validarIntegridadCiclo (reglas demostrables).
+ok("validarIntegridadCiclo consulta horario_semanal", ce.includes("TABLA_HORARIO_SEMANAL") && ce.includes('.eq("periodo_id", periodoId)'));
+ok("esquema real documentado: dia/hora/materia/profesor (DDL)", /dia_semana text NOT NULL/.test(sql) && /hora_inicio time NOT NULL/.test(sql) && /hora_fin time NOT NULL/.test(sql) && /materia_clave text NOT NULL/.test(sql) && /profesor_clave text/.test(sql));
+ok("UNIQUE natural documentada (sin inventar duplicado exacto)", /UNIQUE \(periodo_id, grupo_id, dia_semana, hora_inicio, materia_clave\)/.test(sql));
+ok("sin_horario es ADVERTENCIA", /codigo: "sin_horario"/.test(ce));
+ok("grupo inexistente del horario es ERROR", /codigo: "horario_grupo_invalido"/.test(ce));
+ok("solape de grupo detectado", /codigo: "horario_grupo_solapado"/.test(ce));
+ok("solape de profesor detectado (clave NO NULL)", /codigo: "horario_profesor_solapado"/.test(ce));
+ok("conteos de validación incluyen horarios", /horarios: bloques\.length/.test(ce));
+
 console.log(`\nFASE 6 AUDITORIA: ${pasadas} pasadas, ${fallidas} fallidas`);
 if (fallidas > 0) process.exit(1);

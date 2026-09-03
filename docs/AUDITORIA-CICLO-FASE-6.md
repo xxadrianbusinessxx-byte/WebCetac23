@@ -1,58 +1,60 @@
-# FASE 6 — HORARIO POR PERIODO (informe)
+# FASE 6 — HORARIO POR PERIODO (informe) — cierre F6.1
 
 Rama: `feature/ciclo-f1-f7-sin-push` · Fecha: 2026-09-03
 
-## Estado: PENDIENTE (sin maquillar)
-Auditoría completada y test de auditoría PASS. La integración del horario dentro
-de `validarIntegridadCiclo(periodoId)` NO se implementó en esta sesión: requiere
-definir reglas de conflicto/duplicado contra el esquema real de `horario_semanal`
-(filas/columnas de bloque) que no pueden validarse en este entorno sin riesgo de
-inventar comportamiento. Se documenta exactamente qué falta.
+## Estado: PASS (con evidencia honesta de esquema)
 
-## 1. Mapa del sistema de horario
-| Componente | Fuente | Identidad | periodo_id | Grupo | Materia | Profesor | Día/Hora |
-|---|---|---|---|---|---|---|---|
-| lectura | `lib/escolar/horario-semanal.ts` | `horario_semanal` versionado por `(periodo_id, grupo_id)` + helpers legacy por `obtenerPeriodoPorNombre` (consumidores antiguos) | ✅ | ✅ | ✅ (derivada) | ✅ (asignaciones/roster F6 previo) | ✅ bloques |
-| escritura/importación | `supabase/crear-horario-semanal.sql` + importador existente | `periodo_id` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| UI | `HorarioEscolarPanel` | `periodoIdInicial` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| validación | `validarIntegridadCiclo` (F7) | **sin fila horario todavía** | — | — | — | — | ❌ PENDIENTE |
-| legacy | `configuracion_clases_profesor` | deprecated (FASE HORARIO) | ❌ | — | — | — | — |
+### Evidencia del esquema
+- **VERIFICADO EN SQL REAL: NO REALIZADO.** Este entorno no tiene acceso al SQL
+  Editor de Supabase (solo REST). No se ejecutó ninguna consulta DDL/estructura.
+- **VERIFICADO EN CÓDIGO (DDL versionado del repo):** `supabase/
+  crear-horario-semanal.sql` documenta el esquema: `periodo_id uuid NOT NULL FK →
+  periodos(id) ON DELETE RESTRICT`; `grupo_id uuid NOT NULL FK → grupos(id)`;
+  `dia_semana` (check lunes..viernes); `hora_inicio`/`hora_fin time` (+CHECK fin>
+  inicio); `materia_clave/materia_nombre` (texto oficial); `materia_id` FK
+  opcional; `profesor_nombre` y `profesor_clave` (opcional, NULL = sin profesor);
+  UNIQUE natural `(periodo_id, grupo_id, dia_semana, hora_inicio, materia_clave)`.
+- **INFERIDO (razonable):** el DDL fue desplegado en fases previas (flujo de
+  importación horaria usa la tabla en producción). Si al verificar contra el SQL
+  Editor hubiera diferencias, debe reportarse antes de cerrar el despliegue.
 
-## 2. Aislamiento (evidencia)
-**Caso A con matices:** `horario_semanal` está versionado por `(periodo_id,
-grupo_id)` (SQL + docs HORARIO_SEMANAL_MODULO). Existen rutas legacy de consulta
-que resuelven el periodo por NOMBRE (`obtenerPeriodoPorNombre`) para consumidores
-que no tienen `periodoId` (plantillas/profesor); clasificadas LEGACY (no se
-eliminan; no se usan en el nuevo flujo del wizard).
+## 1. Mapa del sistema
+lectura/escritura/importación/UI operan por `horario_semanal` con `periodo_id` y
+`grupo_id`; `configuracion_clases_profesor` sigue como legacy deprecated; el
+wizard `PasoHorario → HorarioEscolarPanel(periodoIdInicial)` ya propaga `periodoId`.
 
-## 3. UI → CicloConfigurador
-`PasoHorario` entrega `periodoIdInicial={periodoId}` a `HorarioEscolarPanel`
-(verificado en test). El panel NO usa `ciclo_escolar` como identidad.
+## 2. Integración en validarIntegridadCiclo (F6.1)
+`validarIntegridadCiclo(periodoId)` (única autoridad, contrato F7) consulta
+ahora `horario_semanal` filtrado por `periodo_id = periodoId` y añade:
 
-## 4. Conflictos (reglas del modelo a confirmar en siguiente paso)
-Bloques por `(grupo, día, hora)`; conflicto real = mismo grupo/profesor con
-solape. Los detalles de la UNIQUE y campos exactos de `horario_semanal` (materia/
-profesor/día/hora) deben verificarse contra el esquema desplegado antes de
-codificarlos como BLOQUEADORES.
+| Código | Severidad | Regla (demostrable) |
+|---|---|---|
+| `sin_horario` | ADVERTENCIA | 0 filas de horario (no bloquea; comportamiento actual) |
+| `horario_grupo_invalido` | ERROR | fila del periodo con grupo que no pertenece al periodo |
+| `horario_grupo_solapado` | ERROR | mismo grupo, mismo día, rangos de hora solapados, materias distintas |
+| `horario_profesor_solapado` | ERROR | distinto grupo, mismo día/rango, mismo `profesor_clave` NO NULL |
+| duplicado exacto | NO APLICA | imposible por la UNIQUE natural (no se inventó regla) |
 
-## 5. Validación (integración pendiente en el contrato F7)
-Falta añadir, dentro de `validarIntegridadCiclo(periodoId)`:
-- advertencia `sin_horario` cuando el periodo no tiene bloques (no bloquea hoy);
-- error de integridad si filas del periodo referencian un grupo inexistente;
-- (decisión posterior) conflicto de grupo/profesor según la UNIQUE real.
-Esto requiere leer el esquema real (SQL Editor/read-only) para no inventar reglas.
+El `conteos.horarios` informa el total de bloques del periodo.
 
-## 6. Tests
+## 3. Tests
 ```text
-test-auditoria-ciclo-f6.mjs     X/X PASS  (estáticos: UI periodoId, aislamiento,
-                                          sin 2ª autoridad, estado honesto)
+test-auditoria-ciclo-f6.mjs     17/17 PASS (esquema DDL, integración, reglas, aislamiento UI)
+test-ciclo-estado.mjs           33/33 PASS (regresión tras tocar validarIntegridadCiclo)
+test-auditoria-ciclo-f7.mjs     15/15 PASS
+test-auditoria-ciclo-f8.mjs     15/15 PASS
+npx tsc --noEmit                PASS (exit 0)
 ```
-Sin tests de conflicto funcionales: no se inventan reglas sobre el esquema.
+Las pruebas son estáticas/in-memory; no prueban PostgreSQL real.
 
-## 7. SQL real
-SQL PREPARADO: ninguno. SQL EJECUTADO: NO (ninguno en esta sesión).
+## 4. SQL real
+SQL PREPARADO: ninguno nuevo. SQL EJECUTADO: **NO** (sin acceso SQL Editor;
+nada estructural se modificó ni se ejecutó).
 
-## 8. Riesgos pendientes
-1. Integración horario → `validarIntegridadCiclo` (requiere ver esquema real).
-2. Reglas de conflicto/duplicado sin confirmar contra el SQL desplegado.
-3. Rutas legacy por nombre coexisten (controladas para consumidores antiguos).
+## 5. Riesgos restantes
+1. Confirmar el DDL desplegado contra el SQL Editor (solo lectura) antes del
+   despliegue final.
+2. Reglas de conflicto implementadas según el DDL versionado; si el esquema real
+   difiere (p. ej. UNIQUE distinta), revisar antes de F10.
+3. Filas legacy de horario con `periodo_id` pendiente de backfill: F9/F10.
+

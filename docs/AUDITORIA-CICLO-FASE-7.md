@@ -20,7 +20,7 @@ decide `Puede activarse` / `NO puede activarse`.
 | inscripciones/alumnos | `validarIntegridadCiclo` | ciclo-estado | vía grupo | sí | — | detalle | previa + RPC |
 | evaluaciones (parciales) | conteo | ciclo-estado | sí | no (informativo hoy) | sí | detalle | — |
 | calendario (días de clase) | `contarDiasClaseDePeriodo` | calendario/ciclo-estado | sí | no hoy | sí | detalle | — |
-| horario | sin validación integral | — | — | no | — | — | pendiente F6 |
+| horario | `validarIntegridadCiclo` (F6.1) | ciclo-estado | sí | errores de horario | `sin_horario` | detalle | previa + RPC |
 | fechas del ciclo | `crearCicloBorrador`/rango | evaluaciones | sí | al crear/guardar | — | PasoDatos | — |
 
 **Duplicaciones:** no existen `validarCicloCompleto/validarCiclo/puedeActivarCiclo/
@@ -78,7 +78,7 @@ Tests in-memory/estáticos (no prueban PostgreSQL real).
 
 ## 9. Riesgos pendientes
 1. RPC F8 mejorada sin desplegar en Supabase.
-2. Horario sin validación integral (F6).
+2. Horario integrado a la validación en F6.1 (reglas según DDL versionado; confirmar esquema real en el despliegue).
 3. Parciales/calendario como advertencias: si el producto exige que bloqueen,
   deberá decidirse en F4/F6 sin tocar F7.
 4. La UI no valida el caso “alumno sin inscripción del periodo” (F3).

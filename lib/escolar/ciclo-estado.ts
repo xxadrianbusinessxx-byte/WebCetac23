@@ -3,6 +3,7 @@ import { contarDiasClaseDePeriodo } from "./calendario";
 import {
   TABLA_GRUPOS,
   TABLA_GRUPO_MATERIAS,
+  TABLA_HORARIO_SEMANAL,
   TABLA_INSCRIPCIONES_ALUMNO,
   TABLA_MATERIAS,
   TABLA_PERIODOS,
@@ -251,6 +252,7 @@ export type ConteosCiclo = {
   inscripcionesActivas: number;
   parciales: number;
   diasClase: number;
+  horarios?: number;
 };
 
 /** Valida la integridad de un ciclo con datos reales (envuelve al dominio puro). */
@@ -335,6 +337,73 @@ export async function validarIntegridadCiclo(
     id: string; numero: number; nombre: string; fecha_inicio: string; fecha_fin: string; activo: boolean;
   }>;
 
+  // F6 — HORARIO del periodo (horario_semanal, esquema versionado en repo).
+  // Reglas SOLO demostrables por el esquema real: FK periodo/grupo, UNIQUE
+  // (periodo_id,grupo_id,dia_semana,hora_inicio,materia_clave), horas time.
+  // - sin filas → advertencia `sin_horario` (no bloquea; comportamiento actual).
+  // - fila con grupo_id fuera del periodo → ERROR `horario_grupo_invalido`.
+  // - solape del MISMO grupo (otra materia) → ERROR `horario_grupo_solapado`.
+  // - solape del MISMO profesor (profesor_clave NO NULL) → ERROR `horario_profesor_solapado`.
+  //   (profesor_clave NULL = «sin profesor asignado» → nunca es conflicto).
+  // - duplicado exacto: IMPOSIBLE por la UNIQUE natural (no se inventa regla).
+  const { data: filasHorario, error: eH } = await supabase
+    .from(TABLA_HORARIO_SEMANAL)
+    .select("id, grupo_id, dia_semana, hora_inicio, hora_fin, materia_clave, profesor_clave")
+    .eq("periodo_id", periodoId);
+  if (eH) {
+    return { ok: false, ...base, errores: [{ codigo: "error_lectura", mensaje: eH.message }], advertencias: [] };
+  }
+  const bloques = (filasHorario ?? []) as Array<{
+    id: string;
+    grupo_id: string;
+    dia_semana: string;
+    hora_inicio: string;
+    hora_fin: string;
+    materia_clave: string;
+    profesor_clave: string | null;
+  }>;
+  const grupoSet = new Set(grupoIds);
+  const erroresHorario: Array<{ codigo: string; mensaje: string }> = [];
+  const advertenciasHorario: Array<{ codigo: string; mensaje: string }> = [];
+  const huérfanos = bloques.filter((b) => !grupoSet.has(b.grupo_id));
+  if (huérfanos.length > 0) {
+    erroresHorario.push({
+      codigo: "horario_grupo_invalido",
+      mensaje: `${huérfanos.length} fila(s) de horario apuntan a grupos que no pertenecen al periodo (periodoId ${periodoId}).`,
+    });
+  }
+  const solapan = (a: { dia_semana: string; hora_inicio: string; hora_fin: string }, b: { dia_semana: string; hora_inicio: string; hora_fin: string }) =>
+    a.dia_semana === b.dia_semana && a.hora_inicio < b.hora_fin && b.hora_inicio < a.hora_fin;
+  for (let i = 0; i < bloques.length; i++) {
+    for (let j = i + 1; j < bloques.length; j++) {
+      const a = bloques[i]!;
+      const b = bloques[j]!;
+      if (!solapan(a, b)) continue;
+      if (a.grupo_id === b.grupo_id && a.materia_clave !== b.materia_clave) {
+        erroresHorario.push({
+          codigo: "horario_grupo_solapado",
+          mensaje: `El grupo tiene dos clases simultáneas: ${a.materia_clave} y ${b.materia_clave} (${a.dia_semana} ${a.hora_inicio}-${a.hora_fin}).`,
+        });
+      } else if (
+        a.grupo_id !== b.grupo_id &&
+        a.profesor_clave &&
+        b.profesor_clave &&
+        a.profesor_clave === b.profesor_clave
+      ) {
+        erroresHorario.push({
+          codigo: "horario_profesor_solapado",
+          mensaje: `El profesor ${a.profesor_clave} tiene dos clases simultáneas (${a.dia_semana} ${a.hora_inicio}-${a.hora_fin}).`,
+        });
+      }
+    }
+  }
+  if (bloques.length === 0) {
+    advertenciasHorario.push({
+      codigo: "sin_horario",
+      mensaje: "El ciclo no tiene horario programado (se puede configurar más adelante).",
+    });
+  }
+
   const resultado = validarIntegridadCicloPura({
     periodo,
     grupos: filasGrupos,
@@ -347,6 +416,8 @@ export async function validarIntegridadCiclo(
   return {
     ...resultado,
     ...base,
+    errores: [...resultado.errores, ...erroresHorario],
+    advertencias: [...resultado.advertencias, ...advertenciasHorario],
     conteos: {
       grupos: filasGrupos.length,
       gruposActivos: filasGrupos.filter((g) => g.activo).length,
@@ -354,6 +425,7 @@ export async function validarIntegridadCiclo(
       inscripcionesActivas: new Set(filasInscripciones.map((i) => i.curp)).size,
       parciales: filasParciales.length,
       diasClase,
+      horarios: bloques.length,
     },
   };
 }
