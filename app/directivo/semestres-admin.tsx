@@ -1,5 +1,6 @@
 "use client";
 
+// DESACTIVADO de la UI de /configuracion (ver Bloque 17 de contexto.feliz) — se conserva el código por si se reactiva para otra instalación.
 /**
  * C4.16 — Panel del directivo para administrar la oferta por semestre.
  *

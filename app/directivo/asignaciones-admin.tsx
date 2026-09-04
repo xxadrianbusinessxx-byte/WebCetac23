@@ -1,5 +1,6 @@
 "use client";
 
+// DESACTIVADO de la UI de /configuracion (ver Bloque 17 de contexto.feliz) — se conserva el código por si se reactiva para otra instalación.
 /**
  * C4.12 — Panel de administración de asignaciones profesor → grupo_materia
  * (solo rol directivo; la autorización real se valida en las Server Actions).

@@ -4,14 +4,11 @@ import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo-estado";
 import { ConfiguracionClient } from "./configuracion-client";
-import { SemestresOfertaAdmin } from "../directivo/semestres-admin";
-import { AsignacionesProfesorAdmin } from "../directivo/asignaciones-admin";
-import { ReconocimientoAcademico } from "../components/reconocimiento-academico";
 
 export const metadata: Metadata = {
   title: "AulaNube — Configuración",
   description:
-    "Configuración del panel directivo: sincronización del roster, carga académica, reconocimiento académico de alumnos, materias (nombres visibles), oferta por semestre y asignaciones profesor → grupo·materia.",
+    "Configuración del panel directivo: sincronización del roster, carga académica, ciclos (grupos y materias) y materias (nombres visibles).",
 };
 
 export default async function ConfiguracionPage() {
@@ -28,12 +25,10 @@ export default async function ConfiguracionPage() {
   return (
     <>
       <ConfiguracionClient sesion={sesion} periodos={periodos} />
-      {/* C4.19 — Reconocimiento académico de alumnos (reutiliza el pipeline C3.1). */}
-      <ReconocimientoAcademico />
-      {/* C4.14/16/18 — Oferta por semestre y asignaciones profesor → grupo·materia,
-          junto al bloque de configuración de materias (nombres visibles). */}
-      <SemestresOfertaAdmin />
-      <AsignacionesProfesorAdmin />
+      {/* DESACTIVADO de la UI de /configuracion (ver Bloque 17 de contexto.feliz):
+          ya no se renderizan ReconocimientoAcademico, SemestresOfertaAdmin ni
+          AsignacionesProfesorAdmin. El código se conserva en el repo por si se
+          reactiva para otra instalación (no se borran tablas ni lógica). */}
     </>
   );
 }

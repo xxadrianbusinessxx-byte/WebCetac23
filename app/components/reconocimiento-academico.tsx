@@ -1,5 +1,6 @@
 "use client";
 
+// DESACTIVADO de la UI de /configuracion (ver Bloque 17 de contexto.feliz) — se conserva el código por si se reactiva para otra instalación.
 /**
  * C4.19 — RECONOCIMIENTO ACADÉMICO DE ALUMNOS (Panel Directivo → Configuración).
  *
