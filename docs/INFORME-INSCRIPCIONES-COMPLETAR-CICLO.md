@@ -31,14 +31,33 @@ objetivo). No se hizo ningún INSERT y no se tocó ninguna otra fila.
 - 5TO A MECATRONICA: **41/41** activos.
 
 ## Pendiente humano (directivo)
-1. **2 nombres sin CURP en `ALUMNOS`** (3RO A RH): FIGUEROA OSORIO KEVIN ODICEO y
-   FLORES CERON ALIZON FATIMA. Se necesitan sus CURP reales para darlos de alta
-   (no se inventan CURP).
+1. ~~FIGUEROA OSORIO KEVIN ODICEO y FLORES CERON ALIZON FATIMA~~ → **RESUELTO** con
+   CURP proporcionadas por el directivo (ver sección siguiente).
 2. Revisar si los alumnos que quedaron con otra inscripción ACTIVA además del
    grupo objetivo (p. ej. cohorte 5TO MC A también activa en 6TO A
    MECATRONICA, o lista 3RO/5TO RH también activa en grados previos) deben
    regularizarse después (decisión del directivo; no se desactivó nada).
 
-## Script
-`scripts/actualizar-inscripciones-listas.mjs` — `node …` = plan (dry-run);
-`node … --apply` = ejecuta. Reversible: solo reactiva filas existentes.
+## Anexo (mismo día): alta de los 2 alumnos restantes de 3RO A RH
+CURP proporcionadas por el directivo:
+
+| Alumno (lista) | CURP | Qué se hizo |
+|---|---|---|
+| FLORES CERON ALIZON FATIMA | `FOCA100513MDFLRLA0` | Se creó su identidad en `ALUMNOS` (CURP + CLAVE derivada `FLRLA0` + nombre/apellidos) y se insertó su inscripción ACTIVA en 3RO A RH. |
+| FIGUEROA OSORIO KEVIN ODICEO | `FIOK090228HGTGSVA3` | Ya existía en `ALUMNOS` (como “KEVIN ODICEO FIGUEROA OSORNIO”) y **ya estaba ACTIVO** en 3RO A RH; no requirió cambios. |
+
+Estado final verificado: los **30/30** nombres de la lista 3RORHA tienen CURP e
+inscripción ACTIVA en el grupo (el script por nombres lo reporta como “29 +
+SIN-CURP Kevin” solo porque su apellido está guardado con typo “OSORNIO”, pero
+la verificación por CURP confirma su inscripción activa).
+
+> Opcional (decisión del directivo): corregir en `ALUMNOS` el `S_APELLIDO` de
+> `FIOK090228HGTGSVA3` de “OSORNIO” a “OSORIO” para que coincida con la lista
+> oficial.
+
+## Scripts
+- `scripts/actualizar-inscripciones-listas.mjs` — reactivación masiva por listas
+  (`node …` = plan; `node … --apply` = ejecuta).
+- `scripts/registrar-alumnos-extras-3ro.mjs` — alta idempotente de los 2 casos
+  anteriores (crea `ALUMNOS` si falta y asegura inscripción ACTIVA en 3RO A RH).
+
