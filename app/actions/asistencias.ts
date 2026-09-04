@@ -4,7 +4,7 @@ import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo-estado";
 
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { createClient } from "@/lib/supabase/server";
-import { listarCiclosEscolares } from "@/lib/escolar/calendario";
+import { listarCiclosEscolares, normalizarCicloEscolar } from "@/lib/escolar/calendario";
 import {
   calcularPorcentajeAsistencia,
   confirmarAsistencias,
@@ -51,7 +51,12 @@ import {
 
 type ResultadoGrupos = {
   grupos: { grado: string; grupo: string; carrera: string }[];
+  /** Ciclos legacy del calendario (texto) + el periodo OPERATIVO (unión). */
   ciclos: string[];
+  /** Nombre normalizado del periodo OPERATIVO actual, si existe (default UI). */
+  cicloOperativo: string | null;
+  /** Aviso cuando no hay un único periodo OPERATIVO (para mostrarlo en la UI). */
+  avisoOperativo: string | null;
 };
 
 export async function actionListarGruposAsistencia(): Promise<
@@ -64,12 +69,36 @@ export async function actionListarGruposAsistencia(): Promise<
   }
 
   const supabase = await createClient();
-  const [grupos, ciclos] = await Promise.all([
+  // Pieza C — resuelve el periodo OPERATIVO con el MISMO helper que usa
+  // /configuracion (obtenerCicloOperativoGlobal) y lo incluye como default.
+  const [grupos, ciclosLegacy, operativo] = await Promise.all([
     listarGruposAsistencia(supabase),
     listarCiclosEscolares(supabase),
+    obtenerCicloOperativoGlobal(supabase),
   ]);
 
-  return { ok: true, data: { grupos, ciclos } };
+  let cicloOperativo: string | null = null;
+  let avisoOperativo: string | null = null;
+  if (!operativo.ok) {
+    avisoOperativo = operativo.error ?? "F1: no hay un único ciclo OPERATIVO.";
+  } else if (operativo.periodo) {
+    cicloOperativo = normalizarCicloEscolar(String(operativo.periodo.nombre));
+  } else {
+    avisoOperativo =
+      "No hay ningún periodo OPERATIVO activado todavía. Elige un ciclo manualmente o activa el ciclo en Configuración.";
+  }
+
+  // Coexistencia documentada (deuda listarCiclosEscolares vs calendario texto):
+  // se conservan los ciclos legacy del calendario y se garantiza que el
+  // periodo OPERATIVO siempre esté disponible en el selector.
+  const ciclos = [
+    ...new Set([
+      ...ciclosLegacy,
+      ...(cicloOperativo ? [cicloOperativo] : []),
+    ]),
+  ].sort((a, b) => b.localeCompare(a, "es"));
+
+  return { ok: true, data: { grupos, ciclos, cicloOperativo, avisoOperativo } };
 }
 
 export async function actionDescargarPlantillaAsistencia(

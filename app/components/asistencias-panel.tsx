@@ -7,7 +7,6 @@ import {
   actionDescargarPlantillaAsistencia,
   actionListarGruposAsistencia,
   actionObtenerMateriasHorarioGrupo,
-  actionObtenerCicloActual,
   actionPrevisualizarAsistencias,
   type MateriaHorarioUI,
 } from "@/app/actions/asistencias";
@@ -152,6 +151,7 @@ export function AsistenciasPanel() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [ciclos, setCiclos] = useState<string[]>([]);
   const [errorGrupos, setErrorGrupos] = useState<string | null>(null);
+  const [avisoOperativo, setAvisoOperativo] = useState<string | null>(null);
 
   const [grado, setGrado] = useState("");
   const [grupo, setGrupo] = useState("");
@@ -183,15 +183,21 @@ export function AsistenciasPanel() {
 
   useEffect(() => {
     let activo = true;
+    // Pieza C — el periodo OPERATIVO se preselecciona como default (viene
+    // resuelto con obtenerCicloOperativoGlobal en la Server Action); el
+    // profesor puede cambiarlo manualmente. Si no hay operativo se muestra
+    // aviso en lugar de fallar en silencio.
     void actionListarGruposAsistencia().then((r) => {
       if (!activo) return;
       if (r.ok) {
         setGrupos(r.data.grupos);
         setCiclos(r.data.ciclos);
-    void actionObtenerCicloActual().then((cr) => {
-      if (!activo) return;
-      if (cr.ok && cr.ciclo) setCiclo(cr.ciclo);
-    });
+        if (r.data.cicloOperativo) {
+          setCiclo(r.data.cicloOperativo);
+          setAvisoOperativo(null);
+        } else {
+          setAvisoOperativo(r.data.avisoOperativo);
+        }
       } else {
         setErrorGrupos(r.error);
       }
@@ -473,6 +479,11 @@ export function AsistenciasPanel() {
         </div>
 
         {/* Selector de contexto + materia */}
+        {avisoOperativo && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-100 px-3 py-2 text-[11px] font-bold text-amber-900">
+            {avisoOperativo}
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-3 rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:grid-cols-2 lg:grid-cols-5">
           <SelectField
             label="Grado"
@@ -523,6 +534,12 @@ export function AsistenciasPanel() {
             </select>
           </label>
         </div>
+        {!avisoOperativo && (
+          <p className="text-[10px] font-semibold text-slate-500">
+            Ciclo preseleccionado: periodo OPERATIVO (puedes cambiarlo manualmente). El
+            selector incluye además los ciclos legacy del calendario escolar.
+          </p>
+        )}
 
         {/* Clases por día de la materia seleccionada (automático del horario) */}
         {materiaSeleccionada && (
