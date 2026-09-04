@@ -4,11 +4,15 @@ import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo-estado";
 import { ConfiguracionClient } from "./configuracion-client";
+// PROMPT C (R-5) — se REACTIVA el panel de asignaciones profesor → materia
+// (código muerto documentado del Bloque 17) como vista del directivo en
+// /configuracion, con opción de desactivar una asignación equivocada.
+import { AsignacionesProfesorAdmin } from "@/app/directivo/asignaciones-admin";
 
 export const metadata: Metadata = {
   title: "AulaNube — Configuración",
   description:
-    "Configuración del panel directivo: sincronización del roster, carga académica, ciclos (grupos y materias) y materias (nombres visibles).",
+    "Configuración del panel directivo: sincronización del roster, carga académica, ciclos (grupos y materias), asignaciones de profesores y materias (nombres visibles).",
 };
 
 export default async function ConfiguracionPage() {
@@ -25,10 +29,12 @@ export default async function ConfiguracionPage() {
   return (
     <>
       <ConfiguracionClient sesion={sesion} periodos={periodos} />
-      {/* DESACTIVADO de la UI de /configuracion (ver Bloque 17 de contexto.feliz):
-          ya no se renderizan ReconocimientoAcademico, SemestresOfertaAdmin ni
-          AsignacionesProfesorAdmin. El código se conserva en el repo por si se
-          reactiva para otra instalación (no se borran tablas ni lógica). */}
+      {/* PROMPT C (R-5): asignaciones profesor → grupo·materia con
+          desactivación (reactivado desde el Bloque 17). Solo rol directivo
+          (validado también en las Server Actions). */}
+      <div className="relative z-10 mx-auto max-w-5xl px-4 pb-4 sm:px-6 lg:max-w-6xl lg:px-8">
+        <AsignacionesProfesorAdmin />
+      </div>
     </>
   );
 }

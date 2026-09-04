@@ -63,6 +63,12 @@ next-env.d.ts
 # test build output (compiled JS para scripts/test-justificacion-por-clase.mjs)
 /scripts/.tmp-justificacion-clase/
 
+# test build output (compiled JS para scripts/test-atribucion-profesor.mjs)
+/scripts/.tmp-atribucion-profesor/
+
+# test build output (compiled JS para scripts/test-asistencia-contexto.mjs)
+/scripts/.tmp-ctx/
+
 # runtime logs
 dev-server.log
 *.log

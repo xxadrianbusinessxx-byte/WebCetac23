@@ -33,6 +33,7 @@ import {
 } from "@/lib/escolar/horario-semanal";
 
 import {
+  TABLA_ASIGNACIONES_PROFESOR,
   TABLA_ASISTENCIA_ALUMNOS,
   TABLA_CARRERAS,
   TABLA_GRUPOS,
@@ -485,6 +486,7 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
       sesion.matricula,
       grado,
       grupo,
+      sesion.profesorId,
     );
     if (!imparte) {
       return {
@@ -504,6 +506,7 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
     ciclo: operativo.periodoNombre,
     periodoId: operativo.periodoId,
     profesorClave,
+    profesorId: sesion.rol === "maestro" ? sesion.profesorId : null,
   });
 
   const resumen = resumenAsistenciaPorParcial(
@@ -724,12 +727,15 @@ export async function actionSolicitarJustificacionAsistencia(input: {
 
   // BLOQUE 9 (PIEZA 3): el profesor solo justifica faltas en los grupos donde
   // realmente imparte clase (validación existente, NO se reimplementa).
+  // PROMPT C (R-2): se prefiere `profesor_id` (las filas nuevas no escriben
+  // la contraseña; sin profesorId el alcance por clave no las vería).
   if (rolProfesorJustifica) {
     const imparte = await profesorImparteEnGrupo(
       supabase,
       sesion.matricula,
       contexto.grado,
       contexto.grupo,
+      sesion.profesorId,
     );
     if (!imparte) {
       return {
@@ -853,11 +859,14 @@ export async function actionAnularAsistenciaProfesor(input: {
     };
   }
 
-  // Buscar la fila de ESTE profesor. Se prefiere `profesor_id` (identidad
+  // Buscar las filas de ESTE profesor. Se prefiere `profesor_id` (identidad
   // estructural); si la columna aún no existe, se cae a `profesor_clave`.
+  // PROMPT C: con atribución por materia puede haber VARIAS filas del mismo
+  // profesor/alumno/día (una por materia). La anulación es del DÍA (resta 1
+  // al total), así que se elige la fila con mayor valor (determinista).
   let query = supabase
     .from(TABLA_ASISTENCIA_ALUMNOS)
-    .select("id, clases_asistidas")
+    .select("id, clases_asistidas, grupo_materia_id")
     .eq("curp", curp)
     .eq("fecha", fecha)
     .eq("grado", grado)
@@ -876,10 +885,10 @@ export async function actionAnularAsistenciaProfesor(input: {
   if (!scopePorId) {
     query = query.eq("profesor_clave", sesion.matricula);
   }
-  const { data: fila, error: errBuscar } = await query.maybeSingle();
+  const { data: filas, error: errBuscar } = await query.limit(50);
 
   if (errBuscar) return { ok: false, error: errBuscar.message };
-  if (!fila) {
+  if (!filas || filas.length === 0) {
     if (scopePorId) {
       // Las 81 filas históricas tienen profesor_clave compartido y profesor_id
       // NULL: no son atribuibles de forma inequívoca (no se inventa backfill).
@@ -895,33 +904,51 @@ export async function actionAnularAsistenciaProfesor(input: {
     };
   }
 
+  // Fila objetivo: la de mayor aporte (todas las de > 0 reducen el total del
+  // día en 1); si todo está en 0 no hay nada que anular.
+  const objetivo =
+    [...filas].sort(
+      (a, b) =>
+        (Number(b.clases_asistidas) || 0) - (Number(a.clases_asistidas) || 0),
+    )[0] ?? null;
+  if (!objetivo || (Number(objetivo.clases_asistidas) || 0) <= 0) {
+    return { ok: false, error: "La asistencia de ese día ya está en cero." };
+  }
+
   // Resta 1 con piso en 0 (GREATEST(clases_asistidas - 1, 0)).
-  const nuevoValor = Math.max((Number(fila.clases_asistidas) || 0) - 1, 0);
+  const nuevoValor = Math.max((Number(objetivo.clases_asistidas) || 0) - 1, 0);
 
   // UPDATE puntual sobre la fila concreta (id) — nunca la de otro profesor.
   const { error: errUpdate } = await supabase
     .from(TABLA_ASISTENCIA_ALUMNOS)
     .update({ clases_asistidas: nuevoValor })
-    .eq("id", fila.id);
+    .eq("id", objetivo.id);
 
   if (errUpdate) return { ok: false, error: errUpdate.message };
   const avisoAmbiguo = scopePorId
     ? undefined
-    : "Operación por profesor_clave (CLAVE ambigua). Aplica supabase/agregar-profesor-id-asistencia.sql para anular por profesor_id.";
+    : "Operación por profesor_clave (CLAVE ambigua). Aplica supabase/agregar-atribucion-profesor-asistencia.sql para anular por profesor_id.";
   return { ok: true, ...(avisoAmbiguo ? { avisoAmbiguo } : {}) };
 }
 
 /**
- * BLOQUE 9 (PIEZA 4) — Lista los grupos del periodo OPERATIVO que tienen
- * HORARIO oficial cargado, con los alumnos de cada grupo
- * (`obtenerAlumnosDelGrupo`). DECISIÓN B (directivo): el alcance del profesor
- * es el horario del grupo, sin acotar por asignaciones_profesor (hoy vacías).
+ * BLOQUE 9 (PIEZA 4) + PROMPT C (R-4) — Lista los grupos del periodo OPERATIVO
+ * que tienen HORARIO oficial cargado, con los alumnos de cada grupo
+ * (`obtenerAlumnosDelGrupo`).
+ *
+ * Alcance (R-4):
+ *  - maestro con asignaciones ACTIVAS (asignaciones_profesor) → solo los
+ *    grupos de sus asignaciones en el operativo (la atribución por subida de
+ *    plantillas hace crecer este conjunto solo);
+ *  - maestro sin asignaciones (día 1) o directivo → comportamiento previo:
+ *    grupos del operativo con horario cargado.
  *
  * > `resolverAsignacionesProfesor` NO se borra: queda @deprecated para este
- * > uso y volverá a ser la fuente cuando `asignaciones_profesor` se pueble.
+ * > uso; R-4 lo reactiva como fuente cuando `asignaciones_profesor` se pueble.
  *
  * PERF: alumnos por grupo en PARALELO (Promise.all). 2 consultas para los
- * grupos con horario (grupos del periodo + distinct grupo_id de horario).
+ * grupos con horario (grupos del periodo + distinct grupo_id de horario) y 1
+ * extra para las asignaciones activas del maestro.
  */
 export async function actionListarAlumnosGruposProfesor(): Promise<
   | {
@@ -983,8 +1010,39 @@ export async function actionListarAlumnosGruposProfesor(): Promise<
     };
   }
 
+  // PROMPT C (R-4) — cuando el profesor YA tiene asignaciones ACTIVAS
+  // (asignaciones_profesor), su alcance se acota a los grupos de esas
+  // asignaciones (grupo_materias → grupos). Profesor nuevo sin asignaciones,
+  // o con asignaciones fuera del operativo: conserva el comportamiento actual
+  // (grupos del operativo con horario).
+  let alcance = elegibles;
+  if (
+    sesion.rol === "maestro" &&
+    sesion.profesorId != null &&
+    Number.isInteger(Number(sesion.profesorId)) &&
+    Number(sesion.profesorId) > 0
+  ) {
+    const { data: asig } = await supabase
+      .from(TABLA_ASIGNACIONES_PROFESOR)
+      .select("grupo_materias!inner(grupo_id)")
+      .eq("profesor_id", Number(sesion.profesorId))
+      .eq("activo", true)
+      .limit(500);
+    const grupoIdsAsignados = new Set<string>();
+    for (const a of asig ?? []) {
+      const gm = (a as { grupo_materias?: unknown }).grupo_materias;
+      const g = Array.isArray(gm) ? gm[0] : gm;
+      const gid = (g as { grupo_id?: string } | undefined)?.grupo_id;
+      if (gid) grupoIdsAsignados.add(String(gid));
+    }
+    if (grupoIdsAsignados.size > 0) {
+      const restringidos = elegibles.filter((g) => grupoIdsAsignados.has(g.id));
+      if (restringidos.length > 0) alcance = restringidos;
+    }
+  }
+
   const porGrupo = await Promise.all(
-    elegibles.map(async (g) => ({
+    alcance.map(async (g) => ({
       grado: g.grado,
       grupo: g.nombre,
       carrera: g.carreraClave,
