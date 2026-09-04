@@ -1,10 +1,14 @@
 "use server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo-estado";
 
 
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { createClient } from "@/lib/supabase/server";
-import { listarCiclosEscolares, normalizarCicloEscolar } from "@/lib/escolar/calendario";
+import {
+  listarEvaluacionesDePeriodo,
+  type PeriodoEvaluacionRow,
+} from "@/lib/escolar/evaluaciones";
 import {
   calcularPorcentajeAsistencia,
   confirmarAsistencias,
@@ -14,13 +18,16 @@ import {
   obtenerEstadosAsistenciaAlumno,
   previsualizarAsistencias,
   profesorImparteEnGrupo,
+  resumenAsistenciaPorParcial,
   type DiaEstadoAsistencia,
+  type ParcialAsistencia,
   type PlanAsistencia,
   type ResumenAsistencia,
+  type ResumenPorParcial,
 } from "@/lib/escolar/asistencias";
-import { resolverAsignacionesProfesor } from "@/lib/escolar/catalogo-academico";
 import {
   consultarHorarioGrupoPorIdentidad,
+  obtenerGruposConCarreraDePeriodo,
   materiasDelHorario,
   totalBloquesGrupoPorDia,
 } from "@/lib/escolar/horario-semanal";
@@ -29,6 +36,7 @@ import {
   TABLA_ASISTENCIA_ALUMNOS,
   TABLA_CARRERAS,
   TABLA_GRUPOS,
+  TABLA_HORARIO_SEMANAL,
   TABLA_INSCRIPCIONES_ALUMNO,
   TABLA_JUSTIFICACIONES_ASISTENCIA,
   TABLA_PERIODOS,
@@ -51,13 +59,105 @@ import {
 
 type ResultadoGrupos = {
   grupos: { grado: string; grupo: string; carrera: string }[];
-  /** Ciclos legacy del calendario (texto) + el periodo OPERATIVO (unión). */
-  ciclos: string[];
-  /** Nombre normalizado del periodo OPERATIVO actual, si existe (default UI). */
-  cicloOperativo: string | null;
-  /** Aviso cuando no hay un único periodo OPERATIVO (para mostrarlo en la UI). */
+  /** Periodo OPERATIVO (ciclo global) resuelto con obtenerCicloOperativoGlobal. */
+  periodoOperativo: { id: string; nombre: string } | null;
+  /** Parciales ACTIVOS del periodo operativo (periodos_evaluacion). */
+  parciales: {
+    id: string;
+    numero: number;
+    nombre: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+  }[];
+  /** Aviso (sin operativo / esquema de parciales pendiente / sin parciales). */
   avisoOperativo: string | null;
 };
+
+/**
+ * CICLO GLOBAL — resuelve el periodo OPERATIVO único y sus parciales ACTIVOS.
+ * Usado por las Server Actions: el cliente nunca decide el ciclo.
+ */
+async function resolverOperativoConParciales(
+  supabase: SupabaseClient,
+): Promise<
+  | {
+      ok: true;
+      periodoId: string;
+      periodoNombre: string;
+      parciales: PeriodoEvaluacionRow[];
+    }
+  | { ok: false; error: string }
+> {
+  const operativo = await obtenerCicloOperativoGlobal(supabase);
+  if (!operativo.ok) {
+    return {
+      ok: false,
+      error: operativo.error ?? "F1: no hay un único ciclo OPERATIVO.",
+    };
+  }
+  if (!operativo.periodo) {
+    return {
+      ok: false,
+      error:
+        "No hay ningún periodo OPERATIVO activado todavía. Activa el ciclo en Configuración.",
+    };
+  }
+  const evs = await listarEvaluacionesDePeriodo(
+    supabase,
+    String(operativo.periodo.id),
+  );
+  if (!evs.ok) {
+    return {
+      ok: false,
+      error: evs.error ?? "No se pudieron cargar los parciales del periodo.",
+    };
+  }
+  return {
+    ok: true,
+    periodoId: String(operativo.periodo.id),
+    periodoNombre: String(operativo.periodo.nombre),
+    parciales: evs.evaluaciones.filter((e) => e.activo !== false),
+  };
+}
+
+/**
+ * CICLO GLOBAL + PARCIAL — valida que el parcial solicitado (evaluacionId)
+ * pertenezca al periodo OPERATIVO. Un parcial de otro periodo = error; nunca
+ * se usan parciales ajenos al ciclo operativo.
+ */
+async function resolverOperativoYValidarParcial(
+  supabase: SupabaseClient,
+  evaluacionId: string | null,
+): Promise<
+  | {
+      ok: true;
+      periodoId: string;
+      periodoNombre: string;
+      parciales: ParcialAsistencia[];
+    }
+  | { ok: false; error: string }
+> {
+  const base = await resolverOperativoConParciales(supabase);
+  if (!base.ok) return base;
+  if (evaluacionId) {
+    const parcial = base.parciales.find(
+      (e) => e.id === evaluacionId && e.activo !== false,
+    );
+    if (!parcial) {
+      return {
+        ok: false,
+        error:
+          "El parcial seleccionado no pertenece al periodo operativo o está inactivo. Recarga la página.",
+      };
+    }
+  }
+  return {
+    ok: true,
+    periodoId: base.periodoId,
+    periodoNombre: base.periodoNombre,
+    parciales: base.parciales,
+  };
+}
 
 export async function actionListarGruposAsistencia(): Promise<
   | { ok: true; data: ResultadoGrupos }
@@ -69,44 +169,46 @@ export async function actionListarGruposAsistencia(): Promise<
   }
 
   const supabase = await createClient();
-  // Pieza C — resuelve el periodo OPERATIVO con el MISMO helper que usa
-  // /configuracion (obtenerCicloOperativoGlobal) y lo incluye como default.
-  const [grupos, ciclosLegacy, operativo] = await Promise.all([
+  const [operativo, grupos] = await Promise.all([
+    resolverOperativoConParciales(supabase),
     listarGruposAsistencia(supabase),
-    listarCiclosEscolares(supabase),
-    obtenerCicloOperativoGlobal(supabase),
   ]);
 
-  let cicloOperativo: string | null = null;
+  let periodoOperativo: ResultadoGrupos["periodoOperativo"] = null;
+  let parciales: ResultadoGrupos["parciales"] = [];
   let avisoOperativo: string | null = null;
   if (!operativo.ok) {
-    avisoOperativo = operativo.error ?? "F1: no hay un único ciclo OPERATIVO.";
-  } else if (operativo.periodo) {
-    cicloOperativo = normalizarCicloEscolar(String(operativo.periodo.nombre));
+    avisoOperativo = operativo.error;
   } else {
-    avisoOperativo =
-      "No hay ningún periodo OPERATIVO activado todavía. Elige un ciclo manualmente o activa el ciclo en Configuración.";
+    periodoOperativo = {
+      id: operativo.periodoId,
+      nombre: operativo.periodoNombre,
+    };
+    parciales = operativo.parciales.map((e) => ({
+      id: e.id,
+      numero: e.numero,
+      nombre: e.nombre,
+      fecha_inicio: e.fecha_inicio,
+      fecha_fin: e.fecha_fin,
+    }));
+    if (parciales.length === 0) {
+      avisoOperativo =
+        "El periodo OPERATIVO no tiene parciales activos. Configúralos en /configuracion antes de descargar plantillas.";
+    }
   }
 
-  // Coexistencia documentada (deuda listarCiclosEscolares vs calendario texto):
-  // se conservan los ciclos legacy del calendario y se garantiza que el
-  // periodo OPERATIVO siempre esté disponible en el selector.
-  const ciclos = [
-    ...new Set([
-      ...ciclosLegacy,
-      ...(cicloOperativo ? [cicloOperativo] : []),
-    ]),
-  ].sort((a, b) => b.localeCompare(a, "es"));
-
-  return { ok: true, data: { grupos, ciclos, cicloOperativo, avisoOperativo } };
+  return {
+    ok: true,
+    data: { grupos, periodoOperativo, parciales, avisoOperativo },
+  };
 }
 
 export async function actionDescargarPlantillaAsistencia(
   grado: string,
   grupo: string,
   carrera: string,
-  ciclo: string,
   materiaClave: string,
+  evaluacionId?: string | null,
 ): Promise<
   | {
       ok: true;
@@ -131,13 +233,22 @@ export async function actionDescargarPlantillaAsistencia(
   }
 
   const supabase = await createClient();
+  const operativo = await resolverOperativoYValidarParcial(
+    supabase,
+    evaluacionId ?? null,
+  );
+  if (!operativo.ok) return { ok: false, error: operativo.error };
   const resultado = await generarPlantillaAsistencia(supabase, {
     grado,
     grupo,
     carrera,
-    ciclo,
+    ciclo: operativo.periodoNombre,
+    periodoId: operativo.periodoId,
+    evaluacionId: evaluacionId ?? null,
+    evaluaciones: operativo.parciales,
     materiaClave,
     profesorClave: sesion.matricula,
+    profesorId: sesion.profesorId,
     profesorNombre: sesion.nombre || sesion.matricula,
   });
 
@@ -158,8 +269,8 @@ export async function actionPrevisualizarAsistencias(
   grado: string,
   grupo: string,
   carrera: string,
-  ciclo: string,
   materiaClave: string,
+  evaluacionId?: string | null,
 ): Promise<
   | { ok: true; resumen: ResumenAsistencia; plan: PlanAsistencia }
   | { ok: false; error: string }
@@ -178,13 +289,22 @@ export async function actionPrevisualizarAsistencias(
   }
 
   const supabase = await createClient();
+  const operativo = await resolverOperativoYValidarParcial(
+    supabase,
+    evaluacionId ?? null,
+  );
+  if (!operativo.ok) return { ok: false, error: operativo.error };
   const resultado = await previsualizarAsistencias(supabase, archivo, {
     grado,
     grupo,
     carrera,
-    ciclo,
+    ciclo: operativo.periodoNombre,
+    periodoId: operativo.periodoId,
+    evaluacionId: evaluacionId ?? null,
+    evaluaciones: operativo.parciales,
     materiaClave,
     profesorClave: sesion.matricula,
+    profesorId: sesion.profesorId,
     profesorNombre: sesion.nombre || sesion.matricula,
   });
 
@@ -197,8 +317,8 @@ export async function actionConfirmarAsistencias(
   grado: string,
   grupo: string,
   carrera: string,
-  ciclo: string,
   materiaClave: string,
+  evaluacionId?: string | null,
 ): Promise<
   | { ok: true; resumen: ResumenAsistencia }
   | { ok: false; error: string }
@@ -217,13 +337,22 @@ export async function actionConfirmarAsistencias(
   }
 
   const supabase = await createClient();
+  const operativo = await resolverOperativoYValidarParcial(
+    supabase,
+    evaluacionId ?? null,
+  );
+  if (!operativo.ok) return { ok: false, error: operativo.error };
   const resultado = await confirmarAsistencias(supabase, archivo, {
     grado,
     grupo,
     carrera,
-    ciclo,
+    ciclo: operativo.periodoNombre,
+    periodoId: operativo.periodoId,
+    evaluacionId: evaluacionId ?? null,
+    evaluaciones: operativo.parciales,
     materiaClave,
     profesorClave: sesion.matricula,
+    profesorId: sesion.profesorId,
     profesorNombre: sesion.nombre || sesion.matricula,
   });
 
@@ -241,13 +370,25 @@ export async function actionConfirmarAsistencias(
  */
 export async function actionObtenerEstadosAsistenciaAlumno(input: {
   curp: string;
-  grado: string;
-  grupo: string;
-  carrera?: string;
-  ciclo: string;
   profesorClave?: string;
 }): Promise<
-  | { ok: true; dias: DiaEstadoAsistencia[]; porcentaje: number }
+  | {
+      ok: true;
+      dias: DiaEstadoAsistencia[];
+      porcentaje: number;
+      /** Nombre del periodo OPERATIVO (ciclo global) usado. */
+      cicloNombre: string;
+      grado: string;
+      grupo: string;
+      carrera: string;
+      parciales: ParcialAsistencia[];
+      resumenPorParcial: ResumenPorParcial[];
+      conflictosParcial: {
+        fecha: string;
+        parciales: { id: string; numero: number; nombre: string }[];
+      }[];
+      diasSinParcial: string[];
+    }
   | { ok: false; error: string }
 > {
   const sesion = await obtenerSesionPortal();
@@ -260,29 +401,90 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
     return { ok: false, error: "Indica la CURP del alumno." };
   }
 
-  // Endurecimiento de permisos por rol:
+  const supabase = await createClient();
+
+  // Endurecimiento de permisos por rol (reutiliza las validaciones existentes):
   //  - alumno: solo su propia CURP (sesion.curp).
   //  - tutor: solo CURP de sus alumnos vinculados (relación activa).
-  //  - maestro: solo alumnos de grupos donde imparte clase (según sus propios
-  //    registros de `clases_impartidas`) y SIEMPRE limitado a su profesor_clave.
+  //  - maestro: solo alumnos de grupos donde imparte clase (validado abajo con
+  //    la inscripción resuelta del alumno) y SIEMPRE su propio aporte.
   //  - directivo: acceso total (sin restricción de grupo ni profesor).
   if (sesion.rol === "alumno") {
     if (!sesion.curp || sesion.curp.trim().toUpperCase() !== curp) {
       return { ok: false, error: "Solo puedes consultar tu propia asistencia." };
     }
   } else if (sesion.rol === "tutor") {
-    const supabase = await createClient();
     const curps = await listarCurpsDeTutor(supabase, sesion.matricula);
     if (!curps.includes(curp)) {
       return { ok: false, error: "No tienes relación con ese alumno." };
     }
-  } else if (sesion.rol === "maestro") {
-    const supabase = await createClient();
+  } else if (sesion.rol !== "directivo" && sesion.rol !== "maestro") {
+    return { ok: false, error: "No tienes permiso para consultar asistencias." };
+  }
+
+  // CICLO GLOBAL — el ciclo y sus parciales salen del periodo OPERATIVO
+  // (obtenerCicloOperativoGlobal), nunca de un parámetro del cliente.
+  const operativo = await resolverOperativoConParciales(supabase);
+  if (!operativo.ok) return { ok: false, error: operativo.error };
+
+  // Identidad académica SOLO desde la inscripción ACTIVA de la CURP (mismo
+  // patrón que actionObtenerHorarioAlumno): el cliente no manda grado/grupo.
+  const { data: inscripciones, error: errIns } = await supabase
+    .from(TABLA_INSCRIPCIONES_ALUMNO)
+    .select("grupo_id, activo")
+    .eq("curp", curp)
+    .eq("activo", true)
+    .limit(2);
+  if (errIns || !inscripciones || inscripciones.length === 0) {
+    return { ok: false, error: "El alumno no tiene inscripción activa." };
+  }
+  if (inscripciones.length > 1) {
+    return {
+      ok: false,
+      error: "El alumno tiene más de una inscripción activa. Revisa el catálogo.",
+    };
+  }
+  const { data: detalleGrupo, error: errGrupo } = await supabase
+    .from(TABLA_GRUPOS)
+    .select("grado, nombre, carrera_id, periodo_id, activo")
+    .eq("id", inscripciones[0].grupo_id)
+    .maybeSingle();
+  if (errGrupo || !detalleGrupo || detalleGrupo.activo === false) {
+    return {
+      ok: false,
+      error: "El grupo del alumno no es válido o está inactivo.",
+    };
+  }
+  if (
+    detalleGrupo.periodo_id &&
+    detalleGrupo.periodo_id !== operativo.periodoId
+  ) {
+    return {
+      ok: false,
+      error:
+        "La inscripción del alumno pertenece a un periodo distinto del OPERATIVO actual.",
+    };
+  }
+  let carrera = "";
+  if (detalleGrupo.carrera_id) {
+    const { data: detalleCarrera } = await supabase
+      .from(TABLA_CARRERAS)
+      .select("clave")
+      .eq("id", detalleGrupo.carrera_id)
+      .maybeSingle();
+    carrera = String(detalleCarrera?.clave ?? "");
+  }
+  const grado = String(detalleGrupo.grado ?? "");
+  const grupo = String(detalleGrupo.nombre ?? "");
+
+  // Maestro: debe impartir en el grupo del alumno y ve SOLO su propio aporte.
+  let profesorClave = input.profesorClave;
+  if (sesion.rol === "maestro") {
     const imparte = await profesorImparteEnGrupo(
       supabase,
       sesion.matricula,
-      input.grado,
-      input.grupo,
+      grado,
+      grupo,
     );
     if (!imparte) {
       return {
@@ -291,23 +493,36 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
           "Solo puedes consultar asistencias de los grupos donde impartes clase.",
       };
     }
-    // Un maestro SIEMPRE consulta su propio aporte (nunca el global ni el de
-    // otro profesor).
-    input.profesorClave = sesion.matricula;
-  } else if (sesion.rol !== "directivo") {
-    return { ok: false, error: "No tienes permiso para consultar asistencias." };
+    profesorClave = sesion.matricula;
   }
 
-  const supabase = await createClient();
   const dias = await obtenerEstadosAsistenciaAlumno(supabase, {
-    ...input,
     curp,
+    grado,
+    grupo,
+    carrera: carrera || undefined,
+    ciclo: operativo.periodoNombre,
+    periodoId: operativo.periodoId,
+    profesorClave,
   });
+
+  const resumen = resumenAsistenciaPorParcial(
+    dias.map((d) => ({ fecha: d.fecha, tipo: d.tipo, estado: d.estado })),
+    operativo.parciales,
+  );
 
   return {
     ok: true,
     dias,
     porcentaje: calcularPorcentajeAsistencia(dias),
+    cicloNombre: operativo.periodoNombre,
+    grado,
+    grupo,
+    carrera,
+    parciales: operativo.parciales,
+    resumenPorParcial: resumen.resumenes,
+    conflictosParcial: resumen.conflictos,
+    diasSinParcial: resumen.diasSinParcial,
   };
 }
 
@@ -599,7 +814,7 @@ export async function actionAnularAsistenciaProfesor(input: {
   fecha: string;
   grado: string;
   grupo: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<{ ok: true; avisoAmbiguo?: string } | { ok: false; error: string }> {
   const sesion = await obtenerSesionPortal();
   if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
     return { ok: false, error: "No tienes permiso para anular asistencias." };
@@ -619,11 +834,17 @@ export async function actionAnularAsistenciaProfesor(input: {
   const supabase = await createClient();
 
   // Validación existente: el profesor solo opera en los grupos donde imparte.
+  // Prompt B: si la sesión trae profesorId (y la columna existe), se prefiere.
+  const profesorId =
+    sesion.profesorId != null && Number.isInteger(Number(sesion.profesorId))
+      ? Number(sesion.profesorId)
+      : null;
   const imparte = await profesorImparteEnGrupo(
     supabase,
     sesion.matricula,
     grado,
     grupo,
+    profesorId,
   );
   if (!imparte) {
     return {
@@ -632,19 +853,42 @@ export async function actionAnularAsistenciaProfesor(input: {
     };
   }
 
-  // Buscar SOLO la fila de ESTE profesor (profesor_clave = sesión).
-  const { data: fila, error: errBuscar } = await supabase
+  // Buscar la fila de ESTE profesor. Se prefiere `profesor_id` (identidad
+  // estructural); si la columna aún no existe, se cae a `profesor_clave`.
+  let query = supabase
     .from(TABLA_ASISTENCIA_ALUMNOS)
     .select("id, clases_asistidas")
-    .eq("profesor_clave", sesion.matricula)
     .eq("curp", curp)
     .eq("fecha", fecha)
     .eq("grado", grado)
-    .eq("grupo", grupo)
-    .maybeSingle();
+    .eq("grupo", grupo);
+  let scopePorId = false;
+  if (profesorId) {
+    const probe = await supabase
+      .from(TABLA_ASISTENCIA_ALUMNOS)
+      .select("profesor_id")
+      .limit(1);
+    if (!probe.error) {
+      query = query.eq("profesor_id", profesorId);
+      scopePorId = true;
+    }
+  }
+  if (!scopePorId) {
+    query = query.eq("profesor_clave", sesion.matricula);
+  }
+  const { data: fila, error: errBuscar } = await query.maybeSingle();
 
   if (errBuscar) return { ok: false, error: errBuscar.message };
   if (!fila) {
+    if (scopePorId) {
+      // Las 81 filas históricas tienen profesor_clave compartido y profesor_id
+      // NULL: no son atribuibles de forma inequívoca (no se inventa backfill).
+      return {
+        ok: false,
+        error:
+          "La asistencia de ese día no tiene profesor_id asignado (deuda histórica de CLAVE compartida). No se puede anular de forma inequívoca; contacta a la dirección.",
+      };
+    }
     return {
       ok: false,
       error: "No hay asistencia registrada por ti ese día para este alumno.",
@@ -661,17 +905,23 @@ export async function actionAnularAsistenciaProfesor(input: {
     .eq("id", fila.id);
 
   if (errUpdate) return { ok: false, error: errUpdate.message };
-  return { ok: true };
+  const avisoAmbiguo = scopePorId
+    ? undefined
+    : "Operación por profesor_clave (CLAVE ambigua). Aplica supabase/agregar-profesor-id-asistencia.sql para anular por profesor_id.";
+  return { ok: true, ...(avisoAmbiguo ? { avisoAmbiguo } : {}) };
 }
 
 /**
- * BLOQUE 9 (PIEZA 4) — Lista los grupos donde el profesor de sesión imparte
- * clase (`resolverAsignacionesProfesor`, catálogo) con los alumnos de cada
- * grupo (`obtenerAlumnosDelGrupo`, que ya maneja catálogo + fallback legacy).
+ * BLOQUE 9 (PIEZA 4) — Lista los grupos del periodo OPERATIVO que tienen
+ * HORARIO oficial cargado, con los alumnos de cada grupo
+ * (`obtenerAlumnosDelGrupo`). DECISIÓN B (directivo): el alcance del profesor
+ * es el horario del grupo, sin acotar por asignaciones_profesor (hoy vacías).
  *
- * PERF: los alumnos de cada grupo se resuelven en PARALELO (Promise.all).
- * NO se hace un buscador sobre los 461 alumnos completos: solo sobre los
- * grupos asignados al profesor de la sesión.
+ * > `resolverAsignacionesProfesor` NO se borra: queda @deprecated para este
+ * > uso y volverá a ser la fuente cuando `asignaciones_profesor` se pueble.
+ *
+ * PERF: alumnos por grupo en PARALELO (Promise.all). 2 consultas para los
+ * grupos con horario (grupos del periodo + distinct grupo_id de horario).
  */
 export async function actionListarAlumnosGruposProfesor(): Promise<
   | {
@@ -691,37 +941,55 @@ export async function actionListarAlumnosGruposProfesor(): Promise<
   }
 
   const supabase = await createClient();
-  const asignaciones = await resolverAsignacionesProfesor(
-    supabase,
-    sesion.matricula,
-  );
-  if (asignaciones.length === 0) {
+  // CICLO GLOBAL — el periodo operativo es la única fuente del ciclo.
+  const operativo = await obtenerCicloOperativoGlobal(supabase);
+  if (!operativo.ok) {
+    return {
+      ok: false,
+      error: operativo.error ?? "No hay un único ciclo OPERATIVO.",
+    };
+  }
+  if (!operativo.periodo) {
     return {
       ok: false,
       error:
-        "No tienes grupos asignados en el catálogo (asignaciones_profesor). La administración debe crear tus asignaciones.",
+        "No hay ningún periodo OPERATIVO activado. Actívalo en /configuracion para usar este panel.",
     };
   }
 
-  // Agrupar por (grado, grupo, carrera) sin duplicados.
-  const gruposUnicos = new Map<
-    string,
-    { grado: string; grupo: string; carrera: string }
-  >();
-  for (const a of asignaciones) {
-    const grado = String(a.grupo.grado ?? "").trim();
-    const grupo = String(a.grupo.nombre ?? "").trim();
-    const carrera = String(a.carrera?.clave ?? "").trim();
-    if (!grado || !grupo) continue;
-    gruposUnicos.set(`${grado}|${grupo}|${carrera}`, { grado, grupo, carrera });
+  const grupos = await obtenerGruposConCarreraDePeriodo(
+    supabase,
+    String(operativo.periodo.id),
+  );
+  if (grupos.length === 0) {
+    return { ok: true, grupos: [] };
   }
-  const grupos = [...gruposUnicos.values()];
+
+  // Grupos del periodo con HORARIO cargado (1 consulta; sin N+1 por grupo).
+  const { data: bloques } = await supabase
+    .from(TABLA_HORARIO_SEMANAL)
+    .select("grupo_id")
+    .eq("periodo_id", operativo.periodo.id)
+    .limit(20000);
+  const conHorario = new Set(
+    (bloques ?? []).map((b) => String((b as { grupo_id: string }).grupo_id)),
+  );
+  const elegibles = grupos.filter((g) => conHorario.has(g.id));
+  if (elegibles.length === 0) {
+    return {
+      ok: false,
+      error:
+        "El periodo operativo no tiene horario oficial cargado todavía. Carga el horario en /configuracion para consultar alumnos.",
+    };
+  }
 
   const porGrupo = await Promise.all(
-    grupos.map(async (g) => ({
-      ...g,
+    elegibles.map(async (g) => ({
+      grado: g.grado,
+      grupo: g.nombre,
+      carrera: g.carreraClave,
       alumnos: (
-        await obtenerAlumnosDelGrupo(supabase, g.grado, g.grupo, g.carrera)
+        await obtenerAlumnosDelGrupo(supabase, g.grado, g.nombre, g.carreraClave)
       ).map((al) => ({ curp: al.curp, nombre: al.nombre })),
     })),
   );

@@ -6,10 +6,16 @@ import { matrizAXlsxBase64 } from "./exportar-xlsx";
 import { CURP_ALUMNO_RE } from "./buscar-en-filas";
 import {
   diaSemanaDesdeFecha,
+  obtenerCalendarioDePeriodo,
   obtenerCalendarioEscolar,
+  type DiaCalendarioRow,
   type DiaSemana,
 } from "./calendario";
 import { detectarColumnasFechaAsistencia } from "./fechas";
+import {
+  filtrarDiasDeParcial,
+  type ParcialAsistencia,
+} from "./asistencia-parcial";
 
 import {
   normalizarCarreraCatalogo,
@@ -86,7 +92,20 @@ export type ContextoAsistencia = {
   grupo: string;
   carrera: string;
   ciclo: string;
+  /**
+   * CICLO GLOBAL — id del periodo OPERATIVO cuando el contexto viene resuelto
+   * en el servidor (obtenerCicloOperativoGlobal). Con `periodoId` el
+   * calendario se lee POR PERIODO (obtenerCalendarioDePeriodo); sin él se
+   * conserva la lectura legacy por texto (`ciclo_escolar`).
+   */
+  periodoId?: string;
+  /** Parcial (`periodos_evaluacion`) elegido por el profesor para la plantilla. */
+  evaluacionId?: string | null;
+  /** Parciales activos del periodo operativo (para acotar fechas por rango). */
+  evaluaciones?: ParcialAsistencia[];
   profesorClave: string;
+  /** Prompt B — PROFESORES.ID (identidad estructural) para escrituras nuevas. */
+  profesorId?: number | null;
   profesorNombre: string;
   /** FASE HORARIO — materia del horario oficial (clave normalizada) para
    *  derivar la fila CLASES contando sus bloques por día. */
@@ -618,12 +637,22 @@ export async function generarPlantillaAsistencia(
   const ciclo = norm(ctx.ciclo);
   if (!ciclo) return { ok: false, error: "Indica un ciclo escolar." };
 
-  const calendario = await obtenerCalendarioEscolar(supabase, ciclo);
+  const cargaCal = await cargarCalendarioAsistenciaContexto(supabase, ctx, {
+    acotarAlParcial: true,
+  });
+  if (!cargaCal.ok) return { ok: false, error: cargaCal.error };
+  const calendario = cargaCal.dias;
   const fechas = calendario
     .filter((d) => d.tipo === "clase")
     .map((d) => d.fecha)
     .sort();
 
+  if (cargaCal.parcial && fechas.length === 0) {
+    return {
+      ok: false,
+      error: `El parcial ${cargaCal.parcial.nombre} no tiene dias de clase en su rango (${cargaCal.parcial.fecha_inicio} a ${cargaCal.parcial.fecha_fin}) para el ciclo ${ciclo}. Verifica el calendario del periodo o el rango del parcial en Configuracion.`,
+    };
+  }
   if (fechas.length === 0) {
     return {
       ok: false,
@@ -681,7 +710,7 @@ export async function generarPlantillaAsistencia(
         "Asistencias",
         [20, 50, ...fechas.map(() => 11)],
       ),
-      nombreArchivo: `asistencias_${nombreBase || "grupo"}_${ctx.ciclo}.xlsx`,
+      nombreArchivo: `asistencias_${nombreBase || "grupo"}_${ctx.ciclo}${cargaCal.parcial ? `_parcial${cargaCal.parcial.numero}` : ""}.xlsx`,
       usaHorario: clases.usaHorario,
       aviso: clases.aviso,
     },
@@ -740,7 +769,11 @@ export async function analizarPlantillaAsistencia(
   }
 
   // 3) Calendario: dÃ­as vÃ¡lidos de clase del ciclo (fuente de verdad).
-  const calendario = await obtenerCalendarioEscolar(supabase, ciclo);
+  const cargaCal = await cargarCalendarioAsistenciaContexto(supabase, ctx, {
+    acotarAlParcial: false,
+  });
+  if (!cargaCal.ok) return { ok: false, error: cargaCal.error };
+  const calendario = cargaCal.dias;
   const diasClase = new Set(
     calendario.filter((d) => d.tipo === "clase").map((d) => d.fecha),
   );
@@ -764,6 +797,27 @@ export async function analizarPlantillaAsistencia(
     indice: c.indice,
     fecha: c.fecha!,
   }));
+  // El parcial acota el rango: fechas de otro parcial en el archivo = error
+  // (no se escribe nada). El mensaje indica ejemplos y a qué rango pertenece.
+  if (cargaCal.parcial) {
+    const fueraDeRango = columnasFecha.filter(
+      (c) =>
+        !(
+          c.fecha >= cargaCal.parcial!.fecha_inicio &&
+          c.fecha <= cargaCal.parcial!.fecha_fin
+        ),
+    );
+    if (fueraDeRango.length > 0) {
+      const ejemplos = fueraDeRango
+        .slice(0, 3)
+        .map((c) => c.fecha)
+        .join(", ");
+      return {
+        ok: false,
+        error: `La plantilla tiene fechas fuera del parcial «${cargaCal.parcial.nombre}» (${cargaCal.parcial.fecha_inicio} a ${cargaCal.parcial.fecha_fin}). Fuera de rango: ${ejemplos}. Descarga la plantilla del parcial correcto.`,
+      };
+    }
+  }
   if (columnasFecha.length === 0) {
 
     // Mensaje de error mÃ¡s Ãºtil segÃºn quÃ© fallÃ³.
@@ -927,6 +981,17 @@ export async function analizarPlantillaAsistencia(
   const diasClaseOrdenados = [...diasClase].sort();
   for (const fecha of diasClaseOrdenados) {
     if (fechasEnArchivo.has(fecha)) continue;
+    // CICLO GLOBAL + PARCIAL — los PENDIENTES se calculan solo dentro del
+    // rango del parcial elegido (no del ciclo entero).
+    if (
+      cargaCal.parcial &&
+      !(
+        fecha >= cargaCal.parcial.fecha_inicio &&
+        fecha <= cargaCal.parcial.fecha_fin
+      )
+    ) {
+      continue;
+    }
     const oficial = oficialesPlantilla.porFecha.get(fecha) ?? 0;
     if (oficial > 0) {
       pendientesDetalle.push(
@@ -1080,9 +1145,32 @@ export async function confirmarAsistencias(
     return { ok: false, error: plan.resumen.aviso };
   }
 
+  // Prompt B — identidad estructural PROFESORES.ID: las escrituras nuevas
+  // rellenan `profesor_id` además de `profesor_clave` cuando la columna existe
+  // (SQL agregar-profesor-id-asistencia.sql aplicado). Sin la columna, nada
+  // cambia (aditivo). Nunca se escribe profesor_id NULL por decisión.
+  const profesorId =
+    ctx.profesorId != null && Number.isInteger(Number(ctx.profesorId))
+      ? Number(ctx.profesorId)
+      : null;
+  let conColumnaClases = false;
+  let conColumnaAsistencia = false;
+  if (profesorId) {
+    const [p1, p2] = await Promise.all([
+      supabase.from(TABLA_CLASES_IMPARTIDAS).select("profesor_id").limit(1),
+      supabase.from(TABLA_ASISTENCIA_ALUMNOS).select("profesor_id").limit(1),
+    ]);
+    conColumnaClases = !p1.error;
+    conColumnaAsistencia = !p2.error;
+  }
+  const conProfesor = (conColumna: boolean) =>
+    conColumna ? { profesor_id: profesorId } : {};
+
   // UPSERT clases_impartidas (profesor + grado + grupo + fecha).
   for (let i = 0; i < plan.clasesImpartidas.length; i += TAMANO_LOTE) {
-    const lote = plan.clasesImpartidas.slice(i, i + TAMANO_LOTE);
+    const lote = plan.clasesImpartidas
+      .slice(i, i + TAMANO_LOTE)
+      .map((fila) => ({ ...fila, ...conProfesor(conColumnaClases) }));
     const { error } = await supabase
       .from(TABLA_CLASES_IMPARTIDAS)
       .upsert(lote, { onConflict: "profesor_clave,grado,grupo,fecha" });
@@ -1091,7 +1179,9 @@ export async function confirmarAsistencias(
 
   // UPSERT asistencia_alumnos (profesor + curp + grado + grupo + fecha).
   for (let i = 0; i < plan.asistencias.length; i += TAMANO_LOTE) {
-    const lote = plan.asistencias.slice(i, i + TAMANO_LOTE);
+    const lote = plan.asistencias
+      .slice(i, i + TAMANO_LOTE)
+      .map((fila) => ({ ...fila, ...conProfesor(conColumnaAsistencia) }));
     const { error } = await supabase
       .from(TABLA_ASISTENCIA_ALUMNOS)
       .upsert(lote, { onConflict: "profesor_clave,curp,grado,grupo,fecha" });
@@ -1170,11 +1260,27 @@ export async function profesorImparteEnGrupo(
   profesorClave: string,
   grado: string,
   grupo: string,
+  profesorId?: number | null,
 ): Promise<boolean> {
   const clave = norm(profesorClave);
   const g = norm(grado);
   const gr = norm(grupo);
   if (!clave || !g || !gr) return false;
+
+  // Prompt B — identidad estructural PROFESORES.ID: si la sesión lo trae y la
+  // columna existe (SQL agregar-profesor-id-asistencia.sql aplicado), se
+  // prefiere `profesor_id` (CLAVE es ambigua: la comparten varios profesores).
+  if (profesorId && Number.isInteger(Number(profesorId)) && Number(profesorId) > 0) {
+    const { data, error } = await supabase
+      .from(TABLA_CLASES_IMPARTIDAS)
+      .select("id")
+      .eq("profesor_id", Number(profesorId))
+      .eq("grado", g)
+      .eq("grupo", gr)
+      .limit(1);
+    if (!error) return (data?.length ?? 0) > 0;
+    // Columna inexistente (migración pendiente): caemos al modo profesor_clave.
+  }
 
   const { data, error } = await supabase
     .from(TABLA_CLASES_IMPARTIDAS)
@@ -1207,6 +1313,8 @@ export async function obtenerEstadosAsistenciaAlumno(
     grupo: string;
     carrera?: string;
     ciclo: string;
+    /** CICLO GLOBAL — periodo operativo resuelto en el servidor. */
+    periodoId?: string;
     profesorClave?: string;
   },
 ): Promise<DiaEstadoAsistencia[]> {
@@ -1215,8 +1323,12 @@ export async function obtenerEstadosAsistenciaAlumno(
   const ciclo = norm(input.ciclo);
   if (!g || !gr || !ciclo) return [];
 
-  // 1) Calendario del ciclo (fuente de verdad de dÃ­as escolares).
-  const calendario = await obtenerCalendarioEscolar(supabase, ciclo);
+  // 1) Calendario del ciclo (fuente de verdad de días escolares). Si se conoce
+  //    el periodo operativo se lee POR PERIODO; si no, se conserva la lectura
+  //    legacy por texto (ciclo_escolar).
+  const calendario = input.periodoId
+    ? await obtenerCalendarioDePeriodo(supabase, input.periodoId, input.ciclo)
+    : await obtenerCalendarioEscolar(supabase, ciclo);
   if (calendario.length === 0) return [];
 
   // 2) Clases impartidas del grupo (SUM por fecha). Si hay profesorClave, solo
@@ -1299,5 +1411,73 @@ export function calcularPorcentajeAsistencia(
   if (total === 0) return 0;
   return Math.round((asistencias / total) * 100);
 }
+
+// ============================================================================
+// CICLO GLOBAL + PARCIALES — calendario del contexto de asistencias
+// ----------------------------------------------------------------------------
+
+type CalendarioContextoAsistencia =
+  | { ok: true; dias: DiaCalendarioRow[]; parcial: ParcialAsistencia | null }
+  | { ok: false; error: string };
+
+/**
+ * CICLO GLOBAL + PARCIAL — calendario para el flujo del profesor.
+ *
+ * - Con `ctx.periodoId` lee POR PERIODO (`obtenerCalendarioDePeriodo`, ruta F5
+ *   con fallback al texto exacto del periodo); sin él conserva la lectura
+ *   legacy por texto (`ciclo_escolar`).
+ * - Si el profesor eligió un PARCIAL (`ctx.evaluacionId`), valida que exista
+ *   entre `ctx.evaluaciones` (parciales activos del periodo operativo) y:
+ *     · acotarAlParcial=true  → devuelve solo los días de su rango (plantilla);
+ *     · acotarAlParcial=false → devuelve el calendario completo + el parcial,
+ *       para que la SUBIDA rechace columnas fuera de rango con mensaje exacto.
+ * - Un `evaluacionId` que no pertenezca al periodo operativo = error (nunca se
+ *   usan parciales de otro periodo).
+ */
+async function cargarCalendarioAsistenciaContexto(
+  supabase: SupabaseClient,
+  ctx: ContextoAsistencia,
+  opciones: { acotarAlParcial: boolean },
+): Promise<CalendarioContextoAsistencia> {
+  const ciclo = norm(ctx.ciclo);
+  if (!ciclo) return { ok: false, error: "Indica un ciclo escolar." };
+
+  const calendario = ctx.periodoId
+    ? await obtenerCalendarioDePeriodo(supabase, ctx.periodoId, ctx.ciclo)
+    : await obtenerCalendarioEscolar(supabase, ciclo);
+
+  if (!ctx.evaluacionId) {
+    return { ok: true, dias: calendario, parcial: null };
+  }
+  const parcial = (ctx.evaluaciones ?? []).find(
+    (e) => e.id === ctx.evaluacionId && e.activo !== false,
+  );
+  if (!parcial) {
+    return {
+      ok: false,
+      error:
+        "El parcial seleccionado no pertenece al periodo operativo o esta inactivo. Recarga la pagina y vuelve a intentarlo.",
+    };
+  }
+  if (!opciones.acotarAlParcial) {
+    return { ok: true, dias: calendario, parcial };
+  }
+  return {
+    ok: true,
+    dias: filtrarDiasDeParcial(calendario, parcial),
+    parcial,
+  };
+}
+
+// Re-export de la función PURA por parcial (se implementa en
+// asistencia-parcial.ts para que las pruebas compilen sin Supabase).
+export {
+  resumenAsistenciaPorParcial,
+} from "./asistencia-parcial";
+export type {
+  ParcialAsistencia,
+  ResumenPorParcial,
+  ResultadoResumenPorParcial,
+} from "./asistencia-parcial";
 
 

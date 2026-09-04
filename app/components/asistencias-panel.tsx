@@ -16,6 +16,15 @@ import type { ResumenAsistencia } from "@/lib/escolar/asistencias";
 
 type Grupo = { grado: string; grupo: string; carrera: string };
 
+/** Parcial ACTIVO del periodo OPERATIVO (periodos_evaluacion). */
+type ParcialUI = {
+  id: string;
+  numero: number;
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+};
+
 function PillButton({
   children,
   onClick,
@@ -99,7 +108,7 @@ function Resumen({ resumen }: { resumen: ResumenAsistencia }) {
       {resumen.pendientes > 0 && (
         <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-[11px] text-amber-800">
           <p className="font-extrabold">
-            {resumen.pendientes} día(s) de clase del ciclo no vienen en el
+            {resumen.pendientes} día(s) de clase del parcial no vienen en el
             archivo y quedarán como PENDIENTES (no se marcan como falta).
           </p>
           <ul className="mt-1 max-h-24 list-inside list-disc overflow-auto">
@@ -149,14 +158,18 @@ const DIAS_LARGO = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
 export function AsistenciasPanel() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
-  const [ciclos, setCiclos] = useState<string[]>([]);
+  // CICLO GLOBAL — periodo OPERATIVO resuelto en la Server Action; el profesor
+  // ya NO elige el ciclo: solo el PARCIAL dentro de ese ciclo.
+  const [parciales, setParciales] = useState<ParcialUI[]>([]);
   const [errorGrupos, setErrorGrupos] = useState<string | null>(null);
   const [avisoOperativo, setAvisoOperativo] = useState<string | null>(null);
 
   const [grado, setGrado] = useState("");
   const [grupo, setGrupo] = useState("");
   const [carrera, setCarrera] = useState("");
+  // `ciclo` es derivado del periodo OPERATIVO (nombre); alimenta el horario.
   const [ciclo, setCiclo] = useState("");
+  const [parcialId, setParcialId] = useState("");
 
   // FASE HORARIO — materias del horario oficial del grupo (cualquier profesor
   // puede descargar la plantilla de una materia; el sistema calcula el número
@@ -191,11 +204,18 @@ export function AsistenciasPanel() {
       if (!activo) return;
       if (r.ok) {
         setGrupos(r.data.grupos);
-        setCiclos(r.data.ciclos);
-        if (r.data.cicloOperativo) {
-          setCiclo(r.data.cicloOperativo);
-          setAvisoOperativo(null);
+        setParciales(r.data.parciales);
+        if (r.data.periodoOperativo) {
+          setCiclo(r.data.periodoOperativo.nombre);
+          setAvisoOperativo(r.data.avisoOperativo);
+          if (r.data.parciales.length > 0) {
+            setParcialId((prev) => prev || r.data.parciales[0]!.id);
+          } else {
+            setParcialId("");
+          }
         } else {
+          setCiclo("");
+          setParcialId("");
           setAvisoOperativo(r.data.avisoOperativo);
         }
       } else {
@@ -248,7 +268,9 @@ export function AsistenciasPanel() {
   const materiaSeleccionada =
     materias.find((m) => m.clave === materiaClave) ?? null;
 
-  const seleccionCompleta = Boolean(grado && grupo && ciclo && materiaClave);
+  const seleccionCompleta = Boolean(
+    grado && grupo && ciclo && materiaClave && parcialId,
+  );
 
   function limpiarSeleccionPlantilla() {
     setPreview(null);
@@ -275,9 +297,8 @@ export function AsistenciasPanel() {
     setMateriaClave("");
     limpiarSeleccionPlantilla();
   }
-  function onCicloChange(v: string) {
-    setCiclo(v);
-    setMateriaClave("");
+  function onParcialChange(v: string) {
+    setParcialId(v);
     limpiarSeleccionPlantilla();
   }
   function onMateriaChange(clave: string) {
@@ -294,8 +315,8 @@ export function AsistenciasPanel() {
       grado,
       grupo,
       carrera,
-      ciclo,
       materiaClave,
+      parcialId,
     );
     setDescargando(false);
     if (!r.ok) {
@@ -375,8 +396,8 @@ export function AsistenciasPanel() {
       grado,
       grupo,
       carrera,
-      ciclo,
       materiaClave,
+      parcialId,
     );
     if (r.ok) {
       setPreview(r.resumen);
@@ -397,8 +418,8 @@ export function AsistenciasPanel() {
       grado,
       grupo,
       carrera,
-      ciclo,
       materiaClave,
+      parcialId,
     );
     setConfirmando(false);
     if (r.ok) {
@@ -436,8 +457,8 @@ export function AsistenciasPanel() {
           </div>
           {!grado || !grupo || !ciclo ? (
             <p className="mt-2 text-xs font-semibold text-slate-500">
-              Selecciona grado, grupo y ciclo para ver las materias programadas
-              y descargar su plantilla.
+              Selecciona grado y grupo para ver las materias programadas
+              del ciclo operativo y descargar su plantilla por parcial.
             </p>
           ) : !horarioCargado ? (
             <p className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800" role="alert">
@@ -484,7 +505,7 @@ export function AsistenciasPanel() {
             {avisoOperativo}
           </div>
         )}
-        <div className="grid grid-cols-1 gap-3 rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:grid-cols-2 lg:grid-cols-6">
           <SelectField
             label="Grado"
             value={grado}
@@ -506,13 +527,42 @@ export function AsistenciasPanel() {
             options={carrerasDelGrupo}
             placeholder="Todas / tronco común"
           />
-          <SelectField
-            label="Ciclo escolar"
-            value={ciclo}
-            onChange={onCicloChange}
-            options={ciclos}
-            placeholder="Selecciona ciclo"
-          />
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+              Ciclo (operativo)
+            </span>
+            <span
+              className={`rounded-full border px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] ${
+                ciclo
+                  ? "border-emerald-400/70 bg-emerald-100/90 text-emerald-900"
+                  : "border-amber-300 bg-amber-100 text-amber-900"
+              }`}
+            >
+              {ciclo || "Sin ciclo operativo"}
+            </span>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+              Parcial
+            </span>
+            <select
+              value={parcialId}
+              onChange={(e) => onParcialChange(e.target.value)}
+              disabled={parciales.length === 0}
+              className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white outline-none focus:ring-2 focus:ring-sky-400/60 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <option value="">
+                {parciales.length === 0
+                  ? "Sin parciales activos"
+                  : "Selecciona parcial"}
+              </option>
+              {parciales.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre} · {p.fecha_inicio} a {p.fecha_fin}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="flex flex-col gap-1">
             <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
               Materia
@@ -536,8 +586,8 @@ export function AsistenciasPanel() {
         </div>
         {!avisoOperativo && (
           <p className="text-[10px] font-semibold text-slate-500">
-            Ciclo preseleccionado: periodo OPERATIVO (puedes cambiarlo manualmente). El
-            selector incluye además los ciclos legacy del calendario escolar.
+            Ciclo global: periodo OPERATIVO de /configuracion. La plantilla se genera
+            con los días de clase del calendario acotados al parcial elegido.
           </p>
         )}
 
@@ -629,7 +679,7 @@ export function AsistenciasPanel() {
           </div>
           {!seleccionCompleta && (
             <p className="mt-2 text-[11px] font-semibold text-amber-800">
-              Completa grado, grupo, ciclo y materia para analizar la plantilla.
+              Completa grado, grupo, parcial y materia para analizar la plantilla.
             </p>
           )}
           {preview && (

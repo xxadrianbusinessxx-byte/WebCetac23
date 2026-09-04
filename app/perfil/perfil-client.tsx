@@ -733,9 +733,6 @@ export function PerfilClient({ materias, modo, urlRegreso, datos }: Props) {
                     <HorarioAlumnoResumen curp={curp} />
                     <CalendarioAsistenciaAlumno
                       curp={curp}
-                      grado={etiquetas?.GRADO?.trim() ?? ""}
-                      grupo={etiquetas?.GRUPO?.trim() ?? ""}
-                      carrera={etiquetas?.CARRERA?.trim() || undefined}
                       nombreAlumno={nombreMostrar}
                     />
                   </div>

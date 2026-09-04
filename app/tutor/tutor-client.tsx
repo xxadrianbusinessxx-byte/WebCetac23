@@ -503,14 +503,10 @@ export function TutorClient({ sesion }: Props) {
                         <div className="flex flex-col gap-3">
                           <HorarioAlumnoResumen curp={contextoAlumno.curp} />
                           <CalendarioAsistenciaAlumno
-                          curp={contextoAlumno.curp}
-                          grado={contextoAlumno.grado}
-                          grupo={contextoAlumno.grupo}
-                          carrera={contextoAlumno.carrera || undefined}
-                          ciclo={contextoAlumno.ciclo || undefined}
-                          nombreAlumno={contextoAlumno.nombre}
-                          permitirJustificacion
-                        />
+                            curp={contextoAlumno.curp}
+                            nombreAlumno={contextoAlumno.nombre}
+                            permitirJustificacion
+                          />
                         </div>
                       ) : (
                         <p className="text-center text-xs font-semibold text-slate-600">

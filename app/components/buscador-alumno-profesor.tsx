@@ -224,9 +224,6 @@ export function BuscadorAlumnoProfesor({
             <HorarioAlumnoResumen curp={alumnoSel.curp} />
             <CalendarioAsistenciaAlumno
               curp={alumnoSel.curp}
-              grado={alumnoSel.grado}
-              grupo={alumnoSel.grupo}
-              carrera={alumnoSel.carrera}
               nombreAlumno={alumnoSel.nombre}
               profesorClave={profesorClave}
               permitirJustificacion

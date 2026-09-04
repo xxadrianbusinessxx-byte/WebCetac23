@@ -1,16 +1,20 @@
 "use server";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import {
   cargarMateriasDesdeCatalogo,
   clonarContextoAcademico,
+  repararTablaLegacyDePeriodo,
   verContextoAcademicoPeriodo,
   type ContextoAcademicoPeriodo,
   type ResultadoCargaMateriasCatalogo,
   type ResultadoClonContexto,
+  type ResultadoRepararTablaLegacy,
 } from "@/lib/escolar/contexto-ciclo";
 import { TABLA_PERIODOS } from "@/lib/escolar/tables";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 /**
  * FASE CONSOLIDACIÓN — Server Actions del CONTEXTO ACADÉMICO DEL CICLO.
@@ -81,6 +85,7 @@ export async function actionClonarContextoAcademico(
       gruposYaExistentes: 0,
       materiasVinculadas: 0,
       materiasOmitidas: 0,
+      materiasSinTablaLegacy: 0,
     };
   }
   const supabase = await createClient();
@@ -114,4 +119,89 @@ export async function actionCargarMateriasDesdeCatalogo(
   }
   const supabase = await createClient();
   return cargarMateriasDesdeCatalogo(supabase, periodoDestinoId);
+}
+
+const REPARAR_VACIO = {
+  ok: false,
+  match: 0,
+  yaTiene: 0,
+  sinOrigen: 0,
+  ambiguos: 0,
+  aplicados: 0,
+  error: "No autorizado: se requiere rol directivo.",
+} as const;
+
+/** Valida que ambos periodos existan (server-side, nunca confiar en el cliente). */
+async function validarPeriodosReparacion(
+  supabase: SupabaseClient,
+  ids: [string, string],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data, error } = await supabase
+    .from(TABLA_PERIODOS)
+    .select("id")
+    .in("id", ids);
+  if (error) return { ok: false, error: error.message };
+  const encontrados = new Set((data ?? []).map((p) => String((p as { id: string }).id)));
+  if (encontrados.size !== ids.length) {
+    return { ok: false, error: "Uno de los periodos indicados no existe." };
+  }
+  return { ok: true };
+}
+
+/**
+ * Preview de la reparación de `tabla_legacy` (NO escribe): devuelve cuántas
+ * filas son match / ya_tiene / sin_origen / ambiguos para el par
+ * (periodoDestinoId ← periodoOrigenId).
+ */
+export async function actionPrevisualizarRepararTablaLegacy(
+  periodoDestinoId: string,
+  periodoOrigenId: string,
+): Promise<ResultadoRepararTablaLegacy> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return { ...REPARAR_VACIO };
+  }
+  const supabase = await createClient();
+  const valido = await validarPeriodosReparacion(supabase, [
+    periodoDestinoId,
+    periodoOrigenId,
+  ]);
+  if (!valido.ok) {
+    return { ...REPARAR_VACIO, error: valido.error };
+  }
+  return repararTablaLegacyDePeriodo(supabase, {
+    periodoDestinoId,
+    periodoOrigenId,
+    soloPlan: true,
+  });
+}
+
+/**
+ * Aplica la reparación de `tabla_legacy` (UPDATE solo de filas match con la
+ * columna hoy NULL). Idempotente. Solo rol `directivo`.
+ */
+export async function actionRepararTablaLegacy(
+  periodoDestinoId: string,
+  periodoOrigenId: string,
+): Promise<ResultadoRepararTablaLegacy> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return { ...REPARAR_VACIO };
+  }
+  const supabase = await createClient();
+  const valido = await validarPeriodosReparacion(supabase, [
+    periodoDestinoId,
+    periodoOrigenId,
+  ]);
+  if (!valido.ok) {
+    return { ...REPARAR_VACIO, error: valido.error };
+  }
+  // FIX RLS (mismo patrón que app/actions/documentos.ts): la ESCRITURA usa
+  // service role para no chocar con las políticas de RLS de `grupo_materias`.
+  // La autorización real ya se validó arriba (rol directivo + periodos reales).
+  const escritura = createServiceClient() ?? supabase;
+  return repararTablaLegacyDePeriodo(escritura, {
+    periodoDestinoId,
+    periodoOrigenId,
+  });
 }

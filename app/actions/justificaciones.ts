@@ -28,6 +28,7 @@ import {
   JUSTIFICACION_MOTIVO_MAX,
   listarMensajesJustificacion,
   marcarMensajesJustificacionLeidos,
+  materiaTieneClaseEnDia,
   resolverContextoAlumnoDesdeInscripcion,
   resolverTutorDeAlumno,
   resumenClasesYAsistencia,
@@ -37,9 +38,47 @@ import {
   type EstadoJustificacion,
   type FilaJustificacion,
 } from "@/lib/escolar/justificaciones";
+import {
+  bloquesDeGrupoEnFecha,
+  consultarHorarioAlumno,
+} from "@/lib/escolar/horario-semanal";
 import { TABLA_ALUMNOS, TABLA_MENSAJES_JUSTIFICACION } from "@/lib/escolar/tables";
 
 const NO_AUTORIZADO = { ok: false, error: "No tienes permiso." } as const;
+
+/**
+ * Bloques del grupo del alumno ESE día, agrupados por materia_clave oficial.
+ * Devuelve null cuando no hay horario/inscripción consultable.
+ */
+async function bloquesPorMateriaDiaDe(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  curp: string,
+  fecha: string,
+): Promise<{ bloquesPorMateria: Record<string, number>; nombres: Record<string, string> } | null> {
+  const consulta = await consultarHorarioAlumno(supabase, curp);
+  if (!consulta) return null;
+  const delDia = bloquesDeGrupoEnFecha(consulta.bloques, fecha);
+  const bloquesPorMateria: Record<string, number> = {};
+  const nombres: Record<string, string> = {};
+  for (const b of delDia) {
+    const k = String(b.materia_clave ?? "").trim();
+    if (!k) continue;
+    bloquesPorMateria[k] = (bloquesPorMateria[k] ?? 0) + 1;
+    if (!nombres[k]) nombres[k] = String(b.materia_nombre ?? k);
+  }
+  return { bloquesPorMateria, nombres };
+}
+
+/** ¿La tabla ya tiene la columna `materia_clave` (SQL del Prompt B aplicado)? */
+async function justificacionesTienenColumnaMateria(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .select("materia_clave")
+    .limit(1);
+  return !error;
+}
 
 /** Crea el bucket si no existe (best-effort con el cliente de servicio). */
 async function asegurarBucket() {
@@ -71,6 +110,9 @@ async function sesionAutorizaCurp(
   curp: string,
 ): Promise<boolean> {
   if (sesion.rol === "directivo") return true;
+  // PROFESOR (Prompt B): accede desde "Asistencia de mis alumnos" (grupos con
+  // horario). El circuito reutiliza las mismas reglas que tutor/alumno.
+  if (sesion.rol === "maestro") return true;
   if (sesion.rol === "tutor") {
     const curps = await listarCurpsDeTutor(supabase, sesion.matricula);
     return curps.includes(curp);
@@ -115,13 +157,26 @@ export async function actionSolicitarJustificacionConArchivo(
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const sesion = await obtenerSesionPortal();
   if (!sesion) return { ok: false, error: "Sesión no válida." };
-  if (sesion.rol !== "tutor" && sesion.rol !== "alumno") {
-    return { ok: false, error: "Solo tutores o el alumno pueden justificar faltas." };
+  const rolProfesorJustifica =
+    sesion.rol === "maestro" || sesion.rol === "directivo";
+  if (
+    sesion.rol !== "tutor" &&
+    sesion.rol !== "alumno" &&
+    !rolProfesorJustifica
+  ) {
+    return {
+      ok: false,
+      error:
+        "Solo tutores, el propio alumno, el profesor o la dirección pueden justificar faltas.",
+    };
   }
 
   const curp = String(formData.get("curp") ?? "").trim().toUpperCase();
   const fecha = String(formData.get("fecha") ?? "").trim();
   const motivo = String(formData.get("motivo") ?? "").trim();
+  // Prompt B: materia del horario para justificar UNA CLASE (solo profesor/
+  // dirección). Vacía = día completo (comportamiento actual).
+  const materiaClave = String(formData.get("materia_clave") ?? "").trim();
   const archivo = formData.get("archivo");
   if (!curp || !fecha || !motivo) {
     return { ok: false, error: "Indica CURP, fecha y motivo." };
@@ -181,24 +236,75 @@ export async function actionSolicitarJustificacionConArchivo(
       error: "Ese día no hay clase registrada para el grupo del alumno.",
     };
   }
-  if (asistidas > 0) {
-    return { ok: false, error: "El alumno no tiene falta registrada ese día." };
+  if (asistidas >= esperadas) {
+    return {
+      ok: false,
+      error: "El alumno ya tiene asistencia completa ese día.",
+    };
+  }
+  if (!materiaClave && asistidas > 0) {
+    return {
+      ok: false,
+      error:
+        "El alumno no tiene falta registrada ese día. La justificación de día completo requiere que no haya asistido a ninguna clase.",
+    };
   }
 
-  // Estado de la justificación previa.
-  const { data: previa } = await supabase
+  // Justificación POR CLASE: solo profesor/dirección y materia del horario ESE
+  // día. Compatibilidad aditiva: sin la columna (SQL pendiente) el flujo de día
+  // completo sigue funcionando intacto.
+  const conColumnaMateria = await justificacionesTienenColumnaMateria(supabase);
+  if (materiaClave) {
+    if (!rolProfesorJustifica) {
+      return {
+        ok: false,
+        error:
+          "Solo el profesor o la dirección pueden justificar una clase concreta.",
+      };
+    }
+    if (!conColumnaMateria) {
+      return {
+        ok: false,
+        error:
+          "La justificación por clase requiere aplicar supabase/agregar-materia-justificaciones.sql.",
+      };
+    }
+    const dia = await bloquesPorMateriaDiaDe(supabase, curp, fecha);
+    if (!dia) {
+      return {
+        ok: false,
+        error: "No se pudo leer el horario del grupo del alumno para esa fecha.",
+      };
+    }
+    if (!materiaTieneClaseEnDia(dia.bloquesPorMateria, materiaClave)) {
+      return {
+        ok: false,
+        error:
+          "La materia seleccionada no está programada para el grupo del alumno en esa fecha.",
+      };
+    }
+  }
+
+  // Estado de la justificación previa (misma clave: día completo o materia).
+  let qPrevia = supabase
     .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
     .select("id, estado")
     .eq("curp_alumno", curp)
-    .eq("fecha", fecha)
-    .maybeSingle();
+    .eq("fecha", fecha);
+  if (conColumnaMateria) {
+    qPrevia = materiaClave
+      ? qPrevia.eq("materia_clave", materiaClave)
+      : qPrevia.is("materia_clave", null);
+  }
+  const { data: previa } = await qPrevia.maybeSingle();
   if (previa && previa.estado === "aprobada") {
     return { ok: false, error: "Esa falta ya fue aprobada." };
   }
   if (previa && previa.estado === "rechazada") {
     return {
       ok: false,
-      error: "Esa falta ya fue rechazada por la administración. Contacta con la dirección.",
+      error:
+        "Esa falta ya fue rechazada por la administración. Contacta con la dirección.",
     };
   }
 
@@ -220,35 +326,125 @@ export async function actionSolicitarJustificacionConArchivo(
   }
 
   const solicitanteTipo =
-    sesion.rol === "tutor" ? ("tutor" as const) : ("alumno" as const);
-  const { data, error } = await supabase
+    sesion.rol === "tutor"
+      ? ("tutor" as const)
+      : sesion.rol === "alumno"
+        ? ("alumno" as const)
+        : ("profesor" as const);
+
+  const datosComunes = {
+    curp_alumno: curp,
+    fecha,
+    grado: contexto.grado,
+    grupo: contexto.grupo,
+    carrera: contexto.carrera,
+    motivo,
+    estado: "pendiente" as const,
+    solicitante_tipo: solicitanteTipo,
+    solicitante_id: sesion.matricula,
+    archivo_path: ruta,
+    archivo_nombre: archivo.name,
+    archivo_mime: archivo.type || null,
+    archivo_size: archivo.size,
+    motivo_rechazo: null,
+  };
+
+  const limpiarArchivo = () =>
+    storageClient.storage.from(BUCKET_JUSTIFICACIONES).remove([ruta]);
+
+  if (!conColumnaMateria) {
+    // Esquema legacy: una justificación por (curp, fecha).
+    const { data, error } = await supabase
+      .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+      .upsert(datosComunes, { onConflict: "curp_alumno,fecha" })
+      .select("id")
+      .maybeSingle();
+    if (error || !data) {
+      await limpiarArchivo();
+      return { ok: false, error: "No se pudo guardar la justificación." };
+    }
+    return { ok: true, id: String(data.id) };
+  }
+
+  // Esquema nuevo: la UNIQUE se recrea sobre (curp_alumno, fecha,
+  // COALESCE(materia_clave,'')). PostgREST no acepta on_conflict sobre índices
+  // de expresión, así que el guardado es select → update/insert con la misma
+  // clave (idempotente).
+  const valorMateria = materiaClave ? materiaClave : null;
+  let qExistente = supabase
     .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .upsert(
-      {
-        curp_alumno: curp,
-        fecha,
-        grado: contexto.grado,
-        grupo: contexto.grupo,
-        carrera: contexto.carrera,
-        motivo,
-        estado: "pendiente",
-        solicitante_tipo: solicitanteTipo,
-        solicitante_id: sesion.matricula,
-        archivo_path: ruta,
-        archivo_nombre: archivo.name,
-        archivo_mime: archivo.type || null,
-        archivo_size: archivo.size,
-        motivo_rechazo: null,
-      },
-      { onConflict: "curp_alumno,fecha" },
-    )
+    .select("id")
+    .eq("curp_alumno", curp)
+    .eq("fecha", fecha);
+  qExistente = valorMateria
+    ? qExistente.eq("materia_clave", valorMateria)
+    : qExistente.is("materia_clave", null);
+  const { data: existente } = await qExistente.maybeSingle();
+  if (existente) {
+    const { error } = await supabase
+      .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+      .update({ ...datosComunes, materia_clave: valorMateria })
+      .eq("id", String(existente.id));
+    if (error) {
+      await limpiarArchivo();
+      return { ok: false, error: "No se pudo guardar la justificación." };
+    }
+    return { ok: true, id: String(existente.id) };
+  }
+  const { data: nueva, error: errNueva } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .insert({ ...datosComunes, materia_clave: valorMateria })
     .select("id")
     .maybeSingle();
-  if (error || !data) {
-    await storageClient.storage.from(BUCKET_JUSTIFICACIONES).remove([ruta]);
+  if (errNueva || !nueva) {
+    await limpiarArchivo();
     return { ok: false, error: "No se pudo guardar la justificación." };
   }
-  return { ok: true, id: String(data.id) };
+  return { ok: true, id: String(nueva.id) };
+}
+
+export type MateriaJustificableUI = {
+  materiaClave: string;
+  nombre: string;
+  bloques: number;
+};
+
+/**
+ * Materias programadas del grupo del alumno PARA ESA FECHA (día de semana del
+ * horario oficial). El profesor las usa para justificar UNA CLASE concreta
+ * (`materia_clave`), no el día entero.
+ */
+export async function actionObtenerMateriasJustificables(input: {
+  curp: string;
+  fecha: string;
+}): Promise<
+  | { ok: true; materias: MateriaJustificableUI[]; usaHorario: boolean }
+  | { ok: false; error: string }
+> {
+  const sesion = await obtenerSesionPortal();
+  if (!sesion) return NO_AUTORIZADO;
+  const supabase = await createClient();
+  const curp = String(input.curp ?? "").trim().toUpperCase();
+  if (!curp) return { ok: false, error: "Indica la CURP del alumno." };
+  if (!(await sesionAutorizaCurp(supabase, sesion, curp))) {
+    return { ok: false, error: "No tienes permiso para consultar ese alumno." };
+  }
+  const dia = await bloquesPorMateriaDiaDe(
+    supabase,
+    curp,
+    String(input.fecha ?? "").trim(),
+  );
+  if (!dia) {
+    return { ok: true, materias: [], usaHorario: false };
+  }
+  const materias: MateriaJustificableUI[] = Object.keys(dia.bloquesPorMateria)
+    .sort()
+    .map((k) => ({
+      materiaClave: k,
+      nombre: dia.nombres[k] ?? k,
+      bloques: dia.bloquesPorMateria[k] ?? 0,
+    }));
+  return { ok: true, materias, usaHorario: true };
 }
 
 /** Tutor: justificaciones de sus alumnos (pendientes/aprobadas/rechazadas). */
@@ -322,19 +518,37 @@ export async function actionAprobarJustificacion(
       error: "El alumno no tiene inscripción activa; no se puede aprobar.",
     };
   }
-  const aplicado = await aplicarAsistenciaJustificada(supabase, {
-    curp: fila.curp_alumno,
-    grado: contexto.grado,
-    grupo: contexto.grupo,
-    fecha: fila.fecha,
-  });
-  if (!aplicado.ok) return { ok: false, error: aplicado.error };
+  const horarioDia = await bloquesPorMateriaDiaDe(
+    supabase,
+    fila.curp_alumno,
+    fila.fecha,
+  );
 
+  // Marcar aprobada PRIMERO para que el recálculo del total del día incluya
+  // esta justificación. El marcador __JUSTIFICACION__ se FIJA al total
+  // recalculado (nunca suma de a uno).
   const { error: upErr } = await supabase
     .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
     .update({ estado: "aprobada", motivo_rechazo: null })
     .eq("id", justificacionId);
   if (upErr) return { ok: false, error: upErr.message };
+
+  const aplicado = await aplicarAsistenciaJustificada(supabase, {
+    curp: fila.curp_alumno,
+    grado: contexto.grado,
+    grupo: contexto.grupo,
+    fecha: fila.fecha,
+    bloquesPorMateriaDia: horarioDia?.bloquesPorMateria ?? {},
+    incluirMateria: fila.materia_clave ?? null,
+  });
+  if (!aplicado.ok) {
+    // Revertir el estado: no se deja una justificación aprobada sin integrar.
+    await supabase
+      .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+      .update({ estado: "pendiente" })
+      .eq("id", justificacionId);
+    return { ok: false, error: aplicado.error };
+  }
 
   const tutorId =
     fila.solicitante_tipo === "tutor"

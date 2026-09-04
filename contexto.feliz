@@ -1422,3 +1422,79 @@ SOLO los 15 errores/29 warnings preexistentes (ninguno en archivos tocados).
   un único OPERATIVO se muestra aviso claro en la UI. Coexistencia con los
   ciclos legacy del calendario (listarCiclosEscolares) documentada en el
   panel; la deuda calendario_escolar.ciclo_escolar NO se resolvió aquí.
+
+
+===============================================================================
+Bloque 18 — CICLO GLOBAL + PARCIALES + REPARACIÓN DEL PUENTE DE MATERIAS.
+Estado: implementado y APLICADO en producción (2026-09-04).
+===============================================================================
+Tres unidades ejecutadas en orden, con diagnóstico previo contra Supabase real.
+
+· PIEZA 1 — CICLO GLOBAL Y ASISTENCIA POR PARCIAL.
+  El ciclo deja de elegirse en el panel del profesor: se resuelve SIEMPRE con
+  obtenerCicloOperativoGlobal y la unidad de trabajo pasa a ser el PARCIAL
+  (periodos_evaluacion) del ciclo operativo. La plantilla de asistencias se
+  recorta al rango del parcial y la subida rechaza fechas fuera de él.
+  El calendario deja de leerse por TEXTO (obtenerCalendarioEscolar) y pasa a
+  obtenerCalendarioDePeriodo(periodoId, periodoNombre).
+  DECISIÓN ARQUITECTÓNICA: el parcial se DERIVA de la fecha, NO se almacena
+  (coherente con el Bloque 14). No se añadió parcial_id a asistencia_alumnos ni
+  a clases_impartidas; el «record por parciales» es una agregación derivada
+  (lib/escolar/asistencia-parcial.ts → resumenAsistenciaPorParcial).
+  Alumno/tutor/profesor comparten el mismo ciclo global; perfil-client dejó de
+  pasar grado/grupo/carrera desde ETIQUETAS PERSONALES (corrige §5).
+  obtenerCalendarioEscolar y listarCiclosEscolares quedan @deprecated (no
+  borradas). Ver docs/INFORME-ASISTENCIA-PARCIALES.md.
+
+· PIEZA 2 — REPARACIÓN DE grupo_materias.tabla_legacy (causa de «el alumno no
+  ve materias»). CAUSA RAÍZ: clonarContextoAcademico insertaba grupo_materias
+  con solo {grupo_id, materia_id, activo} y NUNCA copiaba tabla_legacy (ni
+  siquiera la leía del origen). AGO2026-ENE2027, creado por clonación, tenía
+  241 grupo_materias activas con tabla_legacy NULL → tablasLegacy=[] →
+  identidades=0 → materias=[] para los 356 alumnos inscritos.
+  TRAMPA DOCUMENTADA: «Cargar materias según catálogo» NO repara esto (solo
+  inserta parejas inexistentes; las 241 ya existían).
+  Solución: clonarContextoAcademico ya propaga tabla_legacy; nuevo plan puro
+  planRepararTablaLegacy (match|ya_tiene|sin_origen|ambiguo, nunca elige un
+  ambiguo) + repararTablaLegacyDePeriodo (UPDATE solo de filas match con la
+  columna NULL, idempotente, en lotes por valor); Server Actions solo directivo
+  con preview obligatorio; botón en ciclo-configurador/paso-academico.
+  FIX RLS: actionRepararTablaLegacy escribe con createServiceClient() ?? supabase
+  (mismo patrón que app/actions/documentos.ts); con el cliente anon la escritura
+  chocaba contra las políticas de grupo_materias.
+  APLICADO por el directivo desde /configuracion (origen 2026-2027):
+  AGO2026-ENE2027 pasó de conTabla=0 (0%) a 241/241 (100%); la RPC
+  obtener_perfil_alumno pasó de identidades=0 a identidades=40.
+  Ver docs/INFORME-PROMPT-A-TABLA-LEGACY.md.
+
+· PIEZA 3 — ASISTENCIA DE MIS ALUMNOS + IDENTIDAD + JUSTIFICACIÓN POR CLASE.
+  actionListarAlumnosGruposProfesor deja de depender de asignaciones_profesor
+  (0 activas) y resuelve los grupos desde el ciclo operativo + horario cargado,
+  coherente con el Bloque 13 («cualquier profesor puede»). resolverAsignaciones-
+  Profesor queda @deprecated para ese uso, no borrada.
+  Justificación POR CLASE: las materias del día salen del horario oficial;
+  aplicarAsistenciaJustificada pasa de sumar el faltante entero a FIJAR el total
+  aprobado del día (idempotente, con tope en las clases esperadas).
+  Identidad: SQL aditivo para profesor_id (PROFESORES.ID) en clases_impartidas y
+  asistencia_alumnos; las escrituras nuevas lo rellenan y las lecturas lo
+  prefieren. Ver docs/INFORME-PROMPT-B-ASISTENCIA-PROFESOR.md.
+
+VALIDACIÓN: tsc --noEmit 0 errores · next build OK · lint sin errores nuevos ·
+suites puras: evaluaciones 30/30 · fechas 22/22 · asistencia-parciales 19/19 ·
+reparar-tabla-legacy 15/15 · justificacion-por-clase 13/13.
+
+DIAGNÓSTICOS NUEVOS (solo lectura, reutilizables):
+  scripts/diag-materias-alumno.mjs            (cobertura de tabla_legacy + RPC)
+  scripts/diag-profesor-alcance.mjs           (alcance del profesor + identidad)
+  scripts/diag-preview-reparar-tabla-legacy.mjs (simula el preview sin escribir)
+  scripts/diag-calendario-periodo.mjs         (calendario por periodo/parcial)
+
+PENDIENTE HUMANO (directivo):
+  1) Ejecutar supabase/agregar-profesor-id-asistencia.sql y
+     supabase/agregar-materia-justificaciones.sql en el SQL Editor.
+  2) Cargar el calendario del ciclo operativo (hoy 0 días; candidato de backfill:
+     el bucket de texto SEMESTRE AGO26-ENE27, 73 días de clase).
+  3) Corregir las CLAVE duplicadas de PROFESORES: 16 de 20 comparten «4321», y
+     el módulo de asistencias las usa como identidad. Las 81 filas históricas de
+     clases_impartidas con esa clave son de autoría IRRECUPERABLE: no se
+     backfilleó profesor_id (inventar la atribución sería peor que dejarla NULL).

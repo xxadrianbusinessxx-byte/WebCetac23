@@ -54,6 +54,15 @@ next-env.d.ts
 # test build output (compiled JS para scripts/test-evaluaciones.mjs)
 /scripts/.tmp-evaluaciones/
 
+# test build output (compiled JS para scripts/test-asistencia-parciales.mjs)
+/scripts/.tmp-asistencia-parciales/
+
+# test build output (compiled JS para scripts/test-reparar-tabla-legacy.mjs)
+/scripts/.tmp-reparar-tabla-legacy/
+
+# test build output (compiled JS para scripts/test-justificacion-por-clase.mjs)
+/scripts/.tmp-justificacion-clase/
+
 # runtime logs
 dev-server.log
 *.log

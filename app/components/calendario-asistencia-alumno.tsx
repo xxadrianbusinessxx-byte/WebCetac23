@@ -8,12 +8,14 @@ import {
 } from "@/app/actions/asistencias";
 import {
   actionObtenerJustificacionesDeAlumno,
+  actionObtenerMateriasJustificables,
   actionSolicitarJustificacionConArchivo,
+  type MateriaJustificableUI,
 } from "@/app/actions/justificaciones";
-import { actionListarCiclosEscolares } from "@/app/actions/calendario";
 import type {
   DiaEstadoAsistencia,
   EstadoAsistencia,
+  ResumenPorParcial,
 } from "@/lib/escolar/asistencias";
 import type { FilaJustificacion } from "@/lib/escolar/justificaciones";
 import { fechaISO } from "@/lib/escolar/calendario";
@@ -38,11 +40,6 @@ import { fechaISO } from "@/lib/escolar/calendario";
 
 type Props = {
   curp: string;
-  grado: string;
-  grupo: string;
-  carrera?: string;
-  /** Ciclo escolar. Si no se pasa, se cargan los ciclos y se usa el más reciente. */
-  ciclo?: string;
   nombreAlumno?: string;
   /** Si se pasa, el maestro solo ve su propio aporte (nunca el global). */
   profesorClave?: string;
@@ -53,6 +50,23 @@ type Props = {
    * aporte de asistencia registrado por ESE profesor en días «asistio».
    */
   permitirAnulacion?: boolean;
+};
+
+/**
+ * Contexto que devuelve el servidor junto con los días: ciclo global (operativo),
+ * identidad resuelta desde la inscripción y el desglose POR PARCIAL.
+ */
+type ContextoAsistenciaAlumno = {
+  cicloNombre: string;
+  grado: string;
+  grupo: string;
+  carrera: string;
+  resumenPorParcial: ResumenPorParcial[];
+  conflictosParcial: {
+    fecha: string;
+    parciales: { id: string; numero: number; nombre: string }[];
+  }[];
+  diasSinParcial: string[];
 };
 
 
@@ -147,25 +161,15 @@ const NOMBRES_DIAS = ["L", "M", "M", "J", "V", "S", "D"];
 
 export function CalendarioAsistenciaAlumno({
   curp,
-  grado,
-  grupo,
-  carrera,
-  ciclo,
   nombreAlumno,
   profesorClave,
   permitirJustificacion = false,
   permitirAnulacion = false,
 }: Props) {
   const [dias, setDias] = useState<DiaEstadoAsistencia[]>([]);
+  const [datos, setDatos] = useState<ContextoAsistenciaAlumno | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Ciclos disponibles. Si `ciclo` viene por prop, se usa directamente; si no,
-  // se cargan y se selecciona el más reciente.
-  const [ciclos, setCiclos] = useState<string[]>([]);
-  const [cicloSeleccionado, setCicloSeleccionado] = useState<string>(
-    ciclo ?? "",
-  );
 
   const hoy = new Date();
   const [mesVisible, setMesVisible] = useState(
@@ -190,45 +194,37 @@ export function CalendarioAsistenciaAlumno({
     Record<string, FilaJustificacion>
   >({});
 
-  // Cargar ciclos cuando no se pasa `ciclo` por prop.
-  useEffect(() => {
-    if (ciclo) {
-      setCicloSeleccionado(ciclo);
-      return;
-    }
-    let activo = true;
-    void actionListarCiclosEscolares().then((lista) => {
-      if (!activo) return;
-      setCiclos(lista);
-      if (lista.length > 0) {
-        setCicloSeleccionado((prev) => prev || lista[0]!);
-      }
-    });
-    return () => {
-      activo = false;
-    };
-  }, [ciclo]);
+  // Prompt B — justificación POR CLASE: materias del grupo ESE día (horario
+  // oficial). Solo aplica cuando un profesor usa el panel.
+  const [materiasDia, setMateriasDia] = useState<MateriaJustificableUI[]>([]);
+  const [materiaJust, setMateriaJust] = useState("");
 
   const cargar = useCallback(async () => {
-    if (!curp || !grado || !grupo || !cicloSeleccionado) return;
+    if (!curp) return;
     setCargando(true);
     setError(null);
+    setDatos(null);
     const res = await actionObtenerEstadosAsistenciaAlumno({
       curp,
-      grado,
-      grupo,
-      carrera,
-      ciclo: cicloSeleccionado,
       profesorClave,
     });
     setCargando(false);
     if (res.ok) {
       setDias(res.dias);
+      setDatos({
+        cicloNombre: res.cicloNombre,
+        grado: res.grado,
+        grupo: res.grupo,
+        carrera: res.carrera,
+        resumenPorParcial: res.resumenPorParcial,
+        conflictosParcial: res.conflictosParcial,
+        diasSinParcial: res.diasSinParcial,
+      });
     } else {
       setDias([]);
       setError(res.error);
     }
-  }, [curp, grado, grupo, carrera, cicloSeleccionado, profesorClave]);
+  }, [curp, profesorClave]);
 
   // Cargar las justificaciones del alumno para pintar su estado por día.
   const cargarJustificaciones = useCallback(async () => {
@@ -251,6 +247,37 @@ export function CalendarioAsistenciaAlumno({
   useEffect(() => {
     void cargarJustificaciones();
   }, [cargarJustificaciones]);
+
+  // Al elegir un día, el profesor (si aplica) carga las materias de ESE día.
+  useEffect(() => {
+    let activo = true;
+    if (!seleccionado || !profesorClave || !permitirJustificacion) {
+      void Promise.resolve().then(() => {
+        if (!activo) return;
+        setMateriasDia([]);
+        setMateriaJust("");
+      });
+      return () => {
+        activo = false;
+      };
+    }
+    void actionObtenerMateriasJustificables({
+      curp,
+      fecha: seleccionado,
+    }).then((r) => {
+      if (!activo) return;
+      if (r.ok && r.materias.length > 0) {
+        setMateriasDia(r.materias);
+        setMateriaJust((prev) => prev || r.materias[0]!.materiaClave);
+      } else {
+        setMateriasDia([]);
+        setMateriaJust("");
+      }
+    });
+    return () => {
+      activo = false;
+    };
+  }, [seleccionado, curp, profesorClave, permitirJustificacion]);
 
 
   const diasPorFecha = useMemo(() => {
@@ -316,6 +343,7 @@ export function CalendarioAsistenciaAlumno({
     formData.append("curp", curp);
     formData.append("fecha", seleccionado);
     formData.append("motivo", motivo.trim());
+    formData.append("materia_clave", materiaJust);
     formData.append("archivo", archivo);
     const res = await actionSolicitarJustificacionConArchivo(formData);
     setGuardandoJustificacion(false);
@@ -334,14 +362,14 @@ export function CalendarioAsistenciaAlumno({
   // BLOQUE 9 (PIEZA 4) — Anula el aporte de asistencia del profesor (día
   // «asistio»). Mismo patrón de confirmación/envió que la justificación.
   async function onAnular() {
-    if (!seleccionado || !grado || !grupo) return;
+    if (!seleccionado || !datos?.grado || !datos?.grupo) return;
     setAnulando(true);
     setMensajeAnulacion(null);
     const res = await actionAnularAsistenciaProfesor({
       curp,
       fecha: seleccionado,
-      grado,
-      grupo,
+      grado: datos.grado,
+      grupo: datos.grupo,
     });
     setAnulando(false);
     if (res.ok) {
@@ -362,22 +390,20 @@ export function CalendarioAsistenciaAlumno({
         </p>
       )}
 
-      {ciclos.length > 1 && (
+      {datos?.cicloNombre && (
         <div className="flex flex-wrap items-center justify-center gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 text-[10px] font-bold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
           <label className="text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
             Ciclo
           </label>
-          <select
-            value={cicloSeleccionado}
-            onChange={(e) => setCicloSeleccionado(e.target.value)}
-            className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
-          >
-            {ciclos.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <span className="rounded-full border border-emerald-400/70 bg-emerald-100/90 px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-wide text-emerald-900">
+            {datos.cicloNombre}
+          </span>
+          {datos.grado && (
+            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-600">
+              {datos.grado} · {datos.grupo}
+              {datos.carrera ? ` · ${datos.carrera}` : ""}
+            </span>
+          )}
         </div>
       )}
 
@@ -412,6 +438,47 @@ export function CalendarioAsistenciaAlumno({
               {resumen.porcentaje}% asistencia
             </span>
           </div>
+
+          {/* Desglose POR PARCIAL (derivado del ciclo, resuelto en servidor) */}
+          {datos && datos.resumenPorParcial.length > 0 && (
+            <div className="flex flex-col gap-1.5 rounded-3xl border border-white/55 bg-white/55 p-3 text-[10px] font-bold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-md">
+              <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                Por parcial
+              </p>
+              {datos.resumenPorParcial.map((r) => (
+                <div
+                  key={r.parcial.id}
+                  className="flex flex-wrap items-center justify-between gap-2"
+                >
+                  <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                    {r.parcial.nombre} · {r.parcial.fecha_inicio} a{" "}
+                    {r.parcial.fecha_fin}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span>🟢 {r.asistencias}</span>
+                    <span>🔴 {r.faltas}</span>
+                    <span>🟠 {r.pendientes}</span>
+                    <span>⚪ {r.sinClase}</span>
+                    <span className="rounded-full border border-sky-500/50 bg-sky-100/90 px-2 py-0.5 text-[10px] font-extrabold text-sky-900">
+                      {r.porcentaje}%
+                    </span>
+                  </span>
+                </div>
+              ))}
+              {datos.conflictosParcial.length > 0 && (
+                <p className="text-[10px] font-semibold text-red-700" role="alert">
+                  {datos.conflictosParcial.length} día(s) caen en parciales
+                  solapados y no se cuentan en ningún resumen.
+                </p>
+              )}
+              {datos.diasSinParcial.length > 0 && (
+                <p className="text-[10px] font-semibold text-amber-700">
+                  {datos.diasSinParcial.length} día(s) no pertenecen a ningún
+                  parcial activo y no se asignan a un parcial.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Leyenda */}
           <div className="flex flex-wrap items-center justify-center gap-3 rounded-full border border-white/60 bg-white/55 px-3 py-2 text-[10px] font-bold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
@@ -517,6 +584,35 @@ export function CalendarioAsistenciaAlumno({
                       </p>
                     ) : (
                       <>
+                        {profesorClave && (
+                          <label className="flex flex-col gap-1 rounded-2xl border border-white/70 bg-white/90 px-3 py-2">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                              Clase a justificar (del horario del día)
+                            </span>
+                            <select
+                              value={materiaJust}
+                              onChange={(e) => setMateriaJust(e.target.value)}
+                              className="rounded-full border border-sky-700/30 bg-white px-3 py-1.5 text-xs font-bold text-sky-900 outline-none"
+                            >
+                              <option value="">Día completo</option>
+                              {materiasDia.map((m) => (
+                                <option
+                                  key={m.materiaClave}
+                                  value={m.materiaClave}
+                                >
+                                  {m.nombre} · {m.bloques} clase(s)
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+                        {profesorClave && materiasDia.length === 0 && (
+                          <p className="text-center text-[10px] font-semibold text-amber-800">
+                            No se pudo leer el horario del grupo para ese día
+                            (aplica supabase/agregar-materia-justificaciones.sql
+                            para justificar por clase).
+                          </p>
+                        )}
                         <textarea
                           value={motivo}
                           onChange={(e) => setMotivo(e.target.value)}

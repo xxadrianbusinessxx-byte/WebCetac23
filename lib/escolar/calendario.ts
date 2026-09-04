@@ -115,7 +115,12 @@ export function contarDiasLaborables(inicio: Date, fin: Date): number {
   return generarDiasLaborables(inicio, fin).length;
 }
 
-/** Lista los ciclos escolares distintos que ya existen en el calendario. */
+/**
+ * @deprecated LEGACY — lista ciclos escolares por el TEXTO `ciclo_escolar`
+ * del calendario. Los flujos nuevos deben usar periodos (catálogo) →
+ * `obtenerCalendarioDePeriodo(periodoId, periodoNombre)` (ruta F5). Se conserva
+ * para el panel legacy de calendario y para no romper lecturas históricas.
+ */
 export async function listarCiclosEscolares(
   supabase: SupabaseClient,
 ): Promise<string[]> {
@@ -134,7 +139,12 @@ export async function listarCiclosEscolares(
   return [...unicos];
 }
 
-/** Obtiene todos los días registrados de un ciclo escolar. */
+/**
+ * @deprecated LEGACY — obtiene días por el TEXTO `ciclo_escolar`. Los flujos
+ * nuevos (asistencias, calendario por periodo) usan
+ * `obtenerCalendarioDePeriodo(periodoId, periodoNombre)` (ruta F5). Se conserva
+ * como adaptador legacy y para paneles históricos.
+ */
 export async function obtenerCalendarioEscolar(
   supabase: SupabaseClient,
   ciclo: string,
