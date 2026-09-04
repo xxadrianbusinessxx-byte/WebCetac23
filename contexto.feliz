@@ -1364,3 +1364,61 @@ en los archivos tocados por este bloque).
     nuevas en `grupos` y `grupo_materias`).
     Re-ejecución: 0 grupos creados y 0 vínculos nuevos (idempotente).
 
+
+
+===============================================================================
+Bloque 17 — CICLOS: limpieza de UI, eliminar ciclo (RPC transaccional) y
+default OPERATIVO en plantilla de asistencias. Estado: implementado. Commits
+atómicos por pieza; tsc --noEmit y next build limpios. npm run lint reporta
+SOLO los 15 errores/29 warnings preexistentes (ninguno en archivos tocados).
+===============================================================================
+· PIEZA A — /configuracion ya NO renderiza ReconocimientoAcademico,
+  SemestresOfertaAdmin ni AsignacionesProfesorAdmin (imports y metadata
+  actualizados). Los archivos y su lógica se conservan en el repo marcados
+  como código muerto documentado: comentario "DESACTIVADO de la UI de
+  /configuracion (ver Bloque 17 de contexto.feliz)". NO se borraron tablas
+  ni funciones (asignaciones_profesor, academico_semestres, semestres, etc.).
+  FALLBACK_TODAS_LAS_MATERIAS sigue activo tal cual (los profesores siguen
+  viendo todas las materias): decisión aceptada, no se tocó.
+· PIEZA B — Eliminar ciclo completo:
+  - supabase/crear-rpc-eliminar-ciclo.sql: función transaccional
+    eliminar_ciclo(p_periodo uuid). UNA sola transacción; valida dentro de la
+    BD: (1) nunca un periodo OPERATIVO (estado=operativo o activo=true);
+    (2) nunca un periodo con CUALQUIER inscripción (reporta el número exacto);
+    registra el intento en ciclo_transiciones ANTES de borrar y desvincula la
+    fila (periodo_id=NULL) para conservar el rastro; borra en orden de
+    dependencias: academico_semestres, horario_semanal, periodos_evaluacion,
+    clases_impartidas, asistencia_alumnos, justificaciones_asistencia
+    (mensajes_justificacion en cascada), calendario_escolar (por periodo_id;
+    deuda R5 documentada: filas texto legacy sin periodo_id no se tocan),
+    asignaciones_profesor → grupo_materias → inscripciones_alumno → grupos →
+    periodos.
+  - lib/escolar/eliminar-ciclo.ts: diagnosticoEliminarCiclo (conteos exactos
+    + bloqueos) y eliminarCicloRpc (autoridad final en la BD).
+  - app/actions/evaluaciones.ts: actionDiagnosticoEliminarCiclo y
+    actionEliminarCiclo(periodoId, nombreConfirmacion) (rol directivo;
+    confirmación de nombre EXACTO).
+  - CicloConfigurador: botón "Eliminar" por fila (solo si NO es operativo),
+    overlay con conteos exactos (grupos, grupo_materias, inscripciones,
+    horario, parciales, calendario, semestres, asignaciones, clases,
+    asistencias, justificaciones), bloqueos en rojo y campo "escribe el
+    nombre exacto del ciclo" antes de llamar a la Server Action.
+  - Lista real de tablas relacionadas verificada en la BD (416 tablas
+    públicas): 11 con columnas de periodo/grupo + mensajes_justificacion en
+    cascada; academico_semestres (que no estaba en la lista original) también
+    se borra.
+  - Prueba del SQL en Postgres local (PostgreSQL 18.4 efímero, esquema
+    sintético fiel): OPERATIVO bloqueado OK · 1 inscripción histórica bloquea
+    con conteo exacto OK · borrado completo sin residuos en 12 relaciones OK ·
+    rastro en ciclo_transiciones con periodo_id NULL OK · re-eliminar da error
+    controlado OK. La corrida REAL contra AGO2026-DIC2026 en la BD de Supabase
+    queda PENDIENTE: la DATABASE_URL de .env.local rechaza la contraseña
+    (28P01) y no existe otro acceso SQL; el SQL está listo para ejecutarse en
+    el SQL Editor de Supabase.
+· PIEZA C — Plantilla de asistencias (panel del profesor): el selector de
+  ciclo preselecciona automáticamente el periodo OPERATIVO usando el MISMO
+  helper de /configuracion (obtenerCicloOperativoGlobal, resuelto en
+  actionListarGruposAsistencia); sigue siendo editable manualmente; si no hay
+  un único OPERATIVO se muestra aviso claro en la UI. Coexistencia con los
+  ciclos legacy del calendario (listarCiclosEscolares) documentada en el
+  panel; la deuda calendario_escolar.ciclo_escolar NO se resolvió aquí.
