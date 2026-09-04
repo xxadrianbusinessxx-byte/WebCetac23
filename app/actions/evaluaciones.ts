@@ -18,6 +18,12 @@ import {
   type PeriodoEscolarRow,
   type PeriodoEvaluacionRow,
 } from "@/lib/escolar/evaluaciones";
+import {
+  diagnosticoEliminarCiclo,
+  eliminarCicloRpc,
+  type DiagnosticoEliminarCiclo,
+  type ResultadoEliminarCiclo,
+} from "@/lib/escolar/eliminar-ciclo";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -183,4 +189,52 @@ export async function actionSetActivoEvaluacion(
   if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
   const supabase = await createClient();
   return setActivoEvaluacion(supabase, periodoId, evaluacionId, activo);
+}
+
+/**
+ * Conteos EXACTOS previos a eliminar un ciclo (para la doble confirmación de la
+ * UI). Solo lectura; el bloqueo real de la eliminación lo valida el RPC
+ * `eliminar_ciclo` dentro de su transacción. Solo rol directivo.
+ */
+export async function actionDiagnosticoEliminarCiclo(
+  periodoId: string,
+): Promise<DiagnosticoEliminarCiclo> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return { ok: false, error: "No autorizado: se requiere rol directivo." };
+  }
+  const supabase = await createClient();
+  return diagnosticoEliminarCiclo(supabase, periodoId);
+}
+
+/**
+ * Elimina un ciclo completo vía el RPC transaccional `eliminar_ciclo`
+ * (una sola transacción en Postgres). Exige confirmación del nombre EXACTO
+ * del periodo y rol directivo. El RPC vuelve a validar en la BD las reglas de
+ * seguridad (OPERATIVO nunca; con inscripciones nunca).
+ */
+export async function actionEliminarCiclo(
+  periodoId: string,
+  nombreConfirmacion: string,
+): Promise<ResultadoEliminarCiclo> {
+  const sesion = await obtenerSesionPortal();
+  if (sesion?.rol !== "directivo") {
+    return { ok: false, error: "No autorizado: se requiere rol directivo." };
+  }
+  const supabase = await createClient();
+  const { data: p } = await supabase
+    .from("periodos")
+    .select("id, nombre")
+    .eq("id", periodoId)
+    .maybeSingle();
+  if (!p) return { ok: false, error: "El ciclo no existe." };
+  const nombre = String(p.nombre);
+  const confirmacion = String(nombreConfirmacion ?? "").trim().toUpperCase();
+  if (confirmacion !== nombre) {
+    return {
+      ok: false,
+      error: "Confirmación incorrecta: escribe el nombre exacto del ciclo para poder eliminarlo.",
+    };
+  }
+  return eliminarCicloRpc(supabase, periodoId);
 }

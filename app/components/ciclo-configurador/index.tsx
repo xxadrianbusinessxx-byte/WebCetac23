@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { actionCrearCicloEscolar, actionDetalleCicloAdmin, actionListarCiclosAdmin, actionSetActivoCiclo, type CicloAdminListado, type DetalleCicloAdmin } from "@/app/actions/evaluaciones";
+import { actionCrearCicloEscolar, actionDetalleCicloAdmin, actionDiagnosticoEliminarCiclo, actionEliminarCiclo, actionListarCiclosAdmin, actionSetActivoCiclo, type CicloAdminListado, type DetalleCicloAdmin } from "@/app/actions/evaluaciones";
+import type { DiagnosticoEliminarCiclo } from "@/lib/escolar/eliminar-ciclo";
 import { PasoDatos } from "./paso-datos";
 import { PasoAcademico } from "./paso-academico";
 import { PasoAlumnos } from "./paso-alumnos";
@@ -28,6 +29,17 @@ export function CicloConfigurador({ periodoIdInicial }: { periodoIdInicial?: str
   const [msg, setMsg] = useState<{ t: "ok" | "err"; x: string } | null>(null);
   const avisar = (ok: boolean, x: string) => setMsg({ t: ok ? "ok" : "err", x });
   const sel = ciclos.find((c) => c.id === periodoId);
+
+  type CicloAEliminar = {
+    id: string;
+    nombre: string;
+    cargandoDiagnostico: boolean;
+    diagnostico: DiagnosticoEliminarCiclo | null;
+    error: string | null;
+    confirmacion: string;
+    trabajando: boolean;
+  };
+  const [eliminando, setEliminando] = useState<CicloAEliminar | null>(null);
 
   async function refrescar(preferido?: string) {
     const r = await actionListarCiclosAdmin();
@@ -77,6 +89,104 @@ export function CicloConfigurador({ periodoIdInicial }: { periodoIdInicial?: str
     if (r.ok) await refrescar(id);
   }
 
+  async function abrirEliminar(id: string, nombre: string) {
+    setEliminando({ id, nombre, cargandoDiagnostico: true, diagnostico: null, error: null, confirmacion: "", trabajando: false });
+    const d = await actionDiagnosticoEliminarCiclo(id);
+    setEliminando((prev) =>
+      prev && prev.id === id ? { ...prev, cargandoDiagnostico: false, diagnostico: d } : prev,
+    );
+  }
+  function cerrarEliminar() {
+    setEliminando(null);
+  }
+  async function confirmarEliminar() {
+    if (!eliminando || eliminando.trabajando) return;
+    setEliminando({ ...eliminando, trabajando: true, error: null });
+    const r = await actionEliminarCiclo(eliminando.id, eliminando.confirmacion);
+    if (r.ok) {
+      avisar(true, r.mensaje ?? "Ciclo eliminado.");
+      setEliminando(null);
+      await refrescar();
+    } else {
+      setEliminando({ ...eliminando, trabajando: false, error: r.error });
+    }
+  }
+
+  function renderEliminarOverlay() {
+    if (!eliminando) return null;
+    const d = eliminando.diagnostico;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" role="dialog" aria-modal="true">
+        <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white p-4 text-slate-800 shadow-2xl">
+          <p className="text-[10px] font-extrabold uppercase tracking-wide text-rose-700">
+            Eliminar ciclo completo
+          </p>
+          <p className="mt-1 text-sm font-extrabold text-slate-900">{eliminando.nombre}</p>
+          {eliminando.cargandoDiagnostico ? (
+            <p className="mt-2 text-xs font-semibold text-slate-600">Calculando conteos…</p>
+          ) : !d ? (
+            <p className="mt-2 text-xs font-semibold text-slate-600">
+              {eliminando.error ?? "Sin diagnóstico."}
+            </p>
+          ) : !d.ok ? (
+            <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{d.error}</p>
+          ) : (
+            <>
+              <div className="mt-2 grid grid-cols-2 gap-1 rounded-xl bg-slate-50 p-2 text-[10px] font-semibold text-slate-700 sm:grid-cols-3">
+                <span>Grupos: {d.conteos.grupos}</span>
+                <span>Grupo-materias: {d.conteos.grupoMaterias}</span>
+                <span className={d.conteos.inscripciones > 0 ? "text-red-700" : ""}>Inscripciones: {d.conteos.inscripciones}</span>
+                <span>Horario: {d.conteos.horario}</span>
+                <span>Parciales: {d.conteos.parciales}</span>
+                <span>Calendario: {d.conteos.calendario}</span>
+              </div>
+              {(d.conteos.semestres > 0 || d.conteos.asignaciones > 0 || d.conteos.clasesImpartidas > 0 || d.conteos.asistenciaAlumnos > 0 || d.conteos.justificaciones > 0) && (
+                <p className="mt-1 text-[10px] font-semibold text-slate-500">
+                  También se borran: semestres {d.conteos.semestres} · asignaciones {d.conteos.asignaciones} · clases impartidas {d.conteos.clasesImpartidas} · asistencias {d.conteos.asistenciaAlumnos} · justificaciones {d.conteos.justificaciones}.
+                </p>
+              )}
+              {d.bloqueos.length > 0 && (
+                <ul className="mt-2 space-y-1 rounded-xl bg-red-50 p-2 text-[10px] font-bold text-red-800">
+                  {d.bloqueos.map((b) => <li key={b}>· {b}</li>)}
+                </ul>
+              )}
+              {d.bloqueos.length === 0 && (
+                <>
+                  <p className="mt-2 text-[10px] font-bold uppercase text-slate-600">Confirmación</p>
+                  <input
+                    className="mt-1 w-full rounded-xl border border-white/70 bg-white px-3 py-2 text-xs font-bold text-slate-800"
+                    placeholder={`Escribe el nombre exacto: ${d.nombre}`}
+                    value={eliminando.confirmacion}
+                    onChange={(e) => setEliminando({ ...eliminando, confirmacion: e.target.value })}
+                  />
+                  <p className="mt-1 text-[10px] font-semibold text-slate-500">
+                    Acción irreversible: borra el ciclo y todo lo relacionado en una sola transacción (RPC).
+                  </p>
+                </>
+              )}
+              {eliminando.error && (
+                <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{eliminando.error}</p>
+              )}
+            </>
+          )}
+          <div className="mt-3 flex flex-wrap justify-end gap-2">
+            <button type="button" className="rounded-full border border-slate-300 bg-white px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-slate-700" onClick={cerrarEliminar} disabled={eliminando.trabajando}>Cancelar</button>
+            {d && d.ok && d.bloqueos.length === 0 && (
+              <button
+                type="button"
+                disabled={eliminando.confirmacion.trim().toUpperCase() !== d.nombre || eliminando.trabajando}
+                className="rounded-full bg-rose-600 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-white disabled:opacity-50"
+                onClick={() => void confirmarEliminar()}
+              >
+                {eliminando.trabajando ? "Eliminando…" : "Eliminar ciclo"}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <section className="relative mt-6 rounded-[2rem] border-[3px] border-indigo-800/50 bg-indigo-100/35 p-3 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -97,9 +207,16 @@ export function CicloConfigurador({ periodoIdInicial }: { periodoIdInicial?: str
                     {c.nombre}
                     <span className={`ml-2 inline-block rounded-full px-2 py-0.5 text-[8px] font-extrabold ${c.activo ? "bg-emerald-200 text-emerald-900" : "bg-slate-200 text-slate-600"}`}>{c.activo ? "OPERATIVO" : (c.estado ?? "BORRADOR")}</span>
                   </button>
-                  <button type="button" disabled={c.activo} title={c.activo ? "Ya es el ciclo operativo actual" : "Activar como OPERATIVO (misma validación del Paso 7)"} className="rounded-full bg-emerald-600 px-3 py-1 text-[9px] font-extrabold uppercase tracking-wide text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40" onClick={() => void activarDesdeLista(c.id)}>
-                    {c.activo ? "Operativo" : "Activar"}
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button type="button" disabled={c.activo} title={c.activo ? "Ya es el ciclo operativo actual" : "Activar como OPERATIVO (misma validación del Paso 7)"} className="rounded-full bg-emerald-600 px-3 py-1 text-[9px] font-extrabold uppercase tracking-wide text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40" onClick={() => void activarDesdeLista(c.id)}>
+                      {c.activo ? "Operativo" : "Activar"}
+                    </button>
+                    {!c.activo && (
+                      <button type="button" title="Eliminar ciclo completo (doble confirmación)" className="rounded-full bg-rose-600 px-3 py-1 text-[9px] font-extrabold uppercase tracking-wide text-white transition hover:brightness-110" onClick={() => void abrirEliminar(c.id, c.nombre)}>
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -127,6 +244,7 @@ export function CicloConfigurador({ periodoIdInicial }: { periodoIdInicial?: str
             : <PasoValidacion periodoId={periodoId} detalle={detalle} onActivar={() => void activar()} />}
         </div>
       </div>
+      {renderEliminarOverlay()}
     </section>
   );
 }
