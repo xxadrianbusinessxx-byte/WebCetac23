@@ -29,7 +29,6 @@ import { carreraEscolarDesdeEtiquetas } from "./informacion-personal";
 import { nombreCompletoAlumno } from "./alumnos";
 import {
   TABLA_ALUMNOS,
-  TABLA_ASIGNACIONES_PROFESOR,
   TABLA_ASISTENCIA_ALUMNOS,
   TABLA_CARRERAS,
   TABLA_CLASES_IMPARTIDAS,
@@ -56,6 +55,7 @@ import {
   ERROR_ATRIBUCION_SIN_PROFESOR_ID,
   atribuirMateriaAlPlan,
 } from "./atribucion-profesor";
+import { traspasarMateriaAProfesor } from "./traspaso-materia";
 
 import type { AlumnoRow, EtiquetasPersonalesRow } from "./types";
 
@@ -896,33 +896,51 @@ export async function analizarPlantillaAsistencia(
   const alumnos = await obtenerAlumnosDelGrupo(supabase, g, gr, c);
   const alumnosPorCurp = new Map(alumnos.map((a) => [a.curp, a.nombre]));
 
-  // 6) Clases impartidas ya guardadas por este profesor en este grupo (para
-  //    detectar "sin cambios" y como respaldo del mÃ¡ximo).
-  const { data: clasesPrevias } = await supabase
-    .from(TABLA_CLASES_IMPARTIDAS)
-    .select("fecha, clases")
-    .eq("profesor_clave", ctx.profesorClave)
-    .eq("grado", g)
-    .eq("grupo", gr);
-  const clasesPreviasPorFecha = new Map<string, number>();
-  for (const r of (clasesPrevias ?? []) as { fecha: string; clases: number }[]) {
-    clasesPreviasPorFecha.set(r.fecha, r.clases);
+  // 6/7) Registros previos de ESTE profesor en este grupo (para detectar
+  //      "sin cambios" y como respaldo del máximo). PROMPT C/D: el alcance es
+  //      SIEMPRE `profesor_id` (nunca la contraseña). Sin profesorId o sin la
+  //      columna (esquema pendiente) no se comparan previos (todo pasa a
+  //      "actualizado"), lo cual es seguro y nunca mezcla aportes ajenos.
+  const pidPrevio =
+    ctx.profesorId != null &&
+    Number.isInteger(Number(ctx.profesorId)) &&
+    Number(ctx.profesorId) > 0
+      ? Number(ctx.profesorId)
+      : null;
+  let previoPorId = false;
+  if (pidPrevio) {
+    const probe = await supabase
+      .from(TABLA_CLASES_IMPARTIDAS)
+      .select("profesor_id")
+      .limit(1);
+    previoPorId = !probe.error;
   }
-
-  // 7) Asistencias ya guardadas por este profesor (para detectar "sin cambios").
-  const { data: asistenciasPrevias } = await supabase
-    .from(TABLA_ASISTENCIA_ALUMNOS)
-    .select("curp, fecha, clases_asistidas")
-    .eq("profesor_clave", ctx.profesorClave)
-    .eq("grado", g)
-    .eq("grupo", gr);
+  const clasesPreviasPorFecha = new Map<string, number>();
   const asistenciasPreviasPorClave = new Map<string, number>();
-  for (const r of (asistenciasPrevias ?? []) as {
-    curp: string;
-    fecha: string;
-    clases_asistidas: number;
-  }[]) {
-    asistenciasPreviasPorClave.set(`${r.curp}|${r.fecha}`, r.clases_asistidas);
+  if (previoPorId && pidPrevio) {
+    const { data: clasesPrevias } = await supabase
+      .from(TABLA_CLASES_IMPARTIDAS)
+      .select("fecha, clases")
+      .eq("profesor_id", pidPrevio)
+      .eq("grado", g)
+      .eq("grupo", gr);
+    for (const r of (clasesPrevias ?? []) as { fecha: string; clases: number }[]) {
+      clasesPreviasPorFecha.set(r.fecha, r.clases);
+    }
+
+    const { data: asistenciasPrevias } = await supabase
+      .from(TABLA_ASISTENCIA_ALUMNOS)
+      .select("curp, fecha, clases_asistidas")
+      .eq("profesor_id", pidPrevio)
+      .eq("grado", g)
+      .eq("grupo", gr);
+    for (const r of (asistenciasPrevias ?? []) as {
+      curp: string;
+      fecha: string;
+      clases_asistidas: number;
+    }[]) {
+      asistenciasPreviasPorClave.set(`${r.curp}|${r.fecha}`, r.clases_asistidas);
+    }
   }
 
   // 8) Clases oficiales por fecha. Fuente: HORARIO OFICIAL (bloques del
@@ -1271,78 +1289,6 @@ async function resolverGrupoMateriaIdSubida(
   return { ok: true, grupoMateriaId: null };
 }
 
-/**
- * Confirma la plantilla: UPSERT en `clases_impartidas` y `asistencia_alumnos`.
- * La identidad del profesor SIEMPRE es `ctx.profesorClave` (de la sesiÃ³n).
- * El UPSERT sobre la UNIQUE garantiza que re-subir NO acumule.
- */
-/**
- * Activa/crea la asignación (profesor_id, grupo_materia_id) en
- * `asignaciones_profesor` (UPSERT idempotente; NUNCA DELETE).
- *   1) fila existente por (grupo_materia, profesor_id) → reactivar si estaba
- *      inactiva (activo=true, hasta=null);
- *   2) fila legacy por (grupo_materia, profesor_clave) → reconciliar
- *      (rellena profesor_id + activo=true);
- *   3) si no existe, INSERT con `profesor_clave` como dato histórico legacy.
- */
-async function asegurarAsignacionActiva(
-  supabase: SupabaseClient,
-  input: { profesorId: number; profesorClave: string; grupoMateriaId: string },
-): Promise<{ ok: true; reconciliada?: boolean } | { ok: false; error: string }> {
-  const { data: porId, error: e1 } = await supabase
-    .from(TABLA_ASIGNACIONES_PROFESOR)
-    .select("id, activo")
-    .eq("grupo_materia_id", input.grupoMateriaId)
-    .eq("profesor_id", input.profesorId)
-    .maybeSingle();
-  if (e1) return { ok: false, error: e1.message };
-
-  if (porId) {
-    if (porId.activo === false) {
-      const { error: eUpd } = await supabase
-        .from(TABLA_ASIGNACIONES_PROFESOR)
-        .update({ activo: true, hasta: null })
-        .eq("id", porId.id);
-      if (eUpd) return { ok: false, error: eUpd.message };
-    }
-    return { ok: true };
-  }
-
-  const clave = input.profesorClave.trim().toUpperCase();
-  if (clave) {
-    const { data: legacy, error: e2 } = await supabase
-      .from(TABLA_ASIGNACIONES_PROFESOR)
-      .select("id")
-      .eq("grupo_materia_id", input.grupoMateriaId)
-      .eq("profesor_clave", clave)
-      .maybeSingle();
-    if (e2) return { ok: false, error: e2.message };
-    if (legacy) {
-      const { error: e3 } = await supabase
-        .from(TABLA_ASIGNACIONES_PROFESOR)
-        .update({ profesor_id: input.profesorId, activo: true, hasta: null })
-        .eq("id", legacy.id);
-      if (e3) return { ok: false, error: e3.message };
-      return { ok: true, reconciliada: true };
-    }
-  }
-
-  const { error: eIns } = await supabase.from(TABLA_ASIGNACIONES_PROFESOR).insert({
-    profesor_id: input.profesorId,
-    profesor_clave: input.profesorClave.trim(),
-    grupo_materia_id: input.grupoMateriaId,
-    activo: true,
-    desde: new Date().toISOString(),
-    hasta: null,
-  });
-  if (eIns) {
-    // Carrera (dos subidas simultáneas): si ya existe activa, no es error.
-    const duplicado = /23505|duplicate key/i.test(String(eIns.message ?? ""));
-    if (!duplicado) return { ok: false, error: eIns.message };
-  }
-  return { ok: true };
-}
-
 
 /**
  * Confirma la plantilla y ATRIBUYE la materia (Prompt C — R-3).
@@ -1353,7 +1299,10 @@ async function asegurarAsignacionActiva(
  *     controlado y NO escribe con la contraseña.
  *  3. Resuelve el grupo_materia_id (UNA resolución por subida) y rechaza si la
  *     materia no es atribuible al grupo en el catálogo.
- *  4. UPSERT de la asignación (profesor_id, grupo_materia_id) activo=true.
+ *  4. LLAMA la RPC `traspasar_materia_a_profesor` (Prompt D) ANTES de escribir:
+ *     el que sube la plantilla se convierte en dueño de la materia (asignación
+ *     y registros previos se traspasan) en una sola transacción. Si la RPC no
+ *     está desplegada, NO se escribe nada.
  *  5. UPSERT de clases_impartidas / asistencia_alumnos con `profesor_id` +
  *     `grupo_materia_id` y la clave de conflicto POR MATERIA (2 materias del
  *     mismo grupo y día = 2 filas; re-subir la misma = actualizar, no duplicar).
@@ -1397,7 +1346,17 @@ export async function confirmarAsistencias(
     return { ok: false, error: ERROR_ATRIBUCION_MATERIA_NO_RESUELTA };
   }
 
-  // Decisión pura de escritura (filas + claves de conflicto + asignación).
+  // PROMPT D — TRASPASO antes de escribir: la RPC deja la materia completa a
+  // este profesor (asignaciones de otros → inactivas; sus registros → su id).
+  // Cero N+1: una sola llamada por subida. Si falla, NO se escribe nada.
+  const traspaso = await traspasarMateriaAProfesor(
+    supabase,
+    resMateria.grupoMateriaId,
+    profesorId,
+  );
+  if (!traspaso.ok) return { ok: false, error: traspaso.error };
+
+  // Decisión pura de escritura (filas enriquecidas + claves de conflicto).
   const atribuido = atribuirMateriaAlPlan(
     { clasesImpartidas: plan.clasesImpartidas, asistencias: plan.asistencias },
     {
@@ -1407,17 +1366,6 @@ export async function confirmarAsistencias(
     },
   );
   if (!atribuido.ok) return atribuido;
-
-  // La atribución se registra ANTES de escribir asistencia: si falla, no se
-  // escribe nada (consistencia entre asignación y filas de asistencia).
-  const asig = await asegurarAsignacionActiva(supabase, {
-    profesorId,
-    profesorClave: ctx.profesorClave,
-    grupoMateriaId: resMateria.grupoMateriaId,
-  });
-  if (!asig.ok) {
-    return { ok: false, error: `No se pudo atribuir la materia: ${asig.error}` };
-  }
 
   // UPSERT clases_impartidas (profesor_id + materia + grado + grupo + fecha).
   for (let i = 0; i < atribuido.clasesImpartidas.length; i += TAMANO_LOTE) {
@@ -1506,35 +1454,20 @@ export function estadoAsistenciaAlumno(input: {
  */
 export async function profesorImparteEnGrupo(
   supabase: SupabaseClient,
-  profesorClave: string,
   grado: string,
   grupo: string,
   profesorId?: number | null,
 ): Promise<boolean> {
-  const clave = norm(profesorClave);
   const g = norm(grado);
   const gr = norm(grupo);
-  if (!clave || !g || !gr) return false;
-
-  // Prompt B — identidad estructural PROFESORES.ID: si la sesión lo trae y la
-  // columna existe (SQL agregar-profesor-id-asistencia.sql aplicado), se
-  // prefiere `profesor_id` (CLAVE es ambigua: la comparten varios profesores).
-  if (profesorId && Number.isInteger(Number(profesorId)) && Number(profesorId) > 0) {
-    const { data, error } = await supabase
-      .from(TABLA_CLASES_IMPARTIDAS)
-      .select("id")
-      .eq("profesor_id", Number(profesorId))
-      .eq("grado", g)
-      .eq("grupo", gr)
-      .limit(1);
-    if (!error) return (data?.length ?? 0) > 0;
-    // Columna inexistente (migración pendiente): caemos al modo profesor_clave.
-  }
+  if (!g || !gr) return false;
+  const pid = Number(profesorId);
+  if (!Number.isInteger(pid) || pid <= 0) return false;
 
   const { data, error } = await supabase
     .from(TABLA_CLASES_IMPARTIDAS)
-    .select("profesor_clave")
-    .eq("profesor_clave", clave)
+    .select("id")
+    .eq("profesor_id", pid)
     .eq("grado", g)
     .eq("grupo", gr)
     .limit(1);
@@ -1583,8 +1516,11 @@ export async function obtenerEstadosAsistenciaAlumno(
     : await obtenerCalendarioEscolar(supabase, ciclo);
   if (calendario.length === 0) return [];
 
-  // PROMPT C (R-2): si la sesión trae profesorId y la columna existe, el
-  // alcance es por `profesor_id`; solo se cae a `profesor_clave` si no.
+  // PROMPT C/D — si se pide alcance por profesor, este es SIEMPRE `profesor_id`
+  // (PROFESORES.ID). `profesor_clave` ya NO es criterio de búsqueda (regla D-4:
+  // la comparten 16 profesores). Sin la columna (esquema C pendiente) no se
+  // puede acotar de forma segura: se devuelve vacío (no se filtra el aporte
+  // global de otros profesores).
   const profesorId =
     input.profesorId != null &&
     Number.isInteger(Number(input.profesorId)) &&
@@ -1599,6 +1535,7 @@ export async function obtenerEstadosAsistenciaAlumno(
     ]);
     scopePorId = !p1.error && !p2.error;
   }
+  if (profesorId && !scopePorId) return [];
 
   // 2) Clases impartidas del grupo (SUM por fecha). Alcance por profesor si
   //    corresponde; si no, el total del grupo.
@@ -1608,8 +1545,6 @@ export async function obtenerEstadosAsistenciaAlumno(
     .eq("grado", g)
     .eq("grupo", gr);
   if (scopePorId && profesorId) qClases = qClases.eq("profesor_id", profesorId);
-  else if (input.profesorClave)
-    qClases = qClases.eq("profesor_clave", input.profesorClave);
   const { data: clasesData } = await qClases;
   const clasesPorFecha = new Map<string, number>();
   for (const r of (clasesData ?? []) as { fecha: string; clases: number }[]) {
@@ -1624,8 +1559,6 @@ export async function obtenerEstadosAsistenciaAlumno(
     .eq("grado", g)
     .eq("grupo", gr);
   if (scopePorId && profesorId) qAsist = qAsist.eq("profesor_id", profesorId);
-  else if (input.profesorClave)
-    qAsist = qAsist.eq("profesor_clave", input.profesorClave);
   const { data: asistData } = await qAsist;
   const asistPorFecha = new Map<string, number>();
   for (const r of (asistData ?? []) as { fecha: string; clases_asistidas: number }[]) {

@@ -135,3 +135,20 @@ nunca DELETE). Rol directivo validado en las Server Actions existentes.
    `asignaciones_profesor` no tope con la UNIQUE legacy `(grupo_materia_id,
    profesor_clave)`.
 
+
+---
+
+## Errata (2026-09-04) — error de sintaxis 42601 al ejecutar el SQL R-1
+
+El SQL original usaba listas de columnas con tipos en un `FOR … IN` de
+PL/pgSQL:
+
+```sql
+) AS t(tabla text, col text, ref text, refcol text, nombre text)
+```
+
+Esa forma no es válida en ese contexto (error `42601: syntax error at or near
+"text"`). Se reescribieron los dos bucles (`v_fk` de FKs y `v_idx` de UNIQUE)
+con `SELECT … UNION ALL SELECT …` **sin** declaración de tipos. El resto del
+archivo no cambió. Re-ejecutable tal cual.
+

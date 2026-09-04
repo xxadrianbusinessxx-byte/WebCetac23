@@ -102,20 +102,25 @@ DECLARE
   v_huerfanos bigint;
 BEGIN
   FOR v_fk IN
-    SELECT *
-    FROM (VALUES
-      -- clases_impartidas
-      ('clases_impartidas', 'profesor_id',          'PROFESORES', 'ID',   'clases_impartidas_profesor_id_fk'),
-      ('clases_impartidas', 'grupo_materia_id',     'grupo_materias', 'id', 'clases_impartidas_grupo_materia_id_fk'),
-      ('clases_impartidas', 'periodo_id',           'periodos', 'id',    'clases_impartidas_periodo_id_fk'),
-      ('clases_impartidas', 'periodo_evaluacion_id','periodos_evaluacion', 'id', 'clases_impartidas_periodo_evaluacion_id_fk'),
-      -- asistencia_alumnos
-      ('asistencia_alumnos','profesor_id',          'PROFESORES', 'ID',   'asistencia_alumnos_profesor_id_fk'),
-      ('asistencia_alumnos','grupo_materia_id',     'grupo_materias', 'id', 'asistencia_alumnos_grupo_materia_id_fk'),
-      ('asistencia_alumnos','curp',                 'ALUMNOS', 'CURP',   'asistencia_alumnos_curp_fk'),
-      ('asistencia_alumnos','periodo_id',           'periodos', 'id',    'asistencia_alumnos_periodo_id_fk'),
-      ('asistencia_alumnos','periodo_evaluacion_id','periodos_evaluacion', 'id', 'asistencia_alumnos_periodo_evaluacion_id_fk')
-    ) AS t(tabla text, col text, ref text, refcol text, nombre text)
+    SELECT 'clases_impartidas' AS tabla, 'profesor_id' AS col,
+           'PROFESORES' AS ref, 'ID' AS refcol,
+           'clases_impartidas_profesor_id_fk' AS nombre
+    UNION ALL SELECT 'clases_impartidas', 'grupo_materia_id', 'grupo_materias', 'id',
+           'clases_impartidas_grupo_materia_id_fk'
+    UNION ALL SELECT 'clases_impartidas', 'periodo_id', 'periodos', 'id',
+           'clases_impartidas_periodo_id_fk'
+    UNION ALL SELECT 'clases_impartidas', 'periodo_evaluacion_id', 'periodos_evaluacion', 'id',
+           'clases_impartidas_periodo_evaluacion_id_fk'
+    UNION ALL SELECT 'asistencia_alumnos', 'profesor_id', 'PROFESORES', 'ID',
+           'asistencia_alumnos_profesor_id_fk'
+    UNION ALL SELECT 'asistencia_alumnos', 'grupo_materia_id', 'grupo_materias', 'id',
+           'asistencia_alumnos_grupo_materia_id_fk'
+    UNION ALL SELECT 'asistencia_alumnos', 'curp', 'ALUMNOS', 'CURP',
+           'asistencia_alumnos_curp_fk'
+    UNION ALL SELECT 'asistencia_alumnos', 'periodo_id', 'periodos', 'id',
+           'asistencia_alumnos_periodo_id_fk'
+    UNION ALL SELECT 'asistencia_alumnos', 'periodo_evaluacion_id', 'periodos_evaluacion', 'id',
+           'asistencia_alumnos_periodo_evaluacion_id_fk'
   LOOP
     -- La columna debe existir (p. ej. periodo_id podría no estar aplicado aún).
     CONTINUE WHEN NOT EXISTS (
@@ -209,15 +214,12 @@ DECLARE
   v_equivalente boolean;
 BEGIN
   FOR v_idx IN
-    SELECT *
-    FROM (VALUES
-      ('clases_impartidas',
-        ARRAY['profesor_id','grupo_materia_id','grado','grupo','fecha'],
-        'clases_impartidas_profesor_materia_uidx'),
-      ('asistencia_alumnos',
-        ARRAY['profesor_id','grupo_materia_id','curp','grado','grupo','fecha'],
-        'asistencia_alumnos_profesor_materia_uidx')
-    ) AS t(tabla text, cols text[], nombre text)
+    SELECT 'clases_impartidas' AS tabla,
+           ARRAY['profesor_id','grupo_materia_id','grado','grupo','fecha'] AS cols,
+           'clases_impartidas_profesor_materia_uidx' AS nombre
+    UNION ALL SELECT 'asistencia_alumnos',
+           ARRAY['profesor_id','grupo_materia_id','curp','grado','grupo','fecha'],
+           'asistencia_alumnos_profesor_materia_uidx'
   LOOP
     -- ¿Ya existe un índice UNIQUE equivalente con esas columnas (cualquier nombre)?
     SELECT EXISTS (

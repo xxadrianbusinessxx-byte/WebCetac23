@@ -49,13 +49,15 @@ import {
 } from "@/lib/escolar/justificaciones";
 
 /**
- * Server Actions de ASISTENCIAS DEL PROFESOR (Bloque 5B).
+ * Server Actions de ASISTENCIAS DEL PROFESOR (Bloque 5B + Prompt C/D).
  *
  * SEGURIDAD:
  *  - Solo `maestro` y `directivo` pueden operar.
- *  - La identidad del profesor (`profesor_clave`) SIEMPRE proviene de
- *    `sesion.matricula`. Nunca del archivo ni de un campo del navegador.
- *  - El profesor solo puede UPSERT sobre su propia `profesor_clave`.
+ *  - La identidad del profesor es SIEMPRE `sesion.profesorId` (PROFESORES.ID).
+ *    Nunca del archivo ni de un campo del navegador. `profesor_clave`
+ *    (contraseña) dejó de ser criterio de identidad y de búsqueda (D-4).
+ *  - Sin `profesorId` en sesión (sesión vieja) se pide volver a iniciar sesión;
+ *    no se escribe ni se consulta usando la contraseña.
  */
 
 type ResultadoGrupos = {
@@ -479,11 +481,19 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
   const grupo = String(detalleGrupo.nombre ?? "");
 
   // Maestro: debe impartir en el grupo del alumno y ve SOLO su propio aporte.
-  let profesorClave = input.profesorClave;
+  // PROMPT C/D: la identidad es SIEMPRE `profesor_id` (PROFESORES.ID); sin ella
+  // la sesión es vieja → volver a iniciar sesión (no se consulta por clave).
   if (sesion.rol === "maestro") {
+    const pidMaestro = Number(sesion.profesorId);
+    if (!Number.isInteger(pidMaestro) || pidMaestro <= 0) {
+      return {
+        ok: false,
+        error:
+          "Tu sesión no incluye la identidad de profesor (PROFESORES.ID). Vuelve a iniciar sesión para consultar asistencias.",
+      };
+    }
     const imparte = await profesorImparteEnGrupo(
       supabase,
-      sesion.matricula,
       grado,
       grupo,
       sesion.profesorId,
@@ -495,7 +505,6 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
           "Solo puedes consultar asistencias de los grupos donde impartes clase.",
       };
     }
-    profesorClave = sesion.matricula;
   }
 
   const dias = await obtenerEstadosAsistenciaAlumno(supabase, {
@@ -505,7 +514,6 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
     carrera: carrera || undefined,
     ciclo: operativo.periodoNombre,
     periodoId: operativo.periodoId,
-    profesorClave,
     profesorId: sesion.rol === "maestro" ? sesion.profesorId : null,
   });
 
@@ -727,12 +735,19 @@ export async function actionSolicitarJustificacionAsistencia(input: {
 
   // BLOQUE 9 (PIEZA 3): el profesor solo justifica faltas en los grupos donde
   // realmente imparte clase (validación existente, NO se reimplementa).
-  // PROMPT C (R-2): se prefiere `profesor_id` (las filas nuevas no escriben
-  // la contraseña; sin profesorId el alcance por clave no las vería).
+  // PROMPT C/D: identidad SIEMPRE por `profesor_id`; sin ella la sesión es vieja
+  // → volver a iniciar sesión (nunca se busca por la contraseña).
   if (rolProfesorJustifica) {
+    const pidJustifica = Number(sesion.profesorId);
+    if (!Number.isInteger(pidJustifica) || pidJustifica <= 0) {
+      return {
+        ok: false,
+        error:
+          "Tu sesión no incluye la identidad de profesor (PROFESORES.ID). Vuelve a iniciar sesión para justificar faltas.",
+      };
+    }
     const imparte = await profesorImparteEnGrupo(
       supabase,
-      sesion.matricula,
       contexto.grado,
       contexto.grupo,
       sesion.profesorId,
@@ -802,25 +817,27 @@ export async function actionSolicitarJustificacionAsistencia(input: {
 }
 
 /**
- * BLOQUE 9 (PIEZA 4) — Anula (resta 1 a) el aporte de asistencia que el
- * profesor registró para un alumno en una fecha concreta.
+ * BLOQUE 9 (PIEZA 4) + PROMPT C/D — Anula (resta 1 a) el aporte de asistencia
+ * que el profesor registró para un alumno en una fecha concreta.
  *
  * SEGURIDAD:
  *   - SOLO rol «maestro» o «directivo».
- *   - El profesor debe impartir en el grupo (profesorImparteEnGrupo, existente).
- *   - UPDATE puntual (NO upsert-insert): scoped a `profesor_clave =
- *     sesion.matricula` + curp + fecha + grado + grupo. El WHERE por
- *     profesor_clave garantiza que NUNCA se toca el aporte de otro profesor.
- *   - Resta 1 con piso en 0 (GREATEST(clases_asistidas - 1, 0) emulado en el
- *     servidor con Math.max; el CHECK `clases_asistidas >= 0` de la tabla
- *     sigue protegiendo contra negativos).
+ *   - El profesor debe impartir en el grupo (profesorImparteEnGrupo).
+ *   - La identidad es SIEMPRE `profesor_id` (PROFESORES.ID). `profesor_clave`
+ *     ya NO es criterio (regla D-4: la comparten 16 profesores).
+ *   - Con atribución por materia puede haber VARIAS filas del mismo
+ *     profesor/alumno/día (una por materia). La anulación es del DÍA (resta 1
+ *     al total) y se elige la fila con mayor aporte (determinista).
+ *   - UPDATE puntual sobre el `id` de esa fila; NUNCA la de otro profesor.
+ *   - Resta 1 con piso en 0 (GREATEST(clases_asistidas - 1, 0) emulado con
+ *     Math.max; el CHECK `clases_asistidas >= 0` sigue protegiendo).
  */
 export async function actionAnularAsistenciaProfesor(input: {
   curp: string;
   fecha: string;
   grado: string;
   grupo: string;
-}): Promise<{ ok: true; avisoAmbiguo?: string } | { ok: false; error: string }> {
+}): Promise<{ ok: true } | { ok: false; error: string }> {
   const sesion = await obtenerSesionPortal();
   if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
     return { ok: false, error: "No tienes permiso para anular asistencias." };
@@ -839,15 +856,17 @@ export async function actionAnularAsistenciaProfesor(input: {
 
   const supabase = await createClient();
 
-  // Validación existente: el profesor solo opera en los grupos donde imparte.
-  // Prompt B: si la sesión trae profesorId (y la columna existe), se prefiere.
-  const profesorId =
-    sesion.profesorId != null && Number.isInteger(Number(sesion.profesorId))
-      ? Number(sesion.profesorId)
-      : null;
+  // PROMPT C/D — identidad estructural PROFESORES.ID (nunca la contraseña).
+  const profesorId = Number(sesion.profesorId);
+  if (!Number.isInteger(profesorId) || profesorId <= 0) {
+    return {
+      ok: false,
+      error:
+        "Tu sesión no incluye la identidad de profesor (PROFESORES.ID). Vuelve a iniciar sesión para anular asistencias.",
+    };
+  }
   const imparte = await profesorImparteEnGrupo(
     supabase,
-    sesion.matricula,
     grado,
     grupo,
     profesorId,
@@ -859,53 +878,43 @@ export async function actionAnularAsistenciaProfesor(input: {
     };
   }
 
-  // Buscar las filas de ESTE profesor. Se prefiere `profesor_id` (identidad
-  // estructural); si la columna aún no existe, se cae a `profesor_clave`.
-  // PROMPT C: con atribución por materia puede haber VARIAS filas del mismo
-  // profesor/alumno/día (una por materia). La anulación es del DÍA (resta 1
-  // al total), así que se elige la fila con mayor valor (determinista).
-  let query = supabase
+  // Esquema C aplicado (columna profesor_id en asistencia_alumnos). Sin él no
+  // se escribe nada (nada de operaciones por la contraseña).
+  const probe = await supabase
     .from(TABLA_ASISTENCIA_ALUMNOS)
-    .select("id, clases_asistidas, grupo_materia_id")
-    .eq("curp", curp)
-    .eq("fecha", fecha)
-    .eq("grado", grado)
-    .eq("grupo", grupo);
-  let scopePorId = false;
-  if (profesorId) {
-    const probe = await supabase
-      .from(TABLA_ASISTENCIA_ALUMNOS)
-      .select("profesor_id")
-      .limit(1);
-    if (!probe.error) {
-      query = query.eq("profesor_id", profesorId);
-      scopePorId = true;
-    }
-  }
-  if (!scopePorId) {
-    query = query.eq("profesor_clave", sesion.matricula);
-  }
-  const { data: filas, error: errBuscar } = await query.limit(50);
-
-  if (errBuscar) return { ok: false, error: errBuscar.message };
-  if (!filas || filas.length === 0) {
-    if (scopePorId) {
-      // Las 81 filas históricas tienen profesor_clave compartido y profesor_id
-      // NULL: no son atribuibles de forma inequívoca (no se inventa backfill).
-      return {
-        ok: false,
-        error:
-          "La asistencia de ese día no tiene profesor_id asignado (deuda histórica de CLAVE compartida). No se puede anular de forma inequívoca; contacta a la dirección.",
-      };
-    }
+    .select("profesor_id")
+    .limit(1);
+  if (probe.error) {
     return {
       ok: false,
-      error: "No hay asistencia registrada por ti ese día para este alumno.",
+      error:
+        "Esquema de atribución pendiente: aplica supabase/agregar-atribucion-profesor-asistencia.sql antes de anular asistencias.",
     };
   }
 
-  // Fila objetivo: la de mayor aporte (todas las de > 0 reducen el total del
-  // día en 1); si todo está en 0 no hay nada que anular.
+  // Filas de ESTE profesor para ese alumno/día (puede haber una por materia).
+  const { data: filas, error: errBuscar } = await supabase
+    .from(TABLA_ASISTENCIA_ALUMNOS)
+    .select("id, clases_asistidas")
+    .eq("profesor_id", profesorId)
+    .eq("curp", curp)
+    .eq("fecha", fecha)
+    .eq("grado", grado)
+    .eq("grupo", grupo)
+    .limit(50);
+
+  if (errBuscar) return { ok: false, error: errBuscar.message };
+  if (!filas || filas.length === 0) {
+    // Las 81 filas históricas tienen profesor_id NULL (clave compartida): no
+    // son atribuibles de forma inequívoca (no se inventa backfill).
+    return {
+      ok: false,
+      error:
+        "No hay asistencia registrada por ti ese día para este alumno (las filas históricas sin profesor_id no son atribuibles).",
+    };
+  }
+
+  // Fila objetivo: la de mayor aporte (resta 1 al total del día).
   const objetivo =
     [...filas].sort(
       (a, b) =>
@@ -925,11 +934,9 @@ export async function actionAnularAsistenciaProfesor(input: {
     .eq("id", objetivo.id);
 
   if (errUpdate) return { ok: false, error: errUpdate.message };
-  const avisoAmbiguo = scopePorId
-    ? undefined
-    : "Operación por profesor_clave (CLAVE ambigua). Aplica supabase/agregar-atribucion-profesor-asistencia.sql para anular por profesor_id.";
-  return { ok: true, ...(avisoAmbiguo ? { avisoAmbiguo } : {}) };
+  return { ok: true };
 }
+
 
 /**
  * BLOQUE 9 (PIEZA 4) + PROMPT C (R-4) — Lista los grupos del periodo OPERATIVO

@@ -1,6 +1,7 @@
 "use client";
 
-// DESACTIVADO de la UI de /configuracion (ver Bloque 17 de contexto.feliz) — se conserva el código por si se reactiva para otra instalación.
+// REACTIVADO en la UI de /configuracion por PROMPT C (R-5) y PROMPT D (R-4)
+// (antes: DESACTIVADO, Bloque 17 de contexto.feliz).
 /**
  * C4.12 — Panel de administración de asignaciones profesor → grupo_materia
  * (solo rol directivo; la autorización real se valida en las Server Actions).
@@ -59,7 +60,34 @@ export function AsignacionesProfesorAdmin() {
   };
 
   useEffect(() => {
-    void recargar();
+    let activo = true;
+    void (async () => {
+      const [p, o, a] = await Promise.all([
+        actionListarProfesoresParaAsignacion(),
+        actionListarGruposMateriasParaAsignacion(),
+        actionListarAsignacionesProfesorAdmin(),
+      ]);
+      if (!activo) return;
+      if (Array.isArray(p)) {
+        setProfesores(p);
+      } else if ("error" in p) {
+        setMensaje({ tipo: "err", texto: p.error });
+      }
+      if (Array.isArray(o)) {
+        setOferta(o);
+      } else if ("error" in o) {
+        setMensaje({ tipo: "err", texto: o.error });
+      }
+      if ("ok" in a && a.ok) {
+        setAsignaciones(a.asignaciones);
+      } else if ("error" in a) {
+        setMensaje({ tipo: "err", texto: a.error });
+      }
+      setCargando(false);
+    })();
+    return () => {
+      activo = false;
+    };
   }, []);
 
   const crear = async () => {
@@ -183,13 +211,25 @@ export function AsignacionesProfesorAdmin() {
                             ? "bg-emerald-500/20 text-emerald-800"
                             : "bg-slate-400/30 text-slate-600"
                         }`}
+                        title={
+                          a.activo
+                            ? undefined
+                            : a.hasta
+                              ? `Asignación desactivada el ${new Date(a.hasta).toLocaleString("es-MX")}`
+                              : "Asignación inactiva"
+                        }
                       >
-                        {a.activo ? "activa" : "inactiva"}
+                        {a.activo
+                          ? "activa"
+                          : `inactiva${a.hasta ? ` · ${new Date(a.hasta).toLocaleDateString("es-MX")}` : ""}`}
                       </span>
                       ID {a.profesorId} — {a.profesorNombre} →{" "}
                       {a.grupoDescripcion} / {a.materiaNombreVisible}
                       {a.carreraClave ? ` · ${a.carreraClave}` : ""} ·{" "}
                       {a.periodoNombre}
+                      {!a.activo && a.hasta
+                        ? ` — dejó de impartirla el ${new Date(a.hasta).toLocaleDateString("es-MX")}`
+                        : ""}
                     </div>
                     {a.activo && (
                       <button
