@@ -24,6 +24,9 @@ for (const line of raw.split("\n")) {
 const urlBase = (env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().replace(/\/+$/, "");
 const key = env.SUPABASE_SERVICE_ROLE_KEY?.trim() || env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
+// CLAVE es la CONTRASEÑA de login del profesor: nunca imprimirla en claro.
+const enmascarar = (v) => { const s = String(v ?? ""); return s ? `<oculta:${s.length} car.>` : "(vacía)"; };
+
 async function get(tabla, select, extra = "") {
   const r = await fetch(
     `${urlBase}/rest/v1/${encodeURIComponent(tabla)}?select=${encodeURIComponent(select)}${extra}`,
@@ -74,7 +77,7 @@ async function main() {
       porProf.set(k, e);
     }
     console.log(`  filas: ${ci.length} · profesores distintos: ${porProf.size}`);
-    for (const [p, grupos] of porProf) console.log(`    profesor_clave=${p} → grupos: ${[...grupos].join(" · ")}`);
+    for (const [p, grupos] of porProf) console.log(`    profesor=${enmascarar(p)} → grupos: ${[...grupos].join(" · ")}`);
   }
 
   // PROFESORES (calidad de la clave)
@@ -89,7 +92,7 @@ async function main() {
     }
     console.log(`  filas: ${profs.length} · claves distintas: ${porClave.size}`);
     const dup = [...porClave.entries()].filter(([, n]) => n > 1);
-    for (const [k, n] of dup) console.log(`    !! CLAVE="${k}" compartida por ${n} profesores (identidad ambigua)`);
+    for (const [k, n] of dup) console.log(`    !! ${n} profesores comparten la MISMA clave ${enmascarar(k)} (es su contraseña: no se imprime)`);
   }
 
   // 4) justificaciones: ¿admite granularidad por clase?

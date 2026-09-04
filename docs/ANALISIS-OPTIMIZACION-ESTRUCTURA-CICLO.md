@@ -3,7 +3,10 @@
 > Fecha: 2026-09-04. Escrito tras cerrar el Bloque 18.
 > Todo lo de aquí está **medido**, no supuesto. Los scripts de diagnóstico que
 > lo reproducen están en `scripts/diag-*.mjs` (solo lectura).
-> Orden sugerido: O-1 → O-2 → O-3. O-4 y O-5 son independientes.
+> Orden sugerido: **O-4 → O-1 → O-5** y luego O-2 / O-3.
+> (O-4 se reescribió el 2026-09-04 al aclararse que `PROFESORES.CLAVE` es la
+> CONTRASEÑA de login: eso lo convierte en lo más urgente y cambia su orden
+> interno de pasos.)
 
 ---
 
@@ -132,32 +135,81 @@ poblada: los 3 parciales activos en `periodos_evaluacion`.
 
 ---
 
-## O-4 · Identidad del profesor (`PROFESORES.CLAVE` duplicada)
+## O-4 · La contraseña del profesor se usa como identidad (CRÍTICO — reordenado)
 
-**Prioridad: alta si va a haber varios profesores usando el sistema; baja si hoy
-solo lo usa uno.**
+**Prioridad: la más alta de la lista.** Corregido el 2026-09-04 tras aclarar que
+`PROFESORES.CLAVE` **es la contraseña de login**, no un identificador. Eso cambia
+el diagnóstico y, sobre todo, **el orden de los pasos**.
 
-Medido con `scripts/diag-profesor-alcance.mjs`:
+### Lo que hace el sistema hoy
 
+`lib/auth/portal-login.ts:66` mete la contraseña en la sesión como identidad:
+
+```ts
+return { matricula: profesor.CLAVE, rol: ..., profesorId: profesor.ID, ... }
 ```
-PROFESORES: 20 filas · claves distintas: 3
-  !! CLAVE="4321" compartida por 16 profesores
-  !! CLAVE="8080" compartida por 3 profesores
+
+y `app/actions/asistencias.ts` la escribe en la base como dato:
+
+```ts
+profesorClave: sesion.matricula      // → clases_impartidas.profesor_clave
 ```
 
-El SQL aditivo `supabase/agregar-profesor-id-asistencia.sql` ya está preparado
-pero **sin ejecutar**. Hasta que se ejecute y las CLAVE se corrijan:
+**Consecuencia:** `clases_impartidas.profesor_clave` y
+`asistencia_alumnos.profesor_clave` **contienen contraseñas en texto plano**.
+Las 81 filas históricas guardan literalmente la contraseña compartida por 16
+profesores. La cookie de sesión también la transporta en `matricula`.
 
-- los aportes de asistencia de 16 profesores se mezclan en la misma fila;
-- `actionAnularAsistenciaProfesor` puede borrar el registro de otro profesor;
-- las 81 filas históricas de `clases_impartidas` tienen **autoría
-  irrecuperable** (no se backfilleó `profesor_id` a propósito: inventar la
-  atribución sería peor que dejarla en NULL).
+### Tres problemas distintos, no uno
 
-**Orden:** ejecutar el SQL → asignar CLAVEs únicas → activar
-`debe_cambiar_credenciales` para forzarles el cambio en el siguiente acceso.
+**1 · Seguridad.** 16 de 20 profesores comparten contraseña y el login es
+*nombre completo + clave*. Cualquiera que sepa el nombre de un colega —todos lo
+saben— puede entrar como él. Además la contraseña se almacena en claro (los
+tutores sí usan scrypt; profesores y alumnos no) y se copia a tablas de datos.
 
----
+**2 · Bomba de relojería al cambiar la contraseña.** `cambiarClaveProfesor`
+hace `UPDATE PROFESORES SET CLAVE = <nueva>` y **nada más**. En el siguiente
+login, `sesion.matricula` pasa a ser la contraseña nueva, mientras que todas sus
+filas de asistencia siguen con la vieja. Resultado:
+
+- su historial de asistencia queda **huérfano**;
+- `profesorImparteEnGrupo` (que consulta por `profesor_clave`) deja de
+  reconocerlo → **pierde el acceso a justificar y anular** en sus propios grupos.
+
+**3 · Ambigüedad de atribución.** Con 16 claves iguales, los aportes de esos
+profesores se mezclan en la misma fila y `actionAnularAsistenciaProfesor` puede
+borrar el registro de otro.
+
+### El orden que escribí ayer era PELIGROSO
+
+Decía: *ejecutar SQL → asignar CLAVEs únicas → forzar el cambio*. **No hagas
+eso.** Cambiar las contraseñas primero dispara el problema 2 para los 20
+profesores a la vez y desconecta todo el historial existente.
+
+### Orden correcto
+
+1. **Ejecutar** `supabase/agregar-profesor-id-asistencia.sql` (aditivo, ya
+   preparado). No rompe nada: `profesor_clave` sigue intacto.
+2. **Migrar el código a `profesor_id`** como identidad real de lectura y
+   escritura (`sesion.profesorId` ya viaja en la sesión desde C4.10). Mientras
+   `profesor_id` sea NULL, seguir cayendo a `profesor_clave`.
+3. **Decidir las 81 filas históricas.** El código no puede atribuirlas (16
+   candidatos), pero **tú sí puedes**: son todas de `2DO A RH`. Si sabes quién
+   imparte ese grupo, es un `UPDATE` puntual y trazable hecho por un humano con
+   criterio — eso no es "inventar la atribución", que es lo que se prohibió al
+   código.
+4. **Solo entonces**, asignar contraseñas únicas y activar
+   `debe_cambiar_credenciales`. Con el paso 2 hecho, cambiar la contraseña ya no
+   rompe nada.
+5. **Dejar de usar la contraseña como `matricula`** en la sesión de
+   profesor/directivo, y considerar hashear `PROFESORES.CLAVE` como ya se hace
+   con los tutores.
+
+### Nota sobre los diagnósticos
+
+`scripts/diag-profesor-alcance.mjs` imprimía las CLAVE en claro. Ya está
+corregido: ahora las enmascara (`<oculta:N car.>`). Si alguien pegó su salida en
+un informe o un chat, esas contraseñas quedaron expuestas ahí.
 
 ## O-5 · Ergonomía de las pruebas (barato, alto retorno diario)
 
@@ -203,10 +255,13 @@ Los `.tmp-*` nuevos ya quedaron en `.gitignore` en este commit.
 | O-1 | Acotar `identidades` por `grupo_id` en la RPC (+ fallback TS) | 1 línea SQL + revisión | Identidad errónea silenciosa; payload ×nº ciclos |
 | O-2 | Consolidar `2026-2027` / `AGO2026-ENE2027` | Fase propia, con diagnóstico | 684 filas donde bastan 241; alimenta O-1 |
 | O-3 | Backfill `calendario_escolar.periodo_id` | Medio | La plantilla de asistencias no se puede generar |
-| O-4 | Ejecutar SQL de `profesor_id` + CLAVEs únicas | Bajo (SQL) + trabajo tuyo | Asistencias mezcladas entre profesores |
+| **O-4** | `profesor_id` como identidad **antes** de tocar contraseñas | Medio | Contraseñas en claro dentro de tablas de datos; cambiar la clave deja el historial huérfano |
 | O-5 | `npm test` que corra las 5 suites | 30 min | Validaciones que parecen fallar sin fallar |
 
-**Mi recomendación para mañana:** empezar por **O-1** (es una línea, y es el
-único que introdujimos hoy sin querer), seguir con **O-5** (barato y hace más
-fiable todo lo demás), y dejar O-2/O-3 para una sesión con tiempo, porque
-requieren decisiones tuyas sobre datos históricos.
+**Mi recomendación para mañana:** empezar por **O-4**, que dejó de ser una
+limpieza de datos para ser un problema de seguridad y de integridad del
+historial — y cuyo orden de pasos, tal como lo escribí ayer, era peligroso.
+Seguir con **O-1** (es una línea, y es el único que introdujimos hoy sin
+querer) y **O-5** (barato, hace más fiable todo lo demás). Dejar O-2/O-3 para
+una sesión con tiempo, porque requieren decisiones tuyas sobre datos
+históricos.
