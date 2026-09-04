@@ -306,7 +306,7 @@ export function ProfesorClient({ sesion, materias }: Props) {
           )}
         </div>
 
-        <AsistenciasPanel />
+        <AsistenciasPanel nombreProfesor={sesion?.nombre ?? null} />
 
         {/* BLOQUE 9 (PIEZA 4) — Asistencia de mis alumnos (solo grupos donde
             imparte el profesor de sesión). */}

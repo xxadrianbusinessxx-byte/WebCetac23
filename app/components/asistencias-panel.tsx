@@ -156,7 +156,13 @@ function Resumen({ resumen }: { resumen: ResumenAsistencia }) {
 const DIAS_SEMANA_CORTOS = ["lun", "mar", "mié", "jue", "vie"];
 const DIAS_LARGO = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
-export function AsistenciasPanel() {
+export function AsistenciasPanel({
+  nombreProfesor,
+}: {
+  /** Nombre visible del profesor de la sesión. Solo presentación: la identidad
+   *  real (profesor_id) la resuelve SIEMPRE el servidor. */
+  nombreProfesor?: string | null;
+} = {}) {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   // CICLO GLOBAL — periodo OPERATIVO resuelto en la Server Action; el profesor
   // ya NO elige el ciclo: solo el PARCIAL dentro de ese ciclo.
@@ -267,6 +273,7 @@ export function AsistenciasPanel() {
   ].sort();
   const materiaSeleccionada =
     materias.find((m) => m.clave === materiaClave) ?? null;
+  const parcialSeleccionado = parciales.find((p) => p.id === parcialId) ?? null;
 
   const seleccionCompleta = Boolean(
     grado && grupo && ciclo && materiaClave && parcialId,
@@ -662,12 +669,69 @@ export function AsistenciasPanel() {
               CURP | NOMBRE | fechas · re-subir no duplica
             </span>
           </div>
+          {/* Contexto EXPLÍCITO de la subida: qué materia/grupo/parcial se va a
+              guardar y a quién se le atribuye. Sin esto, unos selectores
+              olvidados arriba hacen que la plantilla se guarde (y la materia se
+              traspase) en el sitio equivocado. */}
+          {seleccionCompleta ? (
+            <div className="mt-3 rounded-2xl border border-sky-500/60 bg-sky-50/90 px-4 py-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                Vas a subir la plantilla de:
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {[
+                  ["Grado", grado],
+                  ["Grupo", grupo],
+                  ["Carrera", carrera || "Tronco común"],
+                  ["Materia", materiaSeleccionada?.nombre ?? materiaClave],
+                  ["Parcial", parcialSeleccionado?.nombre ?? "—"],
+                ].map(([etiqueta, valor]) => (
+                  <span
+                    key={etiqueta}
+                    className="rounded-full border border-sky-600/40 bg-white/90 px-3 py-1 text-[11px] font-bold text-sky-900"
+                  >
+                    <span className="font-extrabold uppercase tracking-wide text-sky-700">
+                      {etiqueta}:
+                    </span>{" "}
+                    {valor}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] font-semibold text-sky-900">
+                Se atribuirá a{" "}
+                <span className="font-extrabold">
+                  {nombreProfesor?.trim() || "tu perfil"}
+                </span>
+                : al confirmar, esta materia y todos sus registros de asistencia
+                pasan a ser tuyos. Si otro profesor la tenía, deja de tenerla
+                (conserva sus demás materias).
+              </p>
+              <p className="mt-1 text-[10px] font-semibold text-amber-800">
+                Verifica que el archivo corresponda a esta materia y parcial
+                antes de continuar.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-2 rounded-2xl border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">
+              Antes de subir, elige arriba:{" "}
+              {[
+                !grado && "grado",
+                !grupo && "grupo",
+                !parcialId && "parcial",
+                !materiaClave && "materia",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              . La plantilla se guarda en la materia que quede seleccionada.
+            </p>
+          )}
           <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <input
               type="file"
               accept=".csv,.xlsx,.xls,text/csv"
               onChange={onArchivoElegido}
-              className="max-w-xs rounded-xl border border-white/70 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-inner outline-none"
+              disabled={!seleccionCompleta}
+              className="max-w-xs rounded-xl border border-white/70 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-inner outline-none disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Seleccionar plantilla de asistencia llena"
             />
             <PillButton
@@ -677,11 +741,6 @@ export function AsistenciasPanel() {
               Previsualizar cambios
             </PillButton>
           </div>
-          {!seleccionCompleta && (
-            <p className="mt-2 text-[11px] font-semibold text-amber-800">
-              Completa grado, grupo, parcial y materia para analizar la plantilla.
-            </p>
-          )}
           {preview && (
             <div className="mt-3 rounded-2xl border border-white/60 bg-white/70 p-3">
               <Resumen resumen={preview} />
