@@ -61,3 +61,16 @@ la verificación por CURP confirma su inscripción activa).
 - `scripts/registrar-alumnos-extras-3ro.mjs` — alta idempotente de los 2 casos
   anteriores (crea `ALUMNOS` si falta y asegura inscripción ACTIVA en 3RO A RH).
 
+## Anexo 2 (mismo día): 2 alumnos duplicados retirados de 3RO A RH
+Los 2 "extras" detectados en 3RO A RH aparecían también en la lista oficial
+`5TORHA.xlsx` (y estaban ACTIVOS en 5TO A RH). Verificado y, con instrucción del
+directivo, se **desactivó su inscripción en 3RO A RH** (`activo=false`; sin
+DELETE; conservan su inscripción ACTIVA en 5TO A RH):
+
+- `AAGC080710HVZLRRA6` ALVARADO GARCIA CARLOS DANIEL
+- `AEBO090317HMCRLSA5` ARREDONDO BALDERAS OSCAR FELIPE
+
+Resultado: 3RO A RH queda con **30 inscripciones activas = 30 de la lista
+3RORHA** (0 extras). Script: `scripts/quitar-3ro-extras.mjs`.
+
+
