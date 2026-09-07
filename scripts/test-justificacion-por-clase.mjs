@@ -2,8 +2,8 @@
  * test-justificacion-por-clase.mjs - Pruebas PURAS de la justificacion POR
  * CLASE (Prompt B), sin Supabase.
  *
- * Compilar (recompilar tras cambios en lib/escolar/justificaciones.ts):
- *   npx tsc lib/escolar/justificaciones.ts ^
+ * Compilar (recompilar tras cambios en lib/escolar/asistencia/justificaciones.ts):
+ *   npx tsc lib/escolar/asistencia/justificaciones.ts ^
  *     --outDir scripts/.tmp-justificacion-clase --module commonjs ^
  *     --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
  *   node scripts/test-justificacion-por-clase.mjs
@@ -27,7 +27,7 @@ const dir = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   ".tmp-justificacion-clase",
 );
-const M = require(path.join(dir, "justificaciones.js"));
+const M = require(path.join(dir, "asistencia/justificaciones.js"));
 
 let pasadas = 0;
 let fallidas = 0;
@@ -110,6 +110,42 @@ console.log("7) Una justificacion rechazada no suma clases");
     "omitir la rechazada deja el mismo total",
     sinRechazada === soloAprobada,
   );
+}
+
+console.log("8) PROMPT-1/T1: justificar UNA CLASE concreta (grupo_materia_id uuid)");
+{
+  const GM_MAT = "11111111-1111-1111-1111-111111111111";
+  const GM_HIS = "22222222-2222-2222-2222-222222222222";
+  const bloques = { [GM_MAT]: 2, [GM_HIS]: 1 };
+  const totalDe = (materias, faltante = 3) =>
+    M.calcularClasesJustificadasPorDia({ bloquesPorMateria: bloques, materias, faltante });
+  ok("clase concreta GM_MAT -> 2", totalDe([GM_MAT]) === 2, "got " + totalDe([GM_MAT]));
+  ok("clase concreta GM_HIS -> 1", totalDe([GM_HIS]) === 1, "got " + totalDe([GM_HIS]));
+  ok("materiaTieneClaseEnDia(GM_MAT) true", M.materiaTieneClaseEnDia(bloques, GM_MAT));
+  ok("uuid que no es del día -> rechazada (0)", totalDe(["33333333-3333-3333-3333-333333333333"]) === 0);
+}
+
+console.log("9) PROMPT-1/T1: justificar el DÍA COMPLETO y que ambas no puedan duplicarse");
+{
+  const GM_MAT = "11111111-1111-1111-1111-111111111111";
+  const bloques = { [GM_MAT]: 2 };
+  const faltante = 3;
+  const diaCompleto = M.calcularClasesJustificadasPorDia({ bloquesPorMateria: bloques, materias: [null], faltante });
+  const diaCompletoMasClase = M.calcularClasesJustificadasPorDia({
+    bloquesPorMateria: bloques,
+    materias: [null, GM_MAT],
+    faltante,
+  });
+  ok("día completo -> faltante entero", diaCompleto === 3, "got " + diaCompleto);
+  ok(
+    "día completo + clase concreta NO suma (no duplica): sigue siendo el faltante",
+    diaCompletoMasClase === 3,
+    "got " + diaCompletoMasClase,
+  );
+  // Reaplicar la MISMA clase concreta no acumula (idempotente por dedupe).
+  const unaVez = M.calcularClasesJustificadasPorDia({ bloquesPorMateria: bloques, materias: [GM_MAT], faltante });
+  const dosVeces = M.calcularClasesJustificadasPorDia({ bloquesPorMateria: bloques, materias: [GM_MAT, GM_MAT], faltante });
+  ok("reaplicar la misma clase concreta no acumula", unaVez === dosVeces && unaVez === 2, `got ${unaVez}/${dosVeces}`);
 }
 
 console.log("Resultado: " + pasadas + " pasadas, " + fallidas + " fallidas");

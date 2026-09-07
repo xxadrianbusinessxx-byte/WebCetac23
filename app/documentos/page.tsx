@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { puede } from "@/lib/auth/permisos";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { DocumentosClient } from "./documentos-client";
 
@@ -12,8 +13,8 @@ export const metadata: Metadata = {
 export default async function DocumentosPage() {
   const sesion = await obtenerSesionPortal();
   if (!sesion) redirect("/login");
-  if (sesion.rol !== "directivo" && sesion.rol !== "maestro") {
-    redirect("/perfil");
-  }
+  // Acceso por capacidad (PROMPT-3/T2): quien tenga documento.ver entra.
+  const puedeVer = sesion ? puede(sesion.rol, "documento.ver") : false;
+  if (!puedeVer) redirect("/perfil");
   return <DocumentosClient sesion={sesion} />;
 }

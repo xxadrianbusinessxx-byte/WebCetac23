@@ -32,7 +32,7 @@ fs.mkdirSync(tmp, { recursive: true });
 
 const archivos = [
   ["lib/escolar/nombres.ts", "nombres.js"],
-  ["lib/escolar/columnas-calificaciones.ts", "columnas-calificaciones.js"],
+  ["lib/escolar/materia/columnas-calificaciones.ts", "materia/columnas-calificaciones.js"],
   ["lib/escolar/buscar-en-filas.ts", "buscar-en-filas.js"],
 ];
 
@@ -47,10 +47,11 @@ for (const [src, out] of archivos) {
     },
     fileName: src,
   });
+  fs.mkdirSync(path.dirname(path.join(tmp, out)), { recursive: true });
   fs.writeFileSync(path.join(tmp, out), outputText);
 }
 
-const col = require(path.join(tmp, "columnas-calificaciones.js"));
+const col = require(path.join(tmp, "materia/columnas-calificaciones.js"));
 const { buscarIndiceFilaAlumno } = require(path.join(tmp, "buscar-en-filas.js"));
 
 // ---------------------------------------------------------------------------

@@ -3,7 +3,7 @@ import {
   columnasParaVista,
   listarColumnasTabla,
   sincronizarColumnasTabla,
-} from "./schema-tabla";
+} from "./materia/schema-tabla";
 
 const PISTAS_NOMBRE = [
   "nombre",

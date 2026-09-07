@@ -2,8 +2,8 @@
  * test-atribucion-profesor.mjs - Pruebas PURAS de la atribución de materia al
  * profesor en la subida de asistencias (Prompt C, R-3), sin Supabase.
  *
- * Compilar (tras cambios en lib/escolar/atribucion-profesor.ts):
- *   npx tsc lib/escolar/atribucion-profesor.ts ^
+ * Compilar (tras cambios en lib/escolar/asistencia/atribucion-profesor.ts):
+ *   npx tsc lib/escolar/asistencia/atribucion-profesor.ts ^
  *     --outDir scripts/.tmp-atribucion-profesor --module commonjs ^
  *     --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
  *   node scripts/test-atribucion-profesor.mjs
@@ -27,7 +27,7 @@ const dir = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   ".tmp-atribucion-profesor",
 );
-const M = require(path.join(dir, "atribucion-profesor.js"));
+const M = require(path.join(dir, "asistencia/atribucion-profesor.js"));
 
 let pasadas = 0;
 let fallidas = 0;

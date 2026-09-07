@@ -1,6 +1,6 @@
 "use client";
 
-import { calcularPromedioPonderado } from "@/lib/escolar/mapeo-columnas-materia";
+import { calcularPromedioPonderado } from "@/lib/escolar/materia/mapeo-columnas-materia";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 
 type FilaSemantica = { etiqueta: string; valor: string };

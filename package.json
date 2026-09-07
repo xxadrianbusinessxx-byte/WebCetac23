@@ -12,7 +12,12 @@
     "sync:decoraciones": "node scripts/sync-decoraciones.mjs",
     "gen:materias": "node scripts/gen-materias-list.mjs",
     "gen:registros": "node scripts/gen-registros-list.mjs",
-    "gen:tablas": "node scripts/gen-tablas-desde-supabase.mjs"
+    "gen:tablas": "node scripts/gen-tablas-desde-supabase.mjs",
+    "test:compilar": "node scripts/compilar-suites.mjs",
+    "gen:matriz": "node scripts/gen-matriz-permisos.mjs",
+    "test:suites": "node scripts/correr-todas-las-suites.mjs",
+    "test:permisos": "node scripts/test-permisos.mjs && node scripts/test-auditoria-permisos.mjs",
+    "test:ci": "node scripts/correr-todas-las-suites.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

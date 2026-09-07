@@ -4,7 +4,7 @@
  * C4.12 — SERVER ACTIONS DE ADMINISTRACIÓN DE ASIGNACIONES DE PROFESOR.
  *
  * SEGURIDAD:
- *   - El ACTOR autenticado sale SIEMPRE de obtenerSesionPortal() + rol
+ *   - El ACTOR autenticado sale SIEMPRE de exigir() (cookie firmada + capacidad).
  *     directivo. Nunca del cliente.
  *   - El OBJETIVO administrativo (profesorId / grupoMateriaId) se valida
  *     contra PROFESORES.ID y el catálogo (grupo_materias) en el servidor.
@@ -12,18 +12,18 @@
  *     histórico informativo en el listado de profesores.
  *   - No se introducen credenciales privilegiadas en Client Components.
  */
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
 import { createClient } from "@/lib/supabase/server";
-import { listarProfesores, nombreProfesor } from "@/lib/escolar/profesores";
+import { listarProfesores, nombreProfesor } from "@/lib/escolar/catalogo/profesores";
 import {
   crearAsignacion,
   desactivarAsignacion,
   listarAsignacionesAdmin,
-} from "@/lib/escolar/asignaciones-profesor";
+} from "@/lib/escolar/catalogo/asignaciones-profesor";
 import {
   listarNombresVisiblesMaterias,
   nombreVisibleDesdeMapa,
-} from "@/lib/escolar/nombres-visibles";
+} from "@/lib/escolar/materia/nombres-visibles";
 import {
   TABLA_CARRERAS,
   TABLA_GRUPO_MATERIAS,
@@ -47,8 +47,8 @@ export type ProfesorParaAsignacion = {
 export async function actionListarProfesoresParaAsignacion(): Promise<
   ProfesorParaAsignacion[] | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("asignacion.ver");
+  if (!g.ok) return NO_AUTORIZADO;
 
   const supabase = await createClient();
   const profesores = await listarProfesores(supabase);
@@ -102,8 +102,8 @@ export type GrupoMateriaParaAsignacion = {
 export async function actionListarGruposMateriasParaAsignacion(): Promise<
   GrupoMateriaParaAsignacion[] | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("asignacion.ver");
+  if (!g.ok) return NO_AUTORIZADO;
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -198,8 +198,8 @@ export type CrearAsignacionInput = {
 export async function actionCrearAsignacionProfesor(
   input: CrearAsignacionInput,
 ) {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("asignacion.editar");
+  if (!g.ok) return NO_AUTORIZADO;
 
   const supabase = await createClient();
   return crearAsignacion(supabase, input);
@@ -207,8 +207,8 @@ export async function actionCrearAsignacionProfesor(
 
 /** Desactiva una asignación (activo=false + hasta). Sin DELETE. */
 export async function actionDesactivarAsignacionProfesor(asignacionId: unknown) {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("asignacion.editar");
+  if (!g.ok) return NO_AUTORIZADO;
 
   const supabase = await createClient();
   return desactivarAsignacion(supabase, asignacionId);
@@ -216,8 +216,8 @@ export async function actionDesactivarAsignacionProfesor(asignacionId: unknown) 
 
 /** Lista asignaciones existentes con catálogo derivado (solo directivo). */
 export async function actionListarAsignacionesProfesorAdmin() {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("asignacion.ver");
+  if (!g.ok) return NO_AUTORIZADO;
 
   const supabase = await createClient();
   return listarAsignacionesAdmin(supabase);

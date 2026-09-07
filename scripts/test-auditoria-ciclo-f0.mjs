@@ -53,14 +53,14 @@ ok("index activa con actionSetActivoCiclo(periodoId,true)", /actionSetActivoCicl
 const pasoCalendario = leer("app/components/ciclo-configurador/paso-calendario.tsx");
 ok("paso-calendario conserva periodoId (F5)",
   pasoCalendario.includes("periodoIdInicial={periodoId}") && !pasoCalendario.includes("cicloInicial="));
-const calendarioLib = leer("lib/escolar/calendario.ts");
+const calendarioLib = leer("lib/escolar/ciclo/calendario.ts");
 ok("lib/calendario mantiene legacy ciclo_escolar aislado (LEGACY CONTROLADO F5)",
   (calendarioLib.match(/\.eq\("ciclo_escolar"/g) ?? []).length >= 1);
 ok("calendario conoce periodo_id en el flujo nuevo (F5)",
   calendarioLib.includes("obtenerCalendarioDePeriodo") && calendarioLib.includes('"periodo_id"'));
 
 // 5) Activación: autoridad actual TS (hallazgo F8).
-const cicloEstado = leer("lib/escolar/ciclo-estado.ts");
+const cicloEstado = leer("lib/escolar/ciclo/ciclo-estado.ts");
 ok("activarCicloOperativo existe en ciclo-estado.ts", /export async function activarCicloOperativo/.test(cicloEstado));
 const acciones = leer("app/actions/calendario.ts") + leer("app/actions/ciclo-orquestador.ts") + leer("app/actions/evaluaciones.ts");
 ok("ninguna Server Action invoca el RPC activar_ciclo_operativo (F8 pendiente)",
@@ -80,7 +80,7 @@ ok("inscripciones-admin usa periodoId+grupoId",
   inscAdmin.includes("periodoId") && inscAdmin.includes("grupoId"));
 
 // 9) Sin vigente en código (regla de la misión).
-const docF0 = leer("docs/AUDITORIA-CICLO-FASE-0.md");
+const docF0 = leer("docs/historial/auditorias/AUDITORIA-CICLO-FASE-0.md");
 ok("documento AUDITORIA-CICLO-FASE-0.md existe", docF0.length > 500);
 
 // 10) Referencias: acciones de calendario operan con string ciclo (texto legacy).

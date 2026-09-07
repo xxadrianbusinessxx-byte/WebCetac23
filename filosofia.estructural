@@ -344,7 +344,7 @@ Reglas:
       1×N de queries.
     - Los índices necesarios se declaran en el SQL del módulo.
     - Medir cuando el cambio toque rutas calientes (/perfil, listados del
-      directivo). Ver docs/OPTIMIZACION_RENDIMIENTO_400_500.md.
+      directivo). Ver docs/historial/OPTIMIZACION_RENDIMIENTO_400_500.md.
 
 ================================================================================
 12. IMPORTACIONES
@@ -366,7 +366,7 @@ Reglas:
 
     - La lógica de importación debe ser REUTILIZABLE y compartida:
         · lib/escolar/csv.ts              → lectura (CSV/Excel).
-        · lib/escolar/mapeo-columnas.ts   → identificación de columnas por aliases.
+        · lib/escolar/materia/mapeo-columnas.ts   → identificación de columnas por aliases.
         · normalizadores (nombres, grado/grupo/carrera, CURP) → capas puras.
     - Antes de crear un sistema de identificación de columnas nuevo, reutilizar
       el existente (mapeo-columnas.ts / columnas-calificaciones.ts).

@@ -27,7 +27,7 @@ const spec = await r.json();
 const defs = spec.definitions ?? spec;
 // Catálogo académico (FASE C1): excluir de "materias" las tablas de
 // oferta/relaciones. Mantener sincronizado con TABLAS_SISTEMA en
-// lib/escolar/tablas-supabase.ts (exclusión EXPLÍCITA, no heurística).
+// lib/escolar/materia/tablas-supabase.ts (exclusión EXPLÍCITA, no heurística).
 const sistema = new Set([
   "ALUMNOS",
   "PROFESORES",
@@ -46,7 +46,7 @@ const sistema = new Set([
   "asignaciones_profesor",
   // C4.28 — Tablas de SISTEMA/BACKEND que NO son materias (documentos, tutores,
   // asistencia, justificaciones, semestres, nombres visibles, mapeo de columnas).
-  // Mantener sincronizado con TABLAS_SISTEMA en lib/escolar/tablas-supabase.ts.
+  // Mantener sincronizado con TABLAS_SISTEMA en lib/escolar/materia/tablas-supabase.ts.
   "CARPETAS",
   "DOCUMENTOS",
   "PERMISOS CARPETAS",

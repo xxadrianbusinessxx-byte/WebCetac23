@@ -41,34 +41,18 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# test build output (compiled JS for scripts/test-fechas.mjs)
-/scripts/.tmp-fechas/
 
-# test build output (compiled JS para scripts/test-ciclo-estado.mjs)
-/scripts/.tmp-ciclo-estado/
 
-# test build output (compiled JS para scripts/test-ciclo-f3-pipeline.mjs)
-/scripts/.tmp-cf3/
-/scripts/.tmp-insc-f3/
 
-# test build output (compiled JS para scripts/test-evaluaciones.mjs)
-/scripts/.tmp-evaluaciones/
 
-# test build output (compiled JS para scripts/test-asistencia-parciales.mjs)
-/scripts/.tmp-asistencia-parciales/
 
-# test build output (compiled JS para scripts/test-reparar-tabla-legacy.mjs)
-/scripts/.tmp-reparar-tabla-legacy/
 
-# test build output (compiled JS para scripts/test-justificacion-por-clase.mjs)
-/scripts/.tmp-justificacion-clase/
 
-# test build output (compiled JS para scripts/test-atribucion-profesor.mjs)
-/scripts/.tmp-atribucion-profesor/
 
-# test build output (compiled JS para scripts/test-asistencia-contexto.mjs)
-/scripts/.tmp-ctx/
 
 # runtime logs
 dev-server.log
 *.log
+
+# salida compilada de las suites puras (regenerar: node scripts/compilar-suites.mjs)
+/scripts/.tmp-*/

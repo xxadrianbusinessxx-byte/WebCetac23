@@ -30,8 +30,8 @@ import {
 import type {
   PreviewCargaAcademica,
   ResultadoAplicarCarga,
-} from "@/lib/escolar/carga-academica";
-import type { InscripcionAdminCiclo } from "@/lib/escolar/inscripciones-borrador";
+} from "@/lib/escolar/catalogo/carga-academica";
+import type { InscripcionAdminCiclo } from "@/lib/escolar/catalogo/inscripciones-borrador";
 
 const input = "rounded-xl border border-white/70 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800";
 const btn = "rounded-full bg-linear-to-b from-emerald-500 via-emerald-600 to-emerald-700 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white disabled:opacity-50";

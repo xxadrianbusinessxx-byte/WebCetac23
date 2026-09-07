@@ -3,7 +3,7 @@
 // flujo nuevo (helper → RPC) y el manejo de errores de la RPC.
 //
 // Compilar primero:
-//   npx tsc lib/escolar/ciclo-estado.ts lib/escolar/ciclo-estado-puro.ts --rootDir lib/escolar ^
+//   npx tsc lib/escolar/ciclo/ciclo-estado.ts lib/escolar/ciclo/ciclo-estado-puro.ts --rootDir lib/escolar ^
 //     --outDir scripts/.tmp-f8 --module commonjs --target es2020 --moduleResolution node ^
 //     --esModuleInterop --skipLibCheck
 //   node scripts/test-activacion-ciclo-f8.mjs
@@ -13,7 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), ".tmp-f8");
-const CE = require(path.join(dir, "ciclo-estado.js"));
+const CE = require(path.join(dir, "ciclo/ciclo-estado.js"));
 
 let pasadas = 0;
 let fallidas = 0;

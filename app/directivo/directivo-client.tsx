@@ -19,16 +19,16 @@ import {
 import { MateriaSelector } from "@/app/components/materia-selector";
 import { MateriasConfigPanel } from "@/app/components/materias-config-panel";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
-import { JustificacionesAdmin } from "./justificaciones-admin";
-import { actionCambiarClaveProfesor } from "@/app/actions/profesores";
+import { JustificacionesAdmin } from "@/app/components/justificaciones-admin";
 import { ProfesoresCredencialesPanel } from "@/app/components/profesores-credenciales-panel";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
-import { materiasConNombreVisible } from "@/lib/escolar/nombres-visibles";
-import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
+import { materiasConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
+import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
+import { puede } from "@/lib/auth/permisos";
 import type { PortalSessionPayload } from "@/lib/auth/types";
-import { FrutigerBackdrop } from "../components/frutiger-backdrop";
-import { GlossyPersonIcon } from "../components/glossy-person-icon";
+import { FrutigerBackdrop } from "@/app/components/ui/frutiger-backdrop";
+import { GlossyPersonIcon } from "@/app/components/ui/glossy-person-icon";
 
 
 
@@ -97,6 +97,19 @@ type Props = {
 
 export function DirectivoClient({ sesion, materias, registros }: Props) {
   const router = useRouter();
+  // PROMPT-3/T5: el directivo perdió la edición del catálogo y las credenciales
+  // de acceso (capacidades que pasaron al técnico). La UI no pinta botones que
+  // el servidor rechaza (regla 4): los paneles se gobiernan por puede().
+  const rol = sesion?.rol ?? null;
+  const puedeEditarCatalogo = rol
+    ? puede(rol, "materia.editar_alias") || puede(rol, "materia.activar_desactivar")
+    : false;
+  const puedeCredencialesAdmin = rol
+    ? puede(rol, "profesor.ver_credenciales_acceso")
+    : false;
+  const puedeImportarEstatus = rol
+    ? puede(rol, "alumno.importar_estatus")
+    : false;
   const [materiaSeleccionada, setMateriaSeleccionada] = useState<string>(
     materias[0]?.idInterno ?? "",
   );
@@ -128,34 +141,10 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
   const inputCalificacionesRef = useRef<HTMLInputElement>(null);
   const inputRegistroRef = useRef<HTMLInputElement>(null);
   const inputStatusRef = useRef<HTMLInputElement>(null);
-  // BLOQUE 9 (PIEZA 5) — cambio forzado de clave (texto plano, mismo formato).
-  const [nuevaClave, setNuevaClave] = useState("");
-  const [confirmarClave, setConfirmarClave] = useState("");
-  const [guardandoClave, setGuardandoClave] = useState(false);
-  const [mensajeClave, setMensajeClave] = useState<string | null>(null);
+  // PROMPT-5/B1 — el cambio forzado de clave se resuelve UNA vez en el layout
+  // raíz (todas las rutas). Este cliente ya no repite la pantalla.
 
   const nombreDirectivo = sesion?.nombre ?? sesion?.matricula ?? "Directivo";
-  const debeCambiar = sesion?.debeCambiarCredenciales === true;
-
-  async function onGuardarClave() {
-    setMensajeClave(null);
-    if (nuevaClave.trim().length < 6) {
-      setMensajeClave("La nueva clave debe tener al menos 6 caracteres.");
-      return;
-    }
-    if (nuevaClave !== confirmarClave) {
-      setMensajeClave("Las claves no coinciden.");
-      return;
-    }
-    setGuardandoClave(true);
-    const r = await actionCambiarClaveProfesor(nuevaClave);
-    setGuardandoClave(false);
-    if (r.ok) {
-      router.refresh();
-    } else {
-      setMensajeClave(r.error);
-    }
-  }
 
   // Registros de calificaciones finales (sin aliases): nombre visible =
   // nombre técnico (fallback). Se reutiliza el mismo selector.
@@ -325,52 +314,6 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
           </div>
         </div>
 
-        {debeCambiar ? (
-          <div className="relative z-10 flex flex-1 flex-col items-center justify-center">
-            <div className="w-full max-w-md rounded-3xl border border-amber-400/60 bg-amber-100/70 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md sm:p-6">
-              <p className="mb-2 text-center text-xs font-extrabold uppercase tracking-wide text-amber-800">
-                Cambia tu clave para continuar
-              </p>
-              <p className="mb-4 text-center text-xs font-semibold text-amber-900">
-                La administración te pidió definir una nueva clave antes de
-                usar el portal.
-              </p>
-              <div className="flex flex-col gap-3">
-                <input
-                  type="password"
-                  value={nuevaClave}
-                  onChange={(e) => setNuevaClave(e.target.value)}
-                  placeholder="Nueva clave (mínimo 6 caracteres)"
-                  className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
-                />
-                <input
-                  type="password"
-                  value={confirmarClave}
-                  onChange={(e) => setConfirmarClave(e.target.value)}
-                  placeholder="Confirmar clave"
-                  className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
-                />
-                <div className="flex justify-center">
-                  <GreyActionPill
-                    onClick={() => void onGuardarClave()}
-                    disabled={guardandoClave}
-                  >
-                    {guardandoClave ? "Guardando…" : "Guardar clave"}
-                  </GreyActionPill>
-                </div>
-              </div>
-              {mensajeClave && (
-                <p
-                  className="mt-3 text-center text-xs font-semibold text-red-700"
-                  role="alert"
-                >
-                  {mensajeClave}
-                </p>
-              )}
-            </div>
-          </div>
-        ) : (
-          <>
         {/* Calificaciones por materia */}
         <div className="relative flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
           <PanelTab className="mx-auto w-fit">
@@ -506,9 +449,11 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
           </div>
         </div>
 
-        <MateriasConfigPanel materias={materias} />
+        {puedeEditarCatalogo && <MateriasConfigPanel materias={materias} />}
 
-        {/* ETIQUETAS (STATUS) */}
+        {/* ETIQUETAS (STATUS) — PROMPT-3/T5: alumno.importar_estatus pasó al
+            técnico; el directivo ya no la tiene. */}
+        {puedeImportarEstatus && (
         <div className="relative mt-6 flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
           <PanelTab className="mx-auto w-fit">
             Sube ETIQUETAS (STATUS) — promedios y materias por alumno
@@ -550,6 +495,7 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
             </div>
           </div>
         </div>
+        )}
 
         {/* Comentarios a alumnos */}
         <section
@@ -611,8 +557,10 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
           <JustificacionesAdmin />
         </section>
 
-        {/* BLOQUE 9 (PIEZA 5) — Forzar cambio de clave por profesor. */}
-        <ProfesoresCredencialesPanel />
+        {/* BLOQUE 9 (PIEZA 5) — Forzar cambio de clave por profesor.
+            PROMPT-3/T5: tras el recorte, esta consola es del técnico (en
+            /configuracion); el directivo ya no tiene la capacidad. */}
+        {puedeCredencialesAdmin && <ProfesoresCredencialesPanel />}
 
         {/* Entrar al perfil del alumno */}
         <section
@@ -652,8 +600,6 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
             </div>
           </div>
         </section>
-          </>
-        )}
       </div>
     </FrutigerBackdrop>
   );

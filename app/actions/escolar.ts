@@ -1,19 +1,20 @@
 "use server";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
+import { esRol } from "@/lib/auth/permisos";
 import {
   buscarAlumnoPorCurp,
   buscarAlumnoPorTexto,
   nombreCompletoAlumno,
   previsualizarSincronizacionAlumnos,
   sincronizarAlumnosDesdeArchivo,
-} from "@/lib/escolar/alumnos";
+} from "@/lib/escolar/alumno/alumnos";
 
 import {
   mapeoRosterValido,
   type MapeoRoster,
-} from "@/lib/escolar/mapeo-columnas";
+} from "@/lib/escolar/materia/mapeo-columnas";
 
 
 import {
@@ -30,12 +31,12 @@ import {
   patchValoresEtiquetas,
   titulosEtiquetasPersonales,
   valoresEtiquetasPersonales,
-} from "@/lib/escolar/etiquetas";
+} from "@/lib/escolar/alumno/etiquetas";
 import { buscarIndiceFilaAlumno } from "@/lib/escolar/buscar-en-filas";
-import { vistaConColumnasIdentificadas } from "@/lib/escolar/columnas-calificaciones";
-import { actualizarMateriaDesdeArchivo } from "@/lib/escolar/materia-avance";
-import { obtenerMapeoColumnasMateria } from "@/lib/escolar/mapeo-columnas-materia";
-import { leerVistaMateriaAlumno } from "@/lib/escolar/materia-vista-alumno";
+import { vistaConColumnasIdentificadas } from "@/lib/escolar/materia/columnas-calificaciones";
+import { actualizarMateriaDesdeArchivo } from "@/lib/escolar/materia/materia-avance";
+import { obtenerMapeoColumnasMateria } from "@/lib/escolar/materia/mapeo-columnas-materia";
+import { leerVistaMateriaAlumno } from "@/lib/escolar/materia/materia-vista-alumno";
 import {
   resolverGrupoAlumno,
   resolverIdentidadesCatalogo,
@@ -49,26 +50,26 @@ import {
   type MateriaIdentidadCatalogo,
   type MateriaRow,
   type PeriodoRow,
-} from "@/lib/escolar/catalogo-academico";
+} from "@/lib/escolar/catalogo/catalogo-academico";
 import {
   gradoASemestre,
   semestreActivoDeGrupo,
   semestreActivoDesdeFilas,
   semestresInactivos,
-} from "@/lib/escolar/semestres";
+} from "@/lib/escolar/ciclo/semestres";
 import {
   aliasActivosDesdeFilas,
   listarNombresVisiblesMaterias,
   materiasVisiblesDesdeCatalogo,
   type MateriaConNombreVisible,
-} from "@/lib/escolar/nombres-visibles";
-import { obtenerVistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
-import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
-import { reemplazarContenidoStatusDesdeArchivo } from "@/lib/escolar/etiquetas-status";
+} from "@/lib/escolar/materia/nombres-visibles";
+import { obtenerVistaRegistroAlumno } from "@/lib/escolar/alumno/registro-alumno";
+import type { VistaRegistroAlumno } from "@/lib/escolar/alumno/registro-alumno";
+import { reemplazarContenidoStatusDesdeArchivo } from "@/lib/escolar/alumno/etiquetas-status";
 import {
   obtenerVistaMateria,
   reemplazarContenidoMateriaDesdeArchivo,
-} from "@/lib/escolar/materias";
+} from "@/lib/escolar/materia/materias";
 import { COMENTARIO_MAX_LENGTH, TABLA_GRUPO_MATERIAS } from "@/lib/escolar/tables";
 import type {
   AlumnoRow,
@@ -85,17 +86,17 @@ import { invalidarUrlFotoPerfil } from "@/lib/cloudinary/urls-server";
 import {
   guardarUrlFotoPerfil,
   obtenerFotoPerfilAlumno,
-} from "@/lib/escolar/foto-perfil";
+} from "@/lib/escolar/alumno/foto-perfil";
 import { createClient } from "@/lib/supabase/server";
 import { clienteLecturaEscolar } from "@/lib/supabase/service";
 import {
   resolverAccesoAlumno,
   type AccesoAlumno,
-} from "@/lib/escolar/acceso-alumno";
-import { obtenerEtiquetasDinamicas } from "@/lib/escolar/etiquetas-dinamicas-servicio";
-import type { AlumnoEtiquetaRow } from "@/lib/escolar/etiquetas-dinamicas";
-import { obtenerTutorPrincipalDeAlumno } from "@/lib/escolar/tutores";
-import { nombreCompletoTutor } from "@/lib/escolar/tutores-types";
+} from "@/lib/escolar/alumno/acceso-alumno";
+import { obtenerEtiquetasDinamicas } from "@/lib/escolar/alumno/etiquetas-dinamicas-servicio";
+import type { AlumnoEtiquetaRow } from "@/lib/escolar/alumno/etiquetas-dinamicas";
+import { obtenerTutorPrincipalDeAlumno } from "@/lib/escolar/tutores/tutores";
+import { nombreCompletoTutor } from "@/lib/escolar/tutores/tutores-types";
 
 /**
  * FASE 3 — Contrato de salida de la RPC `obtener_perfil_alumno(p_curp)`.
@@ -143,10 +144,37 @@ export async function actionObtenerPerfilAlumno(
     correo: string | null;
   } | null;
 }> {
-  const sesion = await obtenerSesionPortal();
+  const g = await exigir("alumno.ver_perfil");
+  if (!g.ok) {
+    return {
+      alumno: null,
+      etiquetas: null,
+      registro: {
+        encabezados: [],
+        filas: [],
+        nombreTabla: null,
+        grado: "",
+        grupo: "",
+        carrera: "",
+        alumnoEncontrado: false,
+        filaAlumnoIndice: -1,
+        mensaje: null,
+      },
+      materias: [],
+      comentarios: [],
+      puedeEditarEtiquetas: false,
+      fotoPerfilUrl: null,
+      acceso: null,
+      etiquetasDinamicas: [],
+      tutorContacto: null,
+    };
+  }
+  const sesion = g.sesion;
   const supabase = await createClient();
 
-  // FASE 2 — autorización centralizada: sesión + rol + CURP objetivo + relación.
+  // FASE 2 — autorización de ALCANCE: sesión + rol + CURP objetivo + relación.
+  // La capacidad (alumno.ver_perfil) dice QUÉ; resolverAccesoAlumno dice SOBRE
+  // QUIÉN (alumno propio, tutor con relación, maestro de sus grupos, directivo).
   // El parámetro solo sirve de presentación; la decisión es server-side.
   const resolucion = await resolverAccesoAlumno(supabase, sesion, curpConsulta);
   if (!resolucion.ok) {
@@ -343,7 +371,9 @@ export async function actionGuardarEtiquetasPersonales(
   titulos: [string, string, string],
   valores: [string, string, string],
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
+  const g = await exigir("alumno.editar_etiquetas");
+  if (!g.ok) return { ok: false, error: "No tienes permiso." };
+  const sesion = g.sesion;
   const supabase = await createClient();
   const res = await resolverAccesoAlumno(supabase, sesion, curp);
   if (!res.ok) return { ok: false, error: res.error };
@@ -363,6 +393,8 @@ export async function actionActualizarEtiquetasPersonales(
   empty5: string,
   empty6: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const g = await exigir("alumno.editar_etiquetas");
+  if (!g.ok) return { ok: false, error: "No tienes permiso." };
   const titulos = titulosEtiquetasPersonales(
     await obtenerEtiquetasPersonales(await createClient(), curp),
   );
@@ -380,6 +412,10 @@ export async function actionActualizarEstatusDirectivo(
   e2: string,
   e3: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const g = await exigir("alumno.editar_estatus");
+  if (!g.ok) {
+    return { ok: false, error: "No autorizado: se requiere rol directivo." };
+  }
   const supabase = await createClient();
   const row = await obtenerEtiquetasPersonales(supabase, curp);
   return actionGuardarEtiquetasPersonales(
@@ -393,7 +429,9 @@ export async function actionGuardarComentarioPersonal(
   curp: string,
   comentario: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
+  const g = await exigir("alumno.editar_datos_personales");
+  if (!g.ok) return { ok: false, error: "No tienes permiso." };
+  const sesion = g.sesion;
   const supabase = await createClient();
   const res = await resolverAccesoAlumno(supabase, sesion, curp);
   if (!res.ok) return { ok: false, error: res.error };
@@ -448,8 +486,8 @@ export async function actionSubirMateriaExcel(
   nombreMateria: string,
   formData: FormData,
 ): Promise<{ ok: true; filas: number } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+  const g = await exigir("calificacion.subir");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para subir calificaciones." };
   }
 
@@ -493,8 +531,8 @@ export async function actionActualizarMateriaExcel(
     }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+  const g = await exigir("calificacion.subir");
+  if (!g.ok) {
     return {
       ok: false,
       error: "No tienes permiso para actualizar calificaciones.",
@@ -524,8 +562,8 @@ export async function actionSubirRegistroExcel(
   nombreRegistro: string,
   formData: FormData,
 ): Promise<{ ok: true; filas: number } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("calificacion.subir");
+  if (!g.ok) {
     return {
       ok: false,
       error: "Solo directivos pueden subir registros de calificaciones finales.",
@@ -548,8 +586,8 @@ export async function actionSubirRegistroExcel(
 export async function actionObtenerVistaRegistro(
   nombreRegistro: string,
 ): Promise<MateriaTablaVista | null> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return null;
+  const g = await exigir("calificacion.ver");
+  if (!g.ok) return null;
   if (!nombreRegistro.trim()) return null;
   const supabase = await createClient();
   return obtenerVistaMateria(supabase, nombreRegistro);
@@ -558,15 +596,17 @@ export async function actionObtenerVistaRegistro(
 export async function actionObtenerVistaMateria(
   nombreMateria: string,
 ): Promise<MateriaTablaVista | null> {
+  const g = await exigir("calificacion.ver");
+  if (!g.ok) return null;
+  const sesion = g.sesion;
   const supabase = await createClient();
-  const sesion = await obtenerSesionPortal();
 
   // BLOQUE 7C: configuración de mapeo de columnas (si existe). El mapeo
   // explícito tiene prioridad sobre la detección automática 7B. Si la tabla
   // de configuración aún no existe, la lectura devuelve null y se usa 7B.
   const mapeo = await obtenerMapeoColumnasMateria(supabase, nombreMateria);
 
-  if (sesion?.rol === "alumno" && sesion.curp) {
+  if (sesion && esRol(sesion.rol, "alumno") && sesion.curp) {
     // C4.1 — SEGURIDAD: autorización server-side desde el catálogo.
     // FASE 7 (6A-4) — Validación LIGERA: en lugar de re-resolver la oferta
     // (resolverGrupoAlumno + semestre + resolverMateriasAlumno +
@@ -624,7 +664,14 @@ export async function actionObtenerVistaMateria(
 
   const vista = await obtenerVistaMateria(supabase, nombreMateria);
   if (!vista) return null;
-  return vistaConColumnasIdentificadas(vista, { rol: sesion?.rol, mapeo });
+  // El rol aquí solo distingue "alumno" (fila propia) del resto (vista
+  // completa). El técnico no llega: `calificacion.ver` se lo niega en exigir().
+  // `RolVistaCalificaciones` es un tipo de presentación en lib/ (no se toca).
+  const rolVista =
+    sesion && !esRol(sesion.rol, "alumno")
+      ? "directivo"
+      : (sesion?.rol as "alumno" | undefined);
+  return vistaConColumnasIdentificadas(vista, { rol: rolVista, mapeo });
 }
 
 export async function actionEnviarComentarioAlumno(
@@ -632,10 +679,11 @@ export async function actionEnviarComentarioAlumno(
   comentario: string,
   autorProfesor: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+  const g = await exigir("alumno.comentar");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso." };
   }
+  const sesion = g.sesion!;
   if (comentario.length > COMENTARIO_MAX_LENGTH) {
     return {
       ok: false,
@@ -664,6 +712,8 @@ export async function actionEnviarComentarioAlumno(
 export async function actionBuscarAlumnoPorNombre(
   nombre: string,
 ): Promise<AlumnoRow | null> {
+  const g = await exigir("alumno.ver_perfil");
+  if (!g.ok) return null;
   const supabase = await createClient();
   return buscarAlumnoPorTexto(supabase, nombre);
 }
@@ -672,7 +722,9 @@ export async function actionSubirFotoPerfil(
   formData: FormData,
   curpConsulta?: string | null,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
+  const g = await exigir("alumno.editar_datos_personales");
+  if (!g.ok) return { ok: false, error: "No tienes permiso para cambiar la foto." };
+  const sesion = g.sesion;
   const supabase = await createClient();
 
   const archivo = formData.get("archivo");
@@ -683,7 +735,7 @@ export async function actionSubirFotoPerfil(
     return { ok: false, error: "Solo se permiten imágenes." };
   }
 
-  // FASE 2 — autorización centralizada (filosofia.estructural §7). La foto es
+  // FASE 2 — autorización de ALCANCE (filosofia.estructural §7). La foto es
   // un dato personal: solo el TUTOR (con relación) o el DIRECTIVO pueden
   // cambiarla; el ALUMNO conserva lectura (sin escritura propia).
   const resolucion = await resolverAccesoAlumno(supabase, sesion, curpConsulta);
@@ -714,6 +766,8 @@ export async function actionSubirFotoPerfil(
 }
 
 export async function actionEtiquetasResumen(curp: string) {
+  const g = await exigir("alumno.ver_perfil");
+  if (!g.ok) return null;
   const supabase = await createClient();
   const row = await obtenerEtiquetasPersonales(supabase, curp);
   return {
@@ -727,8 +781,8 @@ export async function actionEtiquetasResumen(curp: string) {
 export async function actionSubirEtiquetasStatus(
   formData: FormData,
 ): Promise<{ ok: true; filas: number } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("alumno.importar_estatus");
+  if (!g.ok) {
     return {
       ok: false,
       error: "Solo directivos pueden subir ETIQUETAS (STATUS).",
@@ -765,8 +819,8 @@ export async function actionSincronizarAlumnosDesdeArchivo(
     }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("alumno.cargar_roster");
+  if (!g.ok) {
     return {
       ok: false,
       error: "Solo directivos pueden sincronizar el roster de alumnos.",
@@ -827,8 +881,8 @@ export async function actionPrevisualizarSincronizacionAlumnos(
     }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("alumno.cargar_roster");
+  if (!g.ok) {
     return {
       ok: false,
       error: "Solo directivos pueden previsualizar el roster de alumnos.",
@@ -864,6 +918,42 @@ export async function actionPrevisualizarSincronizacionAlumnos(
 
   const supabase = await createClient();
   return previsualizarSincronizacionAlumnos(supabase, archivo, mapeo);
+}
+
+/* ===========================================================================
+ * PROMPT-4/T3 — Roster: borrar y restaurar (previsualizar → confirmar).
+ * La baja es una DECISIÓN HUMANA: activo=false + decision_manual=true (T1).
+ * No borra al alumno de ALUMNOS ni su historial.
+ * ========================================================================= */
+
+import {
+  aplicarBajaRoster,
+  previsualizarBajaRoster,
+  restaurarEnRoster,
+} from "@/lib/escolar/catalogo/roster-borrado";
+
+/** Previsualiza qué implica sacar a un CURP del roster (NO escribe). */
+export async function actionPrevisualizarBajaRoster(curpRaw: string) {
+  const g = await exigir("alumno.borrar_roster");
+  if (!g.ok) return null;
+  const supabase = await createClient();
+  return previsualizarBajaRoster(supabase, curpRaw);
+}
+
+/** Confirma la baja de roster (escribe: activo=false + marca T1). */
+export async function actionConfirmarBajaRoster(curpRaw: string) {
+  const g = await exigir("alumno.borrar_roster");
+  if (!g.ok) return { ok: false as const, error: "No autorizado." };
+  const supabase = await createClient();
+  return aplicarBajaRoster(supabase, curpRaw);
+}
+
+/** Restaura a un alumno al roster (activo=true + limpia marca T1). */
+export async function actionRestaurarEnRoster(curpRaw: string) {
+  const g = await exigir("alumno.borrar_roster");
+  if (!g.ok) return { ok: false as const, error: "No autorizado." };
+  const supabase = await createClient();
+  return restaurarEnRoster(supabase, curpRaw);
 }
 
 

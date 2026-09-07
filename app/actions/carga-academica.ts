@@ -1,12 +1,12 @@
 "use server";
-import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo-estado";
+import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo/ciclo-estado";
 
 
 /**
  * C3.1 — Server Actions de CARGA MASIVA (ALUMNOS + PERTENENCIA ACADÉMICA).
  *
  * SEGURIDAD:
- *  - Solo rol `directivo` (obtenerSesionPortal + validación de rol).
+ *  - Solo capacidad directivo (exigir + cookie firmada).
  *  - Usa `createClient()` del servidor (public key + cookies). NUNCA
  *    service_role desde una Server Action de carga.
  *  - La preview (actionPrevisualizarCargaAcademica) es SOLO LECTURA.
@@ -14,7 +14,7 @@ import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo-estado";
  *    válido y el contexto; internamente vuelve a generar la preview y bloquea
  *    la escritura si hay estados que la impiden.
  */
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
 import { createClient } from "@/lib/supabase/server";
 import {
   aplicarCargaAcademica,
@@ -22,13 +22,13 @@ import {
   type ContextoAcademico,
   type PreviewCargaAcademica,
   type ResultadoAplicarCarga,
-} from "@/lib/escolar/carga-academica";
-import { mapeoRosterValido, type MapeoRoster } from "@/lib/escolar/mapeo-columnas";
+} from "@/lib/escolar/catalogo/carga-academica";
+import { mapeoRosterValido, type MapeoRoster } from "@/lib/escolar/materia/mapeo-columnas";
 import {
   TABLA_CARRERAS,
   TABLA_GRUPOS,
 } from "@/lib/escolar/tables";
-import { gradoASemestre } from "@/lib/escolar/semestres";
+import { gradoASemestre } from "@/lib/escolar/ciclo/semestres";
 
 function extraerMapeoOError(
   formData: FormData,
@@ -108,8 +108,8 @@ function applyError(error: string): ResultadoAplicarCarga {
 export async function actionPrevisualizarCargaAcademica(
   formData: FormData,
 ): Promise<PreviewCargaAcademica> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("carga_academica.aplicar");
+  if (!g.ok) {
     return previewError("Solo directivos pueden previsualizar la carga académica.");
   }
   const archivo = archivoDeFormData(formData);
@@ -127,8 +127,8 @@ export async function actionPrevisualizarCargaAcademica(
 export async function actionAplicarCargaAcademica(
   formData: FormData,
 ): Promise<ResultadoAplicarCarga> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("carga_academica.aplicar");
+  if (!g.ok) {
     return applyError("Solo directivos pueden aplicar la carga académica.");
   }
   const archivo = archivoDeFormData(formData);
@@ -167,8 +167,8 @@ export type CatalogoReconocimiento = {
 export async function actionListarCatalogoReconocimiento(): Promise<
   CatalogoReconocimiento | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("materia.ver_catalogo");
+  if (!g.ok) {
     return { ok: false, error: "No autorizado: se requiere rol directivo." };
   }
 

@@ -1,12 +1,12 @@
 // test-roster-validacion.mjs — Pruebas F6 (coherencia horario + profesor ambiguo).
-// Compilar: npx tsc lib/escolar/roster-validacion.ts --outDir scripts/.tmp-rv ^
+// Compilar: npx tsc lib/escolar/catalogo/roster-validacion.ts --outDir scripts/.tmp-rv ^
 //   --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), ".tmp-rv");
-const R = require(path.join(dir, "roster-validacion.js"));
+const R = require(path.join(dir, "catalogo/roster-validacion.js"));
 
 let pasadas = 0;
 let fallidas = 0;

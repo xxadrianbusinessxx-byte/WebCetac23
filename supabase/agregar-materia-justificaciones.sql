@@ -1,3 +1,21 @@
+-- ============================================================================
+-- SUPERSEDIDO — NO EJECUTAR
+-- ============================================================================
+-- Este archivo quedó **SUPERSEDIDO** por
+-- `supabase/agregar-grupo-materia-justificaciones.sql` (PROMPT-1, T1/A1) y se
+-- conserva únicamente como memoria del esquema (R8 · ORDEN.md §5: nada se
+-- borra de supabase/).
+--
+-- Por qué quedó supersedido: este SQL añadía `materia_clave text`, un
+-- identificador de materia NUEVO por texto. PROMPT-1 decidió (decisión ya
+-- tomada, no re-decidir) que la relación es `grupo_materia_id uuid`, la misma
+-- que `clases_impartidas` y `asistencia_alumnos` ya usan con 0 huérfanos:
+-- un identificador de texto más violaría R5. Este archivo nunca llegó a
+-- ejecutarse en producción.
+--
+-- NO ejecutar. Usar `supabase/agregar-grupo-materia-justificaciones.sql`.
+-- ============================================================================
+
 -- agregar-materia-justificaciones.sql (Prompt B — R-3, ADITIVO e idempotente)
 -- Justificación POR CLASE: la solicitud guarda la materia del horario.
 -- Ejecutar en el SQL Editor de Supabase (orden sugerido: primero este, después

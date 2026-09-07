@@ -19,9 +19,9 @@ function ok(nombre, condicion, detalle = "") {
 
 const paso = leer("app/components/ciclo-configurador/paso-evaluacion.tsx");
 const actEval = leer("app/actions/evaluaciones.ts");
-const libEval = leer("lib/escolar/evaluaciones.ts");
+const libEval = leer("lib/escolar/ciclo/evaluaciones.ts");
 const sql = leer("supabase/crear-periodos-evaluacion.sql");
-const ce = leer("lib/escolar/ciclo-estado.ts");
+const ce = leer("lib/escolar/ciclo/ciclo-estado.ts");
 
 // Modelo / identidad.
 ok("periodos_evaluacion modelado en DDL versionado", /periodos_evaluacion/.test(sql));
@@ -51,7 +51,7 @@ ok("sin_evaluaciones es ADVERTENCIA", /codigo: "sin_evaluaciones"/.test(ce) && /
 ok("sin autoridad paralela de evaluaciones", !/function (validarEvaluacionesCiclo|validarCicloEvaluaciones|checkEvaluaciones)\s*\(/.test(ce + libEval));
 
 // Activación F8 intacta.
-const evLib = leer("lib/escolar/evaluaciones.ts");
+const evLib = leer("lib/escolar/ciclo/evaluaciones.ts");
 ok("activación sigue vía validarIntegridadCiclo → activarCicloOperativoAtomico → RPC",
   evLib.includes("validarIntegridadCiclo(supabase, periodoId)") && evLib.includes("activarCicloOperativoAtomico(supabase, periodoId)"));
 

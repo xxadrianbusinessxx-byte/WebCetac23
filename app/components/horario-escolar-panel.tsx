@@ -12,7 +12,7 @@ import {
   type HorarioGrupoConsultable,
   type PeriodoCatalogoSimple,
 } from "@/app/actions/horario";
-import type { PreviewImportacionHorario } from "@/lib/escolar/horario-importar";
+import type { PreviewImportacionHorario } from "@/lib/escolar/horario/horario-importar";
 
 /**
  * HORARIO ESCOLAR — Panel del directivo (FASE HORARIO).

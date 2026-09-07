@@ -1,14 +1,15 @@
 "use server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo-estado";
+import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo/ciclo-estado";
 
 
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
+import { esRol } from "@/lib/auth/permisos";
 import { createClient } from "@/lib/supabase/server";
 import {
   listarEvaluacionesDePeriodo,
   type PeriodoEvaluacionRow,
-} from "@/lib/escolar/evaluaciones";
+} from "@/lib/escolar/ciclo/evaluaciones";
 import {
   calcularPorcentajeAsistencia,
   confirmarAsistencias,
@@ -24,13 +25,13 @@ import {
   type PlanAsistencia,
   type ResumenAsistencia,
   type ResumenPorParcial,
-} from "@/lib/escolar/asistencias";
+} from "@/lib/escolar/asistencia/asistencias";
 import {
   consultarHorarioGrupoPorIdentidad,
   obtenerGruposConCarreraDePeriodo,
   materiasDelHorario,
   totalBloquesGrupoPorDia,
-} from "@/lib/escolar/horario-semanal";
+} from "@/lib/escolar/horario/horario-semanal";
 
 import {
   TABLA_ASIGNACIONES_PROFESOR,
@@ -42,11 +43,11 @@ import {
   TABLA_JUSTIFICACIONES_ASISTENCIA,
   TABLA_PERIODOS,
 } from "@/lib/escolar/tables";
-import { listarCurpsDeTutor } from "@/lib/escolar/tutores";
+import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores";
 import {
   resolverContextoAlumnoDesdeInscripcion,
   resumenClasesYAsistencia,
-} from "@/lib/escolar/justificaciones";
+} from "@/lib/escolar/asistencia/justificaciones";
 
 /**
  * Server Actions de ASISTENCIAS DEL PROFESOR (Bloque 5B + Prompt C/D).
@@ -166,10 +167,11 @@ export async function actionListarGruposAsistencia(): Promise<
   | { ok: true; data: ResultadoGrupos }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+  const g = await exigir("asistencia.ver_grupo");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para gestionar asistencias." };
   }
+  const sesion = g.sesion;
 
   const supabase = await createClient();
   const [operativo, grupos] = await Promise.all([
@@ -226,10 +228,11 @@ export async function actionDescargarPlantillaAsistencia(
     }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+  const g = await exigir("asistencia.subir");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para gestionar asistencias." };
   }
+  const sesion = g.sesion!;
 
   if (!materiaClave.trim()) {
     return { ok: false, error: "Selecciona la materia para generar la plantilla." };
@@ -278,10 +281,11 @@ export async function actionPrevisualizarAsistencias(
   | { ok: true; resumen: ResumenAsistencia; plan: PlanAsistencia }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+  const g = await exigir("asistencia.subir");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para gestionar asistencias." };
   }
+  const sesion = g.sesion!;
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) {
@@ -326,10 +330,11 @@ export async function actionConfirmarAsistencias(
   | { ok: true; resumen: ResumenAsistencia }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+  const g = await exigir("asistencia.subir");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para gestionar asistencias." };
   }
+  const sesion = g.sesion!;
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) {
@@ -394,10 +399,11 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
     }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) {
+  const g = await exigir("asistencia.ver_alumno");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para consultar asistencias." };
   }
+  const sesion = g.sesion!;
 
   const curp = input.curp.trim().toUpperCase();
   if (!curp) {
@@ -406,22 +412,22 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
 
   const supabase = await createClient();
 
-  // Endurecimiento de permisos por rol (reutiliza las validaciones existentes):
+  // Alcance por rol (ortogonal a la capacidad; dice SOBRE QUÉ alumno):
   //  - alumno: solo su propia CURP (sesion.curp).
   //  - tutor: solo CURP de sus alumnos vinculados (relación activa).
   //  - maestro: solo alumnos de grupos donde imparte clase (validado abajo con
   //    la inscripción resuelta del alumno) y SIEMPRE su propio aporte.
   //  - directivo: acceso total (sin restricción de grupo ni profesor).
-  if (sesion.rol === "alumno") {
+  if (esRol(sesion.rol, "alumno")) {
     if (!sesion.curp || sesion.curp.trim().toUpperCase() !== curp) {
       return { ok: false, error: "Solo puedes consultar tu propia asistencia." };
     }
-  } else if (sesion.rol === "tutor") {
+  } else if (esRol(sesion.rol, "tutor")) {
     const curps = await listarCurpsDeTutor(supabase, sesion.matricula);
     if (!curps.includes(curp)) {
       return { ok: false, error: "No tienes relación con ese alumno." };
     }
-  } else if (sesion.rol !== "directivo" && sesion.rol !== "maestro") {
+  } else if (!esRol(sesion.rol, "directivo") && !esRol(sesion.rol, "maestro")) {
     return { ok: false, error: "No tienes permiso para consultar asistencias." };
   }
 
@@ -483,7 +489,7 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
   // Maestro: debe impartir en el grupo del alumno y ve SOLO su propio aporte.
   // PROMPT C/D: la identidad es SIEMPRE `profesor_id` (PROFESORES.ID); sin ella
   // la sesión es vieja → volver a iniciar sesión (no se consulta por clave).
-  if (sesion.rol === "maestro") {
+  if (esRol(sesion.rol, "maestro")) {
     const pidMaestro = Number(sesion.profesorId);
     if (!Number.isInteger(pidMaestro) || pidMaestro <= 0) {
       return {
@@ -514,7 +520,7 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
     carrera: carrera || undefined,
     ciclo: operativo.periodoNombre,
     periodoId: operativo.periodoId,
-    profesorId: sesion.rol === "maestro" ? sesion.profesorId : null,
+    profesorId: esRol(sesion.rol, "maestro") ? sesion.profesorId : null,
   });
 
   const resumen = resumenAsistenciaPorParcial(
@@ -558,8 +564,12 @@ export async function actionObtenerContextoAlumnoParaTutor(input: {
     }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion || sesion.rol !== "tutor") {
+  const g = await exigir("asistencia.ver_alumno");
+  if (!g.ok) {
+    return { ok: false, error: "No tienes permiso para consultar alumnos." };
+  }
+  const sesion = g.sesion;
+  if (!sesion || !esRol(sesion.rol, "tutor")) {
     return { ok: false, error: "No tienes permiso para consultar alumnos." };
   }
 
@@ -686,10 +696,11 @@ export async function actionSolicitarJustificacionAsistencia(input: {
   fecha: string;
   motivo: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) {
+  const g = await exigir("justificacion.solicitar");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para justificar asistencias." };
   }
+  const sesion = g.sesion!;
 
   const curp = input.curp.trim().toUpperCase();
   const fecha = input.fecha.trim();
@@ -712,13 +723,13 @@ export async function actionSolicitarJustificacionAsistencia(input: {
   let solicitanteTipo: "tutor" | "alumno" | "profesor" = "tutor";
   let solicitanteId = sesion.matricula;
   const rolProfesorJustifica =
-    sesion.rol === "maestro" || sesion.rol === "directivo";
-  if (sesion.rol === "tutor") {
+    esRol(sesion.rol, "maestro") || esRol(sesion.rol, "directivo");
+  if (esRol(sesion.rol, "tutor")) {
     const curps = await listarCurpsDeTutor(supabase, sesion.matricula);
     if (!curps.includes(curp)) {
       return { ok: false, error: "No tienes relación con ese alumno." };
     }
-  } else if (sesion.rol === "alumno") {
+  } else if (esRol(sesion.rol, "alumno")) {
     if (!sesion.curp || sesion.curp.trim().toUpperCase() !== curp) {
       return { ok: false, error: "Solo puedes justificar tu propia asistencia." };
     }
@@ -838,10 +849,11 @@ export async function actionAnularAsistenciaProfesor(input: {
   grado: string;
   grupo: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+  const g = await exigir("asistencia.anular");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para anular asistencias." };
   }
+  const sesion = g.sesion!;
 
   const curp = input.curp.trim().toUpperCase();
   const fecha = input.fecha.trim();
@@ -969,10 +981,11 @@ export async function actionListarAlumnosGruposProfesor(): Promise<
     }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+  const g = await exigir("asistencia.ver_grupo");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para consultar alumnos." };
   }
+  const sesion = g.sesion!;
 
   const supabase = await createClient();
   // CICLO GLOBAL — el periodo operativo es la única fuente del ciclo.
@@ -1024,7 +1037,7 @@ export async function actionListarAlumnosGruposProfesor(): Promise<
   // (grupos del operativo con horario).
   let alcance = elegibles;
   if (
-    sesion.rol === "maestro" &&
+    esRol(sesion.rol, "maestro") &&
     sesion.profesorId != null &&
     Number.isInteger(Number(sesion.profesorId)) &&
     Number(sesion.profesorId) > 0
@@ -1089,8 +1102,8 @@ export async function actionObtenerMateriasHorarioGrupo(input: {
     }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion || (sesion.rol !== "maestro" && sesion.rol !== "directivo")) {
+  const g = await exigir("horario.ver_grupo");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para gestionar asistencias." };
   }
   const supabase = await createClient();
@@ -1132,8 +1145,8 @@ export async function actionObtenerCicloActual(): Promise<
   | { ok: true; ciclo: string | null }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion || (sesion.rol !== "maestro" && sesion.rol !== "directivo")) {
+  const g = await exigir("ciclo.ver_operativo");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para consultar asistencias." };
   }
   const supabase = await createClient();

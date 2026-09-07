@@ -9,15 +9,17 @@
  * fechas, faltas reales, estados e integridad de la asistencia).
  *
  * SEGURIDAD:
- *  - La identidad sale SIEMPRE de obtenerSesionPortal().
+ *  - La identidad sale SIEMPRE de exigir() (cookie firmada).
  *  - Tutor → sesion.matricula → listarCurpsDeTutor() → alumno autorizado.
  *  - Alumno → solo su propia CURP. Directivo → acceso administrativo.
  *  - Aprobación/rechazo validan de nuevo en servidor.
  */
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
+import { esRol } from "@/lib/auth/permisos";
+import type { PortalSessionPayload } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { listarCurpsDeTutor } from "@/lib/escolar/tutores";
+import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores";
 import {
   aplicarAsistenciaJustificada,
   BUCKET_JUSTIFICACIONES,
@@ -37,11 +39,11 @@ import {
   verificarEsquemaJustificaciones,
   type EstadoJustificacion,
   type FilaJustificacion,
-} from "@/lib/escolar/justificaciones";
+} from "@/lib/escolar/asistencia/justificaciones";
 import {
   bloquesDeGrupoEnFecha,
   consultarHorarioAlumno,
-} from "@/lib/escolar/horario-semanal";
+} from "@/lib/escolar/horario/horario-semanal";
 import { TABLA_ALUMNOS, TABLA_MENSAJES_JUSTIFICACION } from "@/lib/escolar/tables";
 
 const NO_AUTORIZADO = { ok: false, error: "No tienes permiso." } as const;
@@ -103,21 +105,21 @@ function esFechaFutura(fecha: string): boolean {
   return f.getTime() > hoy.getTime();
 }
 
-/** ¿El tutor (o alumno) puede operar sobre esta CURP? */
+/** ¿El tutor (o alumno) puede operar sobre esta CURP? (alcance, no capacidad) */
 async function sesionAutorizaCurp(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  sesion: NonNullable<Awaited<ReturnType<typeof obtenerSesionPortal>>>,
+  sesion: PortalSessionPayload,
   curp: string,
 ): Promise<boolean> {
-  if (sesion.rol === "directivo") return true;
+  if (esRol(sesion.rol, "directivo")) return true;
   // PROFESOR (Prompt B): accede desde "Asistencia de mis alumnos" (grupos con
   // horario). El circuito reutiliza las mismas reglas que tutor/alumno.
-  if (sesion.rol === "maestro") return true;
-  if (sesion.rol === "tutor") {
+  if (esRol(sesion.rol, "maestro")) return true;
+  if (esRol(sesion.rol, "tutor")) {
     const curps = await listarCurpsDeTutor(supabase, sesion.matricula);
     return curps.includes(curp);
   }
-  if (sesion.rol === "alumno") {
+  if (esRol(sesion.rol, "alumno")) {
     return Boolean(
       sesion.curp &&
         sesion.curp.trim().toUpperCase() === curp.trim().toUpperCase(),
@@ -126,10 +128,10 @@ async function sesionAutorizaCurp(
   return false;
 }
 
-/** Lee una justificación por id (con comprobación de permisos). */
+/** Lee una justificación por id (con comprobación de alcance). */
 async function leerJustificacionAutorizada(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  sesion: NonNullable<Awaited<ReturnType<typeof obtenerSesionPortal>>>,
+  sesion: PortalSessionPayload,
   justificacionId: string,
 ): Promise<{ ok: true; fila: FilaJustificacion } | { ok: false; error: string }> {
   const { data, error } = await supabase
@@ -155,21 +157,11 @@ async function leerJustificacionAutorizada(
 export async function actionSolicitarJustificacionConArchivo(
   formData: FormData,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
+  const g = await exigir("justificacion.solicitar");
+  if (!g.ok) return { ok: false, error: "No tienes permiso." };
+  const sesion = g.sesion!;
   const rolProfesorJustifica =
-    sesion.rol === "maestro" || sesion.rol === "directivo";
-  if (
-    sesion.rol !== "tutor" &&
-    sesion.rol !== "alumno" &&
-    !rolProfesorJustifica
-  ) {
-    return {
-      ok: false,
-      error:
-        "Solo tutores, el propio alumno, el profesor o la dirección pueden justificar faltas.",
-    };
-  }
+    esRol(sesion.rol, "maestro") || esRol(sesion.rol, "directivo");
 
   const curp = String(formData.get("curp") ?? "").trim().toUpperCase();
   const fecha = String(formData.get("fecha") ?? "").trim();
@@ -326,9 +318,9 @@ export async function actionSolicitarJustificacionConArchivo(
   }
 
   const solicitanteTipo =
-    sesion.rol === "tutor"
+    esRol(sesion.rol, "tutor")
       ? ("tutor" as const)
-      : sesion.rol === "alumno"
+      : esRol(sesion.rol, "alumno")
         ? ("alumno" as const)
         : ("profesor" as const);
 
@@ -421,8 +413,9 @@ export async function actionObtenerMateriasJustificables(input: {
   | { ok: true; materias: MateriaJustificableUI[]; usaHorario: boolean }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return NO_AUTORIZADO;
+  const g = await exigir("justificacion.solicitar");
+  if (!g.ok) return NO_AUTORIZADO;
+  const sesion = g.sesion!;
   const supabase = await createClient();
   const curp = String(input.curp ?? "").trim().toUpperCase();
   if (!curp) return { ok: false, error: "Indica la CURP del alumno." };
@@ -452,8 +445,10 @@ export async function actionListarJustificacionesTutor(): Promise<
   | { ok: true; justificaciones: FilaJustificacion[] }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion || sesion.rol !== "tutor") return NO_AUTORIZADO;
+  const g = await exigir("justificacion.ver_propias");
+  if (!g.ok) return NO_AUTORIZADO;
+  const sesion = g.sesion!;
+  if (!esRol(sesion.rol, "tutor")) return NO_AUTORIZADO;
   const supabase = await createClient();
   const curps = await listarCurpsDeTutor(supabase, sesion.matricula);
   if (curps.length === 0) return { ok: true, justificaciones: [] };
@@ -471,8 +466,8 @@ export async function actionListarJustificacionesPendientes(): Promise<
   | { ok: true; justificaciones: FilaJustificacion[] }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("justificacion.ver_todas");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
@@ -494,8 +489,9 @@ export async function actionAprobarJustificacion(
   | { ok: true; mensaje: string; clasesAplicadas: number }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("justificacion.resolver");
+  if (!g.ok) return NO_AUTORIZADO;
+  const sesion = g.sesion!;
   const supabase = await createClient();
 
   const esquema = await verificarEsquemaJustificaciones(supabase);
@@ -572,8 +568,9 @@ export async function actionRechazarJustificacion(
   justificacionId: string,
   motivoRechazo: string,
 ): Promise<{ ok: true; mensaje: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("justificacion.resolver");
+  if (!g.ok) return NO_AUTORIZADO;
+  const sesion = g.sesion!;
   const motivo = motivoRechazo.trim();
   if (!motivo) {
     return { ok: false, error: "El motivo de rechazo es obligatorio." };
@@ -619,8 +616,9 @@ export async function actionRechazarJustificacion(
 export async function actionObtenerUrlArchivoJustificacion(
   justificacionId: string,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return NO_AUTORIZADO;
+  const g = await exigir("justificacion.ver_propias");
+  if (!g.ok) return NO_AUTORIZADO;
+  const sesion = g.sesion!;
   const supabase = await createClient();
   const r = await leerJustificacionAutorizada(supabase, sesion, justificacionId);
   if (!r.ok) return { ok: false, error: r.error };
@@ -644,12 +642,13 @@ export async function actionListarMensajesJustificacion(
 ): Promise<
   | {
       ok: true;
-      mensajes: import("@/lib/escolar/justificaciones").MensajeJustificacion[];
+      mensajes: import("@/lib/escolar/asistencia/justificaciones").MensajeJustificacion[];
     }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return NO_AUTORIZADO;
+  const g = await exigir("justificacion.ver_propias");
+  if (!g.ok) return NO_AUTORIZADO;
+  const sesion = g.sesion!;
   const supabase = await createClient();
   const r = await leerJustificacionAutorizada(supabase, sesion, justificacionId);
   if (!r.ok) return { ok: false, error: r.error };
@@ -657,7 +656,7 @@ export async function actionListarMensajesJustificacion(
 
   const mensajes = await listarMensajesJustificacion(supabase, justificacionId);
   // El tutor marca sus mensajes como leídos al consultarlos.
-  if (sesion.rol === "tutor") {
+  if (esRol(sesion.rol, "tutor")) {
     const curps = await listarCurpsDeTutor(supabase, sesion.matricula);
     if (curps.includes(fila.curp_alumno)) {
       await marcarMensajesJustificacionLeidos(supabase, justificacionId, sesion.matricula);
@@ -678,8 +677,9 @@ export async function actionObtenerJustificacionesDeAlumno(
   | { ok: true; justificaciones: FilaJustificacion[] }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return NO_AUTORIZADO;
+  const g = await exigir("justificacion.ver_propias");
+  if (!g.ok) return NO_AUTORIZADO;
+  const sesion = g.sesion!;
   const supabase = await createClient();
   const c = curp.trim().toUpperCase();
   if (!c) return { ok: false, error: "CURP inválida." };
@@ -714,8 +714,9 @@ export async function actionListarMensajesDelTutor(): Promise<
   | { ok: true; mensajes: MensajeJustificacionConDetalle[] }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion || sesion.rol !== "tutor") return NO_AUTORIZADO;
+  const g = await exigir("justificacion.ver_propias");
+  if (!g.ok || !g.sesion || !esRol(g.sesion.rol, "tutor")) return NO_AUTORIZADO;
+  const sesion = g.sesion;
   const supabase = await createClient();
   const esquema = await verificarEsquemaJustificaciones(supabase);
   if (!esquema.ok) return { ok: false, error: esquema.error };
@@ -827,8 +828,8 @@ export async function actionListarJustificacionesPendientesConDetalle(): Promise
   | { ok: true; justificaciones: JustificacionConDetalle[] }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("justificacion.ver_todas");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   const esquema = await verificarEsquemaJustificaciones(supabase);
   if (!esquema.ok) return { ok: false, error: esquema.error };
@@ -840,8 +841,8 @@ export async function actionListarHistorialJustificaciones(): Promise<
   | { ok: true; justificaciones: JustificacionConDetalle[] }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("justificacion.ver_todas");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   const esquema = await verificarEsquemaJustificaciones(supabase);
   if (!esquema.ok) return { ok: false, error: esquema.error };

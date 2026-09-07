@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { actionCrearCicloEscolar, actionDetalleCicloAdmin, actionDiagnosticoEliminarCiclo, actionEliminarCiclo, actionListarCiclosAdmin, actionSetActivoCiclo, type CicloAdminListado, type DetalleCicloAdmin } from "@/app/actions/evaluaciones";
-import type { DiagnosticoEliminarCiclo } from "@/lib/escolar/eliminar-ciclo";
+import type { DiagnosticoEliminarCiclo } from "@/lib/escolar/ciclo/eliminar-ciclo";
 import { PasoDatos } from "./paso-datos";
 import { PasoAcademico } from "./paso-academico";
 import { PasoAlumnos } from "./paso-alumnos";

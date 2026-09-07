@@ -16,9 +16,9 @@ import type {
   DiaEstadoAsistencia,
   EstadoAsistencia,
   ResumenPorParcial,
-} from "@/lib/escolar/asistencias";
-import type { FilaJustificacion } from "@/lib/escolar/justificaciones";
-import { fechaISO } from "@/lib/escolar/calendario";
+} from "@/lib/escolar/asistencia/asistencias";
+import type { FilaJustificacion } from "@/lib/escolar/asistencia/justificaciones";
+import { fechaISO } from "@/lib/escolar/ciclo/calendario";
 
 
 /**

@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# mi-web-escolar — portal escolar CETAC 23
 
-## Getting Started
+Portal escolar con cuatro roles (alumno, profesor, directivo, tutor): asistencia,
+calificaciones, horario, justificaciones, documentos y administración del ciclo escolar.
 
-First, run the development server:
+Next.js 16 · React 19 · Supabase (PostgREST + Storage) · Cloudinary · SheetJS.
+Sin API REST propia: todo el transporte navegador→servidor son Server Actions.
+
+## Empezar
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev          # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Variables de entorno: copiar `.env.example` a `.env.local` y rellenarlas.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Comandos
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Comando | Qué hace |
+|---|---|
+| `npm run dev` | Servidor de desarrollo (webpack). `dev:turbo` para turbopack. |
+| `npm run build` | Build de producción. |
+| `npm run lint` | ESLint. |
+| `npx tsc --noEmit` | Typecheck. Debe dar 0 errores antes de cualquier entrega. |
+| `npm run test:compilar` | Compila los módulos puros que consumen las suites `test-*.mjs`. |
 
-## Learn More
+## Documentación
 
-To learn more about Next.js, take a look at the following resources:
+Toda la documentación se navega desde un único índice:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**→ [`docs/00-INDICE.md`](docs/00-INDICE.md)**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Atajos:
 
-## Deploy on Vercel
+| Para | Leer |
+|---|---|
+| Saber qué es verdad hoy | [`ESTADO-ACTUAL.md`](ESTADO-ACTUAL.md) |
+| Localizar un bug por su síntoma | [`docs/sistema/MAPA-DEL-SISTEMA.md`](docs/sistema/MAPA-DEL-SISTEMA.md) |
+| Entender cómo funciona por dentro | [`docs/sistema/FLUJO-TECNICO.md`](docs/sistema/FLUJO-TECNICO.md) |
+| Qué está prohibido y por qué | [`docs/normativo/REGLAS_NO_HACER.md`](docs/normativo/REGLAS_NO_HACER.md) |
+| Ejecutar algo de `scripts/` | [`scripts/README.md`](scripts/README.md) — **obligatorio** |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Si eres un agente de IA
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Empieza por [`AGENTS.md`](AGENTS.md). No cargues documentación «por si acaso»:
+el índice existe precisamente para no gastar contexto.
+
+## Aviso
+
+No hay entorno de staging. `scripts/` corre con `service_role` y salta RLS:
+lo que se toca, se toca en producción. `scripts/_peligrosos/` contiene scripts que
+vacían tablas.

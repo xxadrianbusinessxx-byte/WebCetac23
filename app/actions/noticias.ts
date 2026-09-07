@@ -1,6 +1,6 @@
 "use server";
 
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
 import {
   invalidarNoticiasInicio,
   listarUrlsNoticiasInicio,
@@ -9,6 +9,10 @@ import {
 } from "@/lib/cloudinary/noticias";
 import { subirImagenCloudinary } from "@/lib/cloudinary/upload";
 
+/**
+ * Pública por diseño: es la portada, se sirve antes del login. Capacidad
+ * `portada.ver` (excepción declarada del detector de permisos).
+ */
 export async function actionObtenerNoticiasInicio() {
   return listarUrlsNoticiasInicio();
 }
@@ -17,10 +21,8 @@ export async function actionPublicarNoticiaInicio(
   slot: NoticiaInicioSlot,
   formData: FormData,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
-    return { ok: false, error: "Solo directivos pueden publicar noticias." };
-  }
+  const g = await exigir("noticia.publicar");
+  if (!g.ok) return { ok: false, error: "Solo directivos pueden publicar noticias." };
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) {

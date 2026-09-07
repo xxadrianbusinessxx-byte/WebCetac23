@@ -21,8 +21,8 @@ function ok(nombre, condicion, detalle = "") {
 const paso = leer("app/components/ciclo-configurador/paso-horario.tsx");
 const panel = leer("app/components/horario-escolar-panel.tsx");
 const sql = leer("supabase/crear-horario-semanal.sql");
-const docMod = leer("docs/HORARIO_SEMANAL_MODULO.md");
-const ce = leer("lib/escolar/ciclo-estado.ts");
+const docMod = leer("docs/sistema/modulos/HORARIO_SEMANAL_MODULO.md");
+const ce = leer("lib/escolar/ciclo/ciclo-estado.ts");
 
 // 1) UI entrega periodoId.
 ok("PasoHorario entrega periodoId al panel", paso.includes("periodoIdInicial={periodoId}"));
@@ -35,7 +35,20 @@ ok("documentación: horario_semanal versionado por periodo", /horario_semanal/.t
 ok("configuracion_clases_profesor declarada legacy (no fuente nueva)", /LEGACY DEPRECATED/.test(sql));
 
 // 3) Sin segunda autoridad de validación horaria.
-const libs = fs.readdirSync("lib/escolar").map((f) => fs.readFileSync(path.join("lib/escolar", f), "utf8")).join("\n");
+function tsDeEscolar() {
+  // lib/escolar/ tiene subcarpetas por familia: hay que recorrerlas.
+  const out = [];
+  const walk = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith(".ts")) out.push(fs.readFileSync(p, "utf8"));
+    }
+  };
+  walk("lib/escolar");
+  return out;
+}
+const libs = tsDeEscolar().join("\n");
 const alt = libs.match(/function (validarHorarioCiclo|validarCicloHorario|checkHorario)\s*\(/g) ?? [];
 ok("no existe validarHorarioCiclo/validarCicloHorario/checkHorario", alt.length === 0, alt.join(","));
 ok("sin vigente en flujo horario", !/vigente/.test(paso + panel + ce));

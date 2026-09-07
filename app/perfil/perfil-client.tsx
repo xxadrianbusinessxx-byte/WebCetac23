@@ -16,15 +16,15 @@ import { EtiquetasDinamicasPanel } from "@/app/components/etiquetas-dinamicas-pa
 import { MateriaCalificacionesAlumno } from "@/app/components/materia-calificaciones-alumno";
 import { MateriaSelector } from "@/app/components/materia-selector";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
-import { nombreCompletoAlumno } from "@/lib/escolar/alumnos";
+import { nombreCompletoAlumno } from "@/lib/escolar/alumno/alumnos";
 import {
   CAMPOS_PERSONALES_PRIMARIOS,
   comentarioPersonalDesdeFila,
-} from "@/lib/escolar/etiquetas";
-import { informacionPersonalDesdeEtiquetas } from "@/lib/escolar/informacion-personal";
-import type { AccesoAlumno } from "@/lib/escolar/acceso-alumno";
-import type { AlumnoEtiquetaRow } from "@/lib/escolar/etiquetas-dinamicas";
-import type { VistaRegistroAlumno } from "@/lib/escolar/registro-alumno";
+} from "@/lib/escolar/alumno/etiquetas";
+import { informacionPersonalDesdeEtiquetas } from "@/lib/escolar/alumno/informacion-personal";
+import type { AccesoAlumno } from "@/lib/escolar/alumno/acceso-alumno";
+import type { AlumnoEtiquetaRow } from "@/lib/escolar/alumno/etiquetas-dinamicas";
+import type { VistaRegistroAlumno } from "@/lib/escolar/alumno/registro-alumno";
 import { comprimirImagenSiPosible } from "@/lib/imagen/comprimir";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type {
@@ -33,9 +33,9 @@ import type {
   EtiquetasPersonalesRow,
   MateriaTablaVista,
 } from "@/lib/escolar/types";
-import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
-import { FrutigerBackdrop } from "../components/frutiger-backdrop";
-import { GlossyPersonIcon } from "../components/glossy-person-icon";
+import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
+import { FrutigerBackdrop } from "@/app/components/ui/frutiger-backdrop";
+import { GlossyPersonIcon } from "@/app/components/ui/glossy-person-icon";
 import type { ModoPerfil } from "./page";
 
 type MainTab = "materia" | "estatus" | "comentarios" | "boleta";

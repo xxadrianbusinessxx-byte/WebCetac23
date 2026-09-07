@@ -1,0 +1,1369 @@
+{
+ "nodes": [
+  {
+   "id": "col-rsc",
+   "type": "text",
+   "x": 0,
+   "y": -520,
+   "width": 520,
+   "height": 180,
+   "color": "6",
+   "text": "# 1. ENTRADA / SERVIDOR NEXT\nReact Server Components + proxy · Node.js"
+  },
+  {
+   "id": "col-ui",
+   "type": "text",
+   "x": 630,
+   "y": -520,
+   "width": 520,
+   "height": 180,
+   "color": "5",
+   "text": "# 2. UI CLIENTE\n\"use client\" · React 19 en el navegador"
+  },
+  {
+   "id": "col-act",
+   "type": "text",
+   "x": 1260,
+   "y": -520,
+   "width": 520,
+   "height": 180,
+   "color": "4",
+   "text": "# 3. SERVER ACTIONS\n\"use server\" · POST RPC de Next → Node.js"
+  },
+  {
+   "id": "col-dom",
+   "type": "text",
+   "x": 1890,
+   "y": -520,
+   "width": 520,
+   "height": 180,
+   "color": "3",
+   "text": "# 4. DOMINIO\nTypeScript puro + orquestacion (lib/)"
+  },
+  {
+   "id": "col-dat",
+   "type": "text",
+   "x": 2520,
+   "y": -520,
+   "width": 520,
+   "height": 180,
+   "color": "2",
+   "text": "# 5. ACCESO A DATOS\nsupabase-js → PostgREST / RPC / Storage / Cloudinary"
+  },
+  {
+   "id": "col-sql",
+   "type": "text",
+   "x": 3150,
+   "y": -520,
+   "width": 520,
+   "height": 180,
+   "color": "1",
+   "text": "# 6. POSTGRESQL\nTablas · PL/pgSQL · triggers · RLS"
+  },
+  {
+   "id": "leyenda",
+   "type": "text",
+   "x": -630,
+   "y": -520,
+   "width": 520,
+   "height": 560,
+   "color": "6",
+   "text": "# COMO SE LEE ESTE CANVAS\n\n**Columnas = capa de ejecucion.** El flujo va SIEMPRE de izquierda a derecha:\nnavegador → Server Action → dominio → PostgREST → Postgres.\n\n**Filas = dominio funcional.** Cada fila es un subsistema completo.\n\n**Colores**\n- 🟪 morado — React Server Component (corre en Node, nunca en el navegador)\n- 🟦 cian — React 19 cliente (\"use client\")\n- 🟩 verde — Server Action (\"use server\", es un POST que Next enruta)\n- 🟨 amarillo — dominio TypeScript (lo marcado `PURO` no toca la BD)\n- 🟧 naranja — acceso a datos: supabase-js → PostgREST / RPC / Storage\n- 🟥 rojo — PostgreSQL: tablas, PL/pgSQL, triggers, RLS\n\n**Aristas rojas** = dependencia de la RAIZ `periodos.id`.\n\nStack: Next.js 16.2 (App Router) · React 19.2 · TypeScript 5 ·\nTailwind 4 · Supabase (Postgres + PostgREST + Storage) ·\nCloudinary · SheetJS (xlsx) · node:crypto"
+  },
+  {
+   "id": "g-auth",
+   "type": "group",
+   "label": "1 · IDENTIDAD Y SESION",
+   "x": -46,
+   "y": -260,
+   "width": 3762,
+   "height": 442
+  },
+  {
+   "id": "n1",
+   "type": "text",
+   "x": 0,
+   "y": -180,
+   "width": 520,
+   "height": 212,
+   "color": "6",
+   "text": "**app/layout.tsx** · **app/page.tsx**\n`RSC (async)`\n- `obtenerSesionPortal()` lee cookie en el servidor\n- pinta `BarraNavegacionGlobal` con el rol\n- **proxy.ts** `proxy(request)`: refresca la sesion Supabase en cada request (matcher global)"
+  },
+  {
+   "id": "n2",
+   "type": "text",
+   "x": 630,
+   "y": -180,
+   "width": 520,
+   "height": 186,
+   "color": "5",
+   "text": "**HomeLoginForm**\n`React 19 · \"use client\"`\n- `<form action={...}>` + `useTransition`\n- envia identificador + clave a la Server Action\n- no toca Supabase jamas"
+  },
+  {
+   "id": "n3",
+   "type": "text",
+   "x": 1260,
+   "y": -180,
+   "width": 520,
+   "height": 238,
+   "color": "4",
+   "text": "**app/actions/login.ts**\n`\"use server\"`\n- `loginWithNombreCompleto(formData)`\n  → valida → firma cookie → `redirect()` por rol\n**app/actions/profesores.ts**\n- `actionCambiarClaveProfesor`\n- `actionListarProfesoresCredenciales`"
+  },
+  {
+   "id": "n4",
+   "type": "text",
+   "x": 1890,
+   "y": -180,
+   "width": 520,
+   "height": 316,
+   "color": "3",
+   "text": "**lib/auth/portal-login.ts** `TS`\n- `validarAccesoPortal()` prueba en orden:\n  PROFESORES → ALUMNOS → tutores\n- compara con `timingSafeEqual` (node:crypto)\n**lib/auth/session.ts**\n- `encodePortalSession` / `decodePortalSession`\n  HMAC-SHA256 base64url\n- `setPortalSessionCookie` (httpOnly, 7d)\n**lib/escolar/catalogo/profesores.ts**\n- `buscarProfesorPorNombre`, `rolDesdePermisos`"
+  },
+  {
+   "id": "n5",
+   "type": "text",
+   "x": 2520,
+   "y": -180,
+   "width": 520,
+   "height": 238,
+   "color": "2",
+   "text": "`@supabase/ssr` + `@supabase/supabase-js`\n- `lib/supabase/server.ts::createClient()` — cliente por request con cookies\n- `lib/supabase/client.ts::createClient()` — navegador\n- `lib/supabase/service.ts::createServiceClient()` — service_role, salta RLS\n- SELECT PostgREST: `GET /rest/v1/PROFESORES?...`"
+  },
+  {
+   "id": "n6",
+   "type": "text",
+   "x": 3150,
+   "y": -180,
+   "width": 520,
+   "height": 238,
+   "color": "1",
+   "text": "Tablas legacy en MAYUSCULAS:\n- `\"PROFESORES\"` (ID, CLAVE, Permisos, debe_cambiar_credenciales)\n- `\"ALUMNOS\"` (CURP, CLAVE, nombre)\n- `tutores` (password_hash scrypt, activo)\n⚠ **DEUDA**: CLAVE de PROFESORES no es unica → identidad real = `PROFESORES.ID`"
+  },
+  {
+   "id": "g-ciclo",
+   "type": "group",
+   "label": "2 · CICLO ESCOLAR — LA RAIZ DE TODO",
+   "x": -46,
+   "y": 246,
+   "width": 3762,
+   "height": 494
+  },
+  {
+   "id": "n7",
+   "type": "text",
+   "x": 0,
+   "y": 326,
+   "width": 520,
+   "height": 186,
+   "color": "6",
+   "text": "**app/configuracion/page.tsx**\n`RSC`\n- `obtenerSesionPortal()` + `createClient()`\n- `estadoActualCiclo(supabase)` en el servidor\n- pasa el estado como prop al cliente"
+  },
+  {
+   "id": "n8",
+   "type": "text",
+   "x": 630,
+   "y": 326,
+   "width": 520,
+   "height": 212,
+   "color": "5",
+   "text": "**CicloConfigurador** (index + 7 pasos)\n`React · \"use client\"`\n- `PasoDatos` → `PasoAcademico` → `PasoAlumnos`\n  → `PasoEvaluacion` → `PasoCalendario`\n  → `PasoHorario` → `PasoValidacion`\n**CicloEvaluacionesAdmin** (parciales)"
+  },
+  {
+   "id": "n9",
+   "type": "text",
+   "x": 1260,
+   "y": 326,
+   "width": 520,
+   "height": 238,
+   "color": "4",
+   "text": "**app/actions/evaluaciones.ts** `\"use server\"`\n- `actionCrearCicloEscolar`\n- `actionGuardarRangoCiclo` / `actionSetActivoCiclo`\n- `actionGuardarEvaluacion` / `actionSetActivoEvaluacion`\n- `actionDiagnosticoEliminarCiclo` / `actionEliminarCiclo`\n**app/actions/ciclo-orquestador.ts**\n- `actionCrearCicloConContexto`"
+  },
+  {
+   "id": "n10",
+   "type": "text",
+   "x": 1890,
+   "y": 326,
+   "width": 520,
+   "height": 368,
+   "color": "3",
+   "text": "**lib/escolar/ciclo/ciclo-estado.ts** `TS + I/O`\n- `crearCicloBorrador`, `estadoActualCiclo`\n- `validarIntegridadCiclo`, `resumenCicloParaAdmin`\n- `activarCicloOperativoAtomico` (RPC) con\n  `activarCicloOperativo` como fallback REST\n**lib/escolar/ciclo/ciclo-estado-puro.ts** `TS 100% PURO`\n- `resolverEstadoPeriodo`, `planActivacionExclusiva`,\n  `unicoOperativo` — testeable sin BD\n**lib/escolar/ciclo/evaluaciones.ts**\n- `resolverEvaluacionPorFechaLocal`, `rangosSeSolapan`\n**lib/escolar/ciclo/orquestador-ciclo.ts**\n- `crearCicloConContexto`, `registrarTransicionCiclo`"
+  },
+  {
+   "id": "n11",
+   "type": "text",
+   "x": 2520,
+   "y": 326,
+   "width": 520,
+   "height": 186,
+   "color": "2",
+   "text": "`supabase.rpc(...)` — POST /rest/v1/rpc/\n- `activar_ciclo_operativo(p_periodo uuid)`\n- `eliminar_ciclo(p_periodo uuid)`\n`supabase.from('periodos')` UPDATE/INSERT\nFallback REST idempotente si la RPC no esta desplegada"
+  },
+  {
+   "id": "n12",
+   "type": "text",
+   "x": 3150,
+   "y": 326,
+   "width": 520,
+   "height": 316,
+   "color": "1",
+   "text": "**RAIZ: `periodos.id (uuid)`**\n- `periodos` (nombre, activo, estado: borrador|operativo|historico)\n- `periodos_evaluacion` (parciales, FK periodo_id)\n- `ciclo_transiciones` (bitacora)\n**PL/pgSQL**\n- `activar_ciclo_operativo()`: valida grupos>0,\n  materias>0, inscritos>0 y aplica EXCLUSIVIDAD\n- `eliminar_ciclo()` en cascada controlada\n- `set_updated_at()` (trigger comun)"
+  },
+  {
+   "id": "g-catalogo",
+   "type": "group",
+   "label": "3 · CATALOGO ACADEMICO E INSCRIPCIONES",
+   "x": -46,
+   "y": 804,
+   "width": 3762,
+   "height": 468
+  },
+  {
+   "id": "n13",
+   "type": "text",
+   "x": 0,
+   "y": 884,
+   "width": 520,
+   "height": 150,
+   "color": "6",
+   "text": "**app/directivo/page.tsx** `RSC`\n- precarga `actionListarMateriasConNombreVisible()`\n  y `actionListarRegistrosSupabase()` en servidor"
+  },
+  {
+   "id": "n14",
+   "type": "text",
+   "x": 630,
+   "y": 884,
+   "width": 520,
+   "height": 212,
+   "color": "5",
+   "text": "**ContextoAcademicoPanel**, **PasoAcademico**\n**PasoAlumnos**, **ReconocimientoAcademico**\n**SemestresOfertaAdmin**\n**AsignacionesProfesorAdmin**\n`React · \"use client\"` — leen XLSX/CSV en el navegador\nantes de mandar filas al servidor"
+  },
+  {
+   "id": "n15",
+   "type": "text",
+   "x": 1260,
+   "y": 884,
+   "width": 520,
+   "height": 316,
+   "color": "4",
+   "text": "**actions/contexto-ciclo.ts**\n- `actionVerContextoAcademico`, `actionClonarContextoAcademico`\n- `actionCargarMateriasDesdeCatalogo`\n- `actionPrevisualizarRepararTablaLegacy` / `actionRepararTablaLegacy`\n**actions/carga-academica.ts** — preview + aplicar\n**actions/inscripciones-admin.ts** — `actionInscribirAlumnoEnCiclo`\n**actions/semestres.ts**, **actions/asignaciones-profesor.ts**"
+  },
+  {
+   "id": "n16",
+   "type": "text",
+   "x": 1890,
+   "y": 884,
+   "width": 520,
+   "height": 342,
+   "color": "3",
+   "text": "**lib/escolar/catalogo/catalogo-academico.ts** (1029L)\n- `resolverGrupoAlumno`, `resolverMateriasAlumno`\n- `resolverGrupoMateriasBatch`, `resolverAsignacionesProfesorPorId`\n- `validarAccesoAlumno` / `validarAccesoProfesor`\n**contexto-ciclo.ts** `clonarContextoAcademico`\n**carga-academica.ts** preview→aplicar (2 fases)\n**inscripciones-borrador.ts**, **migracion-catalogo.ts**\n**semestres.ts** `gradoASemestre`\n**asignaciones-profesor.ts** identidad `profesor_id`\n**traspaso-materia.ts** → RPC"
+  },
+  {
+   "id": "n17",
+   "type": "text",
+   "x": 2520,
+   "y": 884,
+   "width": 520,
+   "height": 160,
+   "color": "2",
+   "text": "PostgREST select/insert/upsert con\n`onConflict` explicito\nRPC `traspasar_materia_a_profesor(...)`\nRPC `escolar_agregar_columnas(...)`"
+  },
+  {
+   "id": "n18",
+   "type": "text",
+   "x": 3150,
+   "y": 884,
+   "width": 520,
+   "height": 238,
+   "color": "1",
+   "text": "- `carreras` → `grupos` (FK periodo_id) → `grupo_materias`\n- `materias` (catalogo + aliases)\n- `inscripciones_alumno` (curp, grupo_id, activo)\n  = fuente unica alumno→grupo\n- `asignaciones_profesor` (profesor_id + grupo_materia_id)\n- `academico_semestres` (oferta activa por grado)\nRLS: policies `*_all` USING(true) — abiertas"
+  },
+  {
+   "id": "g-horario",
+   "type": "group",
+   "label": "4 · HORARIO SEMANAL OFICIAL",
+   "x": -46,
+   "y": 1336,
+   "width": 3762,
+   "height": 494
+  },
+  {
+   "id": "n19",
+   "type": "text",
+   "x": 630,
+   "y": 1416,
+   "width": 520,
+   "height": 160,
+   "color": "5",
+   "text": "**HorarioEscolarPanel** `\"use client\"`\n- sube el Excel, muestra preview y conflictos\n**HorarioAlumnoResumen**\n- vista compacta del dia para alumno/tutor"
+  },
+  {
+   "id": "n20",
+   "type": "text",
+   "x": 1260,
+   "y": 1416,
+   "width": 520,
+   "height": 212,
+   "color": "4",
+   "text": "**app/actions/horario.ts** `\"use server\"`\n- `actionImportarHorarioPreview`\n- `actionImportarHorarioAplicar`\n- `actionConsultarHorarioGrupo`\n- `actionObtenerHorarioAlumno`\n- `actionDescargarPlantillaHorario`"
+  },
+  {
+   "id": "n21",
+   "type": "text",
+   "x": 1890,
+   "y": 1416,
+   "width": 520,
+   "height": 368,
+   "color": "3",
+   "text": "**lib/escolar/horario/horario-importar.ts** (1267L)\n- `leerLibroExcel` (`xlsx` SheetJS), `localizarHojaDetalle`\n- `detectarColumnasHorario`, `parsearFilaHorario`\n- `analizarFilasHorario` → `advertenciasResumenVsDetalle`\n- `previsualizarImportacionHorario` / `aplicarImportacionHorario`\n**lib/escolar/horario/horario-semanal.ts** (858L)\n- `consultarHorarioGrupoPorIdentidad`, `consultarHorarioAlumno`\n- `bloquesDeGrupoEnFecha`, `bloquesDelProfesorEnGrupo`\n- `horaAMinutos` / `minutosAHora` (puras)\n**roster-validacion.ts** `profesoresClaveAmbiguos`"
+  },
+  {
+   "id": "n22",
+   "type": "text",
+   "x": 2520,
+   "y": 1416,
+   "width": 520,
+   "height": 150,
+   "color": "2",
+   "text": "`from(TABLA_HORARIO_SEMANAL)` bulk insert\nlectura por `(periodo_id, grupo_id, dia)`"
+  },
+  {
+   "id": "n23",
+   "type": "text",
+   "x": 3150,
+   "y": 1416,
+   "width": 520,
+   "height": 186,
+   "color": "1",
+   "text": "- `horario_semanal` (periodo_id, grupo_id, materia_id,\n  profesor, dia, hora_inicio, hora_fin, tipo)\n- indices `horario_semanal_periodo_grupo_dia_idx`\n- trigger `horario_semanal_set_updated_at`\nEs la FUENTE DE VERDAD de \"que clase toca\", no la asistencia"
+  },
+  {
+   "id": "g-asistencia",
+   "type": "group",
+   "label": "5 · ASISTENCIA (el flujo mas pesado)",
+   "x": -46,
+   "y": 1894,
+   "width": 3762,
+   "height": 468
+  },
+  {
+   "id": "n24",
+   "type": "text",
+   "x": 0,
+   "y": 1974,
+   "width": 520,
+   "height": 150,
+   "color": "6",
+   "text": "**app/profesor/page.tsx** `RSC`\n- sesion + materias visibles → `ProfesorClient`"
+  },
+  {
+   "id": "n25",
+   "type": "text",
+   "x": 630,
+   "y": 1974,
+   "width": 520,
+   "height": 186,
+   "color": "5",
+   "text": "**AsistenciasPanel** (793L) `\"use client\"`\n- descarga plantilla, sube archivo, ve preview, confirma\n**CalendarioAsistenciaAlumno** (718L)\n- calendario mensual + estados por dia\n**BuscadorAlumnoProfesor**"
+  },
+  {
+   "id": "n26",
+   "type": "text",
+   "x": 1260,
+   "y": 1974,
+   "width": 520,
+   "height": 264,
+   "color": "4",
+   "text": "**app/actions/asistencias.ts** (1144L) `\"use server\"`\n- `actionListarGruposAsistencia`\n- `actionDescargarPlantillaAsistencia`\n- `actionPrevisualizarAsistencias`  ← fase 1\n- `actionConfirmarAsistencias`      ← fase 2 (escribe)\n- `actionObtenerEstadosAsistenciaAlumno`\n- `actionAnularAsistenciaProfesor`\n- `actionObtenerCicloActual`"
+  },
+  {
+   "id": "n27",
+   "type": "text",
+   "x": 1890,
+   "y": 1974,
+   "width": 520,
+   "height": 342,
+   "color": "3",
+   "text": "**lib/escolar/asistencia/asistencias.ts** (1685L)\n- `clasesDelProfesorParaFecha` (pura)\n- `generarPlantillaAsistencia` → XLSX\n- `analizarPlantillaAsistencia` → `previsualizarAsistencias`\n- `confirmarAsistencias` → UPSERT idempotente\n- `calcularPorcentajeAsistencia`, `estadoAsistenciaAlumno`\n**atribucion-profesor.ts** `PURO`\n- `claveConflictoAsistencia`, `atribuirMateriaAlPlan`\n- identidad = `profesor_id` de la SESION, nunca del cliente\n**asistencia-parcial.ts** `resumenAsistenciaPorParcial`\n**fechas.ts** `serialExcelAFechaISO`, `normalizarFechaEscolar`"
+  },
+  {
+   "id": "n28",
+   "type": "text",
+   "x": 2520,
+   "y": 1974,
+   "width": 520,
+   "height": 160,
+   "color": "2",
+   "text": "UPSERT con `onConflict` variable segun haya materia:\n- `(grupo_id, fecha, grupo_materia_id, curp)`\n- o clave sin materia (legacy)\nLecturas batched por `periodo_id + fecha`"
+  },
+  {
+   "id": "n29",
+   "type": "text",
+   "x": 3150,
+   "y": 1974,
+   "width": 520,
+   "height": 238,
+   "color": "1",
+   "text": "- `clases_impartidas` (periodo_id, grupo_id, fecha, profesor_id)\n- `asistencia_alumnos` (curp, fecha, estado, profesor_id, materia)\n- `configuracion_clases_profesor` (clases/dia por profesor)\n- `asistencia_traspasos_historico`\nindices por (profesor, fecha) y (profesor, materia)"
+  },
+  {
+   "id": "g-justificaciones",
+   "type": "group",
+   "label": "6 · JUSTIFICACIONES (tutor → directivo)",
+   "x": -46,
+   "y": 2426,
+   "width": 3762,
+   "height": 364
+  },
+  {
+   "id": "n30",
+   "type": "text",
+   "x": 0,
+   "y": 2506,
+   "width": 520,
+   "height": 150,
+   "color": "6",
+   "text": "**app/tutor/page.tsx** `RSC` — sesion rol tutor"
+  },
+  {
+   "id": "n31",
+   "type": "text",
+   "x": 630,
+   "y": 2506,
+   "width": 520,
+   "height": 150,
+   "color": "5",
+   "text": "**TutorClient** (596L) `\"use client\"`\n**JustificacionesAdmin** (directivo)\n- sube PDF/imagen, ve estado, lee mensajes"
+  },
+  {
+   "id": "n32",
+   "type": "text",
+   "x": 1260,
+   "y": 2506,
+   "width": 520,
+   "height": 212,
+   "color": "4",
+   "text": "**app/actions/justificaciones.ts** (856L) `\"use server\"`\n- `actionSolicitarJustificacionConArchivo`\n- `actionListarJustificacionesPendientesConDetalle`\n- `actionAprobarJustificacion` / `actionRechazarJustificacion`\n- `actionObtenerUrlArchivoJustificacion` (signed URL)\n- `actionListarMensajesJustificacion`"
+  },
+  {
+   "id": "n33",
+   "type": "text",
+   "x": 1890,
+   "y": 2506,
+   "width": 520,
+   "height": 238,
+   "color": "3",
+   "text": "**lib/escolar/asistencia/justificaciones.ts**\n- `esNombreArchivoJustificacionSeguro`, `rutaStorageJustificacion`\n- `calcularClasesJustificadasPorDia` (pura, usa horario)\n- `aplicarAsistenciaJustificada` → reescribe asistencia\n- `resolverTutorDeAlumno`, `crearMensajeJustificacion`\nlimites: `JUSTIFICACION_MAX_BYTES`, MIME permitidos"
+  },
+  {
+   "id": "n34",
+   "type": "text",
+   "x": 2520,
+   "y": 2506,
+   "width": 520,
+   "height": 150,
+   "color": "2",
+   "text": "**Supabase Storage** bucket `justificaciones`\n- `storage.from(BUCKET).upload()` / `createSignedUrl()`\n+ PostgREST sobre las 2 tablas"
+  },
+  {
+   "id": "n35",
+   "type": "text",
+   "x": 3150,
+   "y": 2506,
+   "width": 520,
+   "height": 160,
+   "color": "1",
+   "text": "- `justificaciones_asistencia` (curp, fecha, estado, archivo_path)\n- `mensajes_justificacion` (directivo → tutor)\ntriggers `*_set_updated_at`"
+  },
+  {
+   "id": "g-materias",
+   "type": "group",
+   "label": "7 · MATERIAS, TABLAS DINAMICAS Y CALIFICACIONES",
+   "x": -46,
+   "y": 2854,
+   "width": 3762,
+   "height": 468
+  },
+  {
+   "id": "n36",
+   "type": "text",
+   "x": 0,
+   "y": 2934,
+   "width": 520,
+   "height": 150,
+   "color": "6",
+   "text": "**app/profesor/page.tsx** / **app/directivo/page.tsx**\nprecargan el catalogo de materias visibles"
+  },
+  {
+   "id": "n37",
+   "type": "text",
+   "x": 630,
+   "y": 2934,
+   "width": 520,
+   "height": 160,
+   "color": "5",
+   "text": "**MateriaSelector**, **MateriaTablaVistaPanel**\n**MateriaMapeoColumnas** (618L) + hook `useMateriaMapeo`\n**MateriasConfigPanel**, **MateriaCalificacionesAlumno**\n`\"use client\"` — parsean CSV/XLSX en el navegador"
+  },
+  {
+   "id": "n38",
+   "type": "text",
+   "x": 1260,
+   "y": 2934,
+   "width": 520,
+   "height": 316,
+   "color": "4",
+   "text": "**app/actions/materias.ts** `\"use server\"`\n- `actionObtenerMapeoColumnasMateria` / `actionGuardarMapeoColumnasMateria`\n- `actionGuardarNombreVisibleMateria`\n- `actionCambiarVisibilidadMateria`\n**app/actions/escolar.ts** (872L — la action mas grande)\n- `actionSubirMateriaExcel`, `actionActualizarMateriaExcel`\n- `actionObtenerVistaMateria`, `actionObtenerVistaRegistro`\n**app/actions/calificaciones.ts** — archivos en Storage\n**app/actions/tablas.ts** — listado de tablas"
+  },
+  {
+   "id": "n39",
+   "type": "text",
+   "x": 1890,
+   "y": 2934,
+   "width": 520,
+   "height": 342,
+   "color": "3",
+   "text": "**mapeo-columnas-materia.ts** (612L)\n- `calcularPromedioPonderado`, `validarPesosActividades`\n- `resolverColumnaFisica`, `detectarColisionesEncabezados`\n**columnas-calificaciones.ts** `identificarColumnaCalificacion`\n**materia-avance.ts** `planificarActualizacionAvance`\n**schema-tabla.ts** `sincronizarColumnasTabla`\n**hoja-tabla.ts**, **matriz-hoja.ts**, **excel-a-registros.ts**\n**nombres-visibles.ts** alias por materia\n**lib/calificaciones/storage.ts** subir/descargar archivo"
+  },
+  {
+   "id": "n40",
+   "type": "text",
+   "x": 2520,
+   "y": 2934,
+   "width": 520,
+   "height": 186,
+   "color": "2",
+   "text": "RPC DDL dinamico (PL/pgSQL con `format()`+EXECUTE):\n- `escolar_agregar_columnas(tabla, columnas)`\n- `escolar_sync_columns(...)`\n**Storage** bucket `calificaciones`\n+ `archivos_calificaciones` como metadatos"
+  },
+  {
+   "id": "n41",
+   "type": "text",
+   "x": 3150,
+   "y": 2934,
+   "width": 520,
+   "height": 212,
+   "color": "1",
+   "text": "⚠ **Modelo hibrido**: una TABLA FISICA por materia\n(`\"1RO A MATEMATICAS\"`…) con columnas creadas en caliente\n- `materias_mapeo_columnas` (que columna es que)\n- `materias_nombres_visibles` (alias)\n- `archivos_calificaciones` + bucket\nEste es el rincon legacy que las RPC de DDL sostienen"
+  },
+  {
+   "id": "g-perfil",
+   "type": "group",
+   "label": "8 · PERFIL DEL ALUMNO Y ETIQUETAS",
+   "x": -46,
+   "y": 3386,
+   "width": 3762,
+   "height": 442
+  },
+  {
+   "id": "n42",
+   "type": "text",
+   "x": 0,
+   "y": 3466,
+   "width": 520,
+   "height": 150,
+   "color": "6",
+   "text": "**app/perfil/page.tsx** `RSC`\n- llama `actionObtenerPerfilAlumno()` en el servidor\n  y entrega TODO el perfil ya resuelto al cliente"
+  },
+  {
+   "id": "n43",
+   "type": "text",
+   "x": 630,
+   "y": 3466,
+   "width": 520,
+   "height": 150,
+   "color": "5",
+   "text": "**PerfilClient** (822L) `\"use client\"`\n- pestañas: datos, materias, calendario, etiquetas\n**EtiquetasDinamicasPanel**, **AlumnosEstrellaPanel**"
+  },
+  {
+   "id": "n44",
+   "type": "text",
+   "x": 1260,
+   "y": 3466,
+   "width": 520,
+   "height": 264,
+   "color": "4",
+   "text": "**app/actions/escolar.ts**\n- `actionObtenerPerfilAlumno` → 1 sola RPC\n- `actionSubirFotoPerfil`, `actionEtiquetasResumen`\n- `actionSincronizarAlumnosDesdeArchivo`\n**app/actions/etiquetas-dinamicas.ts**\n- `actionGuardarEtiquetasDinamicas`, `actionReordenarEtiquetasDinamicas`\n- `actionImportarEtiquetasGlobal`"
+  },
+  {
+   "id": "n45",
+   "type": "text",
+   "x": 1890,
+   "y": 3466,
+   "width": 520,
+   "height": 316,
+   "color": "3",
+   "text": "**acceso-alumno.ts** `resolverAccesoAlumno` — quien puede ver a quien\n**etiquetas.ts** / **etiquetas-status.ts** (legacy EMPTY1..6)\n**etiquetas-dinamicas.ts** `PURO` (validaciones, orden, limites)\n**etiquetas-dinamicas-servicio.ts** (I/O)\n**informacion-personal.ts**, **registro-alumno.ts**\n**alumnos.ts** `analizarRoster`, `sincronizarAlumnosDesdeArchivo`\n**alumnos-estrella.ts**"
+  },
+  {
+   "id": "n46",
+   "type": "text",
+   "x": 2520,
+   "y": 3466,
+   "width": 520,
+   "height": 212,
+   "color": "2",
+   "text": "RPC `obtener_perfil_alumno(p_curp text)` → **jsonb**\nUne en UNA llamada: ALUMNOS + ETIQUETAS PERSONALES +\ninscripciones + grupos + carreras + periodos + semestres +\nnombres_visibles + COMENTARIOS\n(optimizacion 400/500 → ver docs/historial/OPTIMIZACION_RENDIMIENTO_400_500.md)"
+  },
+  {
+   "id": "n47",
+   "type": "text",
+   "x": 3150,
+   "y": 3466,
+   "width": 520,
+   "height": 212,
+   "color": "1",
+   "text": "- `\"ALUMNOS\"`, `\"ETIQUETAS PERSONALES\"`, `\"ETIQUETAS (STATUS)\"`\n- `\"COMENTARIOS\"`, `\"COMENTARIOS PROFESORES\"`\n- `alumno_etiquetas` (modelo nuevo, filas por etiqueta)\n  · trigger `alumno_etiquetas_limite_20` (max 20/alumno)\n  · funcion `alumno_etiquetas_verificar_limite()`"
+  },
+  {
+   "id": "g-tutores",
+   "type": "group",
+   "label": "9 · TUTORES Y CREDENCIALES",
+   "x": -46,
+   "y": 3892,
+   "width": 3762,
+   "height": 390
+  },
+  {
+   "id": "n48",
+   "type": "text",
+   "x": 630,
+   "y": 3972,
+   "width": 520,
+   "height": 150,
+   "color": "5",
+   "text": "**TutoresPanel** (712L) `\"use client\"`\n- alta, consolidacion, credenciales, alumnos ligados"
+  },
+  {
+   "id": "n49",
+   "type": "text",
+   "x": 1260,
+   "y": 3972,
+   "width": 520,
+   "height": 186,
+   "color": "4",
+   "text": "**app/actions/tutores.ts** `\"use server\"`\n- `actionPrevisualizarGeneracionTutores` / `actionGenerarTutoresAutomaticos`\n- `actionCrearTutor`, `actionCambiarCredencialesTutor`\n- `actionListarAlumnosDelTutor`"
+  },
+  {
+   "id": "n50",
+   "type": "text",
+   "x": 1890,
+   "y": 3972,
+   "width": 520,
+   "height": 264,
+   "color": "3",
+   "text": "**lib/escolar/tutores/tutores.ts** (1064L) `server-only`\n- `hashContrasena` / `verificarContrasena` — **scrypt** (node:crypto)\n- `contrasenaInicialDesdeCurp` (derivada del CURP del hijo)\n- `generarClaveTutor`, `generarUsuarioUnico`\n- `previsualizarGeneracionTutores` → `generarTutoresAutomaticos`\n- `desactivarTutoresHuerfanos`"
+  },
+  {
+   "id": "n51",
+   "type": "text",
+   "x": 2520,
+   "y": 3972,
+   "width": 520,
+   "height": 150,
+   "color": "2",
+   "text": "PostgREST sobre 3 tablas + `import 'server-only'`\npara que el hash NUNCA llegue al bundle del cliente"
+  },
+  {
+   "id": "n52",
+   "type": "text",
+   "x": 3150,
+   "y": 3972,
+   "width": 520,
+   "height": 160,
+   "color": "1",
+   "text": "- `tutores` (usuario, password_hash, activo, debe_cambiar_credenciales)\n- `tutor_alumnos` (tutor_id ↔ curp_alumno)\n- `tutor_credenciales_iniciales`"
+  },
+  {
+   "id": "g-documentos",
+   "type": "group",
+   "label": "10 · DOCUMENTOS INSTITUCIONALES",
+   "x": -46,
+   "y": 4346,
+   "width": 3762,
+   "height": 286
+  },
+  {
+   "id": "n53",
+   "type": "text",
+   "x": 0,
+   "y": 4426,
+   "width": 520,
+   "height": 150,
+   "color": "6",
+   "text": "**app/documentos/page.tsx** `RSC`\n**app/layout.tsx** llama `actionTieneAccesoDocumentos()`\npara decidir si muestra la pestaña"
+  },
+  {
+   "id": "n54",
+   "type": "text",
+   "x": 630,
+   "y": 4426,
+   "width": 520,
+   "height": 150,
+   "color": "5",
+   "text": "**DocumentosPanel** (700L) `\"use client\"`\n- arbol de carpetas, subida, permisos por profesor"
+  },
+  {
+   "id": "n55",
+   "type": "text",
+   "x": 1260,
+   "y": 4426,
+   "width": 520,
+   "height": 160,
+   "color": "4",
+   "text": "**app/actions/documentos.ts** `\"use server\"`\n- `actionCrearCarpeta`, `actionSubirDocumento`\n- `actionDescargarDocumento` (signed URL)\n- `actionAsignarPermiso` / `actionQuitarPermiso`"
+  },
+  {
+   "id": "n56",
+   "type": "text",
+   "x": 1890,
+   "y": 4426,
+   "width": 520,
+   "height": 160,
+   "color": "3",
+   "text": "**lib/escolar/documentos.ts**\n- `nivelAccesoProfesor` + `puedeVer/puedeSubir/puedeEliminar`\n  (permisos HEREDADOS a subcarpetas)\n- `sanitizarNombreArchivo`, `rutaStorageCarpeta`"
+  },
+  {
+   "id": "n57",
+   "type": "text",
+   "x": 2520,
+   "y": 4426,
+   "width": 520,
+   "height": 150,
+   "color": "2",
+   "text": "**Supabase Storage** bucket `documentos-institucionales`\nlimite `DOCUMENTO_MAX_BYTES` = 20 MB"
+  },
+  {
+   "id": "n58",
+   "type": "text",
+   "x": 3150,
+   "y": 4426,
+   "width": 520,
+   "height": 150,
+   "color": "1",
+   "text": "- `\"CARPETAS\"`, `\"DOCUMENTOS\"`, `\"PERMISOS CARPETAS\"`\nniveles: ver | subir | eliminar"
+  },
+  {
+   "id": "g-chat",
+   "type": "group",
+   "label": "11 · CHAT E IMAGENES (unico servicio externo)",
+   "x": -46,
+   "y": 4696,
+   "width": 3762,
+   "height": 338
+  },
+  {
+   "id": "n59",
+   "type": "text",
+   "x": 0,
+   "y": 4776,
+   "width": 520,
+   "height": 150,
+   "color": "6",
+   "text": "**app/chat/page.tsx** `RSC` — sesion + perfil demo"
+  },
+  {
+   "id": "n60",
+   "type": "text",
+   "x": 630,
+   "y": 4776,
+   "width": 520,
+   "height": 150,
+   "color": "5",
+   "text": "**ChatClient** (317L) `\"use client\"`\n- `comprimirImagenSiPosible()` con `browser-image-compression`\n  ANTES de subir (trabajo en el navegador)"
+  },
+  {
+   "id": "n61",
+   "type": "text",
+   "x": 1260,
+   "y": 4776,
+   "width": 520,
+   "height": 160,
+   "color": "4",
+   "text": "**app/actions/chat.ts** `\"use server\"`\n- `actionListarMensajesChat`, `actionEnviarMensajeChat`\n- `actionSubirImagenChat`\n**app/actions/noticias.ts** — portada"
+  },
+  {
+   "id": "n62",
+   "type": "text",
+   "x": 1890,
+   "y": 4776,
+   "width": 520,
+   "height": 212,
+   "color": "3",
+   "text": "**lib/chat/comentario-codigo.ts** `PURO`\n- `codificarComentarioChat` / `decodificarComentarioChat`\n  (empaqueta imagen+texto dentro de una columna de texto)\n**lib/chat/storage.ts** listar/enviar\n**lib/cloudinary/**: `subirImagenCloudinary`, `urlFotoPerfil`,\n`urlNoticiaInicioSiExiste` (cache en memoria)"
+  },
+  {
+   "id": "n63",
+   "type": "text",
+   "x": 2520,
+   "y": 4776,
+   "width": 520,
+   "height": 160,
+   "color": "2",
+   "text": "**API externa: Cloudinary** (SDK `cloudinary` v2)\n- upload firmado desde el servidor, carpeta `cetac23`\n- las URLs publicas se derivan del `public_id`\nSupabase solo guarda el texto del mensaje"
+  },
+  {
+   "id": "n64",
+   "type": "text",
+   "x": 3150,
+   "y": 4776,
+   "width": 520,
+   "height": 150,
+   "color": "1",
+   "text": "- tabla de mensajes de chat (`MENSAJES_CHAT_TABLE`)\n- las imagenes NO viven en Postgres: solo su clave"
+  },
+  {
+   "id": "deuda-0",
+   "type": "text",
+   "x": 3780,
+   "y": -180,
+   "width": 520,
+   "height": 420,
+   "color": "1",
+   "text": "# ⚠ DEUDA 1 — Calendario con dos identidades\n\n`lib/escolar/ciclo/calendario.ts` mantiene **dos caminos vivos**:\n\n- LEGACY (marcado `@deprecated`): clave por **texto** `ciclo_escolar`\n  · `listarCiclosEscolares`, `obtenerCalendarioEscolar`,\n  `guardarDiaCalendario` — UPSERT sobre `(ciclo_escolar, fecha)`\n- ACTUAL: clave por **uuid** `periodo_id`\n  · `obtenerCalendarioDePeriodo`, `guardarDiaCalendarioDePeriodo`,\n  `establecerCalendarioBaseDePeriodo`, `contarDiasClaseDePeriodo`\n  · protegidas por `verificarColumnaPeriodoIdCalendario()`\n\nMientras el mismo dia pueda existir bajo texto y bajo uuid,\nasistencia y calendario pueden discrepar.\n`planBackfillCalendario()` es la migracion prevista."
+  },
+  {
+   "id": "deuda-1",
+   "type": "text",
+   "x": 3780,
+   "y": 320,
+   "width": 520,
+   "height": 420,
+   "color": "1",
+   "text": "# ⚠ DEUDA 2 — Identidad del profesor\n\nLa identidad estructural es `PROFESORES.ID`, **no** `CLAVE`\n(la CLAVE se repite entre profesores).\n\nEstado de la migracion:\n- `lib/auth/types.ts` → la sesion ya lleva `profesorId`\n- `lib/escolar/asistencia/atribucion-profesor.ts` (PURO) exige\n  `profesor_id` de la sesion; sin el **no escribe nada**\n- `asignaciones_profesor.profesor_clave` queda como\n  columna LEGACY nullable, solo historica\n- `asignaciones-profesor.ts` aborta con\n  `ERROR_DDL_PENDIENTE` si falta la columna `profesor_id`\n\n`roster-validacion.ts::profesoresClaveAmbiguos()` es el detector."
+  },
+  {
+   "id": "deuda-2",
+   "type": "text",
+   "x": 3780,
+   "y": 820,
+   "width": 520,
+   "height": 400,
+   "color": "1",
+   "text": "# ⚠ DEUDA 3 — Tablas fisicas por materia\n\nCada materia es una **tabla real** de Postgres con nombre\nen texto (`\"1RO A MATEMATICAS\"`), no filas de una tabla\ngenerica. Consecuencias:\n\n- se necesitan RPC de DDL en caliente\n  (`escolar_agregar_columnas`, `escolar_sync_columns`)\n- `materias_mapeo_columnas` traduce columna fisica ↔ semantica\n- `materias_nombres_visibles` traduce nombre fisico ↔ alias\n- `lib/escolar/materia/schema-tabla.ts` y `tablas-supabase.ts`\n  existen solo para descubrir ese esquema en runtime\n  (leyendo el spec OpenAPI de PostgREST: `lib/escolar/openapi.ts`)"
+  },
+  {
+   "id": "deuda-3",
+   "type": "text",
+   "x": 3780,
+   "y": 1300,
+   "width": 520,
+   "height": 380,
+   "color": "1",
+   "text": "# 🧪 NUCLEOS PUROS (testeables sin BD)\n\nModulos sin I/O, con test propio en `scripts/test-*.mjs`:\n\n- `ciclo-estado-puro.ts` → `test-ciclo-estado.mjs`\n- `atribucion-profesor.ts` → `test-atribucion-profesor.mjs`\n- `asistencia-parcial.ts` → `test-asistencia-parciales.mjs`\n- `etiquetas-dinamicas.ts` → `test-etiquetas-dinamicas.mjs`\n- `mapeo-columnas-materia.ts` → `test-mapeo-columnas-materia.mjs`\n- `fechas.ts` → `test-fechas.mjs`\n- `roster-validacion.ts` → `test-roster-validacion.mjs`\n- `materia-avance.ts`, `evaluaciones.ts`, `traspaso-materia.ts`\n\nRegla del repo: la decision se prueba en puro, el I/O queda fuera."
+  }
+ ],
+ "edges": [
+  {
+   "id": "e65",
+   "fromNode": "n1",
+   "fromSide": "right",
+   "toNode": "n2",
+   "toSide": "left",
+   "label": "props RSC → hidratacion"
+  },
+  {
+   "id": "e66",
+   "fromNode": "n2",
+   "fromSide": "right",
+   "toNode": "n3",
+   "toSide": "left",
+   "label": "POST server action"
+  },
+  {
+   "id": "e67",
+   "fromNode": "n3",
+   "fromSide": "right",
+   "toNode": "n4",
+   "toSide": "left",
+   "label": "import TS"
+  },
+  {
+   "id": "e68",
+   "fromNode": "n4",
+   "fromSide": "right",
+   "toNode": "n5",
+   "toSide": "left",
+   "label": "supabase-js"
+  },
+  {
+   "id": "e69",
+   "fromNode": "n5",
+   "fromSide": "right",
+   "toNode": "n6",
+   "toSide": "left",
+   "label": "HTTP → Postgres"
+  },
+  {
+   "id": "e70",
+   "fromNode": "n7",
+   "fromSide": "right",
+   "toNode": "n8",
+   "toSide": "left",
+   "label": "props RSC → hidratacion"
+  },
+  {
+   "id": "e71",
+   "fromNode": "n8",
+   "fromSide": "right",
+   "toNode": "n9",
+   "toSide": "left",
+   "label": "POST server action"
+  },
+  {
+   "id": "e72",
+   "fromNode": "n9",
+   "fromSide": "right",
+   "toNode": "n10",
+   "toSide": "left",
+   "label": "import TS"
+  },
+  {
+   "id": "e73",
+   "fromNode": "n10",
+   "fromSide": "right",
+   "toNode": "n11",
+   "toSide": "left",
+   "label": "supabase-js"
+  },
+  {
+   "id": "e74",
+   "fromNode": "n11",
+   "fromSide": "right",
+   "toNode": "n12",
+   "toSide": "left",
+   "label": "HTTP → Postgres"
+  },
+  {
+   "id": "e75",
+   "fromNode": "n13",
+   "fromSide": "right",
+   "toNode": "n14",
+   "toSide": "left",
+   "label": "props RSC → hidratacion"
+  },
+  {
+   "id": "e76",
+   "fromNode": "n14",
+   "fromSide": "right",
+   "toNode": "n15",
+   "toSide": "left",
+   "label": "POST server action"
+  },
+  {
+   "id": "e77",
+   "fromNode": "n15",
+   "fromSide": "right",
+   "toNode": "n16",
+   "toSide": "left",
+   "label": "import TS"
+  },
+  {
+   "id": "e78",
+   "fromNode": "n16",
+   "fromSide": "right",
+   "toNode": "n17",
+   "toSide": "left",
+   "label": "supabase-js"
+  },
+  {
+   "id": "e79",
+   "fromNode": "n17",
+   "fromSide": "right",
+   "toNode": "n18",
+   "toSide": "left",
+   "label": "HTTP → Postgres"
+  },
+  {
+   "id": "e80",
+   "fromNode": "n19",
+   "fromSide": "right",
+   "toNode": "n20",
+   "toSide": "left",
+   "label": "POST server action"
+  },
+  {
+   "id": "e81",
+   "fromNode": "n20",
+   "fromSide": "right",
+   "toNode": "n21",
+   "toSide": "left",
+   "label": "import TS"
+  },
+  {
+   "id": "e82",
+   "fromNode": "n21",
+   "fromSide": "right",
+   "toNode": "n22",
+   "toSide": "left",
+   "label": "supabase-js"
+  },
+  {
+   "id": "e83",
+   "fromNode": "n22",
+   "fromSide": "right",
+   "toNode": "n23",
+   "toSide": "left",
+   "label": "HTTP → Postgres"
+  },
+  {
+   "id": "e84",
+   "fromNode": "n24",
+   "fromSide": "right",
+   "toNode": "n25",
+   "toSide": "left",
+   "label": "props RSC → hidratacion"
+  },
+  {
+   "id": "e85",
+   "fromNode": "n25",
+   "fromSide": "right",
+   "toNode": "n26",
+   "toSide": "left",
+   "label": "POST server action"
+  },
+  {
+   "id": "e86",
+   "fromNode": "n26",
+   "fromSide": "right",
+   "toNode": "n27",
+   "toSide": "left",
+   "label": "import TS"
+  },
+  {
+   "id": "e87",
+   "fromNode": "n27",
+   "fromSide": "right",
+   "toNode": "n28",
+   "toSide": "left",
+   "label": "supabase-js"
+  },
+  {
+   "id": "e88",
+   "fromNode": "n28",
+   "fromSide": "right",
+   "toNode": "n29",
+   "toSide": "left",
+   "label": "HTTP → Postgres"
+  },
+  {
+   "id": "e89",
+   "fromNode": "n30",
+   "fromSide": "right",
+   "toNode": "n31",
+   "toSide": "left",
+   "label": "props RSC → hidratacion"
+  },
+  {
+   "id": "e90",
+   "fromNode": "n31",
+   "fromSide": "right",
+   "toNode": "n32",
+   "toSide": "left",
+   "label": "POST server action"
+  },
+  {
+   "id": "e91",
+   "fromNode": "n32",
+   "fromSide": "right",
+   "toNode": "n33",
+   "toSide": "left",
+   "label": "import TS"
+  },
+  {
+   "id": "e92",
+   "fromNode": "n33",
+   "fromSide": "right",
+   "toNode": "n34",
+   "toSide": "left",
+   "label": "supabase-js"
+  },
+  {
+   "id": "e93",
+   "fromNode": "n34",
+   "fromSide": "right",
+   "toNode": "n35",
+   "toSide": "left",
+   "label": "HTTP → Postgres"
+  },
+  {
+   "id": "e94",
+   "fromNode": "n36",
+   "fromSide": "right",
+   "toNode": "n37",
+   "toSide": "left",
+   "label": "props RSC → hidratacion"
+  },
+  {
+   "id": "e95",
+   "fromNode": "n37",
+   "fromSide": "right",
+   "toNode": "n38",
+   "toSide": "left",
+   "label": "POST server action"
+  },
+  {
+   "id": "e96",
+   "fromNode": "n38",
+   "fromSide": "right",
+   "toNode": "n39",
+   "toSide": "left",
+   "label": "import TS"
+  },
+  {
+   "id": "e97",
+   "fromNode": "n39",
+   "fromSide": "right",
+   "toNode": "n40",
+   "toSide": "left",
+   "label": "supabase-js"
+  },
+  {
+   "id": "e98",
+   "fromNode": "n40",
+   "fromSide": "right",
+   "toNode": "n41",
+   "toSide": "left",
+   "label": "HTTP → Postgres"
+  },
+  {
+   "id": "e99",
+   "fromNode": "n42",
+   "fromSide": "right",
+   "toNode": "n43",
+   "toSide": "left",
+   "label": "props RSC → hidratacion"
+  },
+  {
+   "id": "e100",
+   "fromNode": "n43",
+   "fromSide": "right",
+   "toNode": "n44",
+   "toSide": "left",
+   "label": "POST server action"
+  },
+  {
+   "id": "e101",
+   "fromNode": "n44",
+   "fromSide": "right",
+   "toNode": "n45",
+   "toSide": "left",
+   "label": "import TS"
+  },
+  {
+   "id": "e102",
+   "fromNode": "n45",
+   "fromSide": "right",
+   "toNode": "n46",
+   "toSide": "left",
+   "label": "supabase-js"
+  },
+  {
+   "id": "e103",
+   "fromNode": "n46",
+   "fromSide": "right",
+   "toNode": "n47",
+   "toSide": "left",
+   "label": "HTTP → Postgres"
+  },
+  {
+   "id": "e104",
+   "fromNode": "n48",
+   "fromSide": "right",
+   "toNode": "n49",
+   "toSide": "left",
+   "label": "POST server action"
+  },
+  {
+   "id": "e105",
+   "fromNode": "n49",
+   "fromSide": "right",
+   "toNode": "n50",
+   "toSide": "left",
+   "label": "import TS"
+  },
+  {
+   "id": "e106",
+   "fromNode": "n50",
+   "fromSide": "right",
+   "toNode": "n51",
+   "toSide": "left",
+   "label": "supabase-js"
+  },
+  {
+   "id": "e107",
+   "fromNode": "n51",
+   "fromSide": "right",
+   "toNode": "n52",
+   "toSide": "left",
+   "label": "HTTP → Postgres"
+  },
+  {
+   "id": "e108",
+   "fromNode": "n53",
+   "fromSide": "right",
+   "toNode": "n54",
+   "toSide": "left",
+   "label": "props RSC → hidratacion"
+  },
+  {
+   "id": "e109",
+   "fromNode": "n54",
+   "fromSide": "right",
+   "toNode": "n55",
+   "toSide": "left",
+   "label": "POST server action"
+  },
+  {
+   "id": "e110",
+   "fromNode": "n55",
+   "fromSide": "right",
+   "toNode": "n56",
+   "toSide": "left",
+   "label": "import TS"
+  },
+  {
+   "id": "e111",
+   "fromNode": "n56",
+   "fromSide": "right",
+   "toNode": "n57",
+   "toSide": "left",
+   "label": "supabase-js"
+  },
+  {
+   "id": "e112",
+   "fromNode": "n57",
+   "fromSide": "right",
+   "toNode": "n58",
+   "toSide": "left",
+   "label": "HTTP → Postgres"
+  },
+  {
+   "id": "e113",
+   "fromNode": "n59",
+   "fromSide": "right",
+   "toNode": "n60",
+   "toSide": "left",
+   "label": "props RSC → hidratacion"
+  },
+  {
+   "id": "e114",
+   "fromNode": "n60",
+   "fromSide": "right",
+   "toNode": "n61",
+   "toSide": "left",
+   "label": "POST server action"
+  },
+  {
+   "id": "e115",
+   "fromNode": "n61",
+   "fromSide": "right",
+   "toNode": "n62",
+   "toSide": "left",
+   "label": "import TS"
+  },
+  {
+   "id": "e116",
+   "fromNode": "n62",
+   "fromSide": "right",
+   "toNode": "n63",
+   "toSide": "left",
+   "label": "supabase-js"
+  },
+  {
+   "id": "e117",
+   "fromNode": "n63",
+   "fromSide": "right",
+   "toNode": "n64",
+   "toSide": "left",
+   "label": "HTTP → Postgres"
+  },
+  {
+   "id": "e118",
+   "fromNode": "n12",
+   "fromSide": "right",
+   "toNode": "n18",
+   "toSide": "right",
+   "color": "1",
+   "label": "periodo_id (FK)"
+  },
+  {
+   "id": "e119",
+   "fromNode": "n12",
+   "fromSide": "right",
+   "toNode": "n23",
+   "toSide": "right",
+   "color": "1",
+   "label": "periodo_id (FK)"
+  },
+  {
+   "id": "e120",
+   "fromNode": "n12",
+   "fromSide": "right",
+   "toNode": "n29",
+   "toSide": "right",
+   "color": "1",
+   "label": "periodo_id (FK)"
+  },
+  {
+   "id": "e121",
+   "fromNode": "n12",
+   "fromSide": "right",
+   "toNode": "n35",
+   "toSide": "right",
+   "color": "1",
+   "label": "periodo_id (FK)"
+  },
+  {
+   "id": "e122",
+   "fromNode": "n12",
+   "fromSide": "right",
+   "toNode": "n47",
+   "toSide": "right",
+   "color": "1",
+   "label": "periodo_id (FK)"
+  },
+  {
+   "id": "e123",
+   "fromNode": "n4",
+   "fromSide": "left",
+   "toNode": "n9",
+   "toSide": "left",
+   "color": "4",
+   "label": "obtenerSesionPortal()"
+  },
+  {
+   "id": "e124",
+   "fromNode": "n4",
+   "fromSide": "left",
+   "toNode": "n26",
+   "toSide": "left",
+   "color": "4",
+   "label": "obtenerSesionPortal()"
+  },
+  {
+   "id": "e125",
+   "fromNode": "n4",
+   "fromSide": "left",
+   "toNode": "n32",
+   "toSide": "left",
+   "color": "4",
+   "label": "obtenerSesionPortal()"
+  },
+  {
+   "id": "e126",
+   "fromNode": "n4",
+   "fromSide": "left",
+   "toNode": "n55",
+   "toSide": "left",
+   "color": "4",
+   "label": "obtenerSesionPortal()"
+  },
+  {
+   "id": "e127",
+   "fromNode": "n4",
+   "fromSide": "left",
+   "toNode": "n44",
+   "toSide": "left",
+   "color": "4",
+   "label": "obtenerSesionPortal()"
+  }
+ ]
+}

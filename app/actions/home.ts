@@ -1,6 +1,6 @@
 "use server";
 
-import { obtenerAlumnosEstrella } from "@/lib/escolar/alumnos-estrella";
+import { obtenerAlumnosEstrella } from "@/lib/escolar/alumno/alumnos-estrella";
 import { createClient } from "@/lib/supabase/server";
 
 export async function actionAlumnosEstrella() {

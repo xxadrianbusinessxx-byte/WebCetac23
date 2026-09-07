@@ -10,7 +10,7 @@ import {
   actionSubirMateriaExcel,
 } from "@/app/actions/escolar";
 import { archivoCsvAFilas } from "@/lib/escolar/csv";
-import { identificarColumnaCalificacion } from "@/lib/escolar/columnas-calificaciones";
+import { identificarColumnaCalificacion } from "@/lib/escolar/materia/columnas-calificaciones";
 import { normalizarNombre } from "@/lib/escolar/nombres";
 import {
   aplicarMapeoAVista,
@@ -19,7 +19,7 @@ import {
   toggleColumnaEnLista,
   validarMapeoColumnasMateria,
   type MapeoColumnasMateria,
-} from "@/lib/escolar/mapeo-columnas-materia";
+} from "@/lib/escolar/materia/mapeo-columnas-materia";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 import { MateriaCalificacionesAlumno } from "./materia-calificaciones-alumno";
 

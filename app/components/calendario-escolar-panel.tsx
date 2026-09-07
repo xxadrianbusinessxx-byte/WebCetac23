@@ -14,8 +14,8 @@ import {
   actionObtenerCalendarioDePeriodo,
   actionPrevisualizarCalendarioBase,
 } from "@/app/actions/calendario";
-import type { DiaCalendarioRow } from "@/lib/escolar/calendario";
-import { fechaISO } from "@/lib/escolar/calendario";
+import type { DiaCalendarioRow } from "@/lib/escolar/ciclo/calendario";
+import { fechaISO } from "@/lib/escolar/ciclo/calendario";
 import {
   TIPOS_DIA_CALENDARIO,
   type TipoDiaCalendario,

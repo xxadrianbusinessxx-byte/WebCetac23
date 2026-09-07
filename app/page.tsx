@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { actionAlumnosEstrella } from "@/app/actions/home";
 import { AlumnosEstrellaPanel } from "@/app/components/alumnos-estrella";
 import { EventosInicio } from "@/app/components/eventos-inicio";
-import { FrutigerBackdrop } from "./components/frutiger-backdrop";
+import { FrutigerBackdrop } from "@/app/components/ui/frutiger-backdrop";
 import { HomeLoginForm } from "./components/home-login-form";
 
 export const metadata = {

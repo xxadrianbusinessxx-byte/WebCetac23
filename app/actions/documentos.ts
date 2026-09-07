@@ -1,6 +1,8 @@
 "use server";
 
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
+import { puede } from "@/lib/auth/permisos";
+import type { PortalRole } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
 import { clienteLecturaEscolar, createServiceClient } from "@/lib/supabase/service";
 
@@ -34,14 +36,16 @@ import {
   listarProfesores,
   nombreProfesor,
   rolDesdePermisos,
-} from "@/lib/escolar/profesores";
+} from "@/lib/escolar/catalogo/profesores";
 import { normalizarNombre } from "@/lib/escolar/nombres";
 
 
 
-/** ¿El usuario es directivo? (acceso total de administración). */
-function esDirectivo(rol: string | undefined): boolean {
-  return rol === "directivo";
+/** ¿El usuario es directivo? (acceso total de administración). Se deriva de la
+ *  matriz de permisos: la capacidad `documento.gestionar_carpetas` es hoy de
+ *  solo directivo, así que puede() con ella equivale al antiguo rol===. */
+function esDirectivoConPermisos(sesion: { rol: PortalRole } | null): boolean {
+  return sesion ? puede(sesion.rol, "documento.gestionar_carpetas") : false;
 }
 
 /** Nombre del profesor/directivo desde la sesión. */
@@ -67,9 +71,9 @@ export type EstadoDocumentos = {
 export async function actionObtenerEstadoDocumentos(
   carpetaId: string | null,
 ): Promise<EstadoDocumentos | null> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return null;
-  if (sesion.rol !== "directivo" && sesion.rol !== "maestro") return null;
+  const g = await exigir("documento.ver");
+  if (!g.ok) return null;
+  const sesion = g.sesion;
 
   const supabase = await createClient();
   const lectura = await clienteLecturaEscolar(supabase);
@@ -80,7 +84,7 @@ export async function actionObtenerEstadoDocumentos(
     listarProfesores(lectura),
   ]);
 
-  const esDir = esDirectivo(sesion.rol);
+  const esDir = esDirectivoConPermisos(sesion);
   const nombre = nombreSesion(sesion);
 
   // Nivel efectivo del usuario sobre la carpeta actual (maestros).
@@ -153,9 +157,8 @@ export async function actionCrearCarpeta(
   nombre: string,
   parentId: string | null,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
-  if (!esDirectivo(sesion.rol)) {
+  const g = await exigir("documento.gestionar_carpetas");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden crear carpetas." };
   }
   const supabase = await createClient();
@@ -163,7 +166,7 @@ export async function actionCrearCarpeta(
   return crearCarpeta(escritura, {
     nombre,
     parentId,
-    creadoPor: nombreSesion(sesion),
+    creadoPor: nombreSesion(g.sesion),
   });
 
 }
@@ -172,9 +175,8 @@ export async function actionRenombrarCarpeta(
   carpetaId: string,
   nombre: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
-  if (!esDirectivo(sesion.rol)) {
+  const g = await exigir("documento.gestionar_carpetas");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden renombrar carpetas." };
   }
   const supabase = await createClient();
@@ -186,9 +188,8 @@ export async function actionRenombrarCarpeta(
 export async function actionEliminarCarpeta(
   carpetaId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
-  if (!esDirectivo(sesion.rol)) {
+  const g = await exigir("documento.gestionar_carpetas");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden eliminar carpetas." };
   }
   const supabase = await createClient();
@@ -201,11 +202,11 @@ export async function actionSubirDocumento(
   carpetaId: string,
   formData: FormData,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
-  if (sesion.rol !== "directivo" && sesion.rol !== "maestro") {
+  const g = await exigir("documento.subir");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso." };
   }
+  const sesion = g.sesion;
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) {
@@ -221,7 +222,7 @@ export async function actionSubirDocumento(
   const nombre = nombreSesion(sesion);
 
   // Verificar permiso de subida (maestros) o acceso total (directivos).
-  if (!esDirectivo(sesion.rol)) {
+  if (!esDirectivoConPermisos(sesion)) {
     const nivel = await nivelAccesoProfesor(lectura, nombre, carpetaId);
     if (!puedeSubir(nivel)) {
       return { ok: false, error: "No tienes permiso para subir en esta carpeta." };
@@ -274,11 +275,11 @@ export async function actionSubirDocumento(
 export async function actionEliminarDocumento(
   documentoId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
-  if (sesion.rol !== "directivo" && sesion.rol !== "maestro") {
+  const g = await exigir("documento.eliminar");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso." };
   }
+  const sesion = g.sesion;
 
   const supabase = await createClient();
   const lectura = await clienteLecturaEscolar(supabase);
@@ -293,7 +294,7 @@ export async function actionEliminarDocumento(
   if (!doc) return { ok: false, error: "Documento no encontrado." };
 
   // Verificar permiso de eliminación.
-  if (!esDirectivo(sesion.rol)) {
+  if (!esDirectivoConPermisos(sesion)) {
     const nivel = await nivelAccesoProfesor(
       lectura,
       nombreSesion(sesion),
@@ -324,11 +325,11 @@ export async function actionEliminarDocumento(
 export async function actionDescargarDocumento(
   documentoId: string,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
-  if (sesion.rol !== "directivo" && sesion.rol !== "maestro") {
+  const g = await exigir("documento.ver");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso." };
   }
+  const sesion = g.sesion;
 
   const supabase = await createClient();
   const lectura = await clienteLecturaEscolar(supabase);
@@ -341,7 +342,7 @@ export async function actionDescargarDocumento(
 
   if (!doc) return { ok: false, error: "Documento no encontrado." };
 
-  if (!esDirectivo(sesion.rol)) {
+  if (!esDirectivoConPermisos(sesion)) {
     const nivel = await nivelAccesoProfesor(
       lectura,
       nombreSesion(sesion),
@@ -368,11 +369,11 @@ export async function actionAsignarPermiso(
   profesor: string,
   nivel: NivelPermiso,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
-  if (!esDirectivo(sesion.rol)) {
+  const g = await exigir("documento.asignar_permisos");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden asignar permisos." };
   }
+  const sesion = g.sesion;
   const supabase = await createClient();
   const escritura = createServiceClient() ?? supabase; // service role: omite RLS en escrituras
   return asignarPermiso(escritura, {
@@ -387,11 +388,11 @@ export async function actionAsignarPermiso(
 export async function actionQuitarPermiso(
   permisoId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
-  if (!esDirectivo(sesion.rol)) {
+  const g = await exigir("documento.asignar_permisos");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden quitar permisos." };
   }
+  const sesion = g.sesion;
   const supabase = await createClient();
   const escritura = createServiceClient() ?? supabase; // service role: omite RLS en escrituras
   return quitarPermiso(escritura, permisoId);
@@ -404,11 +405,11 @@ export async function actionQuitarPermiso(
 export async function actionListarProfesoresPermisos(): Promise<
   { ok: true; profesores: string[] } | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return { ok: false, error: "Sesión no válida." };
-  if (!esDirectivo(sesion.rol)) {
+  const g = await exigir("documento.asignar_permisos");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden administrar permisos." };
   }
+  const sesion = g.sesion;
   const supabase = await createClient();
   const lectura = await clienteLecturaEscolar(supabase);
   const rows = await listarProfesores(lectura);
@@ -423,10 +424,10 @@ export async function actionListarProfesoresPermisos(): Promise<
  *  PERMISOS CARPETAS. Se usa en la navegación para mostrar el botón
  *  DOCUMENTOS solo a profesores con acceso (los directivos siempre lo tienen). */
 export async function actionTieneAccesoDocumentos(): Promise<boolean> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return false;
-  if (esDirectivo(sesion.rol)) return true;
-  if (sesion.rol !== "maestro") return false;
+  const g = await exigir("documento.ver");
+  if (!g.ok) return false;
+  const sesion = g.sesion;
+  if (esDirectivoConPermisos(sesion)) return true;
 
   const supabase = await createClient();
   const lectura = await clienteLecturaEscolar(supabase);

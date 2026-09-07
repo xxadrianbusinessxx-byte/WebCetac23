@@ -14,7 +14,7 @@ import { actionImportarEtiquetasGlobal } from "@/app/actions/etiquetas-dinamicas
 import type {
   PreviewCargaAcademica,
   ResultadoAplicarCarga,
-} from "@/lib/escolar/carga-academica";
+} from "@/lib/escolar/catalogo/carga-academica";
 
 import type { PortalSessionPayload } from "@/lib/auth/types";
 import { archivoCsvAFilas } from "@/lib/escolar/csv";
@@ -22,11 +22,11 @@ import {
   detectarColumnasRoster,
   type CampoRoster,
   type MapeoRoster,
-} from "@/lib/escolar/mapeo-columnas";
+} from "@/lib/escolar/materia/mapeo-columnas";
 
 import { CicloConfigurador } from "../components/ciclo-configurador";
-import { FrutigerBackdrop } from "../components/frutiger-backdrop";
-import { GlossyPersonIcon } from "../components/glossy-person-icon";
+import { FrutigerBackdrop } from "@/app/components/ui/frutiger-backdrop";
+import { GlossyPersonIcon } from "@/app/components/ui/glossy-person-icon";
 import { TutoresPanel } from "../components/tutores-panel";
 
 

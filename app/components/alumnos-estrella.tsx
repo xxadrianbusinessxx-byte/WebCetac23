@@ -1,5 +1,5 @@
-import { GlossyPersonIcon } from "./glossy-person-icon";
-import type { AlumnoEstrella } from "@/lib/escolar/etiquetas-status";
+import { GlossyPersonIcon } from "@/app/components/ui/glossy-person-icon";
+import type { AlumnoEstrella } from "@/lib/escolar/alumno/etiquetas-status";
 
 function StarStudentCell({ item }: { item: AlumnoEstrella }) {
   const promedioTxt =

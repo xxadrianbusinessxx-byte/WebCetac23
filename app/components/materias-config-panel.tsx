@@ -6,9 +6,11 @@ import {
   actionCambiarVisibilidadMateria,
   actionGuardarNombreVisibleMateria,
   actionListarMateriasConfiguracion,
+  actionQuitarAliasMateria,
 } from "@/app/actions/materias";
 import { normalizarNombre } from "@/lib/escolar/nombres";
-import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
+import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
+import { AliasesVolumenPanel } from "./aliases-volumen-panel";
 
 type Props = {
   materias: readonly MateriaConNombreVisible[];
@@ -124,6 +126,35 @@ export function MateriasConfigPanel({ materias }: Props) {
     }
   }
 
+  // PROMPT-4/T2 — quitar el alias (activo=false, nunca DELETE). La materia
+  // vuelve a mostrarse por su idInterno en toda la UI.
+  async function quitarAlias(m: MateriaConNombreVisible) {
+    const confirma = window.confirm(
+      `¿Quitar el alias de "${m.idInterno}"?\nLa materia volverá a mostrarse con su nombre técnico. Puedes volver a ponerlo después.`,
+    );
+    if (!confirma) return;
+    setGuardando(true);
+    setMensaje(null);
+    const r = await actionQuitarAliasMateria(m.idInterno);
+    setGuardando(false);
+    if (r.ok) {
+      setLista((prev) =>
+        prev.map((x) =>
+          x.idInterno === m.idInterno
+            ? { ...x, nombreVisible: x.idInterno }
+            : x,
+        ),
+      );
+      setMensaje({
+        ok: true,
+        texto: `Alias quitado: "${m.idInterno}" se mostrará por su nombre técnico.`,
+      });
+      router.refresh();
+    } else {
+      setMensaje({ ok: false, texto: r.error });
+    }
+  }
+
   return (
     <div
       className="relative mt-6 flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
@@ -184,6 +215,9 @@ export function MateriasConfigPanel({ materias }: Props) {
             {mensaje.texto}
           </p>
         )}
+
+        {/* PROMPT-4/T2 — edición en volumen (previsualizar → confirmar). */}
+        <AliasesVolumenPanel />
 
         {filtradas.length === 0 ? (
           <p className="rounded-3xl border border-white/55 bg-slate-400/25 px-4 py-6 text-center text-sm font-semibold text-slate-600 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
@@ -264,6 +298,17 @@ export function MateriasConfigPanel({ materias }: Props) {
                       >
                         Editar nombre
                       </button>
+                      {m.nombreVisible !== m.idInterno && (
+                        <button
+                          type="button"
+                          disabled={guardando || cargandoConfig}
+                          onClick={() => void quitarAlias(m)}
+                          title="Quitar el alias: la materia volverá a mostrarse por su idInterno (no borra nada)."
+                          className="w-fit rounded-full border border-amber-700/40 bg-white/80 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-amber-900 transition hover:bg-amber-100"
+                        >
+                          Quitar alias
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={guardando || cargandoConfig}

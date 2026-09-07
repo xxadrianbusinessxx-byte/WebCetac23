@@ -17,7 +17,7 @@ import {
 import {
   MAX_ETIQUETAS_POR_ALUMNO,
   type AlumnoEtiquetaRow,
-} from "@/lib/escolar/etiquetas-dinamicas";
+} from "@/lib/escolar/alumno/etiquetas-dinamicas";
 
 type FilaEditable = {
   id: string | null;

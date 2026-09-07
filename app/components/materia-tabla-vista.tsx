@@ -1,6 +1,6 @@
 "use client";
 
-import type { CategoriaColumnaCalificaciones } from "@/lib/escolar/columnas-calificaciones";
+import type { CategoriaColumnaCalificaciones } from "@/lib/escolar/materia/columnas-calificaciones";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 
 /** Tinte sutil por categoría semántica (mantiene la estética del sistema). */

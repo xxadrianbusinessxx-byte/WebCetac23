@@ -35,7 +35,7 @@ async function get(tabla, select, extra = "") {
   return data;
 }
 
-// Mismos normalizadores que lib/escolar/catalogo-academico.ts
+// Mismos normalizadores que lib/escolar/catalogo/catalogo-academico.ts
 const norm = (s) =>
   String(s ?? "")
     .normalize("NFD")

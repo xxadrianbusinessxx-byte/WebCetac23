@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -8,7 +7,6 @@ import {
   actionObtenerVistaMateria,
   actionSubirMateriaExcel,
 } from "@/app/actions/escolar";
-import { actionCambiarClaveProfesor } from "@/app/actions/profesores";
 import { MateriaSelector } from "@/app/components/materia-selector";
 import {
   MateriaMapeoColumnas,
@@ -17,12 +15,12 @@ import {
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
-import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
+import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
 import type { PortalSessionPayload } from "@/lib/auth/types";
 import { AsistenciasPanel } from "../components/asistencias-panel";
 import { BuscadorAlumnoProfesor } from "../components/buscador-alumno-profesor";
-import { FrutigerBackdrop } from "../components/frutiger-backdrop";
-import { GlossyPersonIcon } from "../components/glossy-person-icon";
+import { FrutigerBackdrop } from "@/app/components/ui/frutiger-backdrop";
+import { GlossyPersonIcon } from "@/app/components/ui/glossy-person-icon";
 
 
 
@@ -58,7 +56,6 @@ type Props = {
 };
 
 export function ProfesorClient({ sesion, materias }: Props) {
-  const router = useRouter();
   const [materiaSeleccionada, setMateriaSeleccionada] = useState<string>(
     materias[0]?.idInterno ?? "",
   );
@@ -74,11 +71,6 @@ export function ProfesorClient({ sesion, materias }: Props) {
   const [mensajeComentario, setMensajeComentario] = useState<string | null>(
     null,
   );
-  // BLOQUE 9 (PIEZA 5) — cambio forzado de clave (texto plano, mismo formato).
-  const [nuevaClave, setNuevaClave] = useState("");
-  const [confirmarClave, setConfirmarClave] = useState("");
-  const [guardandoClave, setGuardandoClave] = useState(false);
-  const [mensajeClave, setMensajeClave] = useState<string | null>(null);
   const inputArchivoRef = useRef<HTMLInputElement>(null);
 
   const nombreProfesor = sesion?.nombre ?? sesion?.matricula ?? "Profesor";
@@ -128,29 +120,6 @@ export function ProfesorClient({ sesion, materias }: Props) {
     }
   }
 
-  // BLOQUE 9 (PIEZA 5) — el portal se bloquea hasta cambiar la clave forzada.
-  const debeCambiar = sesion?.debeCambiarCredenciales === true;
-
-  async function onGuardarClave() {
-    setMensajeClave(null);
-    if (nuevaClave.trim().length < 6) {
-      setMensajeClave("La nueva clave debe tener al menos 6 caracteres.");
-      return;
-    }
-    if (nuevaClave !== confirmarClave) {
-      setMensajeClave("Las claves no coinciden.");
-      return;
-    }
-    setGuardandoClave(true);
-    const r = await actionCambiarClaveProfesor(nuevaClave);
-    setGuardandoClave(false);
-    if (r.ok) {
-      router.refresh();
-    } else {
-      setMensajeClave(r.error);
-    }
-  }
-
   return (
     <FrutigerBackdrop>
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 lg:max-w-6xl lg:px-8 lg:pt-8">
@@ -183,52 +152,6 @@ export function ProfesorClient({ sesion, materias }: Props) {
           </div>
         </div>
 
-        {debeCambiar ? (
-          <div className="relative z-10 flex flex-1 flex-col items-center justify-center">
-            <div className="w-full max-w-md rounded-3xl border border-amber-400/60 bg-amber-100/70 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md sm:p-6">
-              <p className="mb-2 text-center text-xs font-extrabold uppercase tracking-wide text-amber-800">
-                Cambia tu clave para continuar
-              </p>
-              <p className="mb-4 text-center text-xs font-semibold text-amber-900">
-                La administración te pidió definir una nueva clave antes de
-                usar el portal.
-              </p>
-              <div className="flex flex-col gap-3">
-                <input
-                  type="password"
-                  value={nuevaClave}
-                  onChange={(e) => setNuevaClave(e.target.value)}
-                  placeholder="Nueva clave (mínimo 6 caracteres)"
-                  className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
-                />
-                <input
-                  type="password"
-                  value={confirmarClave}
-                  onChange={(e) => setConfirmarClave(e.target.value)}
-                  placeholder="Confirmar clave"
-                  className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
-                />
-                <div className="flex justify-center">
-                  <GreyActionPill
-                    onClick={() => void onGuardarClave()}
-                    disabled={guardandoClave}
-                  >
-                    {guardandoClave ? "Guardando…" : "Guardar clave"}
-                  </GreyActionPill>
-                </div>
-              </div>
-              {mensajeClave && (
-                <p
-                  className="mt-3 text-center text-xs font-semibold text-red-700"
-                  role="alert"
-                >
-                  {mensajeClave}
-                </p>
-              )}
-            </div>
-          </div>
-        ) : (
-          <>
         <div className="relative flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
           <div
             className="pointer-events-none absolute inset-0 z-0 rounded-[2rem] opacity-[0.12]"
@@ -372,8 +295,6 @@ export function ProfesorClient({ sesion, materias }: Props) {
             )}
           </div>
         </section>
-          </>
-        )}
       </div>
     </FrutigerBackdrop>
   );

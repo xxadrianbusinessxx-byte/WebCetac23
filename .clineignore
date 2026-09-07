@@ -42,3 +42,16 @@ coverage/
 *.jpeg
 *.svg
 *.mp4
+# --- Ruido que desplaza contexto util (anadido en la limpieza de sep-2026) ---
+package-lock.json
+*.tsbuildinfo
+next-env.d.ts
+
+# Historial: NO es el estado actual. Leer ESTADO-ACTUAL.md y docs/00-INDICE.md.
+contexto.feliz
+docs/historial/
+
+# Salidas de scripts ya consumidas
+scripts/_archivo/
+scripts/.tmp-*/
+*.csv

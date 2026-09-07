@@ -37,7 +37,7 @@ const archivos = [
   ["lib/escolar/nombres.ts", "nombres.js"],
   ["lib/escolar/tables.ts", "tables.js"],
   ["lib/escolar/buscar-en-filas.ts", "buscar-en-filas.js"],
-  ["lib/escolar/etiquetas-dinamicas.ts", "etiquetas-dinamicas.js"],
+  ["lib/escolar/alumno/etiquetas-dinamicas.ts", "alumno/etiquetas-dinamicas.js"],
 ];
 
 for (const [src, out] of archivos) {
@@ -51,10 +51,11 @@ for (const [src, out] of archivos) {
     },
     fileName: src,
   });
+  fs.mkdirSync(path.dirname(path.join(tmp, out)), { recursive: true });
   fs.writeFileSync(path.join(tmp, out), outputText);
 }
 
-const e = require(path.join(tmp, "etiquetas-dinamicas.js"));
+const e = require(path.join(tmp, "alumno/etiquetas-dinamicas.js"));
 
 // ---------------------------------------------------------------------------
 // 2) Mini harness de aserciones

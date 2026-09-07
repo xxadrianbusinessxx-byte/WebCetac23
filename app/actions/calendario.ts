@@ -1,6 +1,6 @@
 "use server";
 
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
 import {
   contarDiasLaborables,
   eliminarDiaCalendario,
@@ -13,33 +13,34 @@ import {
   obtenerCalendarioDePeriodo,
   obtenerCalendarioEscolar,
   type DiaCalendarioRow,
-} from "@/lib/escolar/calendario";
+} from "@/lib/escolar/ciclo/calendario";
 import type { TipoDiaCalendario } from "@/lib/escolar/tables";
 import { createClient } from "@/lib/supabase/server";
 
 /**
  * Server Actions del CALENDARIO ESCOLAR (Bloque 5A).
  *
- * Reglas de seguridad:
- *  - ESCRITURA (guardar, eliminar, establecer base): SOLO rol `directivo`.
- *  - LECTURA (obtener calendario, listar ciclos): cualquier sesión válida
- *    (los profesores/alumnos/padres lo leerán en bloques posteriores).
+ * Reglas de seguridad (centralizadas en lib/auth/permisos.ts):
+ *  - ESCRITURA (guardar, eliminar, establecer base): `calendario.editar`,
+ *    hoy solo directivo.
+ *  - LECTURA (obtener calendario, listar ciclos): `calendario.ver` /
+ *    `ciclo.ver`, abiertas a cualquier sesión válida.
  */
 
 /** Obtiene los días registrados de un ciclo escolar (lectura). */
 export async function actionObtenerCalendario(
   ciclo: string,
 ): Promise<DiaCalendarioRow[]> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return [];
+  const g = await exigir("calendario.ver");
+  if (!g.ok) return [];
   const supabase = await createClient();
   return obtenerCalendarioEscolar(supabase, ciclo);
 }
 
 /** Lista los ciclos escolares existentes (lectura). */
 export async function actionListarCiclosEscolares(): Promise<string[]> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return [];
+  const g = await exigir("ciclo.ver");
+  if (!g.ok) return [];
   const supabase = await createClient();
   return listarCiclosEscolares(supabase);
 }
@@ -52,8 +53,8 @@ export async function actionPrevisualizarCalendarioBase(
   inicio: string,
   fin: string,
 ): Promise<{ ok: true; dias: number } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("calendario.editar");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden configurar el calendario." };
   }
 
@@ -78,8 +79,8 @@ export async function actionEstablecerCalendarioBase(
   inicio: string,
   fin: string,
 ): Promise<{ ok: true; generados: number } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("calendario.editar");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden configurar el calendario." };
   }
 
@@ -88,7 +89,7 @@ export async function actionEstablecerCalendarioBase(
     ciclo,
     inicio,
     fin,
-    creadoPor: sesion.nombre ?? sesion.matricula,
+    creadoPor: g.sesion?.nombre ?? g.sesion?.matricula,
   });
 }
 
@@ -102,8 +103,8 @@ export async function actionGuardarDiaCalendario(
   tipo: TipoDiaCalendario,
   descripcion?: string | null,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("calendario.editar");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden modificar el calendario." };
   }
 
@@ -113,7 +114,7 @@ export async function actionGuardarDiaCalendario(
     fecha,
     tipo,
     descripcion,
-    creadoPor: sesion.nombre ?? sesion.matricula,
+    creadoPor: g.sesion?.nombre ?? g.sesion?.matricula,
   });
 }
 
@@ -124,14 +125,15 @@ export async function actionEliminarDiaCalendario(
   ciclo: string,
   fecha: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("calendario.editar");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden modificar el calendario." };
   }
 
   const supabase = await createClient();
   return eliminarDiaCalendario(supabase, ciclo, fecha);
 }
+
 
 /* ===========================================================================
  * F5 — FLUJO NUEVO POR PERIODO (calendario_escolar.periodo_id).
@@ -144,8 +146,8 @@ export async function actionObtenerCalendarioDePeriodo(
   periodoId: string,
   periodoNombre: string,
 ): Promise<DiaCalendarioRow[]> {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return [];
+  const g = await exigir("calendario.ver");
+  if (!g.ok) return [];
   const supabase = await createClient();
   return obtenerCalendarioDePeriodo(supabase, periodoId, periodoNombre);
 }
@@ -157,8 +159,8 @@ export async function actionEstablecerCalendarioBaseDePeriodo(
   inicio: string,
   fin: string,
 ): Promise<{ ok: true; generados: number } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("calendario.editar");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden configurar el calendario." };
   }
   const supabase = await createClient();
@@ -167,7 +169,7 @@ export async function actionEstablecerCalendarioBaseDePeriodo(
     periodoNombre,
     inicio,
     fin,
-    creadoPor: sesion.nombre ?? sesion.matricula,
+    creadoPor: g.sesion?.nombre ?? g.sesion?.matricula,
   });
 }
 
@@ -179,8 +181,8 @@ export async function actionGuardarDiaCalendarioDePeriodo(
   tipo: TipoDiaCalendario,
   descripcion?: string | null,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("calendario.editar");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden modificar el calendario." };
   }
   const supabase = await createClient();
@@ -190,7 +192,7 @@ export async function actionGuardarDiaCalendarioDePeriodo(
     fecha,
     tipo,
     descripcion,
-    creadoPor: sesion.nombre ?? sesion.matricula,
+    creadoPor: g.sesion?.nombre ?? g.sesion?.matricula,
   });
 }
 
@@ -199,8 +201,8 @@ export async function actionEliminarDiaCalendarioDePeriodo(
   periodoId: string,
   fecha: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("calendario.editar");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden modificar el calendario." };
   }
   const supabase = await createClient();

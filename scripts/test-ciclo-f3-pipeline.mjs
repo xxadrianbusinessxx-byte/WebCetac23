@@ -26,8 +26,8 @@ if (comp.status !== 0) {
 
 const require = createRequire(import.meta.url);
 const out = path.join(__dirname, ".tmp-cf3");
-const CARGA = require(path.join(out, "carga-academica.js"));
-const INSC = require(path.join(out, "inscripciones-borrador.js"));
+const CARGA = require(path.join(out, "catalogo/carga-academica.js"));
+const INSC = require(path.join(out, "catalogo/inscripciones-borrador.js"));
 
 let pasadas = 0;
 let fallidas = 0;

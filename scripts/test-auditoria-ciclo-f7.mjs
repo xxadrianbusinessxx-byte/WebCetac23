@@ -19,13 +19,26 @@ function ok(nombre, condicion, detalle = "") {
   else { fallidas++; console.error(`FALLA ${nombre} ${detalle}`); }
 }
 
-const ce = leer("lib/escolar/ciclo-estado.ts");
-const evLib = leer("lib/escolar/evaluaciones.ts");
+const ce = leer("lib/escolar/ciclo/ciclo-estado.ts");
+const evLib = leer("lib/escolar/ciclo/evaluaciones.ts");
 const pasoV = leer("app/components/ciclo-configurador/paso-validacion.tsx");
 const appEval = leer("app/actions/evaluaciones.ts");
 
 // 1) Una única autoridad de validación (sin paralelas).
-const defs = (fs.readdirSync("lib/escolar").map((f) => fs.readFileSync(path.join("lib/escolar", f), "utf8")));
+function tsDeEscolar() {
+  // lib/escolar/ tiene subcarpetas por familia: hay que recorrerlas.
+  const out = [];
+  const walk = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith(".ts")) out.push(fs.readFileSync(p, "utf8"));
+    }
+  };
+  walk("lib/escolar");
+  return out;
+}
+const defs = tsDeEscolar();
 ok("validarIntegridadCiclo definida UNA vez en lib/escolar", defs.filter((c) => /export async function validarIntegridadCiclo/.test(c)).length === 1);
 const alternativos = defs.filter((c) => /function (validarCicloCompleto|validarCiclo\b|puedeActivarCiclo|esCicloValido|checkCiclo|validarAntesDeActivar)\s*\(/.test(c));
 ok("no existen validaciones paralelas nuevas (validarCicloCompleto etc.)", alternativos.length === 0, alternativos.join(","));

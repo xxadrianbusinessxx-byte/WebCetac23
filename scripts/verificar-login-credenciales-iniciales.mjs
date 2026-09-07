@@ -1,6 +1,6 @@
 // Verificación E2E: comprueba que la contraseña inicial (últimos 8 del CURP
 // de cada hijo) valida contra el hash almacenado, replicando la lógica de
-// `verificarContraseñaTutor` de lib/escolar/tutores.ts.
+// `verificarContraseñaTutor` de lib/escolar/tutores/tutores.ts.
 import fs from "node:fs";
 import path from "node:path";
 import { scryptSync, timingSafeEqual } from "node:crypto";

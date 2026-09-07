@@ -19,10 +19,10 @@ function ok(nombre, condicion, detalle = "") {
 }
 
 const actCarga = leer("app/actions/carga-academica.ts");
-const libCarga = leer("lib/escolar/carga-academica.ts");
+const libCarga = leer("lib/escolar/catalogo/carga-academica.ts");
 const paso = leer("app/components/ciclo-configurador/paso-alumnos.tsx");
 const insc = leer("app/actions/inscripciones-admin.ts");
-const inscLib = leer("lib/escolar/inscripciones-borrador.ts");
+const inscLib = leer("lib/escolar/catalogo/inscripciones-borrador.ts");
 
 // Pipeline real (roster de alumnos) reutilizable.
 ok("preview roster existe (SOLO LECTURA)", /actionPrevisualizarCargaAcademica/.test(actCarga));
@@ -56,8 +56,8 @@ ok("PasoAlumnos mantiene confirmación explícita", /setConfirmado\(true\)/.test
 ok("PasoAlumnos refresca inscripciones del periodo tras apply", /cargarInscripciones/.test(paso) && /actionListarInscripcionesPeriodo/.test(paso));
 
 // Contrato de aislamiento esperado.
-ok("validarIntegridadCiclo sigue siendo autoridad única (F7)", /export async function validarIntegridadCiclo/.test(leer("lib/escolar/ciclo-estado.ts")));
-ok("activación F8 intacta (no depende de F3)", /activarCicloOperativoAtomico/.test(leer("lib/escolar/ciclo-estado.ts")));
+ok("validarIntegridadCiclo sigue siendo autoridad única (F7)", /export async function validarIntegridadCiclo/.test(leer("lib/escolar/ciclo/ciclo-estado.ts")));
+ok("activación F8 intacta (no depende de F3)", /activarCicloOperativoAtomico/.test(leer("lib/escolar/ciclo/ciclo-estado.ts")));
 ok("sin vigente en el flujo", !/vigente/.test(paso + actCarga + libCarga + insc));
 ok("sin parser paralelo en PasoAlumnos", !/xlsx\.read|new .*Parser/.test(paso));
 ok("sin crear otra función de inscripción equivalente", (libCarga.match(/inscribirAlumnoEnCiclo/g) ?? []).length >= 1);

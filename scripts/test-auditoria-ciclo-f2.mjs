@@ -19,10 +19,10 @@ function ok(nombre, condicion, detalle = "") {
 }
 
 const actCarga = leer("app/actions/carga-academica.ts");
-const libCarga = leer("lib/escolar/carga-academica.ts");
+const libCarga = leer("lib/escolar/catalogo/carga-academica.ts");
 const paso = leer("app/components/ciclo-configurador/paso-academico.tsx");
 const client = leer("app/configuracion/configuracion-client.tsx");
-const recon = leer("app/components/reconocimiento-academico.tsx");
+const recon = leer("app/_borrador/reconocimiento-academico.tsx");
 
 // Flujo Excel real existente (reutilizar, no duplicar).
 ok("preview existe (SOLO LECTURA)", /actionPrevisualizarCargaAcademica/.test(actCarga));
@@ -46,7 +46,7 @@ ok("grupos tienen periodo_id (modelo)", /periodo_id/.test(leer("supabase/crear-t
 ok("grupo_materias usa grupo_id/materia_id/tabla_legacy", /grupo_id/.test(leer("supabase/crear-tablas-catalogo-academico.sql")) && /tabla_legacy/.test(leer("supabase/crear-tablas-catalogo-academico.sql")));
 
 // validarIntegridadCiclo sigue siendo autoridad (F7).
-const ce = leer("lib/escolar/ciclo-estado.ts");
+const ce = leer("lib/escolar/ciclo/ciclo-estado.ts");
 ok("validarIntegridadCiclo sigue siendo autoridad única", /export async function validarIntegridadCiclo/.test(ce));
 
 console.log(`\nFASE 2 AUDITORIA: ${pasadas} pasadas, ${fallidas} fallidas`);

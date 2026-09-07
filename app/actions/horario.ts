@@ -1,6 +1,7 @@
 "use server";
 
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
+import { esRol } from "@/lib/auth/permisos";
 import {
   consultarHorarioAlumno,
   consultarHorarioGrupoPorIdentidad,
@@ -11,16 +12,16 @@ import {
   obtenerGruposConCarreraDePeriodo,
   totalBloquesGrupoPorDia,
   type HorarioBloqueRow,
-} from "@/lib/escolar/horario-semanal";
+} from "@/lib/escolar/horario/horario-semanal";
 import {
   aplicarImportacionHorario,
   plantillaHorarioParaDescarga,
   previsualizarImportacionHorario,
   type PreviewImportacionHorario,
   type ResultadoAplicarHorario,
-} from "@/lib/escolar/horario-importar";
+} from "@/lib/escolar/horario/horario-importar";
 import { TABLA_PERIODOS } from "@/lib/escolar/tables";
-import { listarCurpsDeTutor } from "@/lib/escolar/tutores";
+import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -48,8 +49,8 @@ export async function actionListarPeriodosCatalogo(): Promise<
   | { ok: true; periodos: PeriodoCatalogoSimple[] }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("ciclo.ver_contexto");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden administrar el horario." };
   }
   const supabase = await createClient();
@@ -74,8 +75,8 @@ export async function actionListarGruposDePeriodo(
   | { ok: true; grupos: { grado: string; grupo: string; carrera: string }[] }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("inscripcion.ver");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden administrar el horario." };
   }
   const supabase = await createClient();
@@ -125,10 +126,11 @@ export async function actionImportarHorarioPreview(
   formData: FormData,
   periodoNombre: string,
 ): Promise<PreviewImportacionHorario> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("horario.importar");
+  if (!g.ok) {
     return previewError("Solo directivos pueden importar el horario.", periodoNombre);
   }
+  const sesion = g.sesion;
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) {
     return previewError("Selecciona un archivo Excel válido.", periodoNombre);
@@ -136,7 +138,7 @@ export async function actionImportarHorarioPreview(
   const supabase = await createClient();
   return previsualizarImportacionHorario(supabase, archivo, {
     periodoNombre,
-    creadoPor: sesion.nombre ?? sesion.matricula,
+    creadoPor: sesion?.nombre ?? sesion?.matricula ?? "",
   });
 }
 
@@ -145,8 +147,8 @@ export async function actionImportarHorarioAplicar(
   formData: FormData,
   periodoNombre: string,
 ): Promise<ResultadoAplicarHorario> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("horario.importar");
+  if (!g.ok) {
     return {
       ok: false,
       error: "Solo directivos pueden importar el horario.",
@@ -159,6 +161,7 @@ export async function actionImportarHorarioAplicar(
       erroresDetalle: [],
     };
   }
+  const sesion = g.sesion;
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) {
     return {
@@ -176,7 +179,7 @@ export async function actionImportarHorarioAplicar(
   const supabase = await createClient();
   return aplicarImportacionHorario(supabase, archivo, {
     periodoNombre,
-    creadoPor: sesion.nombre ?? sesion.matricula,
+    creadoPor: sesion?.nombre ?? sesion?.matricula ?? "",
   });
 }
 
@@ -249,13 +252,14 @@ export async function actionConsultarHorarioGrupo(input: {
   | { ok: true; horario: HorarioGrupoConsultable | null }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion || (sesion.rol !== "directivo" && sesion.rol !== "maestro")) {
+  const g = await exigir("horario.ver_grupo");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para consultar horarios." };
   }
+  const sesion = g.sesion!;
   const supabase = await createClient();
 
-  if (sesion.rol === "maestro") {
+  if (esRol(sesion.rol, "maestro")) {
     const materias = await materiasAsignadasProfesorEnGrupo(supabase, {
       profesorClave: sesion.matricula,
       ciclo: input.ciclo,
@@ -302,22 +306,26 @@ export async function actionObtenerHorarioAlumno(
   | { ok: true; horario: HorarioGrupoConsultable | null; grupo: string }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
+  const g = await exigir("horario.ver_alumno");
+  if (!g.ok) {
+    return { ok: false, error: "No tienes permiso para consultar horarios." };
+  }
+  const sesion = g.sesion;
   const c = curp.trim().toUpperCase();
   if (!sesion || !c) {
     return { ok: false, error: "No tienes permiso para consultar horarios." };
   }
-  if (sesion.rol === "alumno") {
+  if (esRol(sesion.rol, "alumno")) {
     if (!sesion.curp || sesion.curp.trim().toUpperCase() !== c) {
       return { ok: false, error: "Solo puedes consultar tu propio horario." };
     }
-  } else if (sesion.rol === "tutor") {
+  } else if (esRol(sesion.rol, "tutor")) {
     const supabaseT = await createClient();
     const curps = await listarCurpsDeTutor(supabaseT, sesion.matricula);
     if (!curps.includes(c)) {
       return { ok: false, error: "No tienes relación con ese alumno." };
     }
-  } else if (sesion.rol !== "directivo" && sesion.rol !== "maestro") {
+  } else if (!esRol(sesion.rol, "directivo") && !esRol(sesion.rol, "maestro")) {
     return { ok: false, error: "No tienes permiso para consultar horarios." };
   }
 
@@ -355,8 +363,8 @@ export async function actionDescargarPlantillaHorario(): Promise<
   | { ok: true; base64: string; nombreArchivo: string }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo" && sesion?.rol !== "maestro") {
+  const g = await exigir("horario.descargar_plantilla");
+  if (!g.ok) {
     return { ok: false, error: "No tienes permiso para descargar la plantilla." };
   }
   const plantilla = await plantillaHorarioParaDescarga();

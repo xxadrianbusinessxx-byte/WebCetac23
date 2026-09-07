@@ -10,7 +10,7 @@
     "rootDir": "../lib/escolar"
   },
   "files": [
-    "../lib/escolar/carga-academica.ts",
-    "../lib/escolar/inscripciones-borrador.ts"
+    "../lib/escolar/catalogo/carga-academica.ts",
+    "../lib/escolar/catalogo/inscripciones-borrador.ts"
   ]
 }

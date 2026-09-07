@@ -1,7 +1,7 @@
 "use server";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
 import {
   cargarMateriasDesdeCatalogo,
   clonarContextoAcademico,
@@ -11,7 +11,7 @@ import {
   type ResultadoCargaMateriasCatalogo,
   type ResultadoClonContexto,
   type ResultadoRepararTablaLegacy,
-} from "@/lib/escolar/contexto-ciclo";
+} from "@/lib/escolar/ciclo/contexto-ciclo";
 import { TABLA_PERIODOS } from "@/lib/escolar/tables";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -41,8 +41,8 @@ export async function actionListarPeriodosContexto(): Promise<
   | { ok: true; periodos: PeriodoSimple[] }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("ciclo.ver_contexto");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from(TABLA_PERIODOS)
@@ -64,8 +64,8 @@ export async function actionVerContextoAcademico(
   | { ok: true; contexto: ContextoAcademicoPeriodo | null }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("ciclo.ver_contexto");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   const res = await verContextoAcademicoPeriodo(supabase, periodoId);
   if (!res.ok) return res;
@@ -76,8 +76,8 @@ export async function actionClonarContextoAcademico(
   periodoDestinoId: string,
   periodoOrigenId: string,
 ): Promise<ResultadoClonContexto> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("ciclo.clonar_contexto");
+  if (!g.ok) {
     return {
       ok: false,
       error: "No autorizado: se requiere rol directivo.",
@@ -104,8 +104,8 @@ export async function actionClonarContextoAcademico(
 export async function actionCargarMateriasDesdeCatalogo(
   periodoDestinoId: string,
 ): Promise<ResultadoCargaMateriasCatalogo> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("ciclo.clonar_contexto");
+  if (!g.ok) {
     return {
       ok: false,
       error: "No autorizado: se requiere rol directivo.",
@@ -157,8 +157,8 @@ export async function actionPrevisualizarRepararTablaLegacy(
   periodoDestinoId: string,
   periodoOrigenId: string,
 ): Promise<ResultadoRepararTablaLegacy> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("ciclo.reparar_tabla_legacy");
+  if (!g.ok) {
     return { ...REPARAR_VACIO };
   }
   const supabase = await createClient();
@@ -184,8 +184,8 @@ export async function actionRepararTablaLegacy(
   periodoDestinoId: string,
   periodoOrigenId: string,
 ): Promise<ResultadoRepararTablaLegacy> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("ciclo.reparar_tabla_legacy");
+  if (!g.ok) {
     return { ...REPARAR_VACIO };
   }
   const supabase = await createClient();

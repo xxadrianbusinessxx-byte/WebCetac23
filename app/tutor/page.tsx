@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { puede } from "@/lib/auth/permisos";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { TutorClient } from "./tutor-client";
 
@@ -10,18 +11,12 @@ export const metadata: Metadata = {
 };
 
 export default async function TutorPage() {
-  // [DIAGNÓSTICO TEMPORAL 6J] Log seguro: solo rol y matricula, NUNCA secretos.
   const sesion = await obtenerSesionPortal();
-  console.log("[6J-login] /tutor → sesión:", sesion ? `rol=${sesion.rol} matricula=${sesion.matricula}` : "null");
-  if (!sesion) {
-    console.log("[6J-login] /tutor → sin sesión → redirect /login");
-    redirect("/login");
-  }
-  if (sesion.rol !== "tutor") {
-    console.log("[6J-login] /tutor → rol no tutor → redirect /perfil");
-    redirect("/perfil");
-  }
-  console.log("[6J-login] /tutor → renderizando TutorClient");
+  if (!sesion) redirect("/login");
+  // Acceso por capacidad (PROMPT-3/T2): la vista "mi propio tutor" la usan el
+  // tutor autenticado y el directivo (para administrar); el alcance sobre qué
+  // registros puede cada uno se valida en las Server Actions.
+  if (!puede(sesion.rol, "tutor.ver_propio")) redirect("/perfil");
   return <TutorClient sesion={sesion} />;
 }
 

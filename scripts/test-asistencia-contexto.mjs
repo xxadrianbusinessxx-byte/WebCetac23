@@ -1,12 +1,12 @@
 // test-asistencia-contexto.mjs — Pruebas F7 (contexto de asistencia).
-// Compilar: npx tsc lib/escolar/asistencia-contexto.ts --outDir scripts/.tmp-ctx ^
+// Compilar: npx tsc lib/escolar/asistencia/asistencia-contexto.ts --outDir scripts/.tmp-ctx ^
 //   --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), ".tmp-ctx");
-const C = require(path.join(dir, "asistencia-contexto.js"));
+const C = require(path.join(dir, "asistencia/asistencia-contexto.js"));
 
 let pasadas = 0;
 let fallidas = 0;

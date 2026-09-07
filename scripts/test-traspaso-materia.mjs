@@ -308,9 +308,9 @@ console.log("6) Colisión (A y B con fila misma materia/grupo/fecha): B queda, A
 console.log("7) Nunca se busca ni se escribe por profesor_clave (estático)");
 {
   const sql = leer("supabase/crear-rpc-traspasar-materia.sql");
-  const mod = leer("lib/escolar/asistencias.ts");
+  const mod = leer("lib/escolar/asistencia/asistencias.ts");
   const actions = leer("app/actions/asistencias.ts");
-  const helper = leer("lib/escolar/traspaso-materia.ts");
+  const helper = leer("lib/escolar/materia/traspaso-materia.ts");
 
   ok("existe la RPC transaccional", /CREATE OR REPLACE FUNCTION public\.traspasar_materia_a_profesor/.test(sql));
   ok("existe la tabla de historial", /CREATE TABLE IF NOT EXISTS public\.asistencia_traspasos_historico/.test(sql));

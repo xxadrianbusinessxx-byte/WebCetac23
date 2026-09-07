@@ -22,7 +22,7 @@ function ok(nombre, condicion, detalle = "") {
 const paso = leer("app/components/ciclo-configurador/paso-calendario.tsx");
 const panel = leer("app/components/calendario-escolar-panel.tsx");
 const actions = leer("app/actions/calendario.ts");
-const lib = leer("lib/escolar/calendario.ts");
+const lib = leer("lib/escolar/ciclo/calendario.ts");
 
 // 1) PasoCalendario conserva periodoId (no lo descarta).
 ok("paso-calendario recibe y usa periodoId", paso.includes("periodoIdInicial={periodoId}"));

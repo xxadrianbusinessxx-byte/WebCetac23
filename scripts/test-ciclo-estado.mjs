@@ -3,7 +3,7 @@
 // dominio puro. No toca datos reales ni requiere DDL.
 //
 // Compilar primero:
-//   npx tsc lib/escolar/ciclo-estado.ts --outDir scripts/.tmp-ciclo-estado ^
+//   npx tsc lib/escolar/ciclo/ciclo-estado.ts --outDir scripts/.tmp-ciclo-estado ^
 //     --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
 //   node scripts/test-ciclo-estado.mjs
 import { createRequire } from "node:module";
@@ -12,8 +12,8 @@ import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), ".tmp-ciclo-estado");
-const M = require(path.join(dir, "ciclo-estado.js"));
-const P = require(path.join(dir, "ciclo-estado-puro.js"));
+const M = require(path.join(dir, "ciclo/ciclo-estado.js"));
+const P = require(path.join(dir, "ciclo/ciclo-estado-puro.js"));
 
 let pasadas = 0;
 let fallidas = 0;
@@ -203,7 +203,7 @@ function datosValidos(overrides = {}) {
 {
   const periodos = [];
   const sb = clientePeriodos(periodos, true);
-  const ORQ = require(path.join(dir, "orquestador-ciclo.js"));
+  const ORQ = require(path.join(dir, "ciclo/orquestador-ciclo.js"));
   const r = await ORQ.crearCicloConContexto(sb, { nombre: "F4-ORQ", fechaInicio: "2028-08-30", fechaFin: "2029-06-30" });
   ok("F4: orquestador crea ok", r.ok, JSON.stringify(r));
   const fila = periodos.find((p) => p.nombre === "F4-ORQ");

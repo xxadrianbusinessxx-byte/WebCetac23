@@ -1,4 +1,4 @@
-import type { GeneroUsuario } from "@/lib/chat/types";
+import type { GeneroUsuario } from "@/lib/escolar/types";
 import type { PortalRole } from "./types";
 
 export type DemoProfile = {

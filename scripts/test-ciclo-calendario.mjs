@@ -1,12 +1,12 @@
 // test-ciclo-calendario.mjs — Pruebas F5 (plan puro de backfill calendario→periodo).
-// Compilar: npx tsc lib/escolar/calendario.ts --outDir scripts/.tmp-cal --module commonjs ^
+// Compilar: npx tsc lib/escolar/ciclo/calendario.ts --outDir scripts/.tmp-cal --module commonjs ^
 //   --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), ".tmp-cal");
-const CAL = require(path.join(dir, "calendario.js"));
+const CAL = require(path.join(dir, "ciclo/calendario.js"));
 
 let pasadas = 0;
 let fallidas = 0;

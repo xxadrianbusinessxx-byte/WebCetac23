@@ -30,6 +30,19 @@ for (const f of archivos) {
   console.log("copiado:", f);
 }
 
+// Purga: el destino es salida generada, debe ser espejo exacto del origen.
+// Sin esto, una imagen retirada de la fuente se queda para siempre en public/
+// (así llegaron a acumularse 2 huérfanas de ~1.1 MB que ya no referenciaba nadie).
+const vivos = new Set(archivos);
+for (const f of fs.readdirSync(destino)) {
+  // Solo se purgan imagenes: .gitkeep y similares no son salida generada.
+  if (!exts.has(path.extname(f).toLowerCase())) continue;
+  if (!vivos.has(f)) {
+    fs.rmSync(path.join(destino, f), { force: true });
+    console.log("purgado:", f);
+  }
+}
+
 const ts = `/** Generado por npm run sync:decoraciones — no editar a mano */\nexport const DECORACIONES_GENERADAS: readonly string[] = ${JSON.stringify(archivos, null, 2)} as const;\n`;
 fs.writeFileSync(path.join(root, "lib", "decoraciones", "imagenes-generadas.ts"), ts);
 console.log(`Listo: ${archivos.length} imagen(es).`);

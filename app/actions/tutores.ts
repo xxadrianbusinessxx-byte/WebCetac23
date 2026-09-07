@@ -1,7 +1,8 @@
 "use server";
 
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
-import { buscarAlumnoPorTexto, nombreCompletoAlumno } from "@/lib/escolar/alumnos";
+import { exigir } from "@/lib/auth/exigir";
+import { esRol } from "@/lib/auth/permisos";
+import { buscarAlumnoPorTexto, nombreCompletoAlumno } from "@/lib/escolar/alumno/alumnos";
 import {
   alumnoTieneTutorPrincipal,
   cambiarCredencialesTutor,
@@ -19,7 +20,7 @@ import {
   type ResultadoGeneracionTutores,
   type ReemplazoTutor,
   type TutorRow,
-} from "@/lib/escolar/tutores";
+} from "@/lib/escolar/tutores/tutores";
 
 
 
@@ -42,8 +43,8 @@ import { createClient } from "@/lib/supabase/server";
 
 /** Lista todos los tutores (solo directivo). */
 export async function actionListarTutores(): Promise<TutorRow[]> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return [];
+  const g = await exigir("tutor.ver_lista");
+  if (!g.ok) return [];
   const supabase = await createClient();
   return listarTutores(supabase);
 }
@@ -57,8 +58,8 @@ export async function actionListarTutores(): Promise<TutorRow[]> {
 export async function actionListarTutoresConCredenciales(): Promise<
   { tutor: TutorRow; credencialesIniciales: CredencialInicialTutor[] }[]
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return [];
+  const g = await exigir("tutor.ver_lista");
+  if (!g.ok) return [];
   const supabase = await createClient();
   const tutores = await listarTutores(supabase);
   // O9 — Batch: UNA consulta para las credenciales de todos los tutores
@@ -90,8 +91,8 @@ export async function actionBuscarAlumnoParaTutor(
   tutorIdActual?: string;
   claveTutorActual?: string;
 } | null> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return null;
+  const g = await exigir("tutor.crear");
+  if (!g.ok) return null;
   const supabase = await createClient();
   const alumno = await buscarAlumnoPorTexto(supabase, texto);
   if (!alumno) return null;
@@ -124,8 +125,8 @@ export async function actionPrevisualizarConsolidacionTutores(
   alumnosConTutor: { curp: string; claveTutor: string }[];
   alumnosSinTutor: string[];
 } | null> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return null;
+  const g = await exigir("tutor.crear");
+  if (!g.ok) return null;
   const supabase = await createClient();
   const mapa = await obtenerTutoresActivosDeAlumnos(supabase, curps);
   const alumnosConTutor: { curp: string; claveTutor: string }[] = [];
@@ -169,8 +170,8 @@ export async function actionCrearTutor(args: {
     }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("tutor.crear");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden crear tutores." };
   }
   const supabase = await createClient();
@@ -194,8 +195,12 @@ export async function actionCrearTutor(args: {
 export async function actionObtenerTutorDetalle(
   id: string,
 ): Promise<{ tutor: TutorRow; curps: string[] } | null> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return null;
+  const g = await exigir("tutor.ver_propio");
+  if (!g.ok) return null;
+  const sesion = g.sesion!;
+  // Alcance (no guardia): la unión T2 concede tutor.ver_propio a tutor y
+  // directivo; un tutor solo puede pedir SU propio detalle (matricula = su id).
+  if (esRol(sesion.rol, "tutor") && sesion.matricula !== id) return null;
   const supabase = await createClient();
   return obtenerTutorConAlumnos(supabase, id);
 }
@@ -209,8 +214,9 @@ export async function actionObtenerDatosTutor(): Promise<{
   tutor: TutorRow;
   curps: string[];
 } | null> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "tutor") return null;
+  const g = await exigir("tutor.ver_propio");
+  if (!g.ok) return null;
+  const sesion = g.sesion!;
   const supabase = await createClient();
   const tutor = await obtenerTutorConAlumnos(supabase, sesion.matricula);
   if (!tutor) return null;
@@ -225,18 +231,20 @@ export async function actionCambiarCredencialesTutor(args: {
   usuario: string;
   contraseña: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "tutor") {
+  const g = await exigir("tutor.cambiar_credenciales_propias");
+  if (!g.ok) {
     return { ok: false, error: "Sesión de tutor no válida." };
   }
+  const sesion = g.sesion!;
   const supabase = await createClient();
   return cambiarCredencialesTutor(supabase, sesion.matricula, args);
 }
 
 /** Lista los CURP de los alumnos del tutor autenticado. */
 export async function actionListarCurpsDeTutor(): Promise<string[]> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "tutor") return [];
+  const g = await exigir("tutor.ver_propio");
+  if (!g.ok) return [];
+  const sesion = g.sesion!;
   const supabase = await createClient();
   return listarCurpsDeTutor(supabase, sesion.matricula);
 }
@@ -245,8 +253,9 @@ export async function actionListarCurpsDeTutor(): Promise<string[]> {
 export async function actionListarAlumnosDelTutor(): Promise<
   { curp: string; nombre: string }[]
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "tutor") return [];
+  const g = await exigir("tutor.ver_propio");
+  if (!g.ok) return [];
+  const sesion = g.sesion!;
   const supabase = await createClient();
   return listarAlumnosDeTutor(supabase, sesion.matricula);
 }
@@ -262,8 +271,8 @@ export async function actionListarAlumnosDelTutor(): Promise<
 export async function actionPrevisualizarGeneracionTutores(): Promise<
   PrevisualizacionGeneracionTutores | null
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return null;
+  const g = await exigir("tutor.generar_automaticos");
+  if (!g.ok) return null;
   const supabase = await createClient();
   return previsualizarGeneracionTutores(supabase);
 }
@@ -278,8 +287,8 @@ export async function actionGenerarTutoresAutomaticos(): Promise<
   | ResultadoGeneracionTutores
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("tutor.generar_automaticos");
+  if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden generar tutores." };
   }
   const supabase = await createClient();

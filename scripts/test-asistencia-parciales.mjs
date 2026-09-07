@@ -2,8 +2,8 @@
  * test-asistencia-parciales.mjs - Pruebas PURAS del recorte POR PARCIAL de
  * asistencias (ciclo global + parciales), sin Supabase.
  *
- * Compilar (recompilar tras cambios en lib/escolar/asistencia-parcial.ts):
- *   npx tsc lib/escolar/asistencia-parcial.ts ^
+ * Compilar (recompilar tras cambios en lib/escolar/asistencia/asistencia-parcial.ts):
+ *   npx tsc lib/escolar/asistencia/asistencia-parcial.ts ^
  *     --outDir scripts/.tmp-asistencia-parciales --module commonjs ^
  *     --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
  *   node scripts/test-asistencia-parciales.mjs
@@ -27,7 +27,7 @@ const dir = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   ".tmp-asistencia-parciales",
 );
-const M = require(path.join(dir, "asistencia-parcial.js"));
+const M = require(path.join(dir, "asistencia/asistencia-parcial.js"));
 
 let pasadas = 0;
 let fallidas = 0;

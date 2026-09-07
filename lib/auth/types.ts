@@ -1,4 +1,4 @@
-export type PortalRole = "alumno" | "maestro" | "directivo" | "tutor";
+export type PortalRole = "alumno" | "maestro" | "directivo" | "tutor" | "tecnico";
 
 export type PortalSessionPayload = {
   matricula: string;

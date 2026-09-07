@@ -31,9 +31,9 @@ fs.mkdirSync(tmp, { recursive: true });
 
 const archivos = [
   ["lib/escolar/nombres.ts", "nombres.js"],
-  ["lib/escolar/materia-identidad.ts", "materia-identidad.js"],
-  ["lib/escolar/nombres-visibles.ts", "nombres-visibles.js"],
-  ["lib/escolar/materias-list.ts", "materias-list.js"],
+  ["lib/escolar/materia/materia-identidad.ts", "materia/materia-identidad.js"],
+  ["lib/escolar/materia/nombres-visibles.ts", "materia/nombres-visibles.js"],
+  ["lib/escolar/materia/materias-list.ts", "materia/materias-list.js"],
 ];
 
 for (const [src, out] of archivos) {
@@ -47,13 +47,14 @@ for (const [src, out] of archivos) {
     },
     fileName: src,
   });
+  fs.mkdirSync(path.dirname(path.join(tmp, out)), { recursive: true });
   fs.writeFileSync(path.join(tmp, out), outputText);
 }
 
-const identidad = require(path.join(tmp, "materia-identidad.js"));
-const visibles = require(path.join(tmp, "nombres-visibles.js"));
+const identidad = require(path.join(tmp, "materia/materia-identidad.js"));
+const visibles = require(path.join(tmp, "materia/nombres-visibles.js"));
 const { normalizarNombre } = require(path.join(tmp, "nombres.js"));
-const { MATERIAS_ESCOLAR } = require(path.join(tmp, "materias-list.js"));
+const { MATERIAS_ESCOLAR } = require(path.join(tmp, "materia/materias-list.js"));
 
 // ---------------------------------------------------------------------------
 // 2) Mini harness de aserciones

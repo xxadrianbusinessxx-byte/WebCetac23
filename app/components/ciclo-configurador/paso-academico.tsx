@@ -10,7 +10,7 @@ import {
   type PeriodoSimple,
 } from "@/app/actions/contexto-ciclo";
 import type { DetalleCicloAdmin } from "@/app/actions/evaluaciones";
-import type { ResultadoRepararTablaLegacy } from "@/lib/escolar/contexto-ciclo";
+import type { ResultadoRepararTablaLegacy } from "@/lib/escolar/ciclo/contexto-ciclo";
 
 const input = "rounded-xl border border-white/70 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800";
 const btn = "rounded-full bg-linear-to-b from-sky-500 via-sky-600 to-sky-700 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white disabled:opacity-50";

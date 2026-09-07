@@ -1,4 +1,4 @@
-import type { DiaCalendarioRow } from "./calendario";
+import type { DiaCalendarioRow } from "./ciclo/calendario";
 
 /**
  * NORMALIZACIÓN CANÓNICA DE FECHAS ESCOLARES (Bloque 5E).

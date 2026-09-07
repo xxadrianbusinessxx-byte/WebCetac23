@@ -2,7 +2,7 @@
 // periodo_id (casos A–D + guardar/eliminar/base). Cliente Supabase SIMULADO.
 //
 // Compilar primero:
-//   npx tsc lib/escolar/calendario.ts --rootDir lib/escolar --outDir scripts/.tmp-f5 ^
+//   npx tsc lib/escolar/ciclo/calendario.ts --rootDir lib/escolar --outDir scripts/.tmp-f5 ^
 //     --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
 //   node scripts/test-calendario-periodo-f5.mjs
 
@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), ".tmp-f5");
-const CAL = require(path.join(dir, "calendario.js"));
+const CAL = require(path.join(dir, "ciclo/calendario.js"));
 
 let pasadas = 0;
 let fallidas = 0;

@@ -7,10 +7,10 @@
  *   - resolución fecha → ciclo → parcial
  *   - detección de ciclo dentro del archivo de horario
  *
- * Uso (recompilar tras cambios en lib/escolar/evaluaciones.ts o
- * lib/escolar/horario-importar.ts):
- *   npx tsc lib/escolar/evaluaciones.ts lib/escolar/horario-importar.ts ^
- *     lib/escolar/contexto-ciclo.ts ^
+ * Uso (recompilar tras cambios en lib/escolar/ciclo/evaluaciones.ts o
+ * lib/escolar/horario/horario-importar.ts):
+ *   npx tsc lib/escolar/ciclo/evaluaciones.ts lib/escolar/horario/horario-importar.ts ^
+ *     lib/escolar/ciclo/contexto-ciclo.ts ^
  *     --outDir scripts/.tmp-evaluaciones --module commonjs --target es2020 ^
  *     --moduleResolution node --esModuleInterop --skipLibCheck
  *   node scripts/test-evaluaciones.mjs
@@ -21,9 +21,9 @@ import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), ".tmp-evaluaciones");
-const m = require(path.join(dir, "evaluaciones.js"));
-const hor = require(path.join(dir, "horario-importar.js"));
-const ctx = require(path.join(dir, "contexto-ciclo.js"));
+const m = require(path.join(dir, "ciclo/evaluaciones.js"));
+const hor = require(path.join(dir, "horario/horario-importar.js"));
+const ctx = require(path.join(dir, "ciclo/contexto-ciclo.js"));
 
 let pasadas = 0;
 let fallidas = 0;

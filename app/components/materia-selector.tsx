@@ -2,7 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 import { normalizarNombre } from "@/lib/escolar/nombres";
-import type { MateriaConNombreVisible } from "@/lib/escolar/nombres-visibles";
+import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
 
 type Props = {
   /** Materias con identidad + nombre visible (idInterno = tabla real). */

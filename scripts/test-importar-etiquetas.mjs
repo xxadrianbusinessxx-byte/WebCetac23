@@ -32,10 +32,10 @@ const archivos = [
   ["lib/escolar/nombres.ts", "nombres.js"],
   ["lib/escolar/tables.ts", "tables.js"],
   ["lib/escolar/buscar-en-filas.ts", "buscar-en-filas.js"],
-  ["lib/escolar/mapeo-columnas.ts", "mapeo-columnas.js"],
+  ["lib/escolar/materia/mapeo-columnas.ts", "materia/mapeo-columnas.js"],
   ["lib/escolar/csv.ts", "csv.js"],
-  ["lib/escolar/etiquetas-dinamicas.ts", "etiquetas-dinamicas.js"],
-  ["lib/escolar/importar-etiquetas.ts", "importar-etiquetas.js"],
+  ["lib/escolar/alumno/etiquetas-dinamicas.ts", "alumno/etiquetas-dinamicas.js"],
+  ["lib/escolar/alumno/importar-etiquetas.ts", "alumno/importar-etiquetas.js"],
 ];
 
 for (const [src, out] of archivos) {
@@ -49,10 +49,11 @@ for (const [src, out] of archivos) {
     },
     fileName: src,
   });
+  fs.mkdirSync(path.dirname(path.join(tmp, out)), { recursive: true });
   fs.writeFileSync(path.join(tmp, out), outputText);
 }
 
-const imp = require(path.join(tmp, "importar-etiquetas.js"));
+const imp = require(path.join(tmp, "alumno/importar-etiquetas.js"));
 
 // ---------------------------------------------------------------------------
 // 2) Mini harness de aserciones + helpers de archivos

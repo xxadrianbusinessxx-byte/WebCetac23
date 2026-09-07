@@ -3,7 +3,7 @@
 // tocar el OPERATIVO. Usa un cliente Supabase simulado en memoria.
 //
 // Compilar:
-//   npx tsc lib/escolar/inscripciones-borrador.ts --outDir scripts/.tmp-insc-f3 ^
+//   npx tsc lib/escolar/catalogo/inscripciones-borrador.ts --outDir scripts/.tmp-insc-f3 ^
 //     --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
 //   node scripts/test-inscripciones-f3.mjs
 import { createRequire } from "node:module";
@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), ".tmp-insc-f3");
-const IN = require(path.join(dir, "inscripciones-borrador.js"));
+const IN = require(path.join(dir, "catalogo/inscripciones-borrador.js"));
 
 let pasadas = 0;
 let fallidas = 0;

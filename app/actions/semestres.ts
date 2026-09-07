@@ -4,19 +4,19 @@
  * C4.14 — SERVER ACTIONS DE ADMINISTRACIÓN DE OFERTA POR SEMESTRE.
  *
  * SEGURIDAD:
- *   - El ACTOR autenticado sale SIEMPRE de obtenerSesionPortal() + rol
- *     directivo. Nunca del cliente.
+ *   - El ACTOR autenticado sale SIEMPRE de exigir() + cookie firmada (la
+ *     capacidad `semestre.ver`/`semestre.activar` la tiene solo directivo).
  *   - El OBJETIVO (periodoId, semestre) se valida server-side (UUID, entero
  *     1..12, periodo existente y activo).
  *   - Desactivar = UPDATE activo=false (nunca DELETE; historial conservado).
  *   - Sin service_role en Client Components; RLS pública deliberada.
  */
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
 import { createClient } from "@/lib/supabase/server";
 import {
   listarSemestresOferta,
   setEstadoSemestre,
-} from "@/lib/escolar/semestres";
+} from "@/lib/escolar/ciclo/semestres";
 
 const NO_AUTORIZADO = {
   ok: false,
@@ -25,8 +25,8 @@ const NO_AUTORIZADO = {
 
 /** Lista la oferta por semestre del periodo activo (solo directivo). */
 export async function actionListarSemestresOferta() {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("semestre.ver");
+  if (!g.ok) return NO_AUTORIZADO;
 
   const supabase = await createClient();
   return listarSemestresOferta(supabase);
@@ -37,8 +37,8 @@ export async function actionActivarSemestre(
   periodoId: unknown,
   semestre: unknown,
 ) {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("semestre.activar");
+  if (!g.ok) return NO_AUTORIZADO;
 
   const supabase = await createClient();
   return setEstadoSemestre(supabase, periodoId, semestre, true);
@@ -49,8 +49,8 @@ export async function actionDesactivarSemestre(
   periodoId: unknown,
   semestre: unknown,
 ) {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("semestre.activar");
+  if (!g.ok) return NO_AUTORIZADO;
 
   const supabase = await createClient();
   return setEstadoSemestre(supabase, periodoId, semestre, false);

@@ -1,0 +1,43 @@
+name: Verificación (PROMPT-5/B6)
+
+# Corren en cada push/PR a main y en demanda manual. TODO es de solo lectura:
+# suites puras + compilación + tipos + build. NADA que toque Supabase entra
+# aquí (los diag-*/probe-* necesitan credenciales y viven fuera del CI).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tipos (npx tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Compilar suites puras (test:compilar)
+        run: npm run test:compilar
+
+      - name: 34 suites (test:suites)
+        run: npm run test:suites
+
+      - name: Permisos código ⇄ §4 (test-permisos + auditoría)
+        run: npm run test:permisos
+
+      - name: Matriz al día (gen:matriz --check)
+        run: node scripts/gen-matriz-permisos.mjs --check
+
+      - name: Build (9 rutas)
+        run: npm run build

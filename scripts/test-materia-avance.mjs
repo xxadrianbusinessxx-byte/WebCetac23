@@ -35,11 +35,12 @@ const archivos = [
   ["lib/escolar/buscar-en-filas.ts", "buscar-en-filas.js"],
   ["lib/escolar/csv.ts", "csv.js"],
   ["lib/escolar/matriz-hoja.ts", "matriz-hoja.js"],
-  ["lib/escolar/schema-tabla.ts", "schema-tabla.js"],
+  ["lib/escolar/openapi.ts", "openapi.js"],
+  ["lib/escolar/materia/schema-tabla.ts", "materia/schema-tabla.js"],
   ["lib/escolar/excel-a-registros.ts", "excel-a-registros.js"],
-  ["lib/escolar/columnas-calificaciones.ts", "columnas-calificaciones.js"],
-  ["lib/escolar/mapeo-columnas-materia.ts", "mapeo-columnas-materia.js"],
-  ["lib/escolar/materia-avance.ts", "materia-avance.js"],
+  ["lib/escolar/materia/columnas-calificaciones.ts", "materia/columnas-calificaciones.js"],
+  ["lib/escolar/materia/mapeo-columnas-materia.ts", "materia/mapeo-columnas-materia.js"],
+  ["lib/escolar/materia/materia-avance.ts", "materia/materia-avance.js"],
 ];
 
 for (const [src, out] of archivos) {
@@ -53,10 +54,11 @@ for (const [src, out] of archivos) {
     },
     fileName: src,
   });
+  fs.mkdirSync(path.dirname(path.join(tmp, out)), { recursive: true });
   fs.writeFileSync(path.join(tmp, out), outputText);
 }
 
-const avance = require(path.join(tmp, "materia-avance.js"));
+const avance = require(path.join(tmp, "materia/materia-avance.js"));
 
 // ---------------------------------------------------------------------------
 // 2) Mini harness

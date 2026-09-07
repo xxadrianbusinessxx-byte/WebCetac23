@@ -1,13 +1,13 @@
 "use server";
 
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
 import {
   listarPeriodos,
   resumenCicloParaAdmin,
   resolverEstadoPeriodo,
   type AsuntoIntegridad,
   type ConteosCiclo,
-} from "@/lib/escolar/ciclo-estado";
+} from "@/lib/escolar/ciclo/ciclo-estado";
 import {
   actualizarRangoCiclo,
   crearCicloEscolar,
@@ -17,21 +17,21 @@ import {
   setActivoEvaluacion,
   type PeriodoEscolarRow,
   type PeriodoEvaluacionRow,
-} from "@/lib/escolar/evaluaciones";
+} from "@/lib/escolar/ciclo/evaluaciones";
 import {
   diagnosticoEliminarCiclo,
   eliminarCicloRpc,
   type DiagnosticoEliminarCiclo,
   type ResultadoEliminarCiclo,
-} from "@/lib/escolar/eliminar-ciclo";
+} from "@/lib/escolar/ciclo/eliminar-ciclo";
 import { createClient } from "@/lib/supabase/server";
 
 /**
  * FASE CICLO — Server Actions de administración de ciclos y parciales.
  *
- * SEGURIDAD: TODAS las operaciones validan rol `directivo` en servidor.
- * Nunca se elimina historial: activar/desactivar usa UPDATE activo.
- * Los rangos de fecha se validan en la capa de servicio (server-side).
+ * SEGURIDAD: TODAS las operaciones validan su capacidad en servidor (todas hoy
+ * son solo de `directivo`). Nunca se elimina historial: activar/desactivar usa
+ * UPDATE activo. Los rangos de fecha se validan en la capa de servicio.
  */
 
 const NO_AUTORIZADO = {
@@ -73,8 +73,8 @@ export type DetalleCicloAdmin = {
 export async function actionListarCiclosAdmin(): Promise<
   { ok: true; ciclos: CicloAdminListado[] } | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("ciclo.ver_contexto");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   const { filas, esquema, error } = await listarPeriodos(supabase);
   if (error) return { ok: false, error };
@@ -96,8 +96,8 @@ export async function actionListarCiclosAdmin(): Promise<
 export async function actionDetalleCicloAdmin(periodoId: string): Promise<
   { ok: true; detalle: DetalleCicloAdmin } | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("ciclo.ver_contexto");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   const r = await resumenCicloParaAdmin(supabase, periodoId);
   if (!r.ok) return { ok: false, error: r.error };
@@ -122,8 +122,8 @@ export async function actionListarCiclosConEvaluaciones(): Promise<
   | { ok: true; ciclos: CicloEvaluacionListado[] }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("evaluacion.ver");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   const res = await listarCiclosConEvaluaciones(supabase);
   if (!res.ok) return res;
@@ -135,8 +135,8 @@ export async function actionCrearCicloEscolar(input: {
   fechaInicio?: string;
   fechaFin?: string;
 }): Promise<{ ok: true; mensaje?: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("ciclo.crear");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   return crearCicloEscolar(supabase, input);
 }
@@ -146,8 +146,8 @@ export async function actionGuardarRangoCiclo(input: {
   fechaInicio: string | null;
   fechaFin: string | null;
 }): Promise<{ ok: true; mensaje?: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("ciclo.editar");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   return actualizarRangoCiclo(supabase, input.periodoId, {
     fechaInicio: input.fechaInicio,
@@ -159,8 +159,8 @@ export async function actionSetActivoCiclo(
   periodoId: string,
   activo: boolean,
 ): Promise<{ ok: true; mensaje?: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("ciclo.activar");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   return setActivoCiclo(supabase, periodoId, activo);
 }
@@ -174,8 +174,8 @@ export async function actionGuardarEvaluacion(input: {
   fechaFin: string;
   activo?: boolean;
 }): Promise<{ ok: true; mensaje?: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("evaluacion.editar");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   return guardarPeriodoEvaluacion(supabase, input);
 }
@@ -185,8 +185,8 @@ export async function actionSetActivoEvaluacion(
   evaluacionId: string,
   activo: boolean,
 ): Promise<{ ok: true; mensaje?: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("evaluacion.editar");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   return setActivoEvaluacion(supabase, periodoId, evaluacionId, activo);
 }
@@ -199,8 +199,8 @@ export async function actionSetActivoEvaluacion(
 export async function actionDiagnosticoEliminarCiclo(
   periodoId: string,
 ): Promise<DiagnosticoEliminarCiclo> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("ciclo.eliminar");
+  if (!g.ok) {
     return { ok: false, error: "No autorizado: se requiere rol directivo." };
   }
   const supabase = await createClient();
@@ -217,8 +217,8 @@ export async function actionEliminarCiclo(
   periodoId: string,
   nombreConfirmacion: string,
 ): Promise<ResultadoEliminarCiclo> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("ciclo.eliminar");
+  if (!g.ok) {
     return { ok: false, error: "No autorizado: se requiere rol directivo." };
   }
   const supabase = await createClient();

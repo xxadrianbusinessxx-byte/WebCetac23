@@ -1,6 +1,6 @@
 "use server";
 
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
 import { createClient } from "@/lib/supabase/server";
 import {
   buscarAlumnosCandidatos,
@@ -10,11 +10,12 @@ import {
   type AlumnoCandidato,
   type GrupoAdminCiclo,
   type InscripcionAdminCiclo,
-} from "@/lib/escolar/inscripciones-borrador";
+} from "@/lib/escolar/catalogo/inscripciones-borrador";
 
 /**
  * F3 — Server Actions de configuración académica de un ciclo (BORRADOR o
- * OPERATIVO). Todas validan rol `directivo` en servidor. Nunca activan ciclos.
+ * OPERATIVO). Todas validan su capacidad (hoy solo directivo) en servidor.
+ * Nunca activan ciclos.
  */
 
 const NO_AUTORIZADO = { ok: false as const, error: "No autorizado: se requiere rol directivo." };
@@ -23,8 +24,8 @@ const NO_AUTORIZADO = { ok: false as const, error: "No autorizado: se requiere r
 export async function actionListarGruposPeriodo(periodoId: string): Promise<
   { ok: true; grupos: GrupoAdminCiclo[] } | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("inscripcion.ver");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   const r = await listarGruposPeriodoAdmin(supabase, periodoId);
   if (!r.ok) return { ok: false, error: r.error ?? "Error al listar grupos." };
@@ -35,8 +36,8 @@ export async function actionListarGruposPeriodo(periodoId: string): Promise<
 export async function actionBuscarAlumnosInscripcion(texto: string): Promise<
   { ok: true; alumnos: AlumnoCandidato[] } | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("inscripcion.ver");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   const r = await buscarAlumnosCandidatos(supabase, texto);
   if (!r.ok) return { ok: false, error: r.error ?? "Error al buscar alumnos." };
@@ -49,8 +50,8 @@ export async function actionListarInscripcionesPeriodo(
 ): Promise<
   { ok: true; inscripciones: InscripcionAdminCiclo[] } | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("inscripcion.ver");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   const r = await listarInscripcionesPeriodoAdmin(supabase, periodoId);
   if (!r.ok) return { ok: false, error: r.error ?? "Error al listar inscripciones." };
@@ -66,8 +67,8 @@ export async function actionInscribirAlumnoEnCiclo(input: {
   | { ok: true; mensaje: string; activo: boolean; periodoNombre: string }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return NO_AUTORIZADO;
+  const g = await exigir("inscripcion.editar");
+  if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
   return inscribirAlumnoEnCiclo(supabase, input);
 }

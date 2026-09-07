@@ -33,11 +33,12 @@ fs.mkdirSync(tmp, { recursive: true });
 
 const archivos = [
   ["lib/escolar/nombres.ts", "nombres.js"],
-  ["lib/escolar/columnas-calificaciones.ts", "columnas-calificaciones.js"],
-  ["lib/escolar/mapeo-columnas-materia.ts", "mapeo-columnas-materia.js"],
+  ["lib/escolar/materia/columnas-calificaciones.ts", "materia/columnas-calificaciones.js"],
+  ["lib/escolar/materia/mapeo-columnas-materia.ts", "materia/mapeo-columnas-materia.js"],
   ["lib/escolar/buscar-en-filas.ts", "buscar-en-filas.js"],
   ["lib/escolar/matriz-hoja.ts", "matriz-hoja.js"],
-  ["lib/escolar/schema-tabla.ts", "schema-tabla.js"],
+  ["lib/escolar/openapi.ts", "openapi.js"],
+  ["lib/escolar/materia/schema-tabla.ts", "materia/schema-tabla.js"],
   ["lib/escolar/excel-a-registros.ts", "excel-a-registros.js"],
 ];
 
@@ -52,11 +53,12 @@ for (const [src, out] of archivos) {
     },
     fileName: src,
   });
+  fs.mkdirSync(path.dirname(path.join(tmp, out)), { recursive: true });
   fs.writeFileSync(path.join(tmp, out), outputText);
 }
 
-const mapeoCol = require(path.join(tmp, "mapeo-columnas-materia.js"));
-const col = require(path.join(tmp, "columnas-calificaciones.js"));
+const mapeoCol = require(path.join(tmp, "materia/mapeo-columnas-materia.js"));
+const col = require(path.join(tmp, "materia/columnas-calificaciones.js"));
 const { matrizAFilasDirectas } = require(path.join(tmp, "excel-a-registros.js"));
 
 // ---------------------------------------------------------------------------
@@ -242,7 +244,7 @@ ok(!mapeoCol.esMapeoColumnasMateria({ columnasActividades: "no-lista" }), "Mapeo
 // 9) UPSERT por materia_id (la función de persistencia usa onConflict)
 // ---------------------------------------------------------------------------
 seccion("Caso 9 · UPSERT por materia_id");
-const fuente = fs.readFileSync(path.join(root, "lib/escolar/mapeo-columnas-materia.ts"), "utf8");
+const fuente = fs.readFileSync(path.join(root, "lib/escolar/materia/mapeo-columnas-materia.ts"), "utf8");
 ok(
   /onConflict:\s*"materia_id"/.test(fuente) &&
     /materias_mapeo_columnas_unico/.test(

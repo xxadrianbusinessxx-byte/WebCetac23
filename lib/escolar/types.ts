@@ -1,4 +1,9 @@
-import type { InformacionColumnaCalificacion } from "./columnas-calificaciones";
+/** Genero de la persona, para el avatar del portal.
+ *  Vivia en `lib/chat/types.ts`; se rescato al retirar el chat global
+ *  (2026-09-06) porque lo usan el icono de persona y los perfiles demo. */
+export type GeneroUsuario = "masculino" | "femenino";
+
+import type { InformacionColumnaCalificacion } from "./materia/columnas-calificaciones";
 
 export type AlumnoRow = {
   CURP: string;

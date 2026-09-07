@@ -2,8 +2,8 @@
  * test-reparar-tabla-legacy.mjs - Pruebas PURAS de la reparacion de
  * grupo_materias.tabla_legacy (Prompt A), sin Supabase.
  *
- * Compilar (recompilar tras cambios en lib/escolar/contexto-ciclo.ts):
- *   npx tsc lib/escolar/contexto-ciclo.ts ^
+ * Compilar (recompilar tras cambios en lib/escolar/ciclo/contexto-ciclo.ts):
+ *   npx tsc lib/escolar/ciclo/contexto-ciclo.ts ^
  *     --outDir scripts/.tmp-reparar-tabla-legacy --module commonjs ^
  *     --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
  *   node scripts/test-reparar-tabla-legacy.mjs
@@ -25,7 +25,7 @@ const dir = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   ".tmp-reparar-tabla-legacy",
 );
-const M = require(path.join(dir, "contexto-ciclo.js"));
+const M = require(path.join(dir, "ciclo/contexto-ciclo.js"));
 
 let pasadas = 0;
 let fallidas = 0;

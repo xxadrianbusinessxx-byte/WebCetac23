@@ -13,27 +13,27 @@
  * la importación Excel en lib/escolar/importar-etiquetas.ts. Esta capa solo
  * valida la sesión/permiso y orquesta.
  */
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
-import { resolverAccesoAlumno } from "@/lib/escolar/acceso-alumno";
+import { exigir } from "@/lib/auth/exigir";
+import { resolverAccesoAlumno } from "@/lib/escolar/alumno/acceso-alumno";
 import {
   actualizarOrdenEtiquetasDinamicas,
   eliminarEtiquetaDinamica,
   guardarEtiquetasDinamicas,
   obtenerEtiquetasDinamicas,
   type ResultadoEtiquetas,
-} from "@/lib/escolar/etiquetas-dinamicas-servicio";
-import type { AlumnoEtiquetaRow } from "@/lib/escolar/etiquetas-dinamicas";
+} from "@/lib/escolar/alumno/etiquetas-dinamicas-servicio";
+import type { AlumnoEtiquetaRow } from "@/lib/escolar/alumno/etiquetas-dinamicas";
 import {
   actualizarEtiquetasPersonales,
   CAMPOS_PERSONALES_PRIMARIOS,
   patchCamposPersonales,
   type CampoPersonalPrimario,
-} from "@/lib/escolar/etiquetas";
-import type { EtiquetaAlumno } from "@/lib/escolar/etiquetas-dinamicas";
+} from "@/lib/escolar/alumno/etiquetas";
+import type { EtiquetaAlumno } from "@/lib/escolar/alumno/etiquetas-dinamicas";
 import {
   leerEtiquetasDesdeArchivoGlobal,
   leerEtiquetasDesdeArchivoIndividual,
-} from "@/lib/escolar/importar-etiquetas";
+} from "@/lib/escolar/alumno/importar-etiquetas";
 import { TABLA_ALUMNOS } from "@/lib/escolar/tables";
 import { createClient } from "@/lib/supabase/server";
 
@@ -50,9 +50,10 @@ function noAutorizado(mensaje = "No tienes permiso."): Err {
 async function autorizarEscrituraEtiquetas(
   curp: string,
 ): Promise<{ ok: true } | Err> {
-  const sesion = await obtenerSesionPortal();
+  const g = await exigir("alumno.editar_etiquetas");
+  if (!g.ok) return { ok: false, error: g.error };
   const supabase = await createClient();
-  const res = await resolverAccesoAlumno(supabase, sesion, curp);
+  const res = await resolverAccesoAlumno(supabase, g.sesion, curp);
   if (!res.ok) return { ok: false, error: res.error };
   if (!res.acceso.puedeEditarEtiquetas) return noAutorizado();
   return { ok: true };
@@ -167,8 +168,8 @@ export async function actionImportarEtiquetasGlobal(
     }
   | Err
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") return noAutorizado("Solo directivos.");
+  const g = await exigir("alumno.importar_estatus");
+  if (!g.ok) return noAutorizado("Solo directivos.");
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) {
@@ -239,9 +240,10 @@ export async function actionGuardarCamposPersonales(
   curp: string,
   campos: Partial<Record<CampoPersonalPrimario, unknown>>,
 ): Promise<{ ok: true } | Err> {
-  const sesion = await obtenerSesionPortal();
+  const g = await exigir("alumno.editar_datos_personales");
+  if (!g.ok) return noAutorizado();
   const supabase = await createClient();
-  const res = await resolverAccesoAlumno(supabase, sesion, curp);
+  const res = await resolverAccesoAlumno(supabase, g.sesion, curp);
   if (!res.ok) return { ok: false, error: res.error };
   if (!res.acceso.puedeEditarDatosPersonales) return noAutorizado();
 

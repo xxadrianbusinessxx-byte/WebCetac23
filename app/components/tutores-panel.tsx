@@ -10,8 +10,8 @@ import {
   actionPrevisualizarConsolidacionTutores,
   actionPrevisualizarGeneracionTutores,
 } from "@/app/actions/tutores";
-import { nombreCompletoTutor, type TutorRow } from "@/lib/escolar/tutores-types";
-import type { CredencialInicialTutor } from "@/lib/escolar/tutores";
+import { nombreCompletoTutor, type TutorRow } from "@/lib/escolar/tutores/tutores-types";
+import type { CredencialInicialTutor } from "@/lib/escolar/tutores/tutores";
 
 
 

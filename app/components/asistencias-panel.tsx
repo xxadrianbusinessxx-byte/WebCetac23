@@ -11,7 +11,7 @@ import {
   type MateriaHorarioUI,
 } from "@/app/actions/asistencias";
 import { actionDescargarPlantillaMateria } from "@/app/actions/materias";
-import type { ResumenAsistencia } from "@/lib/escolar/asistencias";
+import type { ResumenAsistencia } from "@/lib/escolar/asistencia/asistencias";
 
 
 type Grupo = { grado: string; grupo: string; carrera: string };

@@ -1,6 +1,7 @@
 "use server";
 
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import { exigir } from "@/lib/auth/exigir";
+import { esRol } from "@/lib/auth/permisos";
 import {
   esMapeoColumnasMateria,
   guardarMapeoColumnasMateria,
@@ -9,28 +10,30 @@ import {
   validarMapeoColumnasMateria,
   validarPesosActividades,
   type MapeoColumnasMateria,
-} from "@/lib/escolar/mapeo-columnas-materia";
+} from "@/lib/escolar/materia/mapeo-columnas-materia";
 import { normalizarNombre } from "@/lib/escolar/nombres";
+import { archivoCsvAFilas } from "@/lib/escolar/csv";
 import {
   guardarNombreVisibleMateria,
   listarNombresVisiblesMaterias,
   materiasVisiblesDesdeCatalogo,
+  quitarNombreVisibleMateria,
   validarNombreVisible,
   type MateriaConNombreVisible,
-} from "@/lib/escolar/nombres-visibles";
-import { listarMateriasCompletas } from "@/lib/escolar/tablas-supabase";
-import { generarPlantillaMateriaXlsx } from "@/lib/escolar/materias";
+} from "@/lib/escolar/materia/nombres-visibles";
+import { listarMateriasCompletas } from "@/lib/escolar/materia/tablas-supabase";
+import { generarPlantillaMateriaXlsx } from "@/lib/escolar/materia/materias";
 import {
   resolverAsignacionesProfesor,
   resolverAsignacionesProfesorPorId,
   resolverIdentidadesCatalogo,
   type AsignacionProfesorResuelta,
-} from "@/lib/escolar/catalogo-academico";
+} from "@/lib/escolar/catalogo/catalogo-academico";
 import { TABLA_GRUPO_MATERIAS } from "@/lib/escolar/tables";
 import {
   gradoASemestre,
   semestresInactivos,
-} from "@/lib/escolar/semestres";
+} from "@/lib/escolar/ciclo/semestres";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
@@ -84,11 +87,13 @@ async function filtrarTablasVisibles(
 export async function actionListarMateriasConNombreVisible(): Promise<
   MateriaConNombreVisible[]
 > {
+  const g = await exigir("materia.ver_catalogo");
+  if (!g.ok) return [];
+  const sesion = g.sesion!;
   const supabase = await createClient();
-  const sesion = await obtenerSesionPortal();
   const aliases = await listarNombresVisiblesMaterias(supabase);
 
-  if (sesion?.rol === "maestro") {
+  if (esRol(sesion.rol, "maestro")) {
     // C4.10/C4.11 — identidad ESTRUCTURAL primero (PROFESORES.ID desde la
     // sesión server-side). `sesion.matricula` solo como compatibilidad
     // temporal para sesiones creadas antes de C4.10 (sin profesorId).
@@ -155,8 +160,8 @@ export async function actionGuardarNombreVisibleMateria(
   idInterno: string,
   nombreVisible: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("materia.editar_alias");
+  if (!g.ok) {
     return {
       ok: false,
       error: "Solo los directivos pueden modificar nombres visibles.",
@@ -184,8 +189,184 @@ export async function actionGuardarNombreVisibleMateria(
     supabase,
     materiaReal,
     nombreVisible.trim(),
-    sesion.matricula ?? "",
+    g.sesion?.matricula ?? "",
   );
+}
+
+/**
+ * PROMPT-4/T2 — Quita el alias de una materia (activo=false, nunca DELETE).
+ * Reutiliza la capacidad `materia.editar_alias`: quitar un alias es editarlo.
+ * La materia vuelve a mostrarse por su idInterno; el historial del alias se
+ * conserva (R8) y volver a ponerlo es un clic.
+ */
+export async function actionQuitarAliasMateria(
+  idInterno: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const g = await exigir("materia.editar_alias");
+  if (!g.ok) {
+    return { ok: false, error: "No autorizado: se requiere la capacidad de editar aliases." };
+  }
+
+  const idBuscado = (idInterno ?? "").trim();
+  if (!idBuscado) return { ok: false, error: "Materia no válida." };
+
+  // Resolver la materia REAL desde el servidor (nunca confiar en el texto
+  // enviado por el navegador como clave de tabla).
+  const tablas = await listarMateriasCompletas();
+  const materiaReal = tablas.find(
+    (t) => normalizarNombre(t) === normalizarNombre(idBuscado),
+  );
+  if (!materiaReal) {
+    return { ok: false, error: "La materia no existe o no está permitida." };
+  }
+
+  const supabase = await createClient();
+  return quitarNombreVisibleMateria(supabase, materiaReal);
+}
+
+export type FilaAliasVolumen = {
+  /** idInterno real (resuelto contra el catálogo). */
+  idInterno: string;
+  /** Alias activo hoy (idInterno si no tiene). */
+  actual: string;
+  /** Alias propuesto (vacío = quitar el alias). */
+  propuesto: string;
+  ok: boolean;
+  error?: string;
+};
+
+const ENCABEZADOS_ALIAS = ["materia", "id", "tabla", "id_interno", "nombre_visible", "alias"];
+
+function normalizarCelda(v: unknown): string {
+  return String(v ?? "").trim();
+}
+
+/**
+ * PROMPT-4/T2 — Previsualiza un archivo de aliases (materia;nombre_visible).
+ * NO escribe nada: para cada fila reporta qué alias tiene hoy, qué propone el
+ * archivo y si la materia existe en el catálogo real. Propuesto vacío = quitar
+ * el alias (activo=false).
+ */
+export async function actionPrevisualizarAliasArchivo(
+  formData: FormData,
+): Promise<{ ok: true; filas: FilaAliasVolumen[] } | { ok: false; error: string }> {
+  const g = await exigir("materia.editar_alias");
+  if (!g.ok) return { ok: false, error: "No autorizado." };
+
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File)) {
+    return { ok: false, error: "Selecciona un archivo." };
+  }
+  let filasMatriz: string[][];
+  try {
+    const { filas } = await archivoCsvAFilas(archivo);
+    filasMatriz = filas;
+  } catch (e) {
+    return { ok: false, error: `No se pudo leer el archivo: ${String(e)}` };
+  }
+  const datos = filasMatriz.filter((f) => f.some((c) => (c ?? "").trim() !== ""));
+  if (datos.length < 2) return { ok: false, error: "El archivo no tiene filas de datos." };
+
+  // Detectar columnas por encabezado (normalizado, tolerante a acentos/case).
+  const encabezados = (datos[0] ?? []).map((h) =>
+    normalizarNombre(String(h ?? "")).replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, ""),
+  );
+  const idxMateria = encabezados.findIndex((h) =>
+    ENCABEZADOS_ALIAS.slice(0, 4).some((e) => h === e),
+  );
+  const idxAlias = encabezados.findIndex((h) =>
+    ENCABEZADOS_ALIAS.slice(4).some((e) => h === e),
+  );
+  if (idxMateria < 0 || idxAlias < 0) {
+    return {
+      ok: false,
+      error: "El archivo necesita dos columnas: «materia» (idInterno) y «nombre_visible» (vacío = quitar alias).",
+    };
+  }
+
+  const supabase = await createClient();
+  const tablas = await listarMateriasCompletas();
+  const aliases = await listarNombresVisiblesMaterias(supabase);
+
+  const filas: FilaAliasVolumen[] = [];
+  for (let i = 1; i < datos.length; i++) {
+    const materiaRaw = normalizarCelda(datos[i][idxMateria]);
+    const propuestoRaw = normalizarCelda(datos[i][idxAlias]);
+    if (!materiaRaw) continue;
+    const real = tablas.find((t) => normalizarNombre(t) === normalizarNombre(materiaRaw));
+    if (!real) {
+      filas.push({
+        idInterno: materiaRaw,
+        actual: materiaRaw,
+        propuesto: propuestoRaw,
+        ok: false,
+        error: "Materia no encontrada en el catálogo.",
+      });
+      continue;
+    }
+    const actual = aliases.get(real) ?? real;
+    const propuesto = propuestoRaw || ""; // vacío = quitar
+    const errorVal =
+      propuesto && propuestoRaw.length > 0 ? validarNombreVisible(propuesto) : null;
+    filas.push({
+      idInterno: real,
+      actual,
+      propuesto,
+      ok: !errorVal,
+      error: errorVal ?? undefined,
+    });
+  }
+  return { ok: true, filas };
+}
+
+/**
+ * PROMPT-4/T2 — Aplica los aliases previsualizados (confirmación del patrón
+ * previsualizar → confirmar). El cliente manda la MISMA lista que vio en la
+ * previsualización (filas con ok=true); el servidor la re-valida y escribe.
+ * Cada alias se guarda (UPSERT activo=true) o se quita (activo=false).
+ */
+export async function actionAplicarAliasArchivo(
+  filas: unknown,
+): Promise<{ ok: true; aplicados: number; quitados: number; errores: number } | { ok: false; error: string }> {
+  const g = await exigir("materia.editar_alias");
+  if (!g.ok) return { ok: false, error: "No autorizado." };
+
+  if (!Array.isArray(filas)) return { ok: false, error: "Lista de cambios no válida." };
+  const supabase = await createClient();
+  const tablas = await listarMateriasCompletas();
+
+  let aplicados = 0;
+  let quitados = 0;
+  let errores = 0;
+  for (const raw of filas) {
+    const fila = raw as { idInterno?: unknown; propuesto?: unknown };
+    const idInterno = String(fila.idInterno ?? "").trim();
+    const propuesto = String(fila.propuesto ?? "").trim();
+    if (!idInterno) {
+      errores++;
+      continue;
+    }
+    const real = tablas.find((t) => normalizarNombre(t) === normalizarNombre(idInterno));
+    if (!real) {
+      errores++;
+      continue;
+    }
+    if (!propuesto) {
+      const r = await quitarNombreVisibleMateria(supabase, real);
+      if (r.ok) quitados++;
+      else errores++;
+    } else {
+      const errorVal = validarNombreVisible(propuesto);
+      if (errorVal) {
+        errores++;
+        continue;
+      }
+      const r = await guardarNombreVisibleMateria(supabase, real, propuesto, g.sesion?.matricula ?? "");
+      if (r.ok) aplicados++;
+      else errores++;
+    }
+  }
+  return { ok: true, aplicados, quitados, errores };
 }
 
 /**
@@ -196,6 +377,8 @@ export async function actionGuardarNombreVisibleMateria(
 export async function actionObtenerMapeoColumnasMateria(
   idInterno: string,
 ): Promise<MapeoColumnasMateria | null> {
+  const g = await exigir("materia.mapear_columnas");
+  if (!g.ok) return null;
   const id = (idInterno ?? "").trim();
   if (!id) return null;
   const supabase = await createClient();
@@ -219,8 +402,8 @@ export async function actionGuardarMapeoColumnasMateria(
   mapeo: unknown,
   encabezados: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+  const g = await exigir("materia.mapear_columnas");
+  if (!g.ok) {
     return {
       ok: false,
       error: "Solo profesores y directivos pueden configurar columnas.",
@@ -279,7 +462,7 @@ export async function actionGuardarMapeoColumnasMateria(
     supabase,
     materiaReal,
     mapeoFisico,
-    sesion.matricula ?? "",
+    g.sesion?.matricula ?? "",
   );
 }
 
@@ -297,8 +480,8 @@ export async function actionDescargarPlantillaMateria(
   | { ok: true; base64: string; nombreArchivo: string; alumnos: number }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "maestro" && sesion?.rol !== "directivo") {
+  const g = await exigir("materia.descargar_plantilla");
+  if (!g.ok) {
     return {
       ok: false,
       error: "No tienes permiso para descargar plantillas de materia.",
@@ -318,8 +501,8 @@ export async function actionListarMateriasConfiguracion(): Promise<
   | { ok: true; materias: MateriaConNombreVisible[]; ocultas: string[] }
   | { ok: false; error: string }
 > {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("materia.ver_catalogo");
+  if (!g.ok) {
     return { ok: false, error: "No autorizado: se requiere rol directivo." };
   }
 
@@ -357,8 +540,8 @@ export async function actionCambiarVisibilidadMateria(
   idInterno: unknown,
   visible: unknown,
 ): Promise<{ ok: true; mensaje: string } | { ok: false; error: string }> {
-  const sesion = await obtenerSesionPortal();
-  if (sesion?.rol !== "directivo") {
+  const g = await exigir("materia.activar_desactivar");
+  if (!g.ok) {
     return { ok: false, error: "No autorizado: se requiere rol directivo." };
   }
 

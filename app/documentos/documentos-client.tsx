@@ -1,8 +1,9 @@
 "use client";
 
+import { puede } from "@/lib/auth/permisos";
 import type { PortalSessionPayload } from "@/lib/auth/types";
-import { FrutigerBackdrop } from "../components/frutiger-backdrop";
-import { GlossyPersonIcon } from "../components/glossy-person-icon";
+import { FrutigerBackdrop } from "@/app/components/ui/frutiger-backdrop";
+import { GlossyPersonIcon } from "@/app/components/ui/glossy-person-icon";
 import { DocumentosPanel } from "../components/documentos-panel";
 
 type Props = {
@@ -10,7 +11,9 @@ type Props = {
 };
 
 export function DocumentosClient({ sesion }: Props) {
-  const esDirectivo = sesion?.rol === "directivo";
+  // PROMPT-3/T2: la UI decide por capacidad. Directivo = quien puede asignar
+  // permisos de carpetas (matriz §4); se usa solo para presentación (avatar).
+  const esDirectivo = sesion ? puede(sesion.rol, "documento.asignar_permisos") : false;
   const nombre = sesion?.nombre ?? sesion?.matricula ?? "Usuario";
 
   return (

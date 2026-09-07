@@ -17,8 +17,8 @@ function ok(nombre, condicion, detalle = "") {
   else { fallidas++; console.error(`FALLA ${nombre} ${detalle}`); }
 }
 
-const cicloEstado = leer("lib/escolar/ciclo-estado.ts");
-const evalLib = leer("lib/escolar/evaluaciones.ts");
+const cicloEstado = leer("lib/escolar/ciclo/ciclo-estado.ts");
+const evalLib = leer("lib/escolar/ciclo/evaluaciones.ts");
 const evalAction = leer("app/actions/evaluaciones.ts");
 const rpcSql = leer("supabase/crear-rpc-activar-ciclo-f4.sql");
 
@@ -28,7 +28,7 @@ ok("helper invoca RPC con p_periodo", /supabase\.rpc\("activar_ciclo_operativo",
 ok("sin fallback multi-paso: error explícito si RPC ausente", /no se permite la secuencia multi-paso/.test(cicloEstado));
 ok("lib evaluaciones usa activación atómica (setActivoCiclo)", evalLib.includes("activarCicloOperativoAtomico(supabase, periodoId)"));
 ok("lib evaluaciones ya no invoca activarCicloOperativo TS en activación", !/activarCicloOperativo\(supabase, periodoId\)/.test(evalLib));
-ok("Server Action conserva autorización directivo", /sesion\?\.rol !== "directivo"/.test(evalAction));
+ok("Server Action conserva autorización directivo", /sesion\?\.rol !== "directivo"|exigir\("ciclo\.activar"\)/.test(evalAction));
 
 // 2) Una sola autoridad de escritura de activación.
 ok("existe UNA función atómica nueva", (cicloEstado.match(/export async function activarCicloOperativoAtomico/g) ?? []).length === 1);

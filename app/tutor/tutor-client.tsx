@@ -18,9 +18,9 @@ import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistenc
 import { HorarioAlumnoResumen } from "@/app/components/horario-alumno-resumen";
 import type { PortalSessionPayload } from "@/lib/auth/types";
 
-import { FrutigerBackdrop } from "../components/frutiger-backdrop";
-import { GlossyPersonIcon } from "../components/glossy-person-icon";
-import { nombreCompletoTutor, type TutorRow } from "@/lib/escolar/tutores-types";
+import { FrutigerBackdrop } from "@/app/components/ui/frutiger-backdrop";
+import { GlossyPersonIcon } from "@/app/components/ui/glossy-person-icon";
+import { nombreCompletoTutor, type TutorRow } from "@/lib/escolar/tutores/tutores-types";
 
 type MainTab = "datos" | "alumnos" | "asistencia" | "mensajes";
 
