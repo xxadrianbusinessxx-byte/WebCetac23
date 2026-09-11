@@ -61,4 +61,29 @@ export async function setPortalSessionCookie(payload: PortalSessionPayload): Pro
   });
 }
 
+/**
+ * Borra la cookie de sesión del portal. Es el inverso exacto de
+ * `setPortalSessionCookie` y vive a su lado por eso: el nombre y el `path` de
+ * la cookie los decide ESTE módulo, y un borrado que los repitiera desde otro
+ * archivo dejaría de borrar en cuanto alguno de los dos cambiara.
+ *
+ * Se escribe con `maxAge: 0` además de `delete()`: `delete()` sin opciones no
+ * siempre alcanza una cookie puesta con `path: "/"`, y sobreescribirla vacía y
+ * caducada la retira en cualquier caso.
+ *
+ * Toda la sesión vive en esta cookie firmada —no hay estado en servidor que
+ * invalidar—, así que borrarla ES cerrar la sesión.
+ */
+export async function limpiarPortalSessionCookie(): Promise<void> {
+  const store = await cookies();
+  store.set(PORTAL_SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  store.delete(PORTAL_SESSION_COOKIE);
+}
+
 

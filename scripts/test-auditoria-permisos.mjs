@@ -87,6 +87,13 @@ const DELEGAN_EN_HELPER_CON_EXIGIR = new Set([
   "actionReordenarEtiquetasDinamicas",
   "actionImportarEtiquetasIndividual",
 ]);
+// No son una capacidad: operan sobre la credencial de QUIEN LLAMA, no sobre
+// datos de nadie. `exigir()` responde «¿puede este rol ejecutar tal
+// capacidad?», y cerrar la propia sesión no es algo que un rol pueda tener o
+// no tener; pedir permiso aquí dejaría encerrada a una sesión rota.
+const OPERAN_SOBRE_LA_PROPIA_CREDENCIAL = new Set([
+  "actionCerrarSesion", // app/actions/login.ts — borra la cookie y redirige
+]);
 
 // ---------------------------------------------------------------------------
 // 4) Chequeos
@@ -120,7 +127,11 @@ for (const fn of archivos) {
     while (j < lineas.length && !/^export async function action/.test(lineas[j])) j++;
     const cuerpo = lineas.slice(i, j).join("\n");
     const nombre = m[1];
-    if (PUBLICAS_POR_DISENO.has(nombre) || DELEGAN_EN_HELPER_CON_EXIGIR.has(nombre)) {
+    if (
+      PUBLICAS_POR_DISENO.has(nombre) ||
+      DELEGAN_EN_HELPER_CON_EXIGIR.has(nombre) ||
+      OPERAN_SOBRE_LA_PROPIA_CREDENCIAL.has(nombre)
+    ) {
       continue;
     }
     ok(/exigir\(/.test(cuerpo), `${fn}: ${nombre} llama a exigir()`);

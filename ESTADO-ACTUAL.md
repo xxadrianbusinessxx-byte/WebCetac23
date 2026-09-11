@@ -346,11 +346,17 @@ La UI gobierna con `puede()` (barra, layout, páginas y paneles). Validación:
   forzaba a mayúsculas); (4) las pestañas se **reparten a lo ancho** de la barra con el
   chip al extremo derecho. Verificado contra el mapa: `/oceano` con sesión de alumno = 4
   pestañas y 6 apartados en Perfil; de profesor = 2 pestañas y 3 apartados en Materias.
-- **Pendiente (no se cierra aquí).** «Cerrar sesión» se dibuja **deshabilitado y con el
+- ~~**Pendiente (no se cierra aquí).** «Cerrar sesión» se dibuja **deshabilitado y con el
   motivo a la vista**: hoy **no existe ninguna acción de cierre de sesión** en el sistema
-  (ni `actionCerrarSesion` ni route de logout) y esta fase no toca `app/actions/`.
-  Necesita, en su propio cambio y con autorización explícita, una action o un route
-  handler que borre la cookie `aulanube_portal`.
+  (ni `actionCerrarSesion` ni route de logout) y esta fase no toca `app/actions/`.~~
+  **SALDADO (2026-09-11), con autorización explícita del responsable.**
+  `limpiarPortalSessionCookie()` en `lib/auth/session.ts` —al lado de su inverso, que es
+  quien decide el nombre y el `path` de la cookie— y `actionCerrarSesion()` en
+  `app/actions/login.ts`, que la borra y redirige a `/login`. El botón es un `<form>` con
+  Server Action: la cookie es `httpOnly`, solo el servidor puede retirarla. **No llama a
+  `exigir()`** y está declarado como excepción en `test-auditoria-permisos`: opera sobre la
+  credencial de quien llama, no sobre datos de nadie, y exigir una capacidad dejaría
+  encerrada a una sesión rota.
 
 **Rediseño Océano — Fase 2: reubicar lo que ya funciona + restyle oscuro (2026-09-10).**
 - **PASO 0 (layout del shell).** E1 — las pestañas del nivel 1 llevan **separación

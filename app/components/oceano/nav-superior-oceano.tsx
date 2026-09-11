@@ -6,15 +6,21 @@
  * pestaña pulsada. No lleva "use client": lo monta el shell, que es quien
  * maneja el estado de navegación.
  *
- * Contiene, como manda el diseño: pestañas globales + chip de usuario
- * (nombre + rol) + «Cerrar sesión».
+ * Contiene, como manda el diseño: sello CETAC + pestañas globales + chip de
+ * usuario (nombre + rol) + «Cerrar sesión».
  *
- * NOTA (Fase 1) — «Cerrar sesión» se dibuja DESHABILITADO y con el motivo a la
- * vista. Hoy NO existe ninguna acción/route de cierre de sesión en el sistema
- * (grep: `actionCerrarSesion` / `logout` = 0 resultados) y esta fase no puede
- * tocar `app/actions/`. Un botón que promete algo que no hace es exactamente lo
- * que el mapa de navegación evita con los apartados apagados.
+ * «Cerrar sesión» YA OPERA. Estuvo deshabilitado durante las fases 1-9 porque
+ * el sistema no tenía ninguna acción de cierre (la sesión solo se escribía, en
+ * `setPortalSessionCookie`, y nunca se borraba). Ahora existe
+ * `actionCerrarSesion`, que retira la cookie firmada y devuelve a `/login`.
+ *
+ * Es un `<form>` con Server Action y no un `onClick`: la cookie es `httpOnly`,
+ * así que solo el servidor puede borrarla, y de este modo el botón funciona
+ * también si el JavaScript del cliente no ha cargado todavía.
  */
+import Image from "next/image";
+import { actionCerrarSesion } from "@/app/actions/login";
+import { LOGO_ESQUINAS_SRC } from "@/lib/decoraciones/config";
 import type { PortalRole } from "@/lib/auth/types";
 import type { Pestana } from "@/lib/navegacion/mapa-navegacion";
 
@@ -27,9 +33,6 @@ export const ROTULO_ROL: Record<PortalRole, string> = {
   tutor: "Tutor / Padre",
   tecnico: "Técnico",
 };
-
-const PENDIENTE_CERRAR_SESION =
-  "Pendiente: el sistema aún no tiene una acción de cierre de sesión (Fase 1 no toca app/actions/).";
 
 export function NavSuperiorOceano({
   rol,
@@ -58,9 +61,25 @@ export function NavSuperiorOceano({
             derecho. El ítem activo es TEXTO MENTA sin fondo: la menta aparece en
             DOS sitios en todo el sistema (nav activo y CTA primario) y en ambos
             es un toque; un bloque relleno haría que el acento dominara. */}
+        {/* Sello CETAC en la esquina superior izquierda. Es DECORACIÓN: no
+            enlaza a ninguna parte y va `aria-hidden`, para que un lector de
+            pantalla no anuncie un elemento que no se puede usar. Es el mismo
+            archivo que ya usaba la barra legacy (`LOGO_ESQUINAS_SRC`), no una
+            copia nueva. */}
+        <Image
+          src={LOGO_ESQUINAS_SRC}
+          alt=""
+          width={160}
+          height={160}
+          unoptimized
+          priority
+          aria-hidden
+          className="h-9 w-auto shrink-0 sm:h-10"
+        />
+
         <nav
           aria-label="Pestañas globales"
-          className="flex min-w-0 flex-wrap items-center gap-x-10 gap-y-1 lg:gap-x-16 lg:pl-6"
+          className="flex min-w-0 flex-wrap items-center gap-x-10 gap-y-1 lg:gap-x-16 lg:pl-2"
         >
           {pestanas.map((p) => {
             const activa = p.id === idActiva;
@@ -96,14 +115,17 @@ export function NavSuperiorOceano({
             </span>
           </span>
 
-          <button
-            type="button"
-            disabled
-            title={PENDIENTE_CERRAR_SESION}
-            className="cursor-not-allowed rounded-full border border-[var(--oc-border)] px-3 py-1.5 text-sm font-semibold text-[var(--oc-muted)] opacity-60"
-          >
-            Cerrar sesión
-          </button>
+          {/* Sin sesión no hay nada que cerrar: el botón no se dibuja. */}
+          {rol ? (
+            <form action={actionCerrarSesion}>
+              <button
+                type="submit"
+                className="rounded-full border border-[var(--oc-border)] px-3 py-1.5 text-sm font-semibold text-[var(--oc-muted)] transition hover:border-[var(--oc-border-active)] hover:text-[var(--oc-text)]"
+              >
+                Cerrar sesión
+              </button>
+            </form>
+          ) : null}
         </div>
       </div>
     </header>
