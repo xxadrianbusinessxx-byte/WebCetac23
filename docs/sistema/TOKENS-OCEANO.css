@@ -1,0 +1,73 @@
+/* ══════════════════════════════════════════════════════════════════════
+   TOKENS-OCEANO.css — REFERENCIA, NO SE IMPORTA.
+
+   Este archivo NO forma parte del build. Vive en docs/sistema/ porque es
+   documentación: la paleta del rediseño Océano, lista para copiar a
+   app/globals.css cuando se ejecute la Fase 1.
+
+   Aplicarlo es trabajo de la Fase 1. Mientras tanto este archivo existe
+   para que los valores estén versionados y no se re-deduzcan a ojo.
+
+   ── Procedencia de los valores ────────────────────────────────────────
+   (m) MEDIDO   — muestreado píxel a píxel de los PNG exportados del
+                  archivo de Figma CkEJzPJejUZLeByX7ErdWm (2026-09-10).
+                  Son el diseño, no una interpretación.
+   (d) DERIVADO — el diseño NO los define. Hacen falta para que la
+                  interfaz funcione. Confirmar en Figma antes de darlos
+                  por buenos.
+
+   ── Reglas que vienen con estos tokens ────────────────────────────────
+   1. ADITIVO. Los --app-bg-* actuales de globals.css NO se tocan (R8).
+   2. --oc-alert es SOLO punto/indicador: da 2.24:1 sobre --oc-surface.
+      Para texto de estado se usa --oc-alert-text. No son intercambiables.
+   3. Los componentes referencian el PAPEL, no el color:
+      var(--oc-surface), nunca #19293F. Un hex literal en un componente
+      reabre la deuda D11 que esta capa existe para cerrar.
+
+   Documento hermano: docs/sistema/MATRIZ-UX.md §7 «Migración Océano».
+   Avance de la migración: node scripts/diag-restyle-oceano.mjs
+   ══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Fondo ──────────────────────────────────────────────────────────
+     Gradiente diagonal: navy (inferior izquierda) → teal (superior
+     derecha). Es la firma del diseño y se repite en los 25 frames.     */
+  --oc-navy:          #022D65;  /* (m) hero y footer                    */
+  --oc-navy-mid:      #06386B;  /* (m) gradiente, inferior izquierda    */
+  --oc-teal:          #0D5C82;  /* (m) gradiente, superior derecha      */
+
+  /* ── Superficies ────────────────────────────────────────────────── */
+  --oc-surface:       #19293F;  /* (m) tarjetas de contenido            */
+  --oc-surface-login: #102C51;  /* (m) card de acceso                   */
+  --oc-input:         #1E3757;  /* (m) campos y grupo de pestañas       */
+  --oc-sidebar:       #1F3B60;  /* (m) panel lateral contextual         */
+
+  /* ── Acento ─────────────────────────────────────────────────────────
+     Único en todo el sistema. Aparece exactamente en dos sitios: el
+     CTA primario y el ítem de navegación activo. Esa disciplina es lo
+     que mantiene el diseño coherente; no ampliar su uso.              */
+  --oc-mint:          #3DD9C7;  /* (m) CTA primario y nav activo        */
+  --oc-mint-ink:      #052E2A;  /* (d) texto SOBRE el botón menta       */
+
+  /* ── Texto ──────────────────────────────────────────────────────────
+     Contraste verificado: --oc-muted sobre --oc-surface da 6.9:1.      */
+  --oc-text:          #F2F7FA;  /* (m) títulos y cuerpo                 */
+  --oc-muted:         #9EB5C7;  /* (m) nav inactivo, metadatos          */
+
+  /* ── Estado ─────────────────────────────────────────────────────── */
+  --oc-ok:            #09C374;  /* (m) actividad vigente                */
+  --oc-alert:         #BB111B;  /* (m) SOLO punto. Ver regla 2 arriba.  */
+  --oc-alert-text:    #F2686F;  /* (d) el mismo estado EN TEXTO         */
+
+  /* ── Bordes ─────────────────────────────────────────────────────── */
+  --oc-border:        rgba(158, 181, 199, 0.16); /* (d) separadores     */
+  --oc-border-active: rgba(242, 247, 250, 0.85); /* (d) ítem activo 1px */
+
+  /* ── Fondo compuesto ────────────────────────────────────────────────
+     Una sola declaración reutilizable, para que el gradiente no se
+     re-escriba en cada pantalla.                                       */
+  --oc-bg:
+    radial-gradient(1100px 620px at 88% -8%, rgba(13, 92, 130, 0.55), transparent 62%),
+    radial-gradient(900px 700px at 4% 104%, rgba(2, 45, 101, 0.75), transparent 60%),
+    var(--oc-navy);
+}

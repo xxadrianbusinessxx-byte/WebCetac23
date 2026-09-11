@@ -412,8 +412,17 @@ cambio de matriz y va sola), ni un modelo de datos, ni la firma de ningún compo
 fases 2 y 5-7 son reubicación y estilo; las fases 3 y 4 añaden presentación sobre datos que
 ya existen.
 
-**Especificación completa** (gramática de tres niveles, paleta muestreada, registro de lo
-desactivado y los ocho prompts): artefacto *Rediseño Océano*, fuera del repo.
+**La paleta está versionada:** `docs/sistema/TOKENS-OCEANO.css`. Es **referencia, no se
+importa** — aplicarla a `app/globals.css` es trabajo de la Fase 1. Distingue los doce
+valores **medidos** (muestreados de los PNG de Figma) de los cuatro **derivados** (que el
+diseño no define y hay que confirmar). Lleva dentro las tres reglas que no se pueden
+perder: aditivo sobre los `--app-bg-*` actuales, `--oc-alert` solo como punto —da 2.24:1
+sobre `--oc-surface`, ilegible como texto— y componentes que referencian el papel
+(`var(--oc-surface)`), nunca el hex.
+
+**Especificación completa** (gramática de tres niveles, mapa de navegación de los cinco
+roles, registro de lo desactivado y los ocho prompts): artefacto *Rediseño Océano*, fuera
+del repo.
 
 ### Plan de consolidación (PROPUESTA — aún NO ejecutada)
 
@@ -497,3 +506,4 @@ tocadas.
 |---|---|---|
 | 2026-09-08 | Creación del documento. Primera medición completa del sistema visual. | todas |
 | 2026-09-10 | Rediseño Océano: línea base medida (905 ocurrencias de tema claro en 38 archivos, 0 % migrado) y alta de `scripts/diag-restyle-oceano.mjs`. Sin cambios de código todavía. | §7, §9, §10 |
+| 2026-09-10 | Paleta Océano versionada en `docs/sistema/TOKENS-OCEANO.css` (referencia, no se importa): 12 valores medidos + 4 derivados. Sigue sin aplicarse a `globals.css`. | §7, §10 |
