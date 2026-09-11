@@ -99,43 +99,43 @@ export function BuscadorAlumnoProfesor({
 
   return (
     <section
-      className="relative mt-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
+      className="relative mt-6 overflow-hidden rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3 sm:p-4"
       aria-label="Asistencia de mis alumnos"
     >
       <div className="relative z-[1] flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-2 px-1 pb-1">
-          <span className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] sm:text-[11px]">
+          <span className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] sm:text-[11px]">
             Asistencia de mis alumnos
           </span>
           {alumnoSel && (
-            <span className="rounded-full border border-white/60 bg-white/80 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
+            <span className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
               {alumnoSel.nombre} · {alumnoSel.grado} {alumnoSel.grupo}
               {alumnoSel.carrera ? ` · ${alumnoSel.carrera}` : ""}
             </span>
           )}
         </div>
 
-        <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-4">
           {cargando ? (
-            <p className="text-center text-sm font-semibold text-slate-600">
+            <p className="text-center text-sm font-semibold text-[var(--oc-muted)]">
               Cargando tus grupos…
             </p>
           ) : error ? (
             <p
-              className="text-center text-xs font-semibold text-red-700"
+              className="text-center text-xs font-semibold text-[var(--oc-alert-text)]"
               role="alert"
             >
               {error}
             </p>
           ) : grupos.length === 0 ? (
-            <p className="text-center text-xs font-semibold text-slate-600">
+            <p className="text-center text-xs font-semibold text-[var(--oc-muted)]">
               Aún no tienes grupos asignados.
             </p>
           ) : (
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="flex flex-col gap-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                     Grupo
                   </span>
                   <select
@@ -144,7 +144,7 @@ export function BuscadorAlumnoProfesor({
                       setGrupoSel(e.target.value);
                       setAlumnoSel(null);
                     }}
-                    className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                    className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
                   >
                     {grupos.map((g) => (
                       <option
@@ -159,7 +159,7 @@ export function BuscadorAlumnoProfesor({
                   </select>
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                     Buscar por nombre o CURP
                   </span>
                   <input
@@ -170,14 +170,14 @@ export function BuscadorAlumnoProfesor({
                       setAlumnoSel(null);
                     }}
                     placeholder="Nombre o CURP…"
-                    className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                    className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] placeholder:text-[var(--oc-muted)] outline-none focus:border-[var(--oc-border-active)]"
                   />
                 </label>
               </div>
 
-              <div className="max-h-56 overflow-auto rounded-2xl border border-white/60 bg-white/70 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
+              <div className="max-h-56 overflow-auto rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-2">
                 {alumnosFiltrados.length === 0 ? (
-                  <p className="px-3 py-4 text-center text-xs font-semibold text-slate-600">
+                  <p className="px-3 py-4 text-center text-xs font-semibold text-[var(--oc-muted)]">
                     Sin alumnos que coincidan.
                   </p>
                 ) : (
@@ -187,16 +187,16 @@ export function BuscadorAlumnoProfesor({
                         <button
                           type="button"
                           onClick={() => elegirAlumno(a)}
-                          className={`flex-1 rounded-xl border px-3 py-2 text-left text-[11px] font-bold transition hover:brightness-105 ${
+                          className={`flex-1 rounded-xl border px-3 py-2 text-left text-[11px] font-bold transition hover:brightness-110 ${
                             alumnoSel?.curp === a.curp
-                              ? "border-sky-500/60 bg-sky-100/90 text-sky-900"
-                              : "border-white/60 bg-white/80 text-sky-900 hover:bg-white"
+                              ? "border-[var(--oc-border-active)] bg-[var(--oc-input)] text-[var(--oc-text)]"
+                              : "border-[var(--oc-border)] bg-[var(--oc-input)] text-[var(--oc-text)]"
                           }`}
                         >
                           <span className="block truncate uppercase tracking-wide">
                             {a.nombre}
                           </span>
-                          <span className="block text-[9px] font-semibold normal-case text-slate-500">
+                          <span className="block text-[9px] font-semibold normal-case text-[var(--oc-muted)]">
                             {a.curp}
                           </span>
                         </button>
@@ -206,7 +206,7 @@ export function BuscadorAlumnoProfesor({
                         <Link
                           href={`/perfil?modo=maestro&curp=${encodeURIComponent(a.curp)}&desde=profesor`}
                           title="Ver perfil del alumno"
-                          className="shrink-0 rounded-xl border border-sky-500/50 bg-sky-100/90 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
+                          className="shrink-0 rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110"
                         >
                           Perfil
                         </Link>
@@ -220,7 +220,7 @@ export function BuscadorAlumnoProfesor({
         </div>
 
         {alumnoSel && (
-          <div className="flex flex-col gap-4 rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+          <div className="flex flex-col gap-4 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
             <HorarioAlumnoResumen curp={alumnoSel.curp} />
             <CalendarioAsistenciaAlumno
               curp={alumnoSel.curp}

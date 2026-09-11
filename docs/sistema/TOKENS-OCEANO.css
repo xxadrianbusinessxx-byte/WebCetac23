@@ -32,10 +32,25 @@
 
    FONDO — pregunta: ¿el usuario puede escribir aquí o pulsarlo para
    cambiar su estado?
-     sí, es interactivo ....... --oc-input      campo, chip, celda editable,
+     sí, es interactivo ....... --oc-input      campo, celda editable,
                                                 pestaña, botón secundario
      no, solo contiene ........ --oc-surface    panel, tarjeta, contenedor
      es el rail lateral ....... --oc-sidebar
+
+   EXCEPCIÓN — chips y rótulos-píldora van SIEMPRE a --oc-input, se pulsen
+   o no. La pregunta de arriba los mandaría a --oc-surface por no ser
+   interactivos, y entonces un chip decorativo sobre un panel sería del
+   mismo color que el panel: dejaría de leerse como chip. El chip de
+   usuario del shell (`nav-superior-oceano.tsx`) ya usa --oc-input y no es
+   pulsable. La forma manda sobre la interactividad en este único caso.
+   (Hueco detectado al migrar `buscador-alumno-profesor.tsx`, 2026-09-11:
+   la pregunta y la lista de ejemplos se contradecían.)
+
+   HOVER — la paleta NO tiene tokens de hover, y no los va a tener: serían
+   dieciséis variantes para un efecto que el diseño no define. Se resuelve
+   con `hover:brightness-110` sobre el token que ya lleva el elemento. Es
+   lo que hicieron las Fases 2 y 3; queda escrito para que deje de ser una
+   convención que hay que adivinar leyendo otro componente.
 
    TEXTO — pregunta: ¿esto ES el contenido, o habla SOBRE el contenido?
      es el contenido .......... --oc-text       título, valor, cuerpo
@@ -58,6 +73,21 @@
    gradiente en un solo sitio, el fondo global (`--oc-bg`); ningún panel,
    botón ni chip lleva degradado. Traducir solo el `from-` deja el degradado
    roto y, lo que es peor, el diagnóstico en verde.
+
+   ARTEFACTOS DEL TEMA CLARO — migrar no es solo cambiar el color.
+   El glass Frutiger Aero se construye con piezas que sobre superficie
+   oscura no significan nada o directamente ensucian:
+     shadow-[inset_0_1px_0_rgba(255,255,255,…)]  se ELIMINA. Es un brillo
+       superior que simula luz sobre cristal claro; sobre --oc-surface es
+       una raya.
+     backdrop-blur-*                              se ELIMINA. El diseño
+       Océano tiene superficies planas sobre un fondo que ya no se ve a
+       través de ellas.
+     rounded-[2rem] · rounded-3xl · border-[3px]  se NORMALIZAN a
+       rounded-2xl y border (1px). El diseño usa un radio y un grosor.
+   Es lo que ya hicieron las Fases 2 y 3 —`materia-selector`,
+   `calendario-asistencia-alumno` y `etiquetas-dinamicas-panel` tienen cero
+   restos—, así que esto documenta la práctica existente, no la cambia.
 
    REGLA DE CIERRE — un componente se migra ENTERO o no se toca.
    Texto claro sobre panel claro es coherente; texto oscuro sobre panel
