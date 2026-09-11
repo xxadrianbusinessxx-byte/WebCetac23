@@ -30,7 +30,7 @@ function PanelTab({
 }) {
   return (
     <span
-      className={`rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] sm:text-[11px] ${className}`}
+      className={`rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] sm:text-[11px] ${className}`}
     >
       {children}
     </span>
@@ -55,7 +55,7 @@ function GreyActionPill({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35),0_3px_10px_rgba(2,6,23,0.12)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      className={`rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
       {children}
     </button>
@@ -70,26 +70,26 @@ const INFO_TIPO: Record<
   clase: {
     etiqueta: "Clase",
     simbolo: "🟢",
-    clase: "bg-emerald-200/80 border-emerald-500/60 text-emerald-900",
-    texto: "text-emerald-800",
+    clase: "bg-[var(--oc-ok)]/20 border-[var(--oc-ok)]/60 text-[var(--oc-text)]",
+    texto: "text-[var(--oc-ok)]",
   },
   festivo: {
     etiqueta: "Festivo",
     simbolo: "🔴",
-    clase: "bg-red-200/80 border-red-500/60 text-red-900",
-    texto: "text-red-800",
+    clase: "bg-[var(--oc-alert)]/20 border-[var(--oc-alert)]/60 text-[var(--oc-alert-text)]",
+    texto: "text-[var(--oc-alert-text)]",
   },
   mantenimiento: {
     etiqueta: "Mantenimiento",
     simbolo: "🟡",
-    clase: "bg-amber-200/80 border-amber-500/60 text-amber-900",
-    texto: "text-amber-800",
+    clase: "bg-[var(--oc-alert)]/15 border-[var(--oc-alert)]/40 text-[var(--oc-alert-text)]",
+    texto: "text-[var(--oc-alert-text)]",
   },
   descanso: {
     etiqueta: "Descanso",
     simbolo: "⚪",
-    clase: "bg-slate-200/80 border-slate-400/60 text-slate-700",
-    texto: "text-slate-700",
+    clase: "bg-[var(--oc-surface)] border-[var(--oc-border)] text-[var(--oc-muted)]",
+    texto: "text-[var(--oc-muted)]",
   },
 };
 
@@ -334,31 +334,31 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
   const diaSeleccionado = seleccionado ? diasPorFecha.get(seleccionado) : null;
 
   return (
-    <div className="relative flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
+    <div className="relative flex flex-1 flex-col gap-6 overflow-hidden rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3 sm:p-4">
       <PanelTab className="mx-auto w-fit">Calendario escolar</PanelTab>
 
       <div className="relative z-[1] flex flex-col gap-4">
         {/* Mensajes */}
         {mensaje && (
-          <p className="text-center text-xs font-semibold text-sky-900" role="status">
+          <p className="text-center text-xs font-semibold text-[var(--oc-text)]" role="status">
             {mensaje}
           </p>
         )}
         {error && (
-          <p className="text-center text-xs font-semibold text-red-700" role="alert">
+          <p className="text-center text-xs font-semibold text-[var(--oc-alert-text)]" role="alert">
             {error}
           </p>
         )}
 
         {/* Selector de ciclo */}
-        <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-          <label className="text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3 ">
+          <label className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
             Ciclo escolar
           </label>
           <select
             value={ciclo}
             onChange={(e) => setCiclo(e.target.value)}
-            className="min-w-[10rem] flex-1 rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+            className="min-w-[10rem] flex-1 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
           >
             <option value="">Selecciona un ciclo…</option>
             {ciclos.map((c) => (
@@ -367,14 +367,14 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
               </option>
             ))}
           </select>
-          <span className="text-[10px] font-semibold text-slate-600">
+          <span className="text-[10px] font-semibold text-[var(--oc-muted)]">
             {cargando ? "Cargando…" : `${dias.length} día(s) registrado(s)`}
           </span>
         </div>
 
         {/* Configuración de la base del calendario */}
-        <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3 ">
+          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
             Crear / actualizar calendario base (lunes a viernes = clase)
           </p>
           <div className="flex flex-wrap items-center gap-2">
@@ -383,22 +383,22 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
               value={nuevoCiclo}
               onChange={(e) => setNuevoCiclo(e.target.value)}
               placeholder="Ciclo (ej. 2026-2027)"
-              className="min-w-[8rem] flex-1 rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+              className="min-w-[8rem] flex-1 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] placeholder:text-[var(--oc-muted)] outline-none focus:border-[var(--oc-border-active)]"
             />
             <input
               type="date"
               value={inicio}
               onChange={(e) => setInicio(e.target.value)}
               aria-label="Fecha inicial del ciclo"
-              className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+              className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
             />
-            <span className="text-xs font-bold text-slate-600">→</span>
+            <span className="text-xs font-bold text-[var(--oc-muted)]">→</span>
             <input
               type="date"
               value={fin}
               onChange={(e) => setFin(e.target.value)}
               aria-label="Fecha final del ciclo"
-              className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+              className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
             />
             <GreyActionPill onClick={onPrevisualizar}>Previsualizar</GreyActionPill>
             <GreyActionPill onClick={onGenerarBase} disabled={generando}>
@@ -406,14 +406,14 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
             </GreyActionPill>
           </div>
           {previewMsg && (
-            <p className="mt-2 text-center text-xs font-semibold text-sky-900">
+            <p className="mt-2 text-center text-xs font-semibold text-[var(--oc-text)]">
               {previewMsg}
             </p>
           )}
         </div>
 
         {/* Leyenda */}
-        <div className="flex flex-wrap items-center justify-center gap-3 rounded-full border border-white/60 bg-white/55 px-3 py-2 text-[10px] font-bold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
+        <div className="flex flex-wrap items-center justify-center gap-3 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-[10px] font-bold text-[var(--oc-muted)] ">
           {TIPOS_DIA_CALENDARIO.map((t) => (
             <span key={t} className="flex items-center gap-1">
               <span>{INFO_TIPO[t].simbolo}</span>
@@ -423,10 +423,10 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
         </div>
 
         {/* Calendario visual mensual */}
-        <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3 ">
           <div className="mb-2 flex items-center justify-between">
             <GreyActionPill onClick={() => cambiarMes(-1)}>‹</GreyActionPill>
-            <p className="text-sm font-extrabold uppercase tracking-wide text-sky-900">
+            <p className="text-sm font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
               {NOMBRES_MESES[mesVisible.getMonth()]} {mesVisible.getFullYear()}
             </p>
             <GreyActionPill onClick={() => cambiarMes(1)}>›</GreyActionPill>
@@ -436,7 +436,7 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
             {NOMBRES_DIAS.map((d, i) => (
               <div
                 key={i}
-                className="pb-1 text-center text-[10px] font-extrabold uppercase tracking-wide text-slate-500"
+                className="pb-1 text-center text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]"
               >
                 {d}
               </div>
@@ -454,8 +454,8 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
                   type="button"
                   onClick={() => onSeleccionarDia(fecha)}
                   className={`flex min-h-[3rem] flex-col items-center justify-center rounded-xl border p-1 text-xs font-bold transition hover:brightness-105 sm:min-h-[3.5rem] ${info.clase} ${
-                    esSeleccionado ? "ring-2 ring-sky-500 ring-offset-1" : ""
-                  } ${esHoy ? "outline outline-2 outline-sky-400" : ""}`}
+                    esSeleccionado ? "ring-2 ring-[var(--oc-border-active)]" : ""
+                  } ${esHoy ? "outline outline-2 outline-[var(--oc-border-active)]" : ""}`}
                   title={dia?.descripcion ?? info.etiqueta}
                 >
                   <span>{Number(fecha.slice(8))}</span>
@@ -468,8 +468,8 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
 
         {/* Editor del día seleccionado */}
         {seleccionado && (
-          <div className="rounded-3xl border border-sky-400/50 bg-sky-100/70 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
-            <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+          <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4 ">
+            <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
               Editar día {seleccionado}
             </p>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -478,7 +478,7 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
                 onChange={(e) =>
                   setTipoSeleccionado(e.target.value as TipoDiaCalendario)
                 }
-                className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
               >
                 {TIPOS_DIA_CALENDARIO.map((t) => (
                   <option key={t} value={t}>
@@ -491,7 +491,7 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
                 value={descripcionSeleccionada}
                 onChange={(e) => setDescripcionSeleccionada(e.target.value)}
                 placeholder="Descripción opcional"
-                className="min-w-[10rem] flex-1 rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                className="min-w-[10rem] flex-1 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] placeholder:text-[var(--oc-muted)] outline-none focus:border-[var(--oc-border-active)]"
               />
               <div className="flex gap-2">
                 <GreyActionPill onClick={onGuardarDia} disabled={guardando}>
@@ -505,7 +505,7 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
               </div>
             </div>
             {diaSeleccionado?.descripcion && (
-              <p className="mt-2 text-center text-xs font-semibold text-slate-700">
+              <p className="mt-2 text-center text-xs font-semibold text-[var(--oc-muted)]">
                 {diaSeleccionado.descripcion}
               </p>
             )}

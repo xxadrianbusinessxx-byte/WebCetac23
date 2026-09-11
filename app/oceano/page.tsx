@@ -5,6 +5,7 @@ import { actionListarAlumnosDelTutor } from "@/app/actions/tutores";
 import {
   ShellOceano,
   type DatosAlumnoOceano,
+  type DatosDirectivoOceano,
   type DatosDocenteOceano,
 } from "@/app/components/oceano/shell-oceano";
 import { nombreCompletoAlumno } from "@/lib/escolar/alumno/alumnos";
@@ -93,6 +94,12 @@ export default async function OceanoPage({
       }
     : null;
 
+  // Fase 6 — lo exclusivo del directivo sale del MISMO catálogo que el docente:
+  // grado, grupo y carrera son facetas de `MateriaIdentidad`, así que no hace
+  // falta ninguna consulta nueva para poblar el selector de ámbito.
+  const datosDirectivo: DatosDirectivoOceano | null =
+    rol === "directivo" ? { materias: materiasDocente } : null;
+
   // `key={rol}`: si cambia el rol (otra sesión sobre la misma pestaña del
   // navegador), el shell se remonta con su estado inicial en vez de arrastrar
   // la pestaña activa de la sesión anterior. Cambiar de ALUMNO no remonta nada:
@@ -104,6 +111,7 @@ export default async function OceanoPage({
       nombre={sesion?.nombre ?? sesion?.matricula ?? ""}
       datosAlumno={datosAlumno}
       datosDocente={datosDocente}
+      datosDirectivo={datosDirectivo}
       alumnosVinculados={esTutor ? alumnosVinculados : undefined}
       alumnoSeleccionado={curpConsulta}
     />

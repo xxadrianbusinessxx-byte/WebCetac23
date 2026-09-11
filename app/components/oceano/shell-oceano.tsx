@@ -27,6 +27,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PortalRole } from "@/lib/auth/types";
 import { opcionesDePieza, piezaDe } from "@/lib/navegacion/contenido-alumno";
+import { piezaDe as piezaDirectivoDe } from "@/lib/navegacion/contenido-directivo";
 import { piezaDe as piezaDocenteDe } from "@/lib/navegacion/contenido-docente";
 import {
   apartadoInicial,
@@ -44,6 +45,10 @@ import {
   type DatosAlumnoOceano,
 } from "./contenido-alumno-oceano";
 import {
+  ContenidoDirectivoOceano,
+  type DatosDirectivoOceano,
+} from "./contenido-directivo-oceano";
+import {
   ContenidoDocenteOceano,
   type DatosDocenteOceano,
 } from "./contenido-docente-oceano";
@@ -53,7 +58,7 @@ import { SelectorAlumnoOceano } from "./selector-alumno-oceano";
 import { SidebarOceano } from "./sidebar-oceano";
 
 /** Datos ya resueltos por el servidor para las piezas reales. */
-export type { DatosAlumnoOceano, DatosDocenteOceano };
+export type { DatosAlumnoOceano, DatosDirectivoOceano, DatosDocenteOceano };
 
 type Seleccion = {
   idPestana: string;
@@ -80,6 +85,7 @@ export function ShellOceano({
   nombre,
   datosAlumno = null,
   datosDocente = null,
+  datosDirectivo = null,
   alumnosVinculados,
   alumnoSeleccionado = null,
 }: {
@@ -89,6 +95,8 @@ export function ShellOceano({
   datosAlumno?: DatosAlumnoOceano | null;
   /** Fase 5 — catálogo del docente, YA filtrado por el servidor (R-4). */
   datosDocente?: DatosDocenteOceano | null;
+  /** Fase 6 — lo exclusivo del directivo (Grupos/Boleta, Alumnos/Tutores). */
+  datosDirectivo?: DatosDirectivoOceano | null;
   /**
    * Fase 4 — alumnos VINCULADOS que el selector puede ofrecer. `undefined` =
    * este rol no lleva selector (no se dibuja nada). La lista la resuelve el
@@ -188,6 +196,14 @@ export function ShellOceano({
               permitirJustificacion={opcionesDePieza(activa.id, activo.id).permitirJustificacion}
               datos={datosAlumno}
             />
+          ) : activa && activo && piezaDirectivoDe(activa.id, activo.id) && datosDirectivo ? (
+            /* Fase 6 — lo exclusivo del directivo. Va ANTES del docente en la
+               cadena porque sus huecos no se solapan (la suite lo comprueba) y
+               así el orden refleja de lo más específico a lo más compartido. */
+            <ContenidoDirectivoOceano
+              pieza={piezaDirectivoDe(activa.id, activo.id)!}
+              datos={datosDirectivo}
+            />
           ) : activa && activo && piezaDocenteDe(activa.id, activo.id) && datosDocente ? (
             /* Fase 5 — las dos pestañas que comparten maestro y directivo. El
                emparejamiento vive en `contenido-docente.ts`, uno solo para los
@@ -207,7 +223,8 @@ export function ShellOceano({
                 activa &&
                   activo &&
                   (piezaDe(activa.id, activo.id) ||
-                    piezaDocenteDe(activa.id, activo.id)),
+                    piezaDocenteDe(activa.id, activo.id) ||
+                    piezaDirectivoDe(activa.id, activo.id)),
               )}
             />
           )}

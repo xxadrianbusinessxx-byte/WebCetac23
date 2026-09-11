@@ -25,7 +25,7 @@ function PanelTab({
 }) {
   return (
     <span
-      className={`rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] sm:text-[11px] ${className}`}
+      className={`rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] sm:text-[11px] ${className}`}
     >
       {children}
     </span>
@@ -50,7 +50,7 @@ function GreyActionPill({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35),0_3px_10px_rgba(2,6,23,0.12)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      className={`rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
       {children}
     </button>
@@ -137,7 +137,7 @@ export function JustificacionesAdmin() {
   }
 
   return (
-    <div className="relative flex flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
+    <div className="relative flex flex-col gap-6 overflow-hidden rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3 sm:p-4">
       <PanelTab className="mx-auto w-fit">
         Justificaciones pendientes ({pendientes.length})
       </PanelTab>
@@ -147,8 +147,8 @@ export function JustificacionesAdmin() {
           role="status"
           className={`rounded-xl border px-4 py-2 text-center text-xs font-bold ${
             mensaje.tipo === "ok"
-              ? "border-emerald-300/70 bg-emerald-100/90 text-emerald-900"
-              : "border-red-300/70 bg-red-100/90 text-red-900"
+              ? "border-[var(--oc-ok)]/50 bg-[var(--oc-ok)]/15 text-[var(--oc-ok)]"
+              : "border-[var(--oc-alert)]/50 bg-[var(--oc-alert)]/15 text-[var(--oc-alert-text)]"
           }`}
         >
           {mensaje.texto}
@@ -156,11 +156,11 @@ export function JustificacionesAdmin() {
       )}
 
       {cargando ? (
-        <p className="text-center text-sm font-semibold text-slate-600">
+        <p className="text-center text-sm font-semibold text-[var(--oc-muted)]">
           Cargando solicitudes…
         </p>
       ) : pendientes.length === 0 ? (
-        <p className="text-center text-xs font-semibold text-slate-600">
+        <p className="text-center text-xs font-semibold text-[var(--oc-muted)]">
           No hay justificaciones pendientes de revisión.
         </p>
       ) : (
@@ -168,17 +168,17 @@ export function JustificacionesAdmin() {
           {pendientes.map((j) => (
             <li
               key={j.id}
-              className="rounded-3xl border border-white/60 bg-white/85 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.9),0_2px_8px_rgba(14,165,233,0.1)]"
+              className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-4 "
             >
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-extrabold text-sky-900">
+                <p className="text-sm font-extrabold text-[var(--oc-text)]">
                   {j.alumnoNombre || j.curp_alumno}
                 </p>
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-amber-900">
+                <span className="rounded-full bg-[var(--oc-alert)]/15 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-alert-text)]">
                   Pendiente
                 </span>
               </div>
-              <div className="flex flex-col gap-1 text-xs font-semibold text-slate-700 sm:flex-row sm:flex-wrap sm:gap-x-4">
+              <div className="flex flex-col gap-1 text-xs font-semibold text-[var(--oc-muted)] sm:flex-row sm:flex-wrap sm:gap-x-4">
                 <span>CURP: {j.curp_alumno}</span>
                 <span>
                   Grupo: {j.grado} {j.grupo}
@@ -197,7 +197,7 @@ export function JustificacionesAdmin() {
                       setConfirmandoAprobar(j.id);
                     }}
                     disabled={operando}
-                    className="border-emerald-600/60 bg-linear-to-b from-emerald-500 via-emerald-600 to-emerald-700"
+                    className="text-[var(--oc-ok)]"
                   >
                     Aprobar
                   </GreyActionPill>
@@ -208,7 +208,7 @@ export function JustificacionesAdmin() {
                       setRechazando((prev) => (prev === j.id ? null : j.id));
                     }}
                     disabled={operando}
-                    className="border-red-600/60 bg-linear-to-b from-red-500 via-red-600 to-red-700"
+                    className="text-[var(--oc-alert-text)]"
                   >
                     Rechazar
                   </GreyActionPill>
@@ -216,8 +216,8 @@ export function JustificacionesAdmin() {
               </div>
 
               {confirmandoAprobar === j.id && (
-                <div className="mt-3 rounded-2xl border border-amber-400/60 bg-amber-50/95 p-3">
-                  <p className="mb-2 text-center text-xs font-extrabold text-amber-900">
+                <div className="mt-3 rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 p-3">
+                  <p className="mb-2 text-center text-xs font-extrabold text-[var(--oc-alert-text)]">
                     ¿Confirmar la aprobación? La falta se convertirá en
                     asistencia y no se podrá deshacer.
                   </p>
@@ -231,7 +231,7 @@ export function JustificacionesAdmin() {
                     <GreyActionPill
                       onClick={() => void onAprobar(j.id)}
                       disabled={operando}
-                      className="border-emerald-600/60 bg-linear-to-b from-emerald-500 via-emerald-600 to-emerald-700"
+                      className="text-[var(--oc-ok)]"
                     >
                       {operando ? "Aprobando…" : "Confirmar aprobación"}
                     </GreyActionPill>
@@ -240,8 +240,8 @@ export function JustificacionesAdmin() {
               )}
 
               {rechazando === j.id && (
-                <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-red-400/60 bg-red-50/95 p-3">
-                  <p className="text-center text-xs font-extrabold text-red-900">
+                <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 p-3">
+                  <p className="text-center text-xs font-extrabold text-[var(--oc-alert-text)]">
                     Motivo del rechazo (obligatorio)
                   </p>
                   <textarea
@@ -250,7 +250,7 @@ export function JustificacionesAdmin() {
                     rows={2}
                     maxLength={500}
                     placeholder="Documento insuficiente para justificar la falta."
-                    className="w-full resize-none rounded-2xl border border-white/70 bg-white/95 px-4 py-3 text-sm font-semibold text-red-900"
+                    className="w-full resize-none rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-3 text-sm font-semibold text-[var(--oc-alert-text)]"
                   />
                   <div className="flex flex-wrap justify-center gap-2">
                     <GreyActionPill
@@ -265,7 +265,7 @@ export function JustificacionesAdmin() {
                     <GreyActionPill
                       onClick={() => void onRechazar(j.id)}
                       disabled={operando || !motivoRechazo.trim()}
-                      className="border-red-600/60 bg-linear-to-b from-red-500 via-red-600 to-red-700"
+                      className="text-[var(--oc-alert-text)]"
                     >
                       {operando ? "Rechazando…" : "Confirmar rechazo"}
                     </GreyActionPill>
@@ -284,7 +284,7 @@ export function JustificacionesAdmin() {
             {historial.map((j) => (
               <li
                 key={j.id}
-                className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-xs font-semibold text-slate-700"
+                className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-3 text-xs font-semibold text-[var(--oc-muted)]"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>
@@ -294,15 +294,15 @@ export function JustificacionesAdmin() {
                   <span
                     className={`rounded-full px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide ${
                       j.estado === "aprobada"
-                        ? "bg-emerald-100 text-emerald-900"
-                        : "bg-red-100 text-red-900"
+                        ? "bg-[var(--oc-ok)]/15 text-[var(--oc-ok)]"
+                        : "bg-[var(--oc-alert)]/15 text-[var(--oc-alert-text)]"
                     }`}
                   >
                     {j.estado === "aprobada" ? "Aprobada" : "Rechazada"}
                   </span>
                 </div>
                 {j.motivo_rechazo && (
-                  <p className="mt-1 text-xs text-red-800">
+                  <p className="mt-1 text-xs text-[var(--oc-alert-text)]">
                     Motivo: {j.motivo_rechazo}
                   </p>
                 )}
