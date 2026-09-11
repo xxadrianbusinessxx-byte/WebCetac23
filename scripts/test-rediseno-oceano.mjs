@@ -277,6 +277,14 @@ eq(nav.ordenSidebar(adm, "buzon").length, adm.length, "ordenar no pierde apartad
 eq(nav.ordenSidebar(adm, "inexistente").map((a) => a.id), adm.map((a) => a.id), "un id desconocido no altera el orden");
 ok(nav.ordenSidebar(adm, "buzon") !== adm, "ordenSidebar no muta el array original");
 
+// Fase 3.1 — «Asistencia» perdió sus sub-vistas: el calendario visual vive,
+// único, en «Calendario escolar»; este apartado es la tabla de datos crudos.
+eq(
+  nav.apartado("alumno", "calendario", "asistencia").modos,
+  [],
+  "«Asistencia» no tiene sub-vistas (el visual vive en Calendario escolar)",
+);
+
 // El configurador de ciclo conserva sus siete pasos como barra de modo.
 eq(nav.apartado("tecnico", "ciclo-escolar", "configurador").modos.length, 7, "el configurador conserva sus 7 pasos");
 

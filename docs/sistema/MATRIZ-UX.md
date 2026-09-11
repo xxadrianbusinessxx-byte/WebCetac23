@@ -5,8 +5,8 @@ Responde una sola pregunta: **«quiero cambiar tal cosa de la apariencia, ¿qué
 toco y a qué más afecta?»**
 
 - **Última medición:** 2026-09-08, sobre `app/**/*.tsx` (53 archivos, 13 100 líneas,
-  sin `app/_borrador/`). **Delta posterior:** 2026-09-10, las fases 1, 1.1, 2 y 3 del
-  rediseño Océano añadieron 9 archivos y 1 206 líneas (hoy 62 archivos, 14 316 líneas;
+  sin `app/_borrador/`). **Delta posterior:** 2026-09-10, las fases 1, 1.1, 2, 3 y 3.1 del
+  rediseño Océano añadieron 9 archivos y 1 298 líneas (hoy 62 archivos, 14 408 líneas;
   ver §1).
 - **Hermano normativo:** `docs/normativo/ORDEN.md` §1 (dónde va un archivo nuevo).
 - **Hermano funcional:** `docs/sistema/MAPA-DEL-SISTEMA.md` (síntoma → archivo).
@@ -56,7 +56,7 @@ la **barra de navegación** — nada de lo que hay dentro de los paneles. Por es
 | Archivos con `style={{...}}` inline | 6 | posiciones de decoración, no color |
 | `focus:` / `focus-visible:` | 101 / 11 | §8 |
 
-> **Fases 1, 1.1, 2 y 3 del rediseño Océano (2026-09-10).** Añadieron 9 archivos (1 206
+> **Fases 1, 1.1, 2, 3 y 3.1 del rediseño Océano (2026-09-10).** Añadieron 9 archivos (1 298
 > líneas) y los 17 tokens de §4.8. Las dos filas de conteo directo (archivos `.tsx`,
 > variables CSS) van actualizadas; las cifras **compuestas** (`className=`, clases
 > utilitarias, arbitrarios, radios, sombras, tamaños, opacidades y piezas duplicadas)
@@ -100,7 +100,7 @@ relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 
 |---|---|---|---|---|
 | `/` | `app/page.tsx` (todo) | `home-login-form.tsx` | **excepción:** `max-w-6xl` / `lg:max-w-7xl` + rejilla `lg:grid-cols-12` (3 · 5 · 4) | barra decorativa superior · `GlassShell` · `SectionPill` · `PanelTab` decorativo · `alumnos-estrella` · `eventos-inicio`. **Sin barra de navegación.** |
 | `/login` | `app/login/page.tsx` | — | — | `redirect("/")`; no pinta nada |
-| `/oceano` | `oceano/page.tsx` (66) | `components/oceano/shell-oceano.tsx` (149) + 7 piezas | **propio:** el shell pinta su fondo (`--oc-bg`) y el rail va anclado a x=0; no usa el contenedor estándar | **Fases 1-3** — shell único: barra superior por rol (nivel 1) + rail de apartados (nivel 2) + barra de modo (nivel 3), desde `lib/navegacion/mapa-navegacion.ts`. El contenido de los huecos con pieza lo decide `lib/navegacion/contenido-alumno.ts` y lo montan `contenido-alumno-oceano.tsx`, `asistencia-tabular-alumno.tsx` y `notificaciones-alumno.tsx`. No sustituye a ninguna ruta viva: convive con ellas (R8). |
+| `/oceano` | `oceano/page.tsx` (69) | `components/oceano/shell-oceano.tsx` (149) + 7 piezas | **propio:** el shell pinta su fondo (`--oc-bg`) y el rail va anclado a x=0; no usa el contenedor estándar | **Fases 1-3** — shell único: barra superior por rol (nivel 1) + rail de apartados (nivel 2) + barra de modo (nivel 3), desde `lib/navegacion/mapa-navegacion.ts`. El contenido de los huecos con pieza lo decide `lib/navegacion/contenido-alumno.ts` y lo montan `contenido-alumno-oceano.tsx`, `asistencia-tabular-alumno.tsx` y `notificaciones-alumno.tsx`. No sustituye a ninguna ruta viva: convive con ellas (R8). |
 | `/perfil` | `perfil/page.tsx` | `perfil-client.tsx` (822) | estándar (+ variante centrada `items-center justify-center` para el estado vacío) | 4 pestañas `MainTabButton`: materia · estatus · comentarios · boleta. `BubblePill`, `materia-selector`, `materia-tabla-vista`, `materia-calificaciones-alumno`, `calendario-asistencia-alumno`, `horario-alumno-resumen`, `etiquetas-dinamicas-panel` |
 | `/profesor` | `profesor/page.tsx` | `profesor-client.tsx` (301) | estándar | `GreyActionPill`, `buscador-alumno-profesor`, `asistencias-panel`, `materia-selector`, `materia-tabla-vista`, `materia-mapeo-columnas` |
 | `/directivo` | `directivo/page.tsx` | `directivo-client.tsx` (606) | estándar | `PanelTab`, `GreyActionPill`, `PreviewPanel`, 3 `<section>`, `justificaciones-admin`, `materias-config-panel`, `profesores-credenciales-panel`, `materia-*` |
@@ -497,11 +497,21 @@ Medición (antes → después): claro **772 → 772** y Fase 2 **81 → 81** (la
 nada: no toca `/perfil`, que conserva sus 81 a propósito); `--oc-*` **326 → 359**; avance
 global 30 % → 32 %. Cero consultas nuevas y `app/actions/` sin una línea de lógica nueva.
 
-**Observación reportada, no resuelta aquí.** «Calendario visual» dentro de
-`calendario/asistencia` monta el MISMO `CalendarioAsistenciaAlumno` que el apartado
-`calendario/calendario-escolar`: es **redundante** con él (dos entradas a la misma vista).
-El prompt de la fase prohíbe decidirlo en caliente; queda como recomendación para un cambio
-propio (retirar el modo, o darle contenido distinto).
+**Fase 3.1 ejecutada (2026-09-10).** Cierra el alumno. Dos correcciones, ninguna de
+arquitectura:
+1. **El mapa**, que era la única fuente del error: `act("asistencia", "Asistencia")` pierde
+   sus dos modos («Calendario visual» · «Datos crudos»). El apartado es la **tabla de datos
+   crudos**; el calendario visual sigue viviendo, **único**, en «Calendario escolar». Con
+   esto desaparece la redundancia que la Fase 3 reportó. La suite gana la aserción que
+   refleja el estado nuevo (`modos === []`): **170/170**.
+2. **Los cuatro datos** que faltaban en `Perfil › Información personal`, todos leídos del
+   payload de la MISMA acción (cero consultas nuevas): **foto de perfil** (con marcador
+   cuando no hay URL o la imagen no carga), **identidad** (CLAVE y CURP), **contacto del
+   tutor** (o la frase «Sin tutor vinculado») y **comentario personal** del alumno.
+
+Medición (antes → después): **claro 772 → 772** y **Fase 2 81 → 81** (esta fase no restylea
+nada), oscuro **359 → 370**, avance 32 %. `app/actions/` y `lib/escolar/` sin tocar;
+`/perfil` intacto con sus 81.
 
 **Lo que la migración NO cambia:** ni un permiso (salvo la Fase 0, que es explícitamente un
 cambio de matriz y va sola), ni un modelo de datos, ni la firma de ningún componente. Las

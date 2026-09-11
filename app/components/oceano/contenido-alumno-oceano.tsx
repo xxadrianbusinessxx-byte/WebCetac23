@@ -27,10 +27,8 @@ import { HorarioAlumnoResumen } from "@/app/components/horario-alumno-resumen";
 import { MateriaCalificacionesAlumno } from "@/app/components/materia-calificaciones-alumno";
 import { MateriaSelector } from "@/app/components/materia-selector";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
-import {
-  camposDeGrupo,
-  type GrupoCampoPersonal,
-} from "@/lib/escolar/alumno/grupos-campos-personales";
+import { camposDeGrupo, type GrupoCampoPersonal } from "@/lib/escolar/alumno/grupos-campos-personales";
+import { comentarioPersonalDesdeFila } from "@/lib/escolar/alumno/etiquetas";
 import { informacionPersonalDesdeEtiquetas } from "@/lib/escolar/alumno/informacion-personal";
 import type { PiezaAlumno } from "@/lib/navegacion/contenido-alumno";
 import type { AlumnoEtiquetaRow } from "@/lib/escolar/alumno/etiquetas-dinamicas";
@@ -38,22 +36,69 @@ import type { VistaRegistroAlumno } from "@/lib/escolar/alumno/registro-alumno";
 import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
 import type { ComentarioRow, EtiquetasPersonalesRow, MateriaTablaVista } from "@/lib/escolar/types";
 
-/** Rótulos de las sub-vistas de «Calendario › Asistencia»: los manda el mapa
- *  de navegación (`apartado("alumno","calendario","asistencia").modos`). */
-const MODO_DATOS_CRUDOS = "Datos crudos";
 
 /** Datos que ya resolvió `actionObtenerPerfilAlumno` (la misma de /perfil). */
 export type DatosAlumnoOceano = {
   curp: string;
   nombre: string;
+  /** Fase 3.1 — identidad del propio alumno (CLAVE de ALUMNOS). */
+  clave: string;
+  /** Fase 3.1 — foto de perfil ya resuelta (Cloudinary). */
+  fotoPerfilUrl: string | null;
   materias: readonly MateriaConNombreVisible[];
   registro: VistaRegistroAlumno;
   etiquetas: EtiquetasPersonalesRow | null;
   comentarios: readonly ComentarioRow[];
   etiquetasDinamicas: AlumnoEtiquetaRow[];
+  /** Fase 3.1 — contacto del tutor principal (o null si no hay vínculo). */
+  tutorContacto: {
+    nombre: string;
+    telefono: string | null;
+    correo: string | null;
+  } | null;
   puedeEditarEtiquetas: boolean;
   puedeImportarEtiquetas: boolean;
 };
+
+/**
+ * Foto de perfil (Fase 3.1). Presentación pura: si no hay URL —o la imagen no
+ * carga— se muestra un marcador explícito, nunca un hueco mudo. El alumno no
+ * puede subirla (`puedeSubirFoto` es false para él), así que esto es solo lectura.
+ */
+function FotoAlumno({ url, nombre }: { url: string | null; nombre: string }) {
+  const [rota, setRota] = useState(false);
+  if (!url || rota) {
+    return (
+      <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)]">
+        <span className="text-center text-[10px] font-bold uppercase tracking-wide text-[var(--oc-muted)]">
+          Sin foto
+        </span>
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt={`Foto de ${nombre}`}
+      width={192}
+      height={192}
+      onError={() => setRota(true)}
+      className="h-24 w-24 shrink-0 rounded-2xl border border-[var(--oc-border)] object-cover"
+    />
+  );
+}
+
+function DatoIdentidad({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
+        {etiqueta}
+      </p>
+      <p className="truncate text-sm font-semibold text-[var(--oc-text)]">{valor || "—"}</p>
+    </div>
+  );
+}
 
 function Tira({ children }: { children: ReactNode }) {
   return (
@@ -201,9 +246,58 @@ export function ContenidoAlumnoOceano({
   if (pieza === "perfil-informacion-personal") {
     return (
       <div className="flex flex-col gap-4">
+        {/* Fase 3.1 — foto e identidad del propio alumno (CLAVE y CURP). Son
+            lecturas de lo que la action ya devolvía a /perfil. */}
+        <Tira>
+          <div className="flex flex-wrap items-center gap-4">
+            <FotoAlumno url={datos.fotoPerfilUrl} nombre={nombre} />
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
+              <DatoIdentidad etiqueta="Nombre" valor={nombre} />
+              <DatoIdentidad etiqueta="Clave" valor={datos.clave} />
+              <DatoIdentidad etiqueta="CURP" valor={curp} />
+            </div>
+          </div>
+        </Tira>
+
         <Tira>
           <CamposDeGrupo etiquetas={etiquetas} grupo="personal" />
         </Tira>
+
+        {/* Fase 3.1 — contacto del tutor. Si no hay vínculo se dice con una
+            frase; no se deja el bloque mudo. */}
+        <Tira>
+          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-muted)]">
+            Tutor
+          </p>
+          {datos.tutorContacto ? (
+            <div className="flex flex-col gap-2">
+              <DatoIdentidad etiqueta="Nombre" valor={datos.tutorContacto.nombre} />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <DatoIdentidad
+                  etiqueta="Teléfono"
+                  valor={datos.tutorContacto.telefono ?? ""}
+                />
+                <DatoIdentidad etiqueta="Correo" valor={datos.tutorContacto.correo ?? ""} />
+              </div>
+            </div>
+          ) : (
+            <Aviso>Sin tutor vinculado.</Aviso>
+          )}
+        </Tira>
+
+        {/* Fase 3.1 — comentario personal del alumno, solo lectura. */}
+        <Tira>
+          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-muted)]">
+            Comentario personal
+          </p>
+          <textarea
+            readOnly
+            rows={3}
+            value={comentarioPersonalDesdeFila(etiquetas)}
+            className="w-full resize-none rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-3 text-sm font-semibold text-[var(--oc-text)]"
+          />
+        </Tira>
+
         <Tira>
           <EtiquetasDinamicasPanel
             curp={curp}
@@ -261,15 +355,10 @@ export function ContenidoAlumnoOceano({
     return <NotificacionesAlumno curp={curp} comentarios={comentarios} modo={modo} />;
   }
 
-  // Sus dos sub-vistas son EXCLUYENTES y comparten la misma acción de lectura.
-  if (pieza === "asistencia-subvistas") {
-    return modo === MODO_DATOS_CRUDOS ? (
-      <AsistenciaTabularAlumno curp={curp} nombreAlumno={nombre} />
-    ) : (
-      <Tira>
-        <CalendarioAsistenciaAlumno curp={curp} nombreAlumno={nombre} />
-      </Tira>
-    );
+  // Fase 3.1 — este apartado ya NO tiene sub-vistas: es la tabla de datos
+  // crudos. El calendario visual se monta, único, en «Calendario escolar».
+  if (pieza === "asistencia-tabular") {
+    return <AsistenciaTabularAlumno curp={curp} nombreAlumno={nombre} />;
   }
 
   // perfil-registro-calificaciones: lo que hoy sirven «Estatus» y «Boleta»

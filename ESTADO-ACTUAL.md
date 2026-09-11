@@ -8,7 +8,7 @@ append-only desde mayo y contiene afirmaciones ya falsas.
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-10 (rediseño Océano: Fase 0 matriz de permisos · Fase 1/1.1 tokens y shell · Fase 2 piezas del alumno · Fase 3 contenido nuevo)
+- **Última revisión:** 2026-09-10 (rediseño Océano: Fase 0 matriz de permisos · Fase 1/1.1 tokens y shell · Fase 2 piezas del alumno · Fase 3 contenido nuevo · Fase 3.1 cierre del alumno)
 - **HEAD:** `d631e4f` (2026-09-04) + cambios de PROMPT-1/2/3 sin commitear
 
 ---
@@ -423,6 +423,28 @@ La UI gobierna con `puede()` (barra, layout, páginas y paneles). Validación:
   `npm run test:suites` **36/36 en verde** · `next build` = 0 (con `/oceano`) ·
   `diag-restyle-oceano.mjs`: claro **772 → 772** (sin cambios, como exige la fase), oscuro
   **326 → 359**, avance 30 % → 32 %; Fase 1 sigue en 11 y **Fase 2 sigue en 81**.
+
+**Rediseño Océano — Fase 3.1: cierre del alumno (2026-09-10).**
+- **Mapa (una línea).** `act("asistencia", "Asistencia")` pierde sus dos modos: el apartado
+  es la **tabla de datos crudos** y el calendario visual vive, **único**, en «Calendario
+  escolar». Era un error del mapa (dos entradas a la misma vista), no del cableado. La
+  aserción de la suite que refleja el estado nuevo (`modos === []`) es lo único que se
+  actualizó allí: **170/170**.
+- **Shell.** `lib/navegacion/contenido-alumno.ts` renombra la pieza
+  `asistencia-subvistas` → `asistencia-tabular` y `contenido-alumno-oceano.tsx` pierde la
+  rama que montaba «Calendario visual» (ya no hay modos que elegir).
+- **Los cuatro datos** de `Perfil › Información personal`, todos del payload de la MISMA
+  acción (cero consultas nuevas, cero actions nuevas): **foto de perfil** (con marcador
+  explícito si no hay URL o la imagen no carga), **identidad** —CLAVE y CURP, solo
+  lectura—, **contacto del tutor** (nombre, teléfono, correo; si no hay vínculo lo dice con
+  una frase) y **comentario personal** del alumno, solo lectura.
+- **Validación.** `npx tsc --noEmit` = 0 · `test-rediseno-oceano.mjs` **170/170** ·
+  `npm run test:suites` **36/36 en verde** · `next build` = 0 (con `/oceano`) ·
+  `diag-restyle-oceano.mjs`: **claro 772 → 772** y **Fase 2 81 → 81** (no se movieron,
+  como exige la fase), oscuro 359 → 370.
+- **Consecuencia:** la lista de «cosas que `/perfil` hace para un alumno y `/oceano` no» ya
+  está **vacía**. `/perfil` sigue en pie y sin restylear (sus 81 claro): su retiro es un
+  cambio propio y posterior (Fase 9), y ya no hay pérdida que lo justifique.
 
 ## 8. Cómo se valida un cambio
 

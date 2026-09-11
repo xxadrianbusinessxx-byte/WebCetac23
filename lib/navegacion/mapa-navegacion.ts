@@ -102,7 +102,11 @@ const CALENDARIO_ALUMNO: Pestana = {
   apartados: [
     act("calendario-escolar", "Calendario escolar"),
     act("horario-escolar", "Horario escolar"),
-    act("asistencia", "Asistencia", ["Calendario visual", "Datos crudos"]),
+    // Fase 3.1 — este apartado NO tiene sub-vistas: muestra la TABLA de datos
+    // crudos de asistencia. El calendario visual vive, único, en «Calendario
+    // escolar». Tenerlo además aquí como modo era un error del mapa (dos
+    // entradas a la misma vista), no del cableado.
+    act("asistencia", "Asistencia"),
   ],
 };
 

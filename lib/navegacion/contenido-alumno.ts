@@ -29,17 +29,16 @@ export type PiezaAlumno =
   | "perfil-notificaciones"
   | "perfil-seguimiento-semestral"
   | "perfil-seguimiento-medico"
-  | "asistencia-subvistas";
+  | "asistencia-tabular";
 
 /** Clave = `idPestana/idApartado`, tal cual los devuelve el mapa. */
 const HUECOS: Readonly<Record<string, PiezaAlumno>> = {
   "materias/calificacion": "materias-calificacion",
   "calendario/horario-escolar": "calendario-horario",
   "calendario/calendario-escolar": "calendario-asistencia",
-  // Este apartado tiene DOS sub-vistas (modos del mapa: «Calendario visual» y
-  // «Datos crudos»); la pieza las resuelve con el modo activo, sin duplicar la
-  // lectura: las dos son excluyentes y comparten la misma acción.
-  "calendario/asistencia": "asistencia-subvistas",
+  // Fase 3.1 — este apartado perdió sus sub-vistas (el calendario visual vive,
+  // único, en «Calendario escolar»): su pieza es siempre la tabla de datos crudos.
+  "calendario/asistencia": "asistencia-tabular",
   "perfil/informacion-personal": "perfil-informacion-personal",
   "perfil/seguimiento-semestral": "perfil-seguimiento-semestral",
   "perfil/seguimiento-medico": "perfil-seguimiento-medico",

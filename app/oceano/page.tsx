@@ -42,11 +42,14 @@ export default async function OceanoPage() {
       ? {
           curp: perfil.alumno?.CURP ?? "",
           nombre: perfil.alumno ? nombreCompletoAlumno(perfil.alumno) : "",
+          clave: perfil.alumno?.CLAVE ?? "",
+          fotoPerfilUrl: perfil.fotoPerfilUrl,
           materias: perfil.materias,
           registro: perfil.registro,
           etiquetas: perfil.etiquetas,
           comentarios: perfil.comentarios,
           etiquetasDinamicas: perfil.etiquetasDinamicas,
+          tutorContacto: perfil.tutorContacto,
           puedeEditarEtiquetas: perfil.acceso.puedeEditarEtiquetas,
           puedeImportarEtiquetas: perfil.acceso.puedeImportarEtiquetas,
         }
