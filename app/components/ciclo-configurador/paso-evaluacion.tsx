@@ -7,8 +7,8 @@ import {
   actionSetActivoEvaluacion,
 } from "@/app/actions/evaluaciones";
 
-const input = "rounded-lg border border-white/70 bg-white/90 px-2 py-1 text-xs font-semibold text-slate-700";
-const btn = "rounded-full bg-sky-600 px-3 py-1.5 text-[10px] font-extrabold uppercase text-white disabled:opacity-50";
+const input = "rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] px-2 py-1 text-xs font-semibold text-[var(--oc-muted)]";
+const btn = "rounded-full bg-[var(--oc-surface)] px-3 py-1.5 text-[10px] font-extrabold uppercase text-[var(--oc-text)] disabled:opacity-50";
 
 type Ev = { id?: string; numero: number; nombre: string; inicio: string; fin: string; activo: boolean };
 
@@ -83,15 +83,15 @@ export function PasoEvaluacion({ periodoId, avisar }: {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[10px] font-extrabold uppercase tracking-wide text-indigo-900">
+      <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
         Paso 4 · Evaluación (parciales del periodo)
       </p>
       {evs.length === 0 ? (
-        <p className="text-[11px] font-semibold text-slate-600">Sin parciales configurados.</p>
+        <p className="text-[11px] font-semibold text-[var(--oc-muted)]">Sin parciales configurados.</p>
       ) : (
         <table className="w-full text-left text-[11px]">
           <thead>
-            <tr className="text-[10px] uppercase text-slate-500">
+            <tr className="text-[10px] uppercase text-[var(--oc-muted)]">
               <th className="py-1 pr-2">#</th><th className="py-1 pr-2">Nombre</th>
               <th className="py-1 pr-2">Inicio</th><th className="py-1 pr-2">Fin</th>
               <th className="py-1 pr-2">Estado</th><th className="py-1 pr-2">Acciones</th>
@@ -99,7 +99,7 @@ export function PasoEvaluacion({ periodoId, avisar }: {
           </thead>
           <tbody>
             {evs.map((e) => (
-              <tr key={e.id ?? e.nombre} className="border-t border-white/60 text-slate-700">
+              <tr key={e.id ?? e.nombre} className="border-t border-[var(--oc-border)] text-[var(--oc-muted)]">
                 <td className="py-1 pr-2">{e.numero}</td>
                 <td className="py-1 pr-2">
                   <input className={input} value={e.nombre} disabled={!e.id || !e.activo}
@@ -118,7 +118,7 @@ export function PasoEvaluacion({ periodoId, avisar }: {
                   <button type="button" className={btn} disabled={!e.id || !e.activo}
                     onClick={() => void guardarFila(e)}>Guardar</button>
                   {e.id && e.activo && (
-                    <button type="button" className={`${btn} !bg-slate-500`}
+                    <button type="button" className={`${btn} !bg-[var(--oc-surface)]`}
                       onClick={() => void desactivar(e)}>Desactivar</button>
                   )}
                 </td>

@@ -12,9 +12,9 @@ import {
 import type { DetalleCicloAdmin } from "@/app/actions/evaluaciones";
 import type { ResultadoRepararTablaLegacy } from "@/lib/escolar/ciclo/contexto-ciclo";
 
-const input = "rounded-xl border border-white/70 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800";
-const btn = "rounded-full bg-linear-to-b from-sky-500 via-sky-600 to-sky-700 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white disabled:opacity-50";
-const btnSec = "rounded-full border border-sky-700/40 bg-white/85 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-sky-900 disabled:opacity-50";
+const input = "rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-semibold text-[var(--oc-muted)]";
+const btn = "rounded-full bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] disabled:opacity-50";
+const btnSec = "rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] disabled:opacity-50";
 
 export function PasoAcademico({ periodoId, detalle, avisar, onCambio }: {
   periodoId: string;
@@ -104,14 +104,14 @@ export function PasoAcademico({ periodoId, detalle, avisar, onCambio }: {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[10px] font-extrabold uppercase tracking-wide text-indigo-900">
+      <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
         Paso 2 · Estructura académica (grupos · carreras · grupo↔materia)
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <input className={`${input} min-w-[12rem] flex-1`} placeholder="periodo_id origen (copiar grupos y materias)" value={origen} onChange={(e) => setOrigen(e.target.value)} />
         <button type="button" className={btn} disabled={!origen.trim() || clonando} onClick={() => void clonar()}>{clonando ? "Copiando…" : "Copiar estructura"}</button>
       </div>
-      <p className="text-[10px] font-semibold text-slate-600">
+      <p className="text-[10px] font-semibold text-[var(--oc-muted)]">
         Copia grupos y grupo_materias del origen. NO copia alumnos ni inscripciones.
       </p>
       <div className="flex flex-wrap items-center gap-2">
@@ -119,11 +119,11 @@ export function PasoAcademico({ periodoId, detalle, avisar, onCambio }: {
           {cargando ? "Cargando…" : "Cargar materias según catálogo"}
         </button>
       </div>
-      <p className="text-[10px] font-semibold text-slate-600">
+      <p className="text-[10px] font-semibold text-[var(--oc-muted)]">
         Crea los grupos del catálogo legacy que falten y vincula cada tabla física (grupo_materias.tabla_legacy) a su materia del catálogo. Idempotente: no duplica parejas.
       </p>
-      <div className="mt-1 flex flex-wrap items-center gap-2 rounded-2xl border border-white/50 bg-indigo-100/40 p-2">
-        <span className="text-[10px] font-extrabold uppercase tracking-wide text-indigo-900">
+      <div className="mt-1 flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-2">
+        <span className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
           Reparar puente de materias (tabla_legacy)
         </span>
         <select
@@ -162,7 +162,7 @@ export function PasoAcademico({ periodoId, detalle, avisar, onCambio }: {
         </button>
       </div>
       {previewReparar?.ok && (
-        <p className="text-[10px] font-semibold text-slate-600">
+        <p className="text-[10px] font-semibold text-[var(--oc-muted)]">
           Preview: {previewReparar.match} filas por reparar (match) ·{" "}
           {previewReparar.yaTiene} ya tenían puente ·{" "}
           {previewReparar.sinOrigen} sin origen · {previewReparar.ambiguos}{" "}
@@ -171,7 +171,7 @@ export function PasoAcademico({ periodoId, detalle, avisar, onCambio }: {
         </p>
       )}
       {detalle && (
-        <div className="rounded-xl bg-white/80 p-2 text-[11px] font-semibold text-slate-700">
+        <div className="rounded-xl bg-[var(--oc-input)] p-2 text-[11px] font-semibold text-[var(--oc-muted)]">
           Resumen actual: {detalle.conteos.grupos} grupos · {detalle.conteos.materiasActivas} materias asignadas.
         </div>
       )}

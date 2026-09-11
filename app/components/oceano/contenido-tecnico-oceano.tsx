@@ -1,0 +1,111 @@
+"use client";
+
+/**
+ * contenido-tecnico-oceano.tsx — monta las piezas del rol técnico.
+ *
+ * Es el rol más barato del rediseño: todas sus piezas YA existen y funcionan.
+ * Hoy viven apiladas en `app/configuracion/page.tsx` —seis paneles uno debajo
+ * de otro con guardas `puede(...)`— y aquí solo se reparten en los tres
+ * niveles de navegación. Ni un modelo de datos nuevo, ni una capacidad nueva,
+ * ni una firma cambiada.
+ *
+ * Las guardas `puede(...)` que envuelven cada panel en su ruta actual NO se
+ * replican aquí: el mapa ya decide qué se DIBUJA y cada action sigue decidiendo
+ * qué se PUEDE. Repetir la comprobación en la interfaz sería un segundo camino.
+ */
+import type { ReactNode } from "react";
+import { AliasesVolumenPanel } from "@/app/components/aliases-volumen-panel";
+import { AsignacionesProfesorAdmin } from "@/app/components/asignaciones-admin";
+import { BajaRosterPanel } from "@/app/components/baja-roster-panel";
+import { CalendarioEscolarPanel } from "@/app/components/calendario-escolar-panel";
+import { CicloConfigurador } from "@/app/components/ciclo-configurador";
+import { DeshacerPasoPanel } from "@/app/components/deshacer-paso-panel";
+import { HorarioEscolarPanel } from "@/app/components/horario-escolar-panel";
+import { MateriasConfigPanel } from "@/app/components/materias-config-panel";
+import { ProfesoresCredencialesPanel } from "@/app/components/profesores-credenciales-panel";
+import { TutoresPanel } from "@/app/components/tutores-panel";
+import type { PiezaTecnico } from "@/lib/navegacion/contenido-tecnico";
+
+/** Hueco declarado: la pieza existe, pero no donde este apartado la necesita.
+ *  Se dice en pantalla en vez de improvisar una interfaz nueva. */
+function Pendiente({ children }: { children: ReactNode }) {
+  return (
+    <p className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-3 text-xs font-semibold text-[var(--oc-muted)]">
+      {children}
+    </p>
+  );
+}
+
+export function ContenidoTecnicoOceano({
+  pieza,
+  modo,
+}: {
+  pieza: PiezaTecnico;
+  modo: string | null;
+}) {
+  switch (pieza) {
+    case "ciclo-configurador":
+      // Sus 7 pasos YA eran un conmutador interno; ahora el nivel 3 del shell
+      // hace ese papel. El componente no se reescribe: el usuario elige el
+      // paso desde la barra de modo y el panel sigue siendo el mismo.
+      return <CicloConfigurador />;
+
+    case "ciclo-lista":
+      // La lista de ciclos (activar, clonar, histórico) vive DENTRO de
+      // CicloConfigurador, encima de sus pasos. Separarla en su propio
+      // apartado exige partir ese componente, que es un cambio de dominio con
+      // su propia verificación — no se hace de paso en una migración visual.
+      return (
+        <Pendiente>
+          La lista de ciclos vive dentro del Configurador, sobre sus siete
+          pasos. Separarla en este apartado exige partir ese componente y se
+          hace en su propio cambio.
+        </Pendiente>
+      );
+
+    case "calendario-escolar-admin":
+      return <CalendarioEscolarPanel />;
+
+    case "horario-escolar-admin":
+      return <HorarioEscolarPanel />;
+
+    case "deshacer-paso":
+      return <DeshacerPasoPanel />;
+
+    case "materias-config":
+      // Dos piezas en el mismo apartado, como en `/configuracion`: el catálogo
+      // con sus aliases individuales y el panel de volumen.
+      return (
+        <div className="flex flex-col gap-4">
+          <MateriasConfigPanel materias={[]} />
+          {(modo ?? "").toLowerCase().includes("volumen") ? <AliasesVolumenPanel /> : null}
+        </div>
+      );
+
+    case "asignaciones-profesor":
+      return <AsignacionesProfesorAdmin />;
+
+    case "roster-alumnos":
+      // Baja y restauración es la parte que YA es un componente propio. Roster,
+      // Etiquetas, Estatus e Inscripciones siguen dentro de
+      // `configuracion-client.tsx` (938 líneas) y salen de ahí cuando ese
+      // archivo se retire, no antes.
+      return (
+        <div className="flex flex-col gap-4">
+          <BajaRosterPanel />
+          <Pendiente>
+            Roster, Etiquetas, Estatus e Inscripciones siguen dentro de la
+            consola de configuración. Se trasladan cuando esa ruta se retire.
+          </Pendiente>
+        </div>
+      );
+
+    case "tutores":
+      return <TutoresPanel />;
+
+    case "profesores-credenciales":
+      // `ocultarId`: el técnico repone claves sin ver la identidad estructural
+      // (PROFESORES.ID). Es el mismo montaje que hoy hace `/configuracion`.
+      return <ProfesoresCredencialesPanel ocultarId />;
+  }
+}

@@ -29,6 +29,7 @@ import type { PortalRole } from "@/lib/auth/types";
 import { opcionesDePieza, piezaDe } from "@/lib/navegacion/contenido-alumno";
 import { piezaDe as piezaDirectivoDe } from "@/lib/navegacion/contenido-directivo";
 import { piezaDe as piezaDocenteDe } from "@/lib/navegacion/contenido-docente";
+import { piezaDe as piezaTecnicoDe } from "@/lib/navegacion/contenido-tecnico";
 import {
   apartadoInicial,
   esNavegable,
@@ -52,6 +53,7 @@ import {
   ContenidoDocenteOceano,
   type DatosDocenteOceano,
 } from "./contenido-docente-oceano";
+import { ContenidoTecnicoOceano } from "./contenido-tecnico-oceano";
 import { ContenidoMarcadorOceano } from "./contenido-marcador-oceano";
 import { NavSuperiorOceano } from "./nav-superior-oceano";
 import { SelectorAlumnoOceano } from "./selector-alumno-oceano";
@@ -196,6 +198,15 @@ export function ShellOceano({
               permitirJustificacion={opcionesDePieza(activa.id, activo.id).permitirJustificacion}
               datos={datosAlumno}
             />
+          ) : activa && activo && piezaTecnicoDe(activa.id, activo.id) ? (
+            /* Fase 7 — el técnico. No lleva `datos`: sus diez paneles ya
+               resuelven sus propias lecturas, igual que hacen hoy en
+               /configuracion. Reenviarles datos desde aquí sería inventar una
+               vía nueva para algo que ya funciona. */
+            <ContenidoTecnicoOceano
+              pieza={piezaTecnicoDe(activa.id, activo.id)!}
+              modo={sel.modo}
+            />
           ) : activa && activo && piezaDirectivoDe(activa.id, activo.id) && datosDirectivo ? (
             /* Fase 6 — lo exclusivo del directivo. Va ANTES del docente en la
                cadena porque sus huecos no se solapan (la suite lo comprueba) y
@@ -224,7 +235,8 @@ export function ShellOceano({
                   activo &&
                   (piezaDe(activa.id, activo.id) ||
                     piezaDocenteDe(activa.id, activo.id) ||
-                    piezaDirectivoDe(activa.id, activo.id)),
+                    piezaDirectivoDe(activa.id, activo.id) ||
+                    piezaTecnicoDe(activa.id, activo.id)),
               )}
             />
           )}

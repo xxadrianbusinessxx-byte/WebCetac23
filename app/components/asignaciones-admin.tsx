@@ -186,11 +186,11 @@ export function AsignacionesProfesorAdmin() {
   };
 
   return (
-    <div className="mt-10 w-full rounded-[1.5rem] border border-white/45 bg-slate-500/20 p-5 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm">
-      <h2 className="text-sm font-extrabold uppercase tracking-wide text-slate-800">
+    <div className="mt-10 w-full rounded-[1.5rem] border border-[var(--oc-border)] bg-[var(--oc-surface)] p-5 ">
+      <h2 className="text-sm font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
         Asignaciones de profesor → grupo·materia
       </h2>
-      <p className="mt-1 text-xs font-semibold text-slate-600">
+      <p className="mt-1 text-xs font-semibold text-[var(--oc-muted)]">
         Identidad estructural: PROFESORES.ID. La CLAVE solo es dato histórico.
         El técnico asigna en volumen: 20 profesores × 24 grupos × 241 materias.
       </p>
@@ -199,8 +199,8 @@ export function AsignacionesProfesorAdmin() {
         <p
           className={`mt-3 rounded-xl px-3 py-2 text-xs font-bold ${
             mensaje.tipo === "ok"
-              ? "bg-emerald-500/15 text-emerald-800"
-              : "bg-rose-500/15 text-rose-800"
+              ? "bg-[var(--oc-ok)]/15 text-[var(--oc-ok)]"
+              : "bg-[var(--oc-alert)]/15 text-[var(--oc-alert-text)]"
           }`}
         >
           {mensaje.texto}
@@ -208,25 +208,25 @@ export function AsignacionesProfesorAdmin() {
       )}
 
       {cargando ? (
-        <p className="mt-4 text-xs font-semibold text-slate-600">
+        <p className="mt-4 text-xs font-semibold text-[var(--oc-muted)]">
           Cargando…
         </p>
       ) : (
         <>
           <div className="mt-4">
-            <label className="text-[11px] font-extrabold uppercase tracking-wide text-slate-700">
+            <label className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
               Profesor (buscador por nombre)
             </label>
             <input
               value={busquedaProfesor}
               onChange={(e) => setBusquedaProfesor(e.target.value)}
               placeholder="Escribe para filtrar…"
-              className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-sky-400/60"
+              className="mt-1 w-full rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-bold text-[var(--oc-muted)] outline-none focus:border-[var(--oc-border-active)]"
             />
             <select
               value={profesorId}
               onChange={(e) => setProfesorId(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-xs font-bold text-slate-800"
+              className="mt-1 w-full rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-bold text-[var(--oc-muted)]"
             >
               <option value="">Seleccionar…</option>
               {profesoresFiltrados.map((p) => (
@@ -236,7 +236,7 @@ export function AsignacionesProfesorAdmin() {
               ))}
             </select>
             {busquedaProfesor && profesoresFiltrados.length === 0 && (
-              <p className="mt-1 text-[11px] font-semibold text-rose-700">
+              <p className="mt-1 text-[11px] font-semibold text-[var(--oc-alert-text)]">
                 Sin coincidencias.
               </p>
             )}
@@ -244,7 +244,7 @@ export function AsignacionesProfesorAdmin() {
 
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <div>
-              <label className="text-[11px] font-extrabold uppercase tracking-wide text-slate-700">
+              <label className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                 Grupo
               </label>
               <select
@@ -253,7 +253,7 @@ export function AsignacionesProfesorAdmin() {
                   setGrupoId(e.target.value);
                   setGrupoMateriaId("");
                 }}
-                className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-xs font-bold text-slate-800"
+                className="mt-1 w-full rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-bold text-[var(--oc-muted)]"
               >
                 <option value="">Seleccionar grupo…</option>
                 {grupos.map((g) => (
@@ -264,7 +264,7 @@ export function AsignacionesProfesorAdmin() {
               </select>
             </div>
             <div>
-              <label className="text-[11px] font-extrabold uppercase tracking-wide text-slate-700">
+              <label className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                 Materia (buscador en el grupo)
               </label>
               <input
@@ -272,13 +272,13 @@ export function AsignacionesProfesorAdmin() {
                 onChange={(e) => setBusquedaMateria(e.target.value)}
                 placeholder="Filtrar materia…"
                 disabled={!grupoId}
-                className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-sky-400/60 disabled:opacity-50"
+                className="mt-1 w-full rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-bold text-[var(--oc-muted)] outline-none focus:border-[var(--oc-border-active)] disabled:opacity-50"
               />
               <select
                 value={grupoMateriaId}
                 onChange={(e) => setGrupoMateriaId(e.target.value)}
                 disabled={!grupoId}
-                className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-xs font-bold text-slate-800 disabled:opacity-50"
+                className="mt-1 w-full rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-bold text-[var(--oc-muted)] disabled:opacity-50"
               >
                 <option value="">
                   {grupoId ? "Seleccionar materia…" : "Elige el grupo primero"}
@@ -296,7 +296,7 @@ export function AsignacionesProfesorAdmin() {
             type="button"
             onClick={() => void crear()}
             disabled={!profesorId || !grupoMateriaId}
-            className="mt-4 rounded-full border border-white/70 bg-linear-to-b from-emerald-400 via-emerald-500 to-emerald-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35),0_3px_10px_rgba(2,6,23,0.12)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-4 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Crear asignación individual
           </button>
@@ -305,11 +305,11 @@ export function AsignacionesProfesorAdmin() {
               activas del grupo elegido al profesor seleccionado, una llamada a
               actionCrearAsignacionProfesor por fila (misma action; no se
               reescribe). */}
-          <div className="mt-6 rounded-2xl border border-sky-700/30 bg-sky-200/25 p-4">
-            <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-800">
+          <div className="mt-6 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
+            <h3 className="text-xs font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
               Alta en lote por grupo
             </h3>
-            <p className="mt-1 text-[11px] font-semibold text-slate-600">
+            <p className="mt-1 text-[11px] font-semibold text-[var(--oc-muted)]">
               Asigna al profesor seleccionado todas las materias activas de un
               grupo. Es la vía cómoda para 20 profesores × 24 grupos × 241
               materias.
@@ -317,7 +317,7 @@ export function AsignacionesProfesorAdmin() {
             <select
               value={loteGrupo}
               onChange={(e) => setLoteGrupo(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-xs font-bold text-slate-800"
+              className="mt-2 w-full rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-bold text-[var(--oc-muted)]"
             >
               <option value="">Seleccionar grupo…</option>
               {grupos.map((g) => (
@@ -328,7 +328,7 @@ export function AsignacionesProfesorAdmin() {
               ))}
             </select>
             {loteGrupo && (
-              <p className="mt-2 text-[11px] font-bold text-sky-900">
+              <p className="mt-2 text-[11px] font-bold text-[var(--oc-text)]">
                 {materiasDelLote.length} materias de {loteGrupo} se asignarán
                 al profesor seleccionado.
               </p>
@@ -337,7 +337,7 @@ export function AsignacionesProfesorAdmin() {
               type="button"
               onClick={() => void crearLote()}
               disabled={!profesorId || !loteGrupo || procesandoLote}
-              className="mt-3 rounded-full border border-white/70 bg-linear-to-b from-sky-400 via-sky-500 to-sky-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35),0_3px_10px_rgba(2,6,23,0.12)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-3 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {procesandoLote
                 ? "Asignando…"
@@ -347,8 +347,8 @@ export function AsignacionesProfesorAdmin() {
               <p
                 className={`mt-2 rounded-xl px-3 py-2 text-xs font-bold ${
                   resumenLote.errores > 0
-                    ? "bg-amber-500/15 text-amber-800"
-                    : "bg-emerald-500/15 text-emerald-800"
+                    ? "bg-[var(--oc-alert)]/15 text-[var(--oc-alert-text)]"
+                    : "bg-[var(--oc-ok)]/15 text-[var(--oc-ok)]"
                 }`}
                 role="status"
               >
@@ -360,28 +360,28 @@ export function AsignacionesProfesorAdmin() {
           </div>
 
           <div className="mt-6">
-            <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-700">
+            <h3 className="text-xs font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
               Asignaciones existentes ({asignaciones.length})
             </h3>
             {asignaciones.length === 0 ? (
-              <p className="mt-2 text-xs font-semibold text-slate-600">
+              <p className="mt-2 text-xs font-semibold text-[var(--oc-muted)]">
                 Sin asignaciones (asignaciones_profesor = 0). El fallback
                 FALLBACK_TODAS_LAS_MATERIAS permanece activo.
               </p>
             ) : (
-              <ul className="mt-2 divide-y divide-white/50 rounded-xl border border-white/60 bg-white/60">
+              <ul className="mt-2 divide-y divide-[var(--oc-border)] rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)]">
                 {asignaciones.map((a) => (
                   <li
                     key={a.asignacionId}
                     className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
                     title={a.tablaLegacy ?? undefined}
                   >
-                    <div className="text-xs font-bold text-slate-800">
+                    <div className="text-xs font-bold text-[var(--oc-muted)]">
                       <span
                         className={`mr-2 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${
                           a.activo
-                            ? "bg-emerald-500/20 text-emerald-800"
-                            : "bg-slate-400/30 text-slate-600"
+                            ? "bg-[var(--oc-ok)]/15 text-[var(--oc-ok)]"
+                            : "bg-[var(--oc-surface)] text-[var(--oc-muted)]"
                         }`}
                         title={
                           a.activo
@@ -407,7 +407,7 @@ export function AsignacionesProfesorAdmin() {
                       <button
                         type="button"
                         onClick={() => void desactivar(a.asignacionId)}
-                        className="rounded-full border border-white/70 bg-linear-to-b from-rose-400 via-rose-500 to-rose-600 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] transition hover:brightness-105"
+                        className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-105"
                       >
                         Desactivar
                       </button>

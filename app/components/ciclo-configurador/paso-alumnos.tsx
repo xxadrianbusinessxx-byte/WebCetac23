@@ -33,9 +33,9 @@ import type {
 } from "@/lib/escolar/catalogo/carga-academica";
 import type { InscripcionAdminCiclo } from "@/lib/escolar/catalogo/inscripciones-borrador";
 
-const input = "rounded-xl border border-white/70 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800";
-const btn = "rounded-full bg-linear-to-b from-emerald-500 via-emerald-600 to-emerald-700 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white disabled:opacity-50";
-const btnSec = "rounded-full border border-indigo-300 bg-white/80 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-indigo-800 disabled:opacity-50";
+const input = "rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-semibold text-[var(--oc-muted)]";
+const btn = "rounded-full bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] disabled:opacity-50";
+const btnSec = "rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] disabled:opacity-50";
 
 type Grupo = { id: string; grado: string; grupo: string; carreraClave: string };
 
@@ -178,16 +178,16 @@ export function PasoAlumnos({ periodoId, avisar }: {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-[10px] font-extrabold uppercase tracking-wide text-indigo-900">
+      <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
         Paso 3 · Alumnos e inscripciones del periodo
       </p>
 
       {/* Carga masiva CSV/Excel dirigida a ESTE periodo (F3) */}
-      <div className="rounded-2xl border border-emerald-300/70 bg-emerald-50/60 p-3">
-        <p className="text-[10px] font-extrabold uppercase tracking-wide text-emerald-900">
+      <div className="rounded-2xl border border-[var(--oc-ok)]/50 bg-[var(--oc-ok)]/15 p-3">
+        <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-ok)]">
           Carga masiva de alumnos → este periodo
         </p>
-        <p className="mt-1 text-[10px] font-semibold text-emerald-900/80">
+        <p className="mt-1 text-[10px] font-semibold text-[var(--oc-ok)]/80">
           El servidor resuelve los grupos SOLO dentro de este periodo (periodoId).
           Una carga dirigida a B NUNCA modifica inscripciones de A (BORRADOR → activo=false).
         </p>
@@ -211,7 +211,7 @@ export function PasoAlumnos({ periodoId, avisar }: {
           </select>
         </div>
         {grupoCsvSel && (
-          <p className="mt-1 text-[10px] font-bold text-emerald-900">
+          <p className="mt-1 text-[10px] font-bold text-[var(--oc-ok)]">
             Contexto: {textoGrupo(grupoCsvSel)} — las filas del CSV con GRADO/GRUPO/CARRERA tienen prioridad.
           </p>
         )}
@@ -229,21 +229,21 @@ export function PasoAlumnos({ periodoId, avisar }: {
           </button>
         </div>
         {archivoNombre && (
-          <p className="mt-1 text-[10px] font-semibold text-slate-600">Archivo: {archivoNombre}</p>
+          <p className="mt-1 text-[10px] font-semibold text-[var(--oc-muted)]">Archivo: {archivoNombre}</p>
         )}
         {msgCsv && (
-          <p className={`mt-2 rounded-xl px-3 py-2 text-[10px] font-bold ${msgCsv.t === "ok" ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-800"}`}>
+          <p className={`mt-2 rounded-xl px-3 py-2 text-[10px] font-bold ${msgCsv.t === "ok" ? "bg-[var(--oc-ok)]/15 text-[var(--oc-ok)]" : "bg-[var(--oc-alert)]/15 text-[var(--oc-alert-text)]"}`}>
             {msgCsv.x}
           </p>
         )}
         {preview && !preview.ok && (
-          <p className="mt-2 rounded-xl bg-red-100 px-3 py-2 text-[10px] font-bold text-red-800">
+          <p className="mt-2 rounded-xl bg-[var(--oc-alert)]/15 px-3 py-2 text-[10px] font-bold text-[var(--oc-alert-text)]">
             {preview.error ?? "No se pudo previsualizar."}
           </p>
         )}
         {preview?.ok && (
-          <div className="mt-2 rounded-xl border border-emerald-200 bg-white/80 p-2 text-[10px] font-semibold text-slate-700">
-            <p className="font-extrabold uppercase text-emerald-900">
+          <div className="mt-2 rounded-xl border border-[var(--oc-ok)]/50 bg-[var(--oc-input)] p-2 text-[10px] font-semibold text-[var(--oc-muted)]">
+            <p className="font-extrabold uppercase text-[var(--oc-ok)]">
               Resumen · ciclo destino: {preview.periodoUtilizado ?? "—"}
               {preview.bloqueaEscritura ? " · BLOQUEA escritura" : " · preview limpia"}
             </p>
@@ -260,7 +260,7 @@ export function PasoAlumnos({ periodoId, avisar }: {
               {preview.academico.conflictosAcademicos} conflicto(s).
             </p>
             {preview.bloqueaEscritura && (
-              <p className="mt-1 font-extrabold text-red-700">
+              <p className="mt-1 font-extrabold text-[var(--oc-alert-text)]">
                 La carga contiene grupos inexistentes/ambiguos o conflictos: NO se escribirá nada. Corrige el CSV o el grupo por defecto.
               </p>
             )}
@@ -276,7 +276,7 @@ export function PasoAlumnos({ periodoId, avisar }: {
             )}
             {confirmado && (
               <>
-                <p className="mt-2 font-extrabold text-amber-800">
+                <p className="mt-2 font-extrabold text-[var(--oc-alert-text)]">
                   Confirmación explícita: se escribirá SOLO en inscripciones de este periodo (BORRADOR → activo=false).
                 </p>
                 <button
@@ -295,7 +295,7 @@ export function PasoAlumnos({ periodoId, avisar }: {
           </div>
         )}
         {resultado && (
-          <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 p-2 text-[10px] font-semibold text-sky-900">
+          <div className="mt-2 rounded-xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-2 text-[10px] font-semibold text-[var(--oc-text)]">
             {resultado.ok ? (
               <p>
                 Apply OK · ALUMNOS: +{resultado.alumnos.agregados} agregados, {resultado.alumnos.yaExistentesSinCambios} sin cambios,
@@ -303,15 +303,15 @@ export function PasoAlumnos({ periodoId, avisar }: {
                 {resultado.inscripciones.cambiosDeGrupo} cambios, {resultado.inscripciones.errores} errores.
               </p>
             ) : (
-              <p className="font-extrabold text-red-800">{resultado.error}</p>
+              <p className="font-extrabold text-[var(--oc-alert-text)]">{resultado.error}</p>
             )}
           </div>
         )}
       </div>
       {/* Inscripciones actuales del periodo (refresh / verificación B) */}
-      <div className="rounded-2xl border border-indigo-300/60 bg-white/60 p-3">
+      <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[10px] font-extrabold uppercase tracking-wide text-indigo-900">
+          <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
             Inscripciones en este periodo · {totalInscritos} fila(s)
             {activosEnPeriodo > 0 && ` · ${activosEnPeriodo} activa(s)`}
           </p>
@@ -319,19 +319,19 @@ export function PasoAlumnos({ periodoId, avisar }: {
             {cargandoIns ? "Cargando…" : "Refrescar"}
           </button>
         </div>
-        {insErr && <p className="mt-1 text-[10px] font-bold text-red-700">{insErr}</p>}
+        {insErr && <p className="mt-1 text-[10px] font-bold text-[var(--oc-alert-text)]">{insErr}</p>}
         {inscripciones.length === 0 ? (
-          <p className="mt-1 text-[10px] font-semibold text-slate-500">
+          <p className="mt-1 text-[10px] font-semibold text-[var(--oc-muted)]">
             Sin inscripciones registradas en este periodo todavía.
           </p>
         ) : (
-          <div className="mt-1 max-h-40 overflow-y-auto rounded-xl bg-white/80 p-1">
+          <div className="mt-1 max-h-40 overflow-y-auto rounded-xl bg-[var(--oc-input)] p-1">
             {inscripciones.map((i) => (
-              <div key={i.id} className="flex items-center gap-2 border-b border-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 last:border-0">
-                <span className="w-10 font-extrabold text-indigo-900">{i.grado} {i.grupo}</span>
-                {i.carreraClave && <span className="text-slate-500">{i.carreraClave}</span>}
+              <div key={i.id} className="flex items-center gap-2 border-b border-[var(--oc-border)] px-2 py-1 text-[10px] font-semibold text-[var(--oc-muted)] last:border-0">
+                <span className="w-10 font-extrabold text-[var(--oc-text)]">{i.grado} {i.grupo}</span>
+                {i.carreraClave && <span className="text-[var(--oc-muted)]">{i.carreraClave}</span>}
                 <span className="flex-1 truncate">{i.curp} {i.nombreAlumno ? `— ${i.nombreAlumno}` : ""}</span>
-                <span className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase ${i.activo ? "bg-emerald-200 text-emerald-900" : "bg-amber-200 text-amber-900"}`}>
+                <span className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase ${i.activo ? "bg-[var(--oc-ok)]/15 text-[var(--oc-ok)]" : "bg-[var(--oc-alert)]/15 text-[var(--oc-alert-text)]"}`}>
                   {i.activo ? "activo" : "inactivo"}
                 </span>
               </div>
@@ -341,8 +341,8 @@ export function PasoAlumnos({ periodoId, avisar }: {
       </div>
 
       {/* Inscripción individual */}
-      <div className="rounded-2xl border border-sky-300/60 bg-sky-50/60 p-3">
-        <p className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+      <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3">
+        <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
           Alta individual (búsqueda global de alumnos)
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -350,17 +350,17 @@ export function PasoAlumnos({ periodoId, avisar }: {
           <button type="button" className={btn} onClick={() => void buscar()}>Buscar</button>
         </div>
         {res.length > 0 && (
-          <div className="mt-1 flex max-h-32 flex-col gap-1 overflow-y-auto rounded-xl bg-white/80 p-1">
+          <div className="mt-1 flex max-h-32 flex-col gap-1 overflow-y-auto rounded-xl bg-[var(--oc-input)] p-1">
             {res.map((a) => (
               <button key={a.curp} type="button"
-                className={`rounded-lg px-2 py-1 text-left text-[10px] font-semibold ${curp === a.curp ? "bg-sky-200 text-sky-900" : "bg-white text-slate-700 hover:bg-sky-100"}`}
+                className={`rounded-lg px-2 py-1 text-left text-[10px] font-semibold ${curp === a.curp ? "bg-[var(--oc-surface)] text-[var(--oc-text)]" : "bg-[var(--oc-input)] text-[var(--oc-muted)] hover:bg-[var(--oc-surface)]"}`}
                 onClick={() => setCurp(a.curp)}>
                 {a.curp} — {a.nombre}
               </button>
             ))}
           </div>
         )}
-        {curp && <p className="mt-1 text-[10px] font-bold text-slate-700">CURP: {curp}</p>}
+        {curp && <p className="mt-1 text-[10px] font-bold text-[var(--oc-muted)]">CURP: {curp}</p>}
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <select className={input} value={grupoId} onChange={(e) => setGrupoId(e.target.value)}>
             <option value="">Grupo destino…</option>
@@ -370,10 +370,10 @@ export function PasoAlumnos({ periodoId, avisar }: {
             Registrar inscripción en este periodo
           </button>
         </div>
-        {err && <p className="mt-1 text-[10px] font-bold text-red-700">{err}</p>}
+        {err && <p className="mt-1 text-[10px] font-bold text-[var(--oc-alert-text)]">{err}</p>}
       </div>
 
-      <p className="text-[10px] font-semibold text-slate-600">
+      <p className="text-[10px] font-semibold text-[var(--oc-muted)]">
         BORRADOR → inscripción preparada (activo=false). OPERATIVO → activa. La importación masiva usa la carga académica con preview (periodoId).
       </p>
 

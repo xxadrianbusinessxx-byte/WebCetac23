@@ -83,11 +83,11 @@ export function DeshacerPasoPanel() {
   const conteoPaso = preview?.ok ? preview.conteos[preview.paso] : 0;
 
   return (
-    <div className="mt-10 w-full rounded-[1.5rem] border border-white/45 bg-slate-500/20 p-5 shadow-[inset_0_3px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm">
-      <h2 className="text-sm font-extrabold uppercase tracking-wide text-slate-800">
+    <div className="mt-10 w-full rounded-[1.5rem] border border-[var(--oc-border)] bg-[var(--oc-surface)] p-5 ">
+      <h2 className="text-sm font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
         Deshacer datos de un paso
       </h2>
-      <p className="mt-1 text-xs font-semibold text-slate-600">
+      <p className="mt-1 text-xs font-semibold text-[var(--oc-muted)]">
         Borra SOLO las filas de un paso del configurador (contexto, calendario,
         horario, evaluaciones o roster), sin borrar el ciclo. Todo con
         previsualización: si el paso arrastra datos derivados, se bloquea y no
@@ -95,19 +95,19 @@ export function DeshacerPasoPanel() {
       </p>
 
       {error && (
-        <p className="mt-3 rounded-xl bg-rose-500/15 px-3 py-2 text-xs font-bold text-rose-800" role="alert">
+        <p className="mt-3 rounded-xl bg-[var(--oc-alert)]/15 px-3 py-2 text-xs font-bold text-[var(--oc-alert-text)]" role="alert">
           {error}
         </p>
       )}
       {resultado && (
-        <p className="mt-3 rounded-xl bg-emerald-500/15 px-3 py-2 text-xs font-bold text-emerald-800" role="status">
+        <p className="mt-3 rounded-xl bg-[var(--oc-ok)]/15 px-3 py-2 text-xs font-bold text-[var(--oc-ok)]" role="status">
           {resultado}
         </p>
       )}
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <div>
-          <label className="text-[11px] font-extrabold uppercase tracking-wide text-slate-700">
+          <label className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
             Ciclo
           </label>
           <select
@@ -117,7 +117,7 @@ export function DeshacerPasoPanel() {
               setPreview(null);
               setResultado(null);
             }}
-            className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-xs font-bold text-slate-800"
+            className="mt-1 w-full rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-bold text-[var(--oc-muted)]"
           >
             {ciclos.map((c) => (
               <option key={c.id} value={c.id}>
@@ -128,7 +128,7 @@ export function DeshacerPasoPanel() {
           </select>
         </div>
         <div>
-          <label className="text-[11px] font-extrabold uppercase tracking-wide text-slate-700">
+          <label className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
             Paso a deshacer
           </label>
           <select
@@ -138,7 +138,7 @@ export function DeshacerPasoPanel() {
               setPreview(null);
               setResultado(null);
             }}
-            className="mt-1 w-full rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-xs font-bold text-slate-800"
+            className="mt-1 w-full rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-bold text-[var(--oc-muted)]"
           >
             <option value="">Seleccionar paso…</option>
             {PASOS.map((p) => (
@@ -154,17 +154,17 @@ export function DeshacerPasoPanel() {
         type="button"
         disabled={trabajando || !cicloId || !paso}
         onClick={() => void previsualizar()}
-        className="mt-4 rounded-full border border-white/70 bg-linear-to-b from-sky-400 via-sky-500 to-sky-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white transition hover:brightness-105 disabled:opacity-60"
+        className="mt-4 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-105 disabled:opacity-60"
       >
         {trabajando ? "Previsualizando…" : "Previsualizar borrado"}
       </button>
 
       {preview && preview.ok && (
-        <div className="mt-4 rounded-2xl border border-amber-400/50 bg-amber-100/70 p-4">
-          <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-amber-900">
+        <div className="mt-4 rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 p-4">
+          <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[var(--oc-alert-text)]">
             Previsualización — {preview.periodoNombre} ({preview.estado})
           </p>
-          <ul className="flex flex-col gap-1 text-xs font-semibold text-amber-950">
+          <ul className="flex flex-col gap-1 text-xs font-semibold text-[var(--oc-alert-text)]">
             <li>
               Se borrarán: {conteoPaso} filas del paso «{preview.paso}»
             </li>
@@ -176,11 +176,11 @@ export function DeshacerPasoPanel() {
             </li>
           </ul>
           {preview.bloqueos.length > 0 ? (
-            <div className="mt-2 rounded-xl bg-rose-500/15 p-3">
-              <p className="text-[11px] font-extrabold uppercase tracking-wide text-rose-800">
+            <div className="mt-2 rounded-xl bg-[var(--oc-alert)]/15 p-3">
+              <p className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-alert-text)]">
                 Bloqueado — no se borra
               </p>
-              <ul className="mt-1 list-disc pl-4 text-xs font-semibold text-rose-900">
+              <ul className="mt-1 list-disc pl-4 text-xs font-semibold text-[var(--oc-alert-text)]">
                 {preview.bloqueos.map((b, i) => (
                   <li key={i}>{b}</li>
                 ))}
@@ -191,7 +191,7 @@ export function DeshacerPasoPanel() {
               type="button"
               disabled={trabajando}
               onClick={() => void confirmar()}
-              className="mt-3 rounded-full border border-white/70 bg-linear-to-b from-rose-400 via-rose-500 to-rose-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white transition hover:brightness-105 disabled:opacity-60"
+              className="mt-3 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-105 disabled:opacity-60"
             >
               {trabajando ? "Borrando…" : "Confirmar borrado del paso"}
             </button>

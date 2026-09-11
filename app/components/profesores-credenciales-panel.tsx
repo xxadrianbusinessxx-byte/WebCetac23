@@ -94,35 +94,35 @@ export function ProfesoresCredencialesPanel({
 
   return (
     <section
-      className="relative mt-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
+      className="relative mt-6 overflow-hidden rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3 sm:p-4"
       aria-label="Forzar cambio de clave de profesores"
     >
       <div className="relative z-[1] flex flex-col gap-3">
         <div className="flex flex-wrap items-end justify-between gap-2 px-1 pb-1">
-          <span className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] sm:text-[11px]">
+          <span className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] sm:text-[11px]">
             Forzar cambio de clave (profesores)
           </span>
           {mensaje && (
-            <span className="rounded-full border border-emerald-300/60 bg-emerald-50 px-3 py-1 text-[10px] font-extrabold text-emerald-800">
+            <span className="rounded-full border border-[var(--oc-ok)]/50 bg-[var(--oc-ok)]/15 px-3 py-1 text-[10px] font-extrabold text-[var(--oc-ok)]">
               {mensaje}
             </span>
           )}
         </div>
 
-        <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4 ">
           {cargando ? (
-            <p className="text-center text-sm font-semibold text-slate-600">
+            <p className="text-center text-sm font-semibold text-[var(--oc-muted)]">
               Cargando profesores…
             </p>
           ) : error ? (
             <p
-              className="text-center text-xs font-semibold text-red-700"
+              className="text-center text-xs font-semibold text-[var(--oc-alert-text)]"
               role="alert"
             >
               {error}
             </p>
           ) : profesores.length === 0 ? (
-            <p className="text-center text-xs font-semibold text-slate-600">
+            <p className="text-center text-xs font-semibold text-[var(--oc-muted)]">
               Sin profesores.
             </p>
           ) : (
@@ -130,14 +130,14 @@ export function ProfesoresCredencialesPanel({
               {profesores.map((p) => (
                 <li
                   key={p.id}
-                  className="flex flex-col gap-2 rounded-2xl border border-white/60 bg-white/80 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]"
+                  className="flex flex-col gap-2 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 "
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="truncate text-[11px] font-bold uppercase tracking-wide text-sky-900">
+                      <p className="truncate text-[11px] font-bold uppercase tracking-wide text-[var(--oc-text)]">
                         {p.nombre}
                       </p>
-                      <p className="text-[10px] font-semibold normal-case text-slate-500">
+                      <p className="text-[10px] font-semibold normal-case text-[var(--oc-muted)]">
                         {ocultarId ? "" : `ID ${p.id} · `}
                         {p.permisos}
                         {p.debeCambiarCredenciales
@@ -150,10 +150,10 @@ export function ProfesoresCredencialesPanel({
                         type="button"
                         disabled={guardandoId === p.id}
                         onClick={() => void toggle(p)}
-                        className={`rounded-full border border-white/70 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${
+                        className={`rounded-full border border-[var(--oc-border)] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${
                           p.debeCambiarCredenciales
-                            ? "bg-linear-to-b from-emerald-400 via-emerald-500 to-emerald-600"
-                            : "bg-linear-to-b from-slate-400 via-slate-500 to-slate-600"
+                            ? "bg-[var(--oc-input)]"
+                            : "bg-[var(--oc-input)]"
                         }`}
                       >
                         {guardandoId === p.id
@@ -170,33 +170,33 @@ export function ProfesoresCredencialesPanel({
                           setNuevaClave("");
                           setConfirmarClave("");
                         }}
-                        className="rounded-full border border-white/70 bg-linear-to-b from-amber-400 via-amber-500 to-amber-600 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {reponiendoId === p.id ? "Cancelar" : "Reponer clave"}
                       </button>
                     </div>
                   </div>
                   {reponiendoId === p.id && (
-                    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-300/60 bg-amber-50/80 p-2">
+                    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 p-2">
                       <input
                         type="password"
                         value={nuevaClave}
                         onChange={(e) => setNuevaClave(e.target.value)}
                         placeholder="Nueva clave (mín. 6)"
-                        className="w-36 rounded-full border border-white/70 bg-white/80 px-3 py-1.5 text-[11px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-amber-400/60"
+                        className="w-36 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-1.5 text-[11px] font-bold text-[var(--oc-muted)] outline-none focus:border-[var(--oc-border-active)]"
                       />
                       <input
                         type="password"
                         value={confirmarClave}
                         onChange={(e) => setConfirmarClave(e.target.value)}
                         placeholder="Confirmar"
-                        className="w-32 rounded-full border border-white/70 bg-white/80 px-3 py-1.5 text-[11px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-amber-400/60"
+                        className="w-32 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-1.5 text-[11px] font-bold text-[var(--oc-muted)] outline-none focus:border-[var(--oc-border-active)]"
                       />
                       <button
                         type="button"
                         disabled={guardandoId === p.id}
                         onClick={() => void reponer(p)}
-                        className="rounded-full border border-white/70 bg-linear-to-b from-emerald-400 via-emerald-500 to-emerald-600 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {guardandoId === p.id ? "Guardando…" : "Guardar clave"}
                       </button>
@@ -207,7 +207,7 @@ export function ProfesoresCredencialesPanel({
             </ul>
           )}
         </div>
-        <p className="px-1 text-[10px] font-semibold text-slate-600">
+        <p className="px-1 text-[10px] font-semibold text-[var(--oc-muted)]">
           «Forzar cambio» obliga a definir una nueva clave en el próximo acceso.
           «Reponer clave» regenera la clave de inicio de sesión
           perdida y también fuerza el cambio. Nunca se exponen credenciales de

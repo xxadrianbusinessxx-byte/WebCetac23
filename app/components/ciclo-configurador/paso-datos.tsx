@@ -4,8 +4,8 @@ import { useState } from "react";
 import { actionGuardarRangoCiclo } from "@/app/actions/evaluaciones";
 import type { DetalleCicloAdmin } from "@/app/actions/evaluaciones";
 
-const input = "rounded-xl border border-white/70 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800";
-const btn = "rounded-full bg-linear-to-b from-sky-500 via-sky-600 to-sky-700 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white";
+const input = "rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-semibold text-[var(--oc-muted)]";
+const btn = "rounded-full bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]";
 
 export function PasoDatos({ periodoId, detalle, avisar }: {
   periodoId: string;
@@ -22,18 +22,18 @@ export function PasoDatos({ periodoId, detalle, avisar }: {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[10px] font-extrabold uppercase tracking-wide text-indigo-900">
+      <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
         Paso 1 · Datos del ciclo
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <label className="text-[10px] font-bold text-slate-600">Inicio</label>
+        <label className="text-[10px] font-bold text-[var(--oc-muted)]">Inicio</label>
         <input type="date" className={input} value={inicio} onChange={(e) => setInicio(e.target.value)} />
-        <label className="text-[10px] font-bold text-slate-600">Fin</label>
+        <label className="text-[10px] font-bold text-[var(--oc-muted)]">Fin</label>
         <input type="date" className={input} value={fin} onChange={(e) => setFin(e.target.value)} />
         <button type="button" className={btn} onClick={() => void guardar()}>Guardar rango</button>
       </div>
       {detalle && (
-        <div className="grid grid-cols-2 gap-1 text-[10px] font-semibold text-slate-600 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-1 text-[10px] font-semibold text-[var(--oc-muted)] sm:grid-cols-4">
           <span>Grupos: {detalle.conteos.grupos}</span>
           <span>Materias: {detalle.conteos.materiasActivas}</span>
           <span>Inscritos: {detalle.conteos.inscripcionesActivas}</span>

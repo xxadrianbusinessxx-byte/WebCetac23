@@ -56,7 +56,7 @@ function PillButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-full border border-white/70 bg-linear-to-b from-sky-500 via-sky-600 to-sky-700 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35),0_3px_10px_rgba(2,6,23,0.12)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      className={`rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
     >
       {children}
     </button>
@@ -78,13 +78,13 @@ function FieldSelect({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+      <span className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
         {label}
       </span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white outline-none focus:ring-2 focus:ring-sky-400/60"
+        className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
       >
         <option value="">{placeholder}</option>
         {options.map((o) => (
@@ -302,21 +302,21 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
   return (
     <>
     <section
-      className="relative mt-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
+      className="relative mt-6 overflow-hidden rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3 sm:p-4"
       aria-label="Horario escolar"
     >
       <div className="relative z-[1] flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-          <h2 className="text-sm font-extrabold uppercase tracking-wide text-sky-900">
+          <h2 className="text-sm font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
             Horario escolar (fuente oficial)
           </h2>
-          <span className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white">
+          <span className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
             Importar Excel del horario semanal
           </span>
         </div>
 
-        <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-          <p className="mb-3 text-center text-xs font-semibold text-slate-700">
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4 ">
+          <p className="mb-3 text-center text-xs font-semibold text-[var(--oc-muted)]">
             La hoja de detalle define los bloques programados por grupo y día.
             Re-subir el mismo archivo no genera duplicados (idempotente por
             periodo).
@@ -325,7 +325,7 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
             <select
               value={periodoId}
               onChange={(e) => alElegirPeriodo(e.target.value)}
-              className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white outline-none"
+              className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none"
               aria-label="Periodo escolar"
             >
               {periodos.length === 0 && <option value="">Sin periodos</option>}
@@ -344,7 +344,7 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
                 setResultadoAplicar(null);
                 setConfirmado(false);
               }}
-              className="max-w-xs rounded-xl border border-white/70 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-inner outline-none"
+              className="max-w-xs rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-semibold text-[var(--oc-muted)] outline-none"
               aria-label="Seleccionar Excel del horario"
             />
             <PillButton
@@ -360,7 +360,7 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
             <PillButton
               onClick={() => void onDescargarPlantilla()}
               disabled={descargandoPlantilla}
-              className="from-slate-400 via-slate-500 to-slate-600"
+              className=""
             >
               {descargandoPlantilla
                 ? "Generando…"
@@ -370,8 +370,8 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
               <p
                 className={`text-[11px] font-semibold ${
                   mensajePlantilla.startsWith("Plantilla descargada")
-                    ? "text-emerald-900"
-                    : "text-red-700"
+                    ? "text-[var(--oc-ok)]"
+                    : "text-[var(--oc-alert-text)]"
                 }`}
                 role="status"
               >
@@ -382,17 +382,17 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
 
 
           {preview && (
-            <div className="mt-4 rounded-2xl border border-emerald-400/50 bg-emerald-100/70 p-3">
+            <div className="mt-4 rounded-2xl border border-[var(--oc-ok)]/50 bg-[var(--oc-ok)]/15 p-3">
               {!preview.ok ? (
-                <p className="text-center text-xs font-bold text-red-700" role="alert">
+                <p className="text-center text-xs font-bold text-[var(--oc-alert-text)]" role="alert">
                   {preview.error}
                 </p>
               ) : (
                 <>
-                  <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
+                  <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-ok)]">
                     Reporte — hoja «{preview.hojaDetalle}»
                   </p>
-                  <ul className="grid grid-cols-2 gap-1 text-xs font-semibold text-emerald-900 sm:grid-cols-4">
+                  <ul className="grid grid-cols-2 gap-1 text-xs font-semibold text-[var(--oc-ok)] sm:grid-cols-4">
                     <li>✅ Válidas: {preview.filasValidas}</li>
                     <li>✏️ Nuevas: {preview.nuevas}</li>
                     <li>🔄 Actualizables: {preview.actualizables}</li>
@@ -403,21 +403,21 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
                     <li>🧩 Sin vínculo: {preview.materiasSinVinculo}</li>
                   </ul>
                   {preview.gruposEncontrados.length > 0 && (
-                    <p className="mt-2 text-[11px] font-semibold text-emerald-900">
+                    <p className="mt-2 text-[11px] font-semibold text-[var(--oc-ok)]">
                       Grupos: {preview.gruposEncontrados.join(" · ")}
                     </p>
                   )}
                   {preview.profesoresEncontrados.length > 0 && (
-                    <p className="mt-1 text-[11px] font-semibold text-emerald-900">
+                    <p className="mt-1 text-[11px] font-semibold text-[var(--oc-ok)]">
                       Profesores: {preview.profesoresEncontrados.join(" · ")}
                     </p>
                   )}
                   {preview.advertencias.length > 0 && (
                     <details className="mt-2">
-                      <summary className="cursor-pointer text-[10px] font-extrabold uppercase tracking-wide text-amber-800">
+                      <summary className="cursor-pointer text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-alert-text)]">
                         Advertencias ({preview.advertencias.length})
                       </summary>
-                      <ul className="mt-1 max-h-32 overflow-y-auto rounded-xl bg-white/60 p-2 text-[11px] font-semibold text-amber-900">
+                      <ul className="mt-1 max-h-32 overflow-y-auto rounded-xl bg-[var(--oc-input)] p-2 text-[11px] font-semibold text-[var(--oc-alert-text)]">
                         {preview.advertencias.map((a, i) => (
                           <li key={i}>{a}</li>
                         ))}
@@ -426,10 +426,10 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
                   )}
                   {preview.erroresPorFila.length > 0 && (
                     <details className="mt-2">
-                      <summary className="cursor-pointer text-[10px] font-extrabold uppercase tracking-wide text-red-700">
+                      <summary className="cursor-pointer text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-alert-text)]">
                         Errores por fila ({preview.erroresPorFila.length}) — bloquean
                       </summary>
-                      <ul className="mt-1 max-h-40 overflow-y-auto rounded-xl bg-white/60 p-2 text-[11px] font-semibold text-red-800">
+                      <ul className="mt-1 max-h-40 overflow-y-auto rounded-xl bg-[var(--oc-input)] p-2 text-[11px] font-semibold text-[var(--oc-alert-text)]">
                         {preview.erroresPorFila.slice(0, 60).map((r, i) => (
                           <li key={i}>
                             Fila {r.filaOrigen}: {r.grupoLegible || r.materia || "—"} —{" "}
@@ -440,7 +440,7 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
                     </details>
                   )}
                   <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <label className="flex items-center gap-2 text-[11px] font-extrabold text-emerald-900">
+                    <label className="flex items-center gap-2 text-[11px] font-extrabold text-[var(--oc-ok)]">
                       <input
                         type="checkbox"
                         checked={confirmado}
@@ -452,13 +452,13 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
                     <PillButton
                       onClick={() => void onAplicar()}
                       disabled={aplicando || preview.bloqueaEscritura || !confirmado}
-                      className="from-emerald-500 via-emerald-600 to-emerald-700"
+                      className="text-[var(--oc-ok)]"
                     >
                       {aplicando ? "Aplicando…" : "Aplicar horario"}
                     </PillButton>
                   </div>
                   {preview.bloqueaEscritura && (
-                    <p className="mt-2 text-[11px] font-bold text-red-700">
+                    <p className="mt-2 text-[11px] font-bold text-[var(--oc-alert-text)]">
                       Corrige los errores y vuelve a previsualizar.
                     </p>
                   )}
@@ -470,8 +470,8 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
             <p
               className={`mt-3 text-center text-xs font-bold ${
                 resultadoAplicar.includes("aplicado:")
-                  ? "text-emerald-900"
-                  : "text-red-700"
+                  ? "text-[var(--oc-ok)]"
+                  : "text-[var(--oc-alert-text)]"
               }`}
               role="status"
             >
@@ -484,20 +484,20 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
     </section>
 
     <section
-      className="relative mt-6 overflow-hidden rounded-[2rem] border-[3px] border-emerald-800/50 bg-emerald-100/35 p-3 shadow-[0_12px_40px_rgba(16,185,129,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
+      className="relative mt-6 overflow-hidden rounded-2xl border border-[var(--oc-ok)]/50 bg-[var(--oc-ok)]/15 p-3 sm:p-4"
       aria-label="Consultar horario por grupo"
     >
       <div className="relative z-[1] flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-          <h2 className="text-sm font-extrabold uppercase tracking-wide text-emerald-900">
+          <h2 className="text-sm font-extrabold uppercase tracking-wide text-[var(--oc-ok)]">
             Consultar horario de un grupo
           </h2>
-          <span className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white">
+          <span className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
             {periodoSeleccionado?.nombre ?? "—"}
           </span>
         </div>
 
-        <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4 ">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
             <FieldSelect
               label="Grado"
@@ -531,26 +531,26 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
               <PillButton
                 onClick={() => void onConsultar()}
                 disabled={consultando || !grado || !grupo}
-                className="from-emerald-500 via-emerald-600 to-emerald-700"
+                className="text-[var(--oc-ok)]"
               >
                 {consultando ? "Consultando…" : "Consultar"}
               </PillButton>
             </div>
           </div>
           {grupoElegido && (
-            <p className="mt-2 text-[11px] font-bold text-emerald-900">
+            <p className="mt-2 text-[11px] font-bold text-[var(--oc-ok)]">
               {etiquetaGrupo(grupoElegido)}
             </p>
           )}
           {errorConsulta && (
-            <p className="mt-2 text-center text-xs font-bold text-red-700" role="alert">
+            <p className="mt-2 text-center text-xs font-bold text-[var(--oc-alert-text)]" role="alert">
               {errorConsulta}
             </p>
           )}
 
           {horario && (
             <div className="mt-4 overflow-x-auto">
-              <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
+              <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-ok)]">
                 Semana — {horario.grupo.grado} {horario.grupo.grupo}
                 {horario.grupo.carreraClave ? ` · ${horario.grupo.carreraClave}` : ""}
               </p>
@@ -561,28 +561,28 @@ export function HorarioEscolarPanel({ periodoIdInicial }: { periodoIdInicial?: s
                   return (
                     <div
                       key={dia}
-                      className="rounded-2xl border border-white/60 bg-white/70 p-2"
+                      className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-2"
                     >
-                      <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-emerald-900">
+                      <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-ok)]">
                         {DIAS_LABEL[dia]} · {total}
                       </p>
                       {bloques.length === 0 ? (
-                        <p className="mt-1 text-center text-[10px] font-semibold text-slate-400">
+                        <p className="mt-1 text-center text-[10px] font-semibold text-[var(--oc-muted)]">
                           —
                         </p>
                       ) : (
                         bloques.map((b, i) => (
                           <div
                             key={i}
-                            className="mt-1 rounded-xl border border-white/70 bg-emerald-50 px-2 py-1"
+                            className="mt-1 rounded-xl border border-[var(--oc-border)] bg-[var(--oc-ok)]/15 px-2 py-1"
                           >
-                            <p className="text-[10px] font-extrabold text-emerald-900">
+                            <p className="text-[10px] font-extrabold text-[var(--oc-ok)]">
                               {b.horaInicio}–{b.horaFin} · {b.tipoEtiqueta}
                             </p>
-                            <p className="text-[10px] font-semibold leading-tight text-slate-700">
+                            <p className="text-[10px] font-semibold leading-tight text-[var(--oc-muted)]">
                               {b.materiaNombre}
                             </p>
-                            <p className="text-[10px] font-semibold text-emerald-700">
+                            <p className="text-[10px] font-semibold text-[var(--oc-ok)]">
                               {b.profesor}
                             </p>
                           </div>
