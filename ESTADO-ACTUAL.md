@@ -8,7 +8,7 @@ append-only desde mayo y contiene afirmaciones ya falsas.
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-10 (rediseño Océano: Fase 0 permisos · Fase 1/1.1 tokens y shell · Fase 2 piezas del alumno · Fase 3/3.1 cierre del alumno · Fase 4 shell del tutor)
+- **Última revisión:** 2026-09-10 (rediseño Océano: Fase 0 permisos · Fase 1/1.1 tokens y shell · Fase 2 piezas del alumno · Fase 3/3.1 cierre del alumno · Fase 4/4.1 shell y alcance del tutor)
 - **HEAD:** `d631e4f` (2026-09-04) + cambios de PROMPT-1/2/3 sin commitear
 
 ---
@@ -476,6 +476,27 @@ La UI gobierna con `puede()` (barra, layout, páginas y paneles). Validación:
 - **Nota:** se amplió la suite pura (`test-rediseno-oceano.mjs`) con `buscar-en-filas` porque
   ese módulo pasó a formar parte del **camino de seguridad** del PASO 0; el prompt lo autoriza
   cuando el PASO 0 añade/usa módulo puro.
+
+**Rediseño Océano — Fase 4.1: alcance de `actionObtenerVistaRegistro` (2026-09-10).**
+- **El segundo hueco de alcance, hermano del de la Fase 4.** `actionObtenerVistaRegistro`
+  exigía `calificacion.ver` —capacidad que tienen **alumno, tutor, maestro y directivo**— y
+  devolvía la **tabla COMPLETA** del grupo (`obtenerVistaMateria`, lectura cruda), sin ninguna
+  guarda de alcance: **un alumno podía recibir las calificaciones de sus compañeros**.
+- **Arreglo:** se NIEGA a quien no sea directivo ni maestro
+  (`!esRol(sesion.rol,"directivo") && !esRol(sesion.rol,"maestro")`), el mismo patrón de
+  `actionObtenerHorarioAlumno`. **No** se filtra por fila a propósito: ningún flujo legítimo de
+  alumno ni de tutor pasa por aquí (hoy solo la llama `directivo-client`), así que ese filtrado
+  sería código muerto.
+- **La capacidad no cambia** (`calificacion.ver`): esto es ALCANCE, no permiso. `permisos.ts` y
+  `capacidades.ts` intactos; `test-permisos` **475/0** y `gen:matriz -- --check` **«Al día»**
+  (la §5 no se mueve).
+- **Roles que PIERDEN acceso: `alumno` y `tutor`** (un acceso que nunca debieron tener).
+  **Ninguno gana nada**: maestro y directivo siguen exactamente igual y técnico ya estaba
+  negado por `exigir()`. **Este cambio NO es aditivo, y es intencionado** —autorizado
+  explícitamente en su prompt—.
+- **Validación:** `tsc` = 0 · `test-permisos` 475/0 · `test-auditoria-permisos` 229/0 ·
+  `gen:matriz --check` «Al día» · `test-rediseno-oceano` **180/180** · `test:suites` **36/36** ·
+  `next build` = 0 · diag **idéntico** (772 claro / 392 oscuro: la fase no toca interfaz).
 
 ## 8. Cómo se valida un cambio
 

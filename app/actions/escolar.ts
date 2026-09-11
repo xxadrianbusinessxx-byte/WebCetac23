@@ -590,6 +590,24 @@ export async function actionObtenerVistaRegistro(
   const g = await exigir("calificacion.ver");
   if (!g.ok) return null;
   if (!nombreRegistro.trim()) return null;
+  const sesion = g.sesion;
+
+  // ── Fase 4.1 — ALCANCE ────────────────────────────────────────────────────
+  // `calificacion.ver` la tienen también ALUMNO y TUTOR, y esta action devuelve
+  // la tabla COMPLETA del grupo (`obtenerVistaMateria`, lectura cruda): con una
+  // sesión válida, un alumno recibía las calificaciones de sus compañeros.
+  //
+  // Se NIEGA a quien no sea directivo ni maestro —mismo patrón que
+  // `actionObtenerHorarioAlumno`— y NO se filtra por fila a propósito: no hay
+  // ningún flujo legítimo de alumno ni de tutor que pase por aquí (hoy solo la
+  // usa el panel del directivo), así que el filtrado sería código muerto. Si
+  // algún día lo necesitan, se les da SU fila entonces.
+  //
+  // La capacidad que exige NO cambia: esto es ALCANCE, no permiso.
+  if (sesion && !esRol(sesion.rol, "directivo") && !esRol(sesion.rol, "maestro")) {
+    return null;
+  }
+
   const supabase = await createClient();
   return obtenerVistaMateria(supabase, nombreRegistro);
 }

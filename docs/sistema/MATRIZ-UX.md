@@ -522,6 +522,12 @@ tabla del grupo a un tutor (ver `ESTADO-ACTUAL.md` §7). El shell gana un **sele
 vinculado** en el rail (nivel 2) y las mismas piezas del alumno reciben el `curp` elegido: ni
 un componente duplicado por rol.
 
+**Fase 4.1 ejecutada (2026-09-10).** Cierra el **segundo** hueco de alcance:
+`actionObtenerVistaRegistro` entregaba la tabla COMPLETA del grupo a cualquier rol con
+`calificacion.ver` (incluido **alumno**). Ahora niega a quien no sea directivo ni maestro.
+No toca interfaz: diag **idéntico** (772 claro / 392 oscuro), Fase 4 **51**, Fase 2 **81**,
+Fase 1 **11** y la §5 del MATRIZ sin moverse.
+
 **Lo que la migración NO cambia:** ni un permiso (salvo la Fase 0, que es explícitamente un
 cambio de matriz y va sola), ni un modelo de datos, ni la firma de ningún componente. Las
 fases 2 y 5-7 son reubicación y estilo; las fases 3 y 4 añaden presentación sobre datos que
