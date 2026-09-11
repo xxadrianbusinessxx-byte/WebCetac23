@@ -507,3 +507,4 @@ tocadas.
 | 2026-09-08 | Creación del documento. Primera medición completa del sistema visual. | todas |
 | 2026-09-10 | Rediseño Océano: línea base medida (905 ocurrencias de tema claro en 38 archivos, 0 % migrado) y alta de `scripts/diag-restyle-oceano.mjs`. Sin cambios de código todavía. | §7, §9, §10 |
 | 2026-09-10 | Paleta Océano versionada en `docs/sistema/TOKENS-OCEANO.css` (referencia, no se importa): 12 valores medidos + 4 derivados. Sigue sin aplicarse a `globals.css`. | §7, §10 |
+| 2026-09-10 | Cuatro módulos puros del rediseño, con suite (`test-rediseno-oceano.mjs`, 140 verificaciones): `materia/facetas-materia`, `alumno/grupos-campos-personales`, `asistencia/asistencia-tabular` y `navegacion/mapa-navegacion`. Ningún componente los consume todavía: la línea base sigue en 905 / 0 %. | §7, §10 |
