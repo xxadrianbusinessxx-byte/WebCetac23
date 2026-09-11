@@ -110,7 +110,22 @@ const NOMBRES_MESES = [
 
 const NOMBRES_DIAS = ["L", "M", "M", "J", "V", "S", "D"];
 
-export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodoNombre }: { cicloInicial?: string; periodoIdInicial?: string; periodoNombre?: string } = {}) {
+/**
+ * `soloLectura` — el MISMO calendario, sin los controles que escriben.
+ *
+ * Por qué una bandera y no un componente aparte: la lectura es idéntica
+ * (`actionObtenerCalendario`, que exige `calendario.ver`, capacidad que tienen
+ * los cinco roles) y el dibujo del mes también. Un segundo componente sería una
+ * vía paralela a esta misma fuente (R6) y divergiría a la primera corrección de
+ * estilo o de leyenda.
+ *
+ * Lo que apaga: la caja de «crear/actualizar calendario base» y el editor del
+ * día, que llaman a actions con `calendario.editar` — capacidad que el maestro
+ * y el directivo NO tienen. Enseñarles esos controles sería ofrecerles algo que
+ * el servidor va a rechazar. Al día se le sigue pudiendo hacer clic: muestra su
+ * tipo y su descripción, que es justamente lo que se pidió ver.
+ */
+export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodoNombre, soloLectura = false }: { cicloInicial?: string; periodoIdInicial?: string; periodoNombre?: string; soloLectura?: boolean } = {}) {
 
   // Ciclo seleccionado y lista de ciclos existentes.
   const [ciclos, setCiclos] = useState<string[]>([]);
@@ -372,7 +387,9 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
           </span>
         </div>
 
-        {/* Configuración de la base del calendario */}
+        {/* Configuración de la base del calendario — escribe, así que no se
+            dibuja en solo lectura. */}
+        {soloLectura ? null : (
         <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3 ">
           <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
             Crear / actualizar calendario base (lunes a viernes = clase)
@@ -411,6 +428,7 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
             </p>
           )}
         </div>
+        )}
 
         {/* Leyenda */}
         <div className="flex flex-wrap items-center justify-center gap-3 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-[10px] font-bold text-[var(--oc-muted)] ">
@@ -466,8 +484,26 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
           </div>
         </div>
 
+        {/* Ficha del día seleccionado: en solo lectura informa, no edita. */}
+        {seleccionado && soloLectura && (
+          <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
+            <p className="mb-1 text-center text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
+              {seleccionado}
+            </p>
+            <p className={`text-center text-sm font-extrabold ${INFO_TIPO[diaSeleccionado?.tipo ?? "clase"].texto}`}>
+              {INFO_TIPO[diaSeleccionado?.tipo ?? "clase"].simbolo}{" "}
+              {INFO_TIPO[diaSeleccionado?.tipo ?? "clase"].etiqueta}
+            </p>
+            {diaSeleccionado?.descripcion && (
+              <p className="mt-2 text-center text-xs font-semibold text-[var(--oc-muted)]">
+                {diaSeleccionado.descripcion}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Editor del día seleccionado */}
-        {seleccionado && (
+        {seleccionado && !soloLectura && (
           <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4 ">
             <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
               Editar día {seleccionado}

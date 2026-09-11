@@ -16,9 +16,12 @@ import { useCallback, useEffect, useState } from "react";
 import { actionObtenerVistaRegistro } from "@/app/actions/escolar";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import {
-  aplicarFiltro,
+  claveDeGrupo,
+  etiquetaGrupo,
   facetasDisponibles,
   FILTRO_AMBITO_VACIO,
+  grupoCoincideAmbito,
+  gruposDelCatalogo,
   type FiltroAmbito,
 } from "@/lib/escolar/materia/facetas-materia";
 import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
@@ -85,11 +88,15 @@ export function ContenidoDirectivoOceano({
 }) {
   const [filtro, setFiltro] = useState<FiltroAmbito>(FILTRO_AMBITO_VACIO);
   const [registro, setRegistro] = useState("");
+  /** Lo que el usuario eligió («1RO A · MECATRONICA»), no el nombre técnico de
+   *  la tabla. El rótulo tiene que hablar del grupo, que es lo que se pidió. */
+  const [rotulo, setRotulo] = useState("");
   const [vista, setVista] = useState<MateriaTablaVista | null>(null);
   const [cargando, setCargando] = useState(false);
 
-  const abrir = useCallback(async (nombre: string) => {
+  const abrir = useCallback(async (nombre: string, comoSeLlama = "") => {
     setRegistro(nombre);
+    setRotulo(comoSeLlama);
     if (!nombre) return setVista(null);
     setCargando(true);
     // Fase 4.1 cerró el alcance de esta action: alumno y tutor quedan negados,
@@ -102,6 +109,7 @@ export function ContenidoDirectivoOceano({
 
   useEffect(() => {
     setRegistro("");
+    setRotulo("");
     setVista(null);
   }, [pieza]);
 
@@ -119,10 +127,13 @@ export function ContenidoDirectivoOceano({
     );
   }
 
-  // «Grupo» y «Boleta» comparten el mismo catálogo filtrado: la diferencia es
-  // qué se hace con el registro elegido, y eso lo dirá la barra de modo cuando
-  // el flujo previsualizar→confirmar se cablee.
-  const lista = aplicarFiltro(datos.materias, filtro);
+  // Grupos/Boleta filtra por GRUPO, no por materia: aquí se sube la boleta de
+  // «1RO A MECATRONICA», no la de una asignatura suelta. Esa es toda la
+  // diferencia con la pestaña Materias, y es el motivo de que esta pantalla
+  // exista aparte.
+  const grupos = gruposDelCatalogo(datos.materias).filter((g) =>
+    grupoCoincideAmbito(g, filtro),
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -130,22 +141,30 @@ export function ContenidoDirectivoOceano({
 
       {!registro ? (
         <>
-          {lista.length === 0 ? (
-            <Aviso>No hay registros para ese ámbito.</Aviso>
+          {grupos.length === 0 ? (
+            <Aviso>No hay grupos para ese ámbito.</Aviso>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {lista.map((m) => (
+              {grupos.map((g) => (
                 <button
-                  key={m.idInterno}
+                  key={g.clave}
                   type="button"
-                  onClick={() => void abrir(m.idInterno)}
+                  // El registro de un grupo es el de su primera materia: es la
+                  // tabla física donde vive la hoja de ese grupo. Mientras la
+                  // boleta consolidada no tenga su propia tabla, esto es lo que
+                  // hay, y se dice en el rótulo en vez de fingir otra cosa.
+                  onClick={() => {
+                    const primera = datos.materias.find(
+                      (m) => claveDeGrupo(m) === g.clave,
+                    );
+                    if (primera) void abrir(primera.idInterno, etiquetaGrupo(g));
+                  }}
                   className="rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] p-4 text-left transition hover:brightness-110"
                 >
-                  <p className="text-base font-bold text-[var(--oc-text)]">
-                    {m.grado} {m.grupo}
-                    {m.carrera ? ` · ${m.carrera}` : ""}
+                  <p className="text-base font-bold text-[var(--oc-text)]">{etiquetaGrupo(g)}</p>
+                  <p className="mt-1 text-xs text-[var(--oc-muted)]">
+                    {g.materias} {g.materias === 1 ? "materia" : "materias"} · sube su boleta
                   </p>
-                  <p className="mt-1 text-xs text-[var(--oc-muted)]">{m.nombreVisible}</p>
                 </button>
               ))}
             </div>
@@ -158,12 +177,25 @@ export function ContenidoDirectivoOceano({
             onClick={() => void abrir("")}
             className="w-fit rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110"
           >
-            ← Volver al listado
+            ← Volver a los grupos
           </button>
           {cargando ? (
             <Aviso>Cargando el registro…</Aviso>
           ) : (
-            <MateriaTablaVistaPanel vista={vista} materiaNombre={registro} mostrarDetalleColumnas />
+            <>
+              {/* El registro que se abre es el de una materia del grupo: es la
+                  tabla física que hoy existe. Se dice, en vez de dejar creer
+                  que ya hay una boleta consolidada por grupo. */}
+              <Aviso>
+                Grupo {rotulo}. Se está leyendo el registro «{registro}»; la
+                boleta consolidada del grupo todavía no tiene tabla propia.
+              </Aviso>
+              <MateriaTablaVistaPanel
+                vista={vista}
+                materiaNombre={rotulo || registro}
+                mostrarDetalleColumnas
+              />
+            </>
           )}
         </div>
       )}

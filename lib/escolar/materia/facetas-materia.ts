@@ -170,6 +170,79 @@ export function sanearFiltro(
   };
 }
 
+/**
+ * Un GRUPO del catálogo: la combinación grado · grupo · carrera. No es una
+ * entidad aparte — sale de la identidad de las materias, porque una materia
+ * pertenece a un grupo y el catálogo ya trae esa identidad.
+ *
+ * Existe para la pantalla de Grupos/Boleta, que filtra por grupo y NO por
+ * materia: allí se sube la boleta de «1RO A MECATRONICA», no la de una
+ * asignatura suelta.
+ */
+export type GrupoDelCatalogo = {
+  /** Clave estable para React y para la selección: `grado|grupo|carrera`. */
+  clave: string;
+  grado: string;
+  grupo: string;
+  carrera: string | null;
+  /** Cuántas materias cuelgan de él. Da idea de si el grupo está poblado. */
+  materias: number;
+};
+
+/** Clave del grupo al que pertenece una materia. Vive aquí para que el formato
+ *  de `clave` tenga UN solo sitio: quien quiera volver de un grupo a sus
+ *  materias compara con esta función, no reescribiendo la plantilla. */
+export function claveDeGrupo(m: FacetableMateria): string {
+  return `${m.grado}|${m.grupo}|${m.carrera ?? ""}`;
+}
+
+/**
+ * Grupos únicos del catálogo, ordenados por grado, grupo y carrera.
+ *
+ * Aplica la misma regla C4.28 que el resto del módulo: una materia sin grado
+ * no resuelve a ningún grupo, así que no genera uno.
+ */
+export function gruposDelCatalogo(
+  items: readonly FacetableMateria[],
+  excluirSinGrado = EXCLUIR_SIN_GRADO_POR_DEFECTO,
+): GrupoDelCatalogo[] {
+  const mapa = new Map<string, GrupoDelCatalogo>();
+  for (const m of items) {
+    if (excluirSinGrado && !m.grado) continue;
+    const clave = claveDeGrupo(m);
+    const previo = mapa.get(clave);
+    if (previo) previo.materias += 1;
+    else
+      mapa.set(clave, {
+        clave,
+        grado: m.grado,
+        grupo: m.grupo,
+        carrera: m.carrera,
+        materias: 1,
+      });
+  }
+  return [...mapa.values()].sort(
+    (a, b) =>
+      a.grado.localeCompare(b.grado, "es") ||
+      a.grupo.localeCompare(b.grupo, "es") ||
+      (a.carrera ?? "").localeCompare(b.carrera ?? "", "es"),
+  );
+}
+
+/** Rótulo del grupo tal como se lee en pantalla: «1RO A · MECATRONICA». */
+export function etiquetaGrupo(g: GrupoDelCatalogo): string {
+  const base = `${g.grado} ${g.grupo}`.trim();
+  return g.carrera ? `${base} · ${g.carrera}` : base;
+}
+
+/** ¿Este grupo cae dentro del ámbito seleccionado? */
+export function grupoCoincideAmbito(g: GrupoDelCatalogo, filtro: FiltroAmbito): boolean {
+  if (filtro.grado !== null && g.grado !== filtro.grado) return false;
+  if (filtro.grupo !== null && g.grupo !== filtro.grupo) return false;
+  if (filtro.carrera !== null && (g.carrera ?? SIN_CARRERA) !== filtro.carrera) return false;
+  return true;
+}
+
 /** ¿Hay alguna faceta activa? Para decidir si se muestra «limpiar filtros». */
 export function hayFiltroActivo(filtro: FiltroAmbito, texto = ""): boolean {
   return (

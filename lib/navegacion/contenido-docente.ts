@@ -28,7 +28,8 @@
 export type PiezaDocente =
   | "materia-avance"
   | "materia-asistencia"
-  | "asistencia-alumnos";
+  | "asistencia-alumnos"
+  | "calendario-escolar";
 
 /** Clave = `idPestana/idApartado`, tal cual los devuelve el mapa. */
 const HUECOS: Readonly<Record<string, PiezaDocente>> = {
@@ -40,13 +41,16 @@ const HUECOS: Readonly<Record<string, PiezaDocente>> = {
   // Calendario/Asistencias
   "calendario-asistencias/asistencias": "asistencia-alumnos",
 
-  // `calendario-asistencias/calendario-escolar` NO tiene pieza todavía, y es
-  // deliberado: el único componente de calendario escolar que existe
-  // (`calendario-escolar-panel.tsx`) es un EDITOR — guarda y borra días con
-  // actions que exigen `calendario.editar`, capacidad que solo tiene el
-  // técnico. Montarlo para un maestro le enseñaría controles que el servidor
-  // rechaza, que es la regla 4 del PROMPT-3 al revés.
-  // Necesita una vista de solo lectura. Se decide en la Fase 6.
+  // El calendario del ciclo, VISTO. Durante las fases 5 y 6 este hueco quedó
+  // sin pieza a propósito: el único componente que existía
+  // (`calendario-escolar-panel.tsx`) es un editor, y sus actions exigen
+  // `calendario.editar` —capacidad que ni el maestro ni el directivo tienen—,
+  // así que montarlo tal cual les habría enseñado controles que el servidor
+  // rechaza. Se resolvió dándole a ESE MISMO componente un modo `soloLectura`
+  // en vez de escribir un segundo calendario (R6): la lectura
+  // (`calendario.ver`) la tienen los cinco roles, y el dibujo del mes es el
+  // mismo. Lo único que se apaga son los controles que escriben.
+  "calendario-asistencias/calendario-escolar": "calendario-escolar",
 };
 
 /** Pieza que corresponde a un hueco, o `null` si ese hueco no tiene pieza. */

@@ -89,11 +89,26 @@ export default async function OceanoPage({
   // La pantalla pinta lo que la action devuelva; nunca pide «todo el catálogo».
   const esDocente = rol === "maestro" || rol === "directivo";
   const materiasDocente = esDocente ? await actionListarMateriasConNombreVisible() : [];
+
+  // Fase 9 — el ciclo operativo. Lo pide el técnico para la carga académica y
+  // AHORA también el docente, para que `Calendario › Calendario escolar` abra
+  // en el ciclo en curso y no en el primero de la lista alfabética. Es la misma
+  // lectura de siempre; solo se amplía a quién se le sirve.
+  const nombreCicloOperativo =
+    rol === "tecnico" || esDocente
+      ? await (async () => {
+          const supabase = await createClient();
+          const ciclo = await obtenerCicloOperativoGlobal(supabase);
+          return ciclo.ok && ciclo.periodo ? String(ciclo.periodo.nombre).trim() : "";
+        })()
+      : "";
+
   const datosDocente: DatosDocenteOceano | null = esDocente
     ? {
         materias: materiasDocente,
         profesorClave: sesion?.matricula ?? "",
         nombreProfesor: sesion?.nombre ?? sesion?.matricula ?? "",
+        cicloOperativo: nombreCicloOperativo,
         // La capacidad la resuelve el SERVIDOR con la misma `puede()` de la
         // matriz. La UI no pregunta por el rol: recibe la respuesta.
         puedeResolverJustificaciones: puede(rol, "justificacion.resolver"),
@@ -106,16 +121,9 @@ export default async function OceanoPage({
   const datosDirectivo: DatosDirectivoOceano | null =
     rol === "directivo" ? { materias: materiasDocente } : null;
 
-  // Fase 9 — el ciclo operativo, para la carga académica del técnico. Misma
-  // lectura que hace hoy `/configuracion`; solo se pide a ese rol.
-  const periodos =
-    rol === "tecnico"
-      ? await (async () => {
-          const supabase = await createClient();
-          const ciclo = await obtenerCicloOperativoGlobal(supabase);
-          return ciclo.ok && ciclo.periodo ? [String(ciclo.periodo.nombre).trim()] : [];
-        })()
-      : [];
+  // La carga académica del técnico sigue esperando una lista; se arma con el
+  // mismo nombre que se acaba de leer, sin repetir la consulta.
+  const periodos = rol === "tecnico" && nombreCicloOperativo ? [nombreCicloOperativo] : [];
 
   // `key={rol}`: si cambia el rol (otra sesión sobre la misma pestaña del
   // navegador), el shell se remonta con su estado inicial en vez de arrastrar

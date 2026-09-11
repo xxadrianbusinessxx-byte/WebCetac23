@@ -199,6 +199,58 @@ eq(
   "la carrera completa tambien encuentra",
 );
 
+// ── Grupos del catálogo — Grupos/Boleta filtra por GRUPO, no por materia ───
+// El error que esto cierra: la pantalla de Grupos/Boleta estaba listando
+// MATERIAS, que es lo que hace Materias. Si `gruposDelCatalogo` dejara de
+// colapsar las materias de un mismo grupo, esa confusión volvería sin que
+// nada fallara a la vista.
+const MISMO_GRUPO = [
+  ...M,
+  { idInterno: "2do_a_mecatronica_neumatica", grado: "2DO", grupo: "A", carrera: "MECATRONICA", asignatura: "NEUMATICA", nombreVisible: "Neumática" },
+];
+
+const G = facetas.gruposDelCatalogo(MISMO_GRUPO);
+eq(G.length, 4, "cinco materias de cuatro grupos dan cuatro grupos");
+eq(
+  G.map((g) => g.clave),
+  ["1RO|A|", "2DO|A|MECATRONICA", "2DO|B|RH", "3RO|A|RH"],
+  "los grupos salen ordenados por grado, grupo y carrera",
+);
+eq(
+  G.find((g) => g.clave === "2DO|A|MECATRONICA").materias,
+  2,
+  "cuenta cuántas materias cuelgan del grupo",
+);
+eq(facetas.etiquetaGrupo(G[1]), "2DO A · MECATRONICA", "el rótulo lleva la carrera");
+eq(facetas.etiquetaGrupo(G[0]), "1RO A", "sin carrera el rótulo no arrastra el separador");
+
+// La clave la calcula UNA función: si el formato cambiara en un sitio y no en
+// el otro, volver de un grupo a sus materias dejaría de encontrar nada.
+ok(
+  MISMO_GRUPO.filter((m) => facetas.claveDeGrupo(m) === "2DO|A|MECATRONICA").length === 2,
+  "claveDeGrupo empareja una materia con su grupo",
+);
+
+// C4.28 también aquí: una materia sin grado no inventa un grupo.
+eq(
+  facetas.gruposDelCatalogo(CON_HUERFANA).length,
+  4,
+  "una materia sin grado no genera grupo (C4.28)",
+);
+
+ok(
+  facetas.grupoCoincideAmbito(G[1], { grado: "2DO", grupo: null, carrera: null }),
+  "el grupo cae dentro de su grado",
+);
+ok(
+  !facetas.grupoCoincideAmbito(G[1], { grado: "2DO", grupo: "B", carrera: null }),
+  "las facetas del grupo también combinan en AND",
+);
+ok(
+  facetas.grupoCoincideAmbito(G[0], { grado: null, grupo: null, carrera: facetas.SIN_CARRERA }),
+  "SIN CARRERA alcanza al grupo de carrera null",
+);
+
 // ── 4) grupos-campos-personales ────────────────────────────────────────────
 console.log("\ngrupos-campos-personales");
 
@@ -612,15 +664,17 @@ for (const clave of cDoc.huecosConPieza()) {
   ok(cDir.piezaDe(p, a) === null, `docente y directivo no se solapan en ${clave}`);
 }
 
-// El calendario escolar del docente NO tiene pieza a proposito: el unico
-// componente que existe es un EDITOR y el maestro no tiene calendario.editar.
+// El calendario escolar del docente YA tiene pieza: el panel del tecnico en
+// modo solo lectura. Estuvo vacio mientras ese panel era solo un editor.
 eq(
   cDoc.piezaDe("calendario-asistencias", "calendario-escolar"),
-  null,
-  "calendario escolar del docente sin pieza: el panel existente es un editor",
+  "calendario-escolar",
+  "el calendario del ciclo se ve desde Calendario/Asistencias",
 );
 ok(esActivo("maestro", "calendario-asistencias", "calendario-escolar"),
-  "…pero el apartado SI esta activo en el mapa: le falta vista, no permiso");
+  "y el apartado esta activo en el mapa para el maestro");
+ok(esActivo("directivo", "calendario-asistencias", "calendario-escolar"),
+  "y tambien para el directivo, que comparte la pestaña");
 
 // Los dos modos de calificaciones son dos vistas del MISMO hueco.
 ok(cDoc.esModoConfiguracion("Configuración de columnas"), "reconoce el modo de configuracion");

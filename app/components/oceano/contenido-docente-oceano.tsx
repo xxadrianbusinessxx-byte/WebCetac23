@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { actionObtenerVistaMateria } from "@/app/actions/escolar";
 import { AsistenciasPanel } from "@/app/components/asistencias-panel";
 import { BuscadorAlumnoProfesor } from "@/app/components/buscador-alumno-profesor";
+import { CalendarioEscolarPanel } from "@/app/components/calendario-escolar-panel";
 import { JustificacionesAdmin } from "@/app/components/justificaciones-admin";
 import {
   MateriaMapeoColumnas,
@@ -46,6 +47,10 @@ export type DatosDocenteOceano = {
    * aprobar.
    */
   puedeResolverJustificaciones: boolean;
+  /** Nombre del ciclo en curso, para que el calendario abra donde toca. Puede
+   *  venir vacío si no hay operativo: el panel cae entonces al primero de la
+   *  lista, que es lo que ya hacía. */
+  cicloOperativo: string;
 };
 
 function Aviso({ children }: { children: React.ReactNode }) {
@@ -104,6 +109,15 @@ export function ContenidoDocenteOceano({
 
   if (pieza === "materia-asistencia") {
     return <AsistenciasPanel nombreProfesor={datos.nombreProfesor} />;
+  }
+
+  if (pieza === "calendario-escolar") {
+    // Mismo panel que usa el técnico, en modo lectura: se ve el mes con sus
+    // días marcados y se puede consultar cada uno, pero no se dibuja nada que
+    // llame a una action de escritura.
+    return (
+      <CalendarioEscolarPanel cicloInicial={datos.cicloOperativo || undefined} soloLectura />
+    );
   }
 
   // pieza === "materia-avance": catálogo a la izquierda, contenido a la derecha.
