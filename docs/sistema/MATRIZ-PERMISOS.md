@@ -104,7 +104,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 
 | Capacidad | Qué habilita | D | M | Tec | T | A |
 |---|---|---|:-:|:-:|:-:|:-:|:-:|
-| `ciclo.ver` | Listar ciclos y su contexto (7 actions) | X | ✅ | ✅ | ✅ | ✅ |
+| `ciclo.ver` | Listar ciclos y su contexto (7 actions) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `ciclo.crear` | Crear ciclo, con o sin contexto | X | X | ✅ | X | X |
 | `ciclo.editar` | Cambiar nombre y rango | X | X | ✅ | X | X |
 | `ciclo.activar` | Marcar el ciclo operativo | X | X | ✅ | X | X |
@@ -132,11 +132,11 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `horario.importar` | Importar horario desde Excel y su plantilla | X | X | ✅ | X | X |
 | `horario.ver_grupo` | Ver horario de un grupo | ✅ | ✅ | X | X | X |
 | `horario.ver_alumno` | Ver horario de un alumno | ✅ | ✅ | X | ✅ | ✅ |
-| `asistencia.subir` | Plantilla, previsualizar y confirmar asistencia | X | ✅ | X | X | X |
+| `asistencia.subir` | Plantilla, previsualizar y confirmar asistencia | ✅ | ✅ | X | X | X |
 | `asistencia.anular` | Anular asistencia ya subida | ✅ | ✅ | X | X | X |
 | `asistencia.ver_grupo` | Ver asistencia de un grupo | ✅ | ✅ | X | X | X |
 | `asistencia.ver_alumno` | Ver asistencia de un alumno | ✅ | ✅ | X | ✅ | ✅ |
-| `justificacion.solicitar` | Pedir justificación (3 actions) | X | ✅ | X | ✅ | ✅ |
+| `justificacion.solicitar` | Pedir justificación (3 actions) | ✅ | ✅ | X | ✅ | ✅ |
 | `justificacion.ver_propias` | Ver las propias y su hilo (5 actions) | ✅ | ✅ | X | ✅ | ✅ |
 | `justificacion.resolver` | Aprobar o rechazar | ✅ | X | X | X | X |
 | `justificacion.ver_todas` | Pendientes e historial completo | ✅ | X | X | X | X |

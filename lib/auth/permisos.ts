@@ -141,12 +141,19 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "alumno.editar_estatus",
     "alumno.ver_perfil",
     "asistencia.anular",
+    // Fase 0 (rediseño Océano, 2026-09-10): AMPLIACIÓN decidida por el
+    // responsable, no reparación de un descuido — antes la §4 decía X aquí.
+    // El directivo sube asistencia sin depender de asignaciones (R-4).
+    "asistencia.subir",
     "asistencia.ver_alumno",
     "asistencia.ver_grupo",
     "calendario.ver",
     "calificacion.ver",
     "calificacion.subir",
     "calificacion.eliminar",
+    // Fase 0 (Océano): lectura de ciclos. Sin ella
+    // actionListarCiclosEscolares rechazaba al directivo.
+    "ciclo.ver",
     // ciclo.ver_operativo NO se mueve (T5.3): de ella depende toda la subida
     // de asistencia (actionObtenerCicloActual).
     "ciclo.ver_operativo",
@@ -159,6 +166,9 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "horario.ver_alumno",
     "horario.ver_grupo",
     "justificacion.resolver",
+    // Fase 0 (Océano): con solicitar + resolver, directivo puede pedir y
+    // aprobar la misma justificación (supervisión global; intencionado).
+    "justificacion.solicitar",
     "justificacion.ver_propias",
     "justificacion.ver_todas",
     "materia.descargar_plantilla",
