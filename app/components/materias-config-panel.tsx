@@ -157,15 +157,15 @@ export function MateriasConfigPanel({ materias }: Props) {
 
   return (
     <div
-      className="relative mt-6 flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
+      className="relative mt-6 flex flex-1 flex-col gap-6 overflow-hidden rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3 sm:p-4"
       aria-label="Configuración de materias"
     >
-      <div className="mx-auto w-fit rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] sm:text-[11px]">
+      <div className="mx-auto w-fit rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] sm:text-[11px]">
         Configuración de materias
       </div>
 
       <div className="relative z-[1] flex flex-col gap-4">
-        <div className="rounded-3xl border border-amber-400/50 bg-amber-100/80 px-4 py-3 text-center text-xs font-bold text-amber-950 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)]">
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-3 text-center text-xs font-bold text-[var(--oc-muted)]">
           Este cambio solo modifica cómo se muestra la materia. No cambia la
           tabla ni las calificaciones.
         </div>
@@ -175,7 +175,7 @@ export function MateriasConfigPanel({ materias }: Props) {
             type="button"
             onClick={() => void abrirCatalogo()}
             disabled={cargandoConfig}
-            className="rounded-full border border-sky-700/40 bg-white/80 px-5 py-2 text-xs font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-5 py-2 text-xs font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {cargandoConfig
               ? "Cargando catálogo…"
@@ -186,7 +186,7 @@ export function MateriasConfigPanel({ materias }: Props) {
             <button
               type="button"
               onClick={cerrarCatalogo}
-              className="w-fit rounded-full border border-sky-700/40 bg-white/80 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
+              className="w-fit rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110"
             >
               No ver nada (ocultar catálogo)
             </button>
@@ -201,7 +201,7 @@ export function MateriasConfigPanel({ materias }: Props) {
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Buscar por nombre visible, asignatura o ID técnico…"
-                className="w-full rounded-2xl border border-white/70 bg-white/90 px-4 py-2.5 text-xs font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/50"
+                className="w-full rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2.5 text-xs font-bold text-[var(--oc-text)] outline-none placeholder:text-[var(--oc-muted)] focus:border-[var(--oc-border-active)]"
               />
             </div>
 
@@ -209,7 +209,7 @@ export function MateriasConfigPanel({ materias }: Props) {
           <p
             role="status"
             className={`text-center text-xs font-semibold ${
-              mensaje.ok ? "text-sky-900" : "text-red-700"
+              mensaje.ok ? "text-[var(--oc-text)]" : "text-[var(--oc-alert-text)]"
             }`}
           >
             {mensaje.texto}
@@ -220,7 +220,7 @@ export function MateriasConfigPanel({ materias }: Props) {
         <AliasesVolumenPanel />
 
         {filtradas.length === 0 ? (
-          <p className="rounded-3xl border border-white/55 bg-slate-400/25 px-4 py-6 text-center text-sm font-semibold text-slate-600 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+          <p className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-6 text-center text-sm font-semibold text-[var(--oc-muted)]">
             No se encontraron materias.
           </p>
         ) : (
@@ -230,19 +230,19 @@ export function MateriasConfigPanel({ materias }: Props) {
               return (
                 <div
                   key={m.idInterno}
-                  className="flex flex-col gap-2 rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md"
+                  className="flex flex-col gap-2 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4"
                 >
-                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-muted)]">
                     Materia
                   </p>
-                  <p className="text-sm font-extrabold uppercase leading-snug tracking-wide text-sky-950">
+                  <p className="text-sm font-extrabold uppercase leading-snug tracking-wide text-[var(--oc-text)]">
                     {m.nombreVisible}
                   </p>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--oc-muted)]">
                     ID técnico: {m.idInterno}
                   </p>
                   {ocultas.has(m.idInterno) && (
-                    <span className="mt-1 inline-block w-fit rounded-full bg-rose-500/20 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-rose-800">
+                    <span className="mt-1 inline-block w-fit rounded-full bg-[var(--oc-alert)]/20 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-[var(--oc-alert-text)]">
                       Oculto del panel de calificaciones y del alumno
                     </span>
                   )}
@@ -262,14 +262,14 @@ export function MateriasConfigPanel({ materias }: Props) {
                         onChange={(e) => setBorrador(e.target.value)}
                         maxLength={120}
                         placeholder="Nuevo nombre…"
-                        className="w-full rounded-2xl border border-white/70 bg-white/95 px-3 py-2 text-xs font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none focus:ring-2 focus:ring-sky-400/50"
+                        className="w-full rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-bold text-[var(--oc-text)] outline-none placeholder:text-[var(--oc-muted)] focus:border-[var(--oc-border-active)]"
                       />
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
                           disabled={guardando}
                           onClick={() => void guardar(m)}
-                          className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-full bg-[var(--oc-mint)] px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-mint-ink)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {guardando ? "Guardando…" : "Guardar"}
                         </button>
@@ -279,7 +279,7 @@ export function MateriasConfigPanel({ materias }: Props) {
                             setEditandoId(null);
                             setBorrador("");
                           }}
-                          className="rounded-full border border-white/60 bg-white/70 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-sky-800 transition hover:bg-white/90"
+                          className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110"
                         >
                           Cancelar
                         </button>
@@ -294,7 +294,7 @@ export function MateriasConfigPanel({ materias }: Props) {
                           setBorrador(m.nombreVisible);
                           setMensaje(null);
                         }}
-                        className="w-fit rounded-full border border-sky-700/40 bg-white/80 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
+                        className="w-fit rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110"
                       >
                         Editar nombre
                       </button>
@@ -304,7 +304,7 @@ export function MateriasConfigPanel({ materias }: Props) {
                           disabled={guardando || cargandoConfig}
                           onClick={() => void quitarAlias(m)}
                           title="Quitar el alias: la materia volverá a mostrarse por su idInterno (no borra nada)."
-                          className="w-fit rounded-full border border-amber-700/40 bg-white/80 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-amber-900 transition hover:bg-amber-100"
+                          className="w-fit rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110"
                         >
                           Quitar alias
                         </button>
@@ -313,10 +313,10 @@ export function MateriasConfigPanel({ materias }: Props) {
                         type="button"
                         disabled={guardando || cargandoConfig}
                         onClick={() => void cambiarVisibilidad(m)}
-                        className={`w-fit rounded-full border border-white/70 px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${
+                        className={`w-fit rounded-full border border-[var(--oc-border)] px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 ${
                           ocultas.has(m.idInterno)
-                            ? "bg-linear-to-b from-emerald-400 via-emerald-500 to-emerald-600"
-                            : "bg-linear-to-b from-rose-400 via-rose-500 to-rose-600"
+                            ? "bg-[var(--oc-input)] text-[var(--oc-text)]"
+                            : "bg-[var(--oc-input)] text-[var(--oc-alert-text)]"
                         }`}
                       >
                         {ocultas.has(m.idInterno) ? "Activar" : "Desactivar"}

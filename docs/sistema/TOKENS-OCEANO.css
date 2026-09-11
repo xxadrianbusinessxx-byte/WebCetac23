@@ -67,6 +67,35 @@
        fondo o borde .......... --oc-alert
      problema, EN TEXTO ....... --oc-alert-text   (ver regla 2 arriba)
 
+   ACCIONES — tres niveles, y solo tres. El color de un botón dice su
+   IMPORTANCIA, no su tema.
+     primaria ................. fondo --oc-mint + texto --oc-mint-ink
+                                UNA por pantalla. Si hay dos, una no lo es.
+     neutra ................... fondo --oc-input + texto --oc-text
+     con consecuencia ......... fondo --oc-input + el TEXTO en
+       señalada                 --oc-alert-text (negativa: desactivar,
+                                quitar, rechazar) o --oc-ok (positiva:
+                                activar, aprobar)
+   El fondo nunca cambia de color por la consecuencia: solo la etiqueta. Un
+   botón rojo entero compite con el CTA primario y rompe la disciplina del
+   acento único.
+
+   AVISO / INFORMACIÓN — el diseño NO define un color de advertencia.
+   Muestreé los 25 frames: hay exactamente DOS colores semánticos, verde
+   (vigente) y rojo (vencida). No hay ámbar. Así que:
+     nota informativa ......... neutra: fondo --oc-input, texto --oc-muted.
+                                Es guía, no estado; no debe gritar.
+     aviso que hay que ver .... --oc-alert como borde o fondo al 15-20% +
+                                texto --oc-alert-text.
+   Conflar «advertencia» con «problema» pierde un matiz, y es deliberado:
+   inventar un tercer color semántico a mitad de la migración sería el
+   quinto token derivado en una paleta que se creó midiendo.
+   SI al migrar `asistencias-panel` resulta que los avisos de asistencia
+   (conflictos de parcial, días sin parcial) quedan indistinguibles de los
+   errores, ESO es una decisión de diseño: se lleva al archivo de Figma, no
+   se resuelve inventando un ámbar aquí.
+   (Huecos detectados al migrar `materias-config-panel.tsx`, 2026-09-11.)
+
    DEGRADADOS — no se traducen parada por parada.
    Un `from-slate-400 via-slate-500 to-slate-600` NO se convierte en tres
    tokens: se sustituye por UNA superficie plana. El diseño Océano usa
