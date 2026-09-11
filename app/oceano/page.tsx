@@ -8,6 +8,7 @@ import {
   type DatosDirectivoOceano,
   type DatosDocenteOceano,
 } from "@/app/components/oceano/shell-oceano";
+import { puede } from "@/lib/auth/permisos";
 import { nombreCompletoAlumno } from "@/lib/escolar/alumno/alumnos";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 
@@ -91,6 +92,9 @@ export default async function OceanoPage({
         materias: materiasDocente,
         profesorClave: sesion?.matricula ?? "",
         nombreProfesor: sesion?.nombre ?? sesion?.matricula ?? "",
+        // La capacidad la resuelve el SERVIDOR con la misma `puede()` de la
+        // matriz. La UI no pregunta por el rol: recibe la respuesta.
+        puedeResolverJustificaciones: puede(rol, "justificacion.resolver"),
       }
     : null;
 

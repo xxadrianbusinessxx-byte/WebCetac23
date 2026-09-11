@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { actionObtenerVistaMateria } from "@/app/actions/escolar";
 import { AsistenciasPanel } from "@/app/components/asistencias-panel";
 import { BuscadorAlumnoProfesor } from "@/app/components/buscador-alumno-profesor";
+import { JustificacionesAdmin } from "@/app/components/justificaciones-admin";
 import {
   MateriaMapeoColumnas,
   useMateriaMapeo,
@@ -34,6 +35,17 @@ export type DatosDocenteOceano = {
   /** Identidad de presentación; la real la resuelve el servidor. */
   profesorClave: string;
   nombreProfesor: string;
+  /**
+   * ¿Puede resolver justificaciones? Lo decide el SERVIDOR con la misma
+   * `puede()` de la matriz, y llega ya resuelto. El componente no pregunta por
+   * el rol: si preguntara, habría dos sitios decidiendo permisos.
+   *
+   * Es una capacidad que solo tiene el directivo (`justificacion.resolver`), y
+   * por eso el mismo hueco —Calendario/Asistencias › Asistencias— enseña el
+   * buscador a los dos roles y añade el panel de aprobación solo a quien puede
+   * aprobar.
+   */
+  puedeResolverJustificaciones: boolean;
 };
 
 function Aviso({ children }: { children: React.ReactNode }) {
@@ -79,7 +91,15 @@ export function ContenidoDocenteOceano({
   }, [pieza, seleccionada, refrescar]);
 
   if (pieza === "asistencia-alumnos") {
-    return <BuscadorAlumnoProfesor profesorClave={datos.profesorClave} />;
+    return (
+      <div className="flex flex-col gap-6">
+        <BuscadorAlumnoProfesor profesorClave={datos.profesorClave} />
+        {/* El frame del directivo muestra aquí las solicitudes de justificación
+            con Aceptar y Rechazar. El maestro ve el mismo hueco sin ese panel:
+            no tiene `justificacion.resolver`. */}
+        {datos.puedeResolverJustificaciones ? <JustificacionesAdmin /> : null}
+      </div>
+    );
   }
 
   if (pieza === "materia-asistencia") {
