@@ -18,6 +18,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { actionObtenerVistaMateria } from "@/app/actions/escolar";
+import { actionGuardarCamposPersonales } from "@/app/actions/etiquetas-dinamicas";
 import { actionObtenerMapeoColumnasMateria } from "@/app/actions/materias";
 import { AsistenciaTabularAlumno } from "./asistencia-tabular-alumno";
 import { NotificacionesAlumno } from "./notificaciones-alumno";
@@ -28,7 +29,7 @@ import { MateriaCalificacionesAlumno } from "@/app/components/materia-calificaci
 import { MateriaSelector } from "@/app/components/materia-selector";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { camposDeGrupo, type GrupoCampoPersonal } from "@/lib/escolar/alumno/grupos-campos-personales";
-import { comentarioPersonalDesdeFila } from "@/lib/escolar/alumno/etiquetas";
+import { comentarioPersonalDesdeFila, type CampoPersonalPrimario } from "@/lib/escolar/alumno/etiquetas";
 import { informacionPersonalDesdeEtiquetas } from "@/lib/escolar/alumno/informacion-personal";
 import type { PiezaAlumno } from "@/lib/navegacion/contenido-alumno";
 import type { AlumnoEtiquetaRow } from "@/lib/escolar/alumno/etiquetas-dinamicas";
@@ -58,6 +59,9 @@ export type DatosAlumnoOceano = {
   } | null;
   puedeEditarEtiquetas: boolean;
   puedeImportarEtiquetas: boolean;
+  /** Fase 4 — el TUTOR puede editar los campos personales; el alumno no. El
+   *  flag lo resuelve la action (`resolverAccesoAlumno`), no la UI. */
+  puedeEditarDatosPersonales: boolean;
 };
 
 /**
@@ -123,42 +127,133 @@ function Aviso({ children }: { children: ReactNode }) {
 function CamposDeGrupo({
   etiquetas,
   grupo,
+  curp,
+  puedeEditar,
 }: {
   etiquetas: EtiquetasPersonalesRow | null;
   grupo: GrupoCampoPersonal;
+  curp: string;
+  /** Flag del servidor: el tutor sí, el alumno no. */
+  puedeEditar: boolean;
 }) {
   const porClave = new Map(
     informacionPersonalDesdeEtiquetas(etiquetas).map((c) => [String(c.clave), c]),
   );
-  const campos = camposDeGrupo(grupo)
-    .map((clave) => porClave.get(clave))
-    .filter((c): c is NonNullable<typeof c> => Boolean(c));
+  const campos = camposDeGrupo(grupo).map((clave) => {
+    const c = porClave.get(clave);
+    return { clave, etiqueta: c?.etiqueta ?? clave, valor: c?.valor ?? "—" };
+  });
+
+  const [editando, setEditando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [valores, setValores] = useState<Partial<Record<CampoPersonalPrimario, string>>>({});
+
+  function abrir() {
+    const inicial: Partial<Record<CampoPersonalPrimario, string>> = {};
+    for (const c of campos) inicial[c.clave] = c.valor === "—" ? "" : c.valor;
+    setValores(inicial);
+    setMensaje(null);
+    setEditando(true);
+  }
+
+  async function guardar() {
+    setGuardando(true);
+    // El guardado envía SOLO las claves de este grupo: `patchCamposPersonales`
+    // aplica las presentes y no toca las demás (por eso los dos apartados
+    // pueden editar su mitad sin pisarse).
+    const r = await actionGuardarCamposPersonales(curp, valores);
+    setGuardando(false);
+    if (r.ok) {
+      setMensaje("Datos guardados.");
+      setEditando(false);
+    } else {
+      setMensaje(r.error);
+    }
+  }
 
   return (
-    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-      {campos.map((c) => (
-        <li
-          key={String(c.clave)}
-          className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2"
-        >
-          <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
-            {c.etiqueta}
-          </p>
-          <p className="mt-0.5 text-sm font-semibold text-[var(--oc-text)]">{c.valor}</p>
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-3">
+      {puedeEditar && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {mensaje ? (
+            <span className="text-[10px] font-semibold text-[var(--oc-muted)]">{mensaje}</span>
+          ) : (
+            <span />
+          )}
+          {editando ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={guardando}
+                onClick={() => void guardar()}
+                className="rounded-full bg-[var(--oc-mint)] px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-mint-ink)] disabled:opacity-60"
+              >
+                {guardando ? "Guardando…" : "Guardar"}
+              </button>
+              <button
+                type="button"
+                disabled={guardando}
+                onClick={() => {
+                  setEditando(false);
+                  setMensaje(null);
+                }}
+                className="rounded-full border border-[var(--oc-border)] px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={abrir}
+              className="rounded-full border border-[var(--oc-border)] px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]"
+            >
+              Editar
+            </button>
+          )}
+        </div>
+      )}
+
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {campos.map((c) => (
+          <li
+            key={String(c.clave)}
+            className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2"
+          >
+            <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
+              {c.etiqueta}
+            </p>
+            {editando ? (
+              <input
+                type="text"
+                value={valores[c.clave] ?? ""}
+                onChange={(e) =>
+                  setValores((prev) => ({ ...prev, [c.clave]: e.target.value }))
+                }
+                className="mt-0.5 w-full rounded-lg border border-[var(--oc-border)] bg-[var(--oc-surface)] px-2 py-1 text-sm font-semibold text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
+              />
+            ) : (
+              <p className="mt-0.5 text-sm font-semibold text-[var(--oc-text)]">{c.valor}</p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
 export function ContenidoAlumnoOceano({
   pieza,
   modo = null,
+  permitirJustificacion = false,
   datos,
 }: {
   pieza: PiezaAlumno;
   /** Modo activo del apartado (barra de modo). Solo lo usa la sub-vista doble. */
   modo?: string | null;
+  /** Fase 4 — opción del HUECO (no del rol): el calendario permite justificar. */
+  permitirJustificacion?: boolean;
   datos: DatosAlumnoOceano;
 }) {
   const { curp, nombre, materias, registro, etiquetas, comentarios, etiquetasDinamicas } = datos;
@@ -181,7 +276,7 @@ export function ContenidoAlumnoOceano({
   useEffect(() => {
     if (pieza !== "materias-calificacion" || !materiaSeleccionada) return;
     let activo = true;
-    void actionObtenerVistaMateria(materiaSeleccionada).then((v) => {
+    void actionObtenerVistaMateria(materiaSeleccionada, curp).then((v) => {
       if (activo) setVistaMateria(v);
     });
     void actionObtenerMapeoColumnasMateria(materiaSeleccionada).then((m) => {
@@ -238,7 +333,11 @@ export function ContenidoAlumnoOceano({
   if (pieza === "calendario-asistencia") {
     return (
       <Tira>
-        <CalendarioAsistenciaAlumno curp={curp} nombreAlumno={nombre} />
+        <CalendarioAsistenciaAlumno
+          curp={curp}
+          nombreAlumno={nombre}
+          permitirJustificacion={permitirJustificacion}
+        />
       </Tira>
     );
   }
@@ -260,7 +359,12 @@ export function ContenidoAlumnoOceano({
         </Tira>
 
         <Tira>
-          <CamposDeGrupo etiquetas={etiquetas} grupo="personal" />
+          <CamposDeGrupo
+            etiquetas={etiquetas}
+            grupo="personal"
+            curp={curp}
+            puedeEditar={datos.puedeEditarDatosPersonales}
+          />
         </Tira>
 
         {/* Fase 3.1 — contacto del tutor. Si no hay vínculo se dice con una
@@ -313,7 +417,12 @@ export function ContenidoAlumnoOceano({
   if (pieza === "perfil-seguimiento-medico") {
     return (
       <Tira>
-        <CamposDeGrupo etiquetas={etiquetas} grupo="medico" />
+        <CamposDeGrupo
+          etiquetas={etiquetas}
+          grupo="medico"
+          curp={curp}
+          puedeEditar={datos.puedeEditarDatosPersonales}
+        />
       </Tira>
     );
   }

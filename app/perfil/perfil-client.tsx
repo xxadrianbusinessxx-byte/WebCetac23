@@ -245,10 +245,16 @@ export function PerfilClient({ materias, modo, urlRegreso, datos }: Props) {
     } else setMensaje(r.error);
   };
 
-  const refrescarMateria = useCallback(async (nombre: string) => {
-    const vista = await actionObtenerVistaMateria(nombre);
-    setVistaMateria(vista);
-  }, []);
+  const refrescarMateria = useCallback(
+    async (nombre: string) => {
+      // Fase 4 — el ALCANCE va con la consulta: el tutor indica sobre qué alumno
+      // (su curp) y la action valida la relación antes de responder. Para el
+      // alumno es su propia curp, y maestro/directivo no la necesitan.
+      const vista = await actionObtenerVistaMateria(nombre, curp);
+      setVistaMateria(vista);
+    },
+    [curp],
+  );
 
   const refrescarPesos = useCallback(async (nombre: string) => {
     const mapeo = await actionObtenerMapeoColumnasMateria(nombre);

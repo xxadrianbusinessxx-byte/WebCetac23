@@ -55,3 +55,24 @@ export function piezaDe(idPestana: string, idApartado: string): PiezaAlumno | nu
 export function huecosConPieza(): string[] {
   return Object.keys(HUECOS);
 }
+
+/**
+ * Ajustes de PRESENTACIÓN de un hueco (Fase 4).
+ *
+ * No dependen del rol: el mapa del tutor es el MISMO objeto que el del alumno y
+ * estos ajustes son propiedades del hueco. `permitirJustificacion` marca el
+ * calendario mensual, donde puede justificarse una falta: la capacidad
+ * `justificacion.solicitar` la tienen los dos roles que comparten este mapa y la
+ * action valida la relación en el servidor, así que la afirmación es cierta para
+ * ambos (un botón visible que el servidor rechazara sería un bug de la matriz).
+ */
+export type OpcionesPieza = {
+  /** El calendario mensual permite solicitar justificación de una falta. */
+  permitirJustificacion: boolean;
+};
+
+export function opcionesDePieza(idPestana: string, idApartado: string): OpcionesPieza {
+  return {
+    permitirJustificacion: `${idPestana}/${idApartado}` === "calendario/calendario-escolar",
+  };
+}

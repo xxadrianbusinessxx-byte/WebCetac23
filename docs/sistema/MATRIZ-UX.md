@@ -5,8 +5,8 @@ Responde una sola pregunta: **«quiero cambiar tal cosa de la apariencia, ¿qué
 toco y a qué más afecta?»**
 
 - **Última medición:** 2026-09-08, sobre `app/**/*.tsx` (53 archivos, 13 100 líneas,
-  sin `app/_borrador/`). **Delta posterior:** 2026-09-10, las fases 1, 1.1, 2, 3 y 3.1 del
-  rediseño Océano añadieron 9 archivos y 1 298 líneas (hoy 62 archivos, 14 408 líneas;
+  sin `app/_borrador/`). **Delta posterior:** 2026-09-10, las fases 1, 1.1, 2, 3, 3.1 y 4 del
+  rediseño Océano añadieron 10 archivos y 1 533 líneas (hoy 63 archivos, 14 643 líneas;
   ver §1).
 - **Hermano normativo:** `docs/normativo/ORDEN.md` §1 (dónde va un archivo nuevo).
 - **Hermano funcional:** `docs/sistema/MAPA-DEL-SISTEMA.md` (síntoma → archivo).
@@ -42,7 +42,7 @@ la **barra de navegación** — nada de lo que hay dentro de los paneles. Por es
 
 | Medida | Valor | Lectura |
 |---|---|---|
-| Archivos `.tsx` de UI | 62 | — |
+| Archivos `.tsx` de UI | 63 | — |
 | `className=` escritos | 1 565 | — |
 | Clases utilitarias | ~10 195 | — |
 | Valores arbitrarios `[...]` en `className` | 966 (97 distintos) | cada forma distinta es una decisión sin nombre |
@@ -56,8 +56,8 @@ la **barra de navegación** — nada de lo que hay dentro de los paneles. Por es
 | Archivos con `style={{...}}` inline | 6 | posiciones de decoración, no color |
 | `focus:` / `focus-visible:` | 101 / 11 | §8 |
 
-> **Fases 1, 1.1, 2, 3 y 3.1 del rediseño Océano (2026-09-10).** Añadieron 9 archivos (1 298
-> líneas) y los 17 tokens de §4.8. Las dos filas de conteo directo (archivos `.tsx`,
+> **Fases 1, 1.1, 2, 3, 3.1 y 4 del rediseño Océano (2026-09-10).** Añadieron 10 archivos
+> (1 533 líneas) y los 17 tokens de §4.8. Las dos filas de conteo directo (archivos `.tsx`,
 > variables CSS) van actualizadas; las cifras **compuestas** (`className=`, clases
 > utilitarias, arbitrarios, radios, sombras, tamaños, opacidades y piezas duplicadas)
 > siguen siendo la medición del **2026-09-08 sobre 53 archivos**: se re-miden con los
@@ -100,7 +100,7 @@ relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 
 |---|---|---|---|---|
 | `/` | `app/page.tsx` (todo) | `home-login-form.tsx` | **excepción:** `max-w-6xl` / `lg:max-w-7xl` + rejilla `lg:grid-cols-12` (3 · 5 · 4) | barra decorativa superior · `GlassShell` · `SectionPill` · `PanelTab` decorativo · `alumnos-estrella` · `eventos-inicio`. **Sin barra de navegación.** |
 | `/login` | `app/login/page.tsx` | — | — | `redirect("/")`; no pinta nada |
-| `/oceano` | `oceano/page.tsx` (69) | `components/oceano/shell-oceano.tsx` (149) + 7 piezas | **propio:** el shell pinta su fondo (`--oc-bg`) y el rail va anclado a x=0; no usa el contenedor estándar | **Fases 1-3** — shell único: barra superior por rol (nivel 1) + rail de apartados (nivel 2) + barra de modo (nivel 3), desde `lib/navegacion/mapa-navegacion.ts`. El contenido de los huecos con pieza lo decide `lib/navegacion/contenido-alumno.ts` y lo montan `contenido-alumno-oceano.tsx`, `asistencia-tabular-alumno.tsx` y `notificaciones-alumno.tsx`. No sustituye a ninguna ruta viva: convive con ellas (R8). |
+| `/oceano` | `oceano/page.tsx` (94) | `components/oceano/shell-oceano.tsx` (179) + 8 piezas | **propio:** el shell pinta su fondo (`--oc-bg`) y el rail va anclado a x=0; no usa el contenedor estándar | **Fases 1-4** — shell único: barra superior por rol (nivel 1) + rail de apartados (nivel 2) con **selector de alumno vinculado** por encima (Fase 4) + barra de modo (nivel 3), desde `lib/navegacion/mapa-navegacion.ts`. El contenido de los huecos con pieza lo decide `lib/navegacion/contenido-alumno.ts` y lo montan `contenido-alumno-oceano.tsx`, `asistencia-tabular-alumno.tsx` y `notificaciones-alumno.tsx`; las MISMAS piezas sirven al alumno y al tutor (reciben el `curp` del alumno elegido, no el rol). No sustituye a ninguna ruta viva: convive con ellas (R8). |
 | `/perfil` | `perfil/page.tsx` | `perfil-client.tsx` (822) | estándar (+ variante centrada `items-center justify-center` para el estado vacío) | 4 pestañas `MainTabButton`: materia · estatus · comentarios · boleta. `BubblePill`, `materia-selector`, `materia-tabla-vista`, `materia-calificaciones-alumno`, `calendario-asistencia-alumno`, `horario-alumno-resumen`, `etiquetas-dinamicas-panel` |
 | `/profesor` | `profesor/page.tsx` | `profesor-client.tsx` (301) | estándar | `GreyActionPill`, `buscador-alumno-profesor`, `asistencias-panel`, `materia-selector`, `materia-tabla-vista`, `materia-mapeo-columnas` |
 | `/directivo` | `directivo/page.tsx` | `directivo-client.tsx` (606) | estándar | `PanelTab`, `GreyActionPill`, `PreviewPanel`, 3 `<section>`, `justificaciones-admin`, `materias-config-panel`, `profesores-credenciales-panel`, `materia-*` |
@@ -512,6 +512,15 @@ arquitectura:
 Medición (antes → después): **claro 772 → 772** y **Fase 2 81 → 81** (esta fase no restylea
 nada), oscuro **359 → 370**, avance 32 %. `app/actions/` y `lib/escolar/` sin tocar;
 `/perfil` intacto con sus 81.
+
+**Fase 4 ejecutada (2026-09-10).** El tutor tiene datos en el mismo shell. **No es una fase de
+estilo**: no toca `tutor-client.tsx` (sus 51 claro se quedan; se retira entero en la Fase 9),
+así que **claro 772 → 772**, **Fase 4 51 → 51** y **Fase 2 81 → 81**; `--oc-*` sube
+**370 → 392** por las piezas del alumno que ahora se cablean también para el tutor. Lo
+sustantivo es de **alcance**, no visual: `actionObtenerVistaMateria` dejó de entregar la
+tabla del grupo a un tutor (ver `ESTADO-ACTUAL.md` §7). El shell gana un **selector de alumno
+vinculado** en el rail (nivel 2) y las mismas piezas del alumno reciben el `curp` elegido: ni
+un componente duplicado por rol.
 
 **Lo que la migración NO cambia:** ni un permiso (salvo la Fase 0, que es explícitamente un
 cambio de matriz y va sola), ni un modelo de datos, ni la firma de ningún componente. Las

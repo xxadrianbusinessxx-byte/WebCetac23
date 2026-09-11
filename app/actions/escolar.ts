@@ -32,7 +32,8 @@ import {
   titulosEtiquetasPersonales,
   valoresEtiquetasPersonales,
 } from "@/lib/escolar/alumno/etiquetas";
-import { buscarIndiceFilaAlumno } from "@/lib/escolar/buscar-en-filas";
+import { buscarIndiceFilaAlumno, normalizarCurp } from "@/lib/escolar/buscar-en-filas";
+import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores";
 import { vistaConColumnasIdentificadas } from "@/lib/escolar/materia/columnas-calificaciones";
 import { actualizarMateriaDesdeArchivo } from "@/lib/escolar/materia/materia-avance";
 import { obtenerMapeoColumnasMateria } from "@/lib/escolar/materia/mapeo-columnas-materia";
@@ -595,6 +596,12 @@ export async function actionObtenerVistaRegistro(
 
 export async function actionObtenerVistaMateria(
   nombreMateria: string,
+  /**
+   * Fase 4 — ALCANCE: sobre QUÉ alumno se consulta. Solo lo necesita el TUTOR
+   * (sus alumnos vinculados): el alumno usa su propia sesión y maestro/directivo
+   * consultan la vista completa. Un tutor SIN curp no recibe nada.
+   */
+  curpConsulta?: string | null,
 ): Promise<MateriaTablaVista | null> {
   const g = await exigir("calificacion.ver");
   if (!g.ok) return null;
@@ -659,6 +666,54 @@ export async function actionObtenerVistaMateria(
     }
 
     if (!vista) return null;
+    return vistaConColumnasIdentificadas(vista, { rol: "alumno", mapeo });
+  }
+
+  // ── Fase 4 · PASO 0 — ALCANCE del TUTOR ───────────────────────────────────
+  // La capacidad `calificacion.ver` dice QUÉ puede hacer (y el tutor la tiene);
+  // esto dice SOBRE QUIÉN. Sin esta guarda el tutor caía al camino de vista
+  // COMPLETA y recibía las calificaciones de TODO EL GRUPO.
+  //
+  // Mismo patrón que `actionObtenerHorarioAlumno`: la relación se valida en el
+  // servidor contra `tutor_alumnos`; un CURP ajeno se NIEGA (no se ignora). La
+  // decisión «qué fila corresponde a este alumno» NO vive aquí: se reutiliza
+  // `leerVistaMateriaAlumno` + `buscarIndiceFilaAlumno` (buscar-en-filas), el
+  // MISMO criterio (CURP primero, nombre normalizado después) que usa el alumno.
+  if (sesion && esRol(sesion.rol, "tutor")) {
+    const curpObjetivo = normalizarCurp(curpConsulta ?? "");
+    if (!curpObjetivo) return null;
+
+    const vinculados = await listarCurpsDeTutor(supabase, sesion.matricula);
+    if (!vinculados.includes(curpObjetivo)) return null;
+
+    const alumno = await buscarAlumnoPorCurp(supabase, curpObjetivo);
+    const criterio = {
+      curp: curpObjetivo,
+      nombreCompleto: alumno ? nombreCompletoAlumno(alumno) : "",
+    };
+
+    let vista: MateriaTablaVista | null = await leerVistaMateriaAlumno(
+      supabase,
+      nombreMateria,
+      criterio,
+    );
+
+    // Mismo fallback que el camino del alumno: formatos legacy que la lectura
+    // por columnas no localiza.
+    if (!vista || !vista.filas.length) {
+      const completa = await obtenerVistaMateria(supabase, nombreMateria);
+      if (completa) {
+        const idx = buscarIndiceFilaAlumno(completa.filas, criterio);
+        vista = {
+          encabezados: completa.encabezados,
+          filas: idx >= 0 ? [completa.filas[idx]!] : [],
+        };
+      }
+    }
+
+    if (!vista) return null;
+    // La fila es la del alumno: se presenta como la del alumno (nunca la
+    // vista completa de directivo).
     return vistaConColumnasIdentificadas(vista, { rol: "alumno", mapeo });
   }
 

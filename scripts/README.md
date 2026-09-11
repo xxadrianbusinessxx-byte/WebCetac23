@@ -88,6 +88,7 @@ Correr las que apliquen **antes y después** de cualquier cambio de dominio.
 | `diag-asistencia-periodo.mjs` | (PROMPT-1/T6) conteo exacto (count=exact) y relleno de `periodo_id`/`periodo_evaluacion_id` en asistencia |
 | `diag-inscripciones-duplicadas.mjs` | (PROMPT-1/T3) CURPs con >1 inscripción activa en el operativo, con grupo/ciclo/semestre y match contra roster (`--roster=`) |
 | `diag-profesor-alcance.mjs` | qué ve un profesor y con qué identidad (deuda 2) |
+| `diag-alcance-tutor.mjs` | (Fase 4 del rediseño) prueba de solo lectura del ALCANCE del tutor: (A) un CURP ajeno NO está en `listarCurpsDeTutor` (predicado que reusan calificaciones, horario y asistencia) y (B) el criterio de fila de `buscar-en-filas` (el módulo puro REAL, transpilado) devuelve 1 fila por alumno, nunca la tabla del grupo. Solo `GET`. Uso: `node scripts/diag-alcance-tutor.mjs [--tutor=<id>]` |
 | `diag-materias-alumno.mjs` | cobertura `tabla_legacy` + RPC de perfil |
 | `diag-restyle-oceano.mjs` | (rediseño Océano) avance de la migración visual: ocurrencias del tema glass CLARO vs tokens `--oc-*` del tema OSCURO, por archivo y por fase del plan. Sin Supabase: solo lee `app/**/*.{tsx,css}`, excluye `app/_borrador/`. Es el diagnóstico de los pasos 1 y 6 del CONTRATO en las fases 1-7. Uso: `node scripts/diag-restyle-oceano.mjs [--json] [--fase=N]` |
 | `diag-preview-reparar-tabla-legacy.mjs` | simula el preview de reparación sin escribir |

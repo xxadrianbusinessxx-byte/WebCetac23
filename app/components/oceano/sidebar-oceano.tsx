@@ -23,16 +23,21 @@ export function SidebarOceano({
   apartados,
   idActivo,
   onApartado,
+  children,
 }: {
   /** Ya ordenados: el activo en primera posición. */
   apartados: readonly Apartado[];
   idActivo: string | null;
   onApartado: (idApartado: string) => void;
+  /** Fase 4 — bloque POR ENCIMA de los apartados (el selector de alumno del
+   *  tutor). El sidebar no sabe qué es: solo lo coloca. */
+  children?: React.ReactNode;
 }) {
   if (apartados.length === 0) return null;
 
   return (
     <aside className="flex w-full shrink-0 flex-col border-b border-[var(--oc-border)] bg-[var(--oc-sidebar)] px-4 py-4 lg:w-64 lg:justify-center lg:border-b-0 lg:border-r lg:px-5 lg:py-8">
+      {children ? <div className="mb-4">{children}</div> : null}
       <nav aria-label="Apartados de la pestaña">
         <ul className="flex flex-col gap-1.5">
           {apartados.map((a) => {

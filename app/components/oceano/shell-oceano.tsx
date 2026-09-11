@@ -24,8 +24,9 @@
  * carpeta; las piezas de los tres niveles son presentacionales.
  */
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { PortalRole } from "@/lib/auth/types";
-import { piezaDe } from "@/lib/navegacion/contenido-alumno";
+import { opcionesDePieza, piezaDe } from "@/lib/navegacion/contenido-alumno";
 import {
   apartadoInicial,
   ordenSidebar,
@@ -40,6 +41,7 @@ import {
 } from "./contenido-alumno-oceano";
 import { ContenidoMarcadorOceano } from "./contenido-marcador-oceano";
 import { NavSuperiorOceano } from "./nav-superior-oceano";
+import { SelectorAlumnoOceano } from "./selector-alumno-oceano";
 import { SidebarOceano } from "./sidebar-oceano";
 
 /** Datos ya resueltos por el servidor para las piezas reales del alumno. */
@@ -69,12 +71,23 @@ export function ShellOceano({
   rol,
   nombre,
   datosAlumno = null,
+  alumnosVinculados,
+  alumnoSeleccionado = null,
 }: {
   rol: PortalRole | null;
   nombre: string;
   /** Fase 2 — datos del alumno (misma action que /perfil). null = sin piezas. */
   datosAlumno?: DatosAlumnoOceano | null;
+  /**
+   * Fase 4 — alumnos VINCULADOS que el selector puede ofrecer. `undefined` =
+   * este rol no lleva selector (no se dibuja nada). La lista la resuelve el
+   * servidor: la UI nunca decide sobre qué alumno se puede consultar.
+   */
+  alumnosVinculados?: readonly { curp: string; nombre: string }[];
+  /** CURP del alumno activo (el que fija de quién son los datos). */
+  alumnoSeleccionado?: string | null;
 }) {
+  const router = useRouter();
   const [sel, setSel] = useState<Seleccion>(() => seleccionInicial(rol));
 
   const pestanas = pestanasDe(rol);
@@ -114,7 +127,23 @@ export function ShellOceano({
           apartados={activa ? ordenSidebar(apartados, activo?.id ?? "") : []}
           idActivo={activo?.id ?? null}
           onApartado={irAApartado}
-        />
+        >
+          {/* Fase 4 — selector del alumno vinculado, por encima de los apartados.
+              Cambiar de alumno es una navegación (el servidor es quien trae los
+              datos); la pestaña y el apartado activos NO se pierden porque son
+              estado de este componente. */}
+          {alumnosVinculados ? (
+            <SelectorAlumnoOceano
+              alumnos={alumnosVinculados}
+              seleccionado={alumnoSeleccionado}
+              onSeleccionar={(curp) =>
+                router.replace(`/oceano?alumno=${encodeURIComponent(curp)}`, {
+                  scroll: false,
+                })
+              }
+            />
+          ) : null}
+        </SidebarOceano>
 
         <main className="min-w-0 flex-1 px-5 py-6 sm:px-6 lg:px-10 lg:py-8">
           <BarraModoOceano
@@ -129,6 +158,7 @@ export function ShellOceano({
             <ContenidoAlumnoOceano
               pieza={piezaDe(activa.id, activo.id)!}
               modo={sel.modo}
+              permitirJustificacion={opcionesDePieza(activa.id, activo.id).permitirJustificacion}
               datos={datosAlumno}
             />
           ) : (

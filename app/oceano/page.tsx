@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { actionObtenerPerfilAlumno } from "@/app/actions/escolar";
+import { actionListarAlumnosDelTutor } from "@/app/actions/tutores";
 import {
   ShellOceano,
   type DatosAlumnoOceano,
@@ -26,17 +27,37 @@ export const metadata: Metadata = {
  * sesiones. El shell se monta con el rol de la sesión; sin sesión no dibuja
  * pestañas (el mapa devuelve lista vacía), así que no expone nada.
  */
-export default async function OceanoPage() {
+export default async function OceanoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ alumno?: string }>;
+}) {
+  const params = await searchParams;
   const sesion = await obtenerSesionPortal();
   const rol = sesion?.rol ?? null;
 
-  // Fase 2 — datos de las piezas reales del alumno. Es la MISMA Server Action
-  // que ya usa `/perfil` (`actionObtenerPerfilAlumno`), no una consulta nueva, y
-  // se pide SOLO con sesión de alumno: es la audiencia de esas piezas y el único
-  // rol cuyo perfil se resuelve sin elegir un alumno. Tutor/maestro/directivo
-  // necesitan selector de alumno y entran en su propia fase (4 y 5-6).
+  // Fase 2/4 — datos de las piezas del alumno. Es la MISMA Server Action que ya
+  // usa `/perfil` (`actionObtenerPerfilAlumno`), no una consulta nueva, y se pide
+  // en dos casos:
+  //   · ALUMNO  → su propio perfil (sin curp: la resuelve la action de la sesión).
+  //   · TUTOR   → el alumno VINCULADO que eligió (`?alumno=CURP`); la action
+  //               valida la relación en el servidor antes de devolver nada.
+  // Maestro/directivo necesitan su propio selector y entran en su fase (5-6).
   const esAlumno = rol === "alumno";
-  const perfil = esAlumno ? await actionObtenerPerfilAlumno(null) : null;
+  const esTutor = rol === "tutor";
+
+  // La lista de vinculados se resuelve UNA vez por navegación (no por componente)
+  // y es lo que el selector puede ofrecer. Con un solo alumno se elige solo.
+  const alumnosVinculados = esTutor ? await actionListarAlumnosDelTutor() : [];
+  const curpPedida = (params.alumno ?? "").trim().toUpperCase();
+  const curpConsulta = !esTutor
+    ? null
+    : (alumnosVinculados.find((a) => a.curp.trim().toUpperCase() === curpPedida)?.curp ??
+      alumnosVinculados[0]?.curp ??
+      null);
+
+  const perfil =
+    esAlumno || esTutor ? await actionObtenerPerfilAlumno(curpConsulta) : null;
   const datosAlumno: DatosAlumnoOceano | null =
     perfil && perfil.acceso?.puedeLeer
       ? {
@@ -52,18 +73,22 @@ export default async function OceanoPage() {
           tutorContacto: perfil.tutorContacto,
           puedeEditarEtiquetas: perfil.acceso.puedeEditarEtiquetas,
           puedeImportarEtiquetas: perfil.acceso.puedeImportarEtiquetas,
+          puedeEditarDatosPersonales: perfil.acceso.puedeEditarDatosPersonales,
         }
       : null;
 
   // `key={rol}`: si cambia el rol (otra sesión sobre la misma pestaña del
   // navegador), el shell se remonta con su estado inicial en vez de arrastrar
-  // la pestaña activa de la sesión anterior.
+  // la pestaña activa de la sesión anterior. Cambiar de ALUMNO no remonta nada:
+  // el alumno elegido se conserva al cambiar de pestaña o de apartado.
   return (
     <ShellOceano
       key={rol ?? "sin-sesion"}
       rol={rol}
       nombre={sesion?.nombre ?? sesion?.matricula ?? ""}
       datosAlumno={datosAlumno}
+      alumnosVinculados={esTutor ? alumnosVinculados : undefined}
+      alumnoSeleccionado={curpConsulta}
     />
   );
 }

@@ -8,6 +8,7 @@
  *   · asistencia-tabular      — resumen por parcial → forma de boleta
  *   · mapa-navegacion         — los tres niveles, los cinco roles
  *   · notificaciones-alumno    — comentarios + justificaciones en una lista
+ *   · buscar-en-filas          — qué fila es de qué alumno (alcance del tutor)
  *
  * Uso: node scripts/test-rediseno-oceano.mjs
  */
@@ -39,6 +40,7 @@ const archivos = [
   ["lib/escolar/alumno/etiquetas.ts", "alumno/etiquetas.js"],
   ["lib/escolar/alumno/grupos-campos-personales.ts", "alumno/grupos-campos-personales.js"],
   ["lib/escolar/asistencia/asistencia-tabular.ts", "asistencia/asistencia-tabular.js"],
+  ["lib/escolar/buscar-en-filas.ts", "buscar-en-filas.js"],
   [ "lib/navegacion/mapa-navegacion.ts", "navegacion/mapa-navegacion.js"],
   // Fase 3 — la lista de «Perfil › Notificaciones» (comentarios + justificaciones).
   // Se añadió a esta suite al crearse el módulo: es una decisión pura y sin I/O,
@@ -65,6 +67,7 @@ const grupos = require(path.join(tmp, "alumno/grupos-campos-personales.js"));
 const etiquetas = require(path.join(tmp, "alumno/etiquetas.js"));
 const tabular = require(path.join(tmp, "asistencia/asistencia-tabular.js"));
 const nav = require(path.join(tmp, "navegacion/mapa-navegacion.js"));
+const enFilas = require(path.join(tmp, "buscar-en-filas.js"));
 const notif = require(path.join(tmp, "navegacion/notificaciones-alumno.js"));
 
 // ── 2) Utilidades de prueba ────────────────────────────────────────────────
@@ -383,7 +386,63 @@ eq(notif.notificacionesDeAlumno({ comentarios: [], justificaciones: [] }).length
 eq(notif.ETIQUETA_FUENTE.comentario, "Comentario", "rótulo de fuente: comentario");
 eq(notif.ETIQUETA_FUENTE.justificacion, "Justificación", "rótulo de fuente: justificación");
 
-// ── 8) Resultado ───────────────────────────────────────────────────────────
+// ── 8) buscar-en-filas (alcance: qué fila es de qué alumno) ─────────────────
+console.log("\nbuscar-en-filas");
+
+// Fase 4 · PASO 0 — el criterio que hace que `actionObtenerVistaMateria`
+// devuelva UNA fila (la del alumno) y no la tabla del grupo.
+const CURP_A = "PAAG080507HQTSLBA3";
+const CURP_B = "OUCB070914MMCLSRA3";
+const TABLA_GRUPO = [
+  ["NOMBRE", "PARCIAL 1", "PARCIAL 2"],
+  ["PASCUAL ALBINO GABRIEL", "9", "8"],
+  ["OLGUIN CASTRO BRENDA", "7", "10"],
+  ["OTRO ALUMNO CUALQUIERA", "6", "6"],
+];
+
+eq(enFilas.buscarIndiceFilaAlumno(TABLA_GRUPO, { curp: CURP_A }), -1, "sin CURP en la tabla, el criterio no inventa coincidencia");
+eq(
+  TABLA_GRUPO.filter((f) => enFilas.filaCoincideAlumno(f, { nombreCompleto: "PASCUAL ALBINO GABRIEL" })).length,
+  1,
+  "por NOMBRE: UNA fila de las tres de la tabla",
+);
+eq(
+  TABLA_GRUPO.filter((f) => enFilas.filaCoincideAlumno(f, { nombreCompleto: "OLGUIN CASTRO BRENDA" })).length,
+  1,
+  "por NOMBRE: la otra fila, no la tabla entera",
+);
+eq(
+  TABLA_GRUPO.filter((f) => enFilas.filaCoincideAlumno(f, { nombreCompleto: "PASCUAL ALBINO GABRIEL" }))[0][1],
+  "9",
+  "la fila devuelta es la del alumno, no cualquiera",
+);
+eq(enFilas.buscarIndiceFilaAlumno(TABLA_GRUPO, { nombreCompleto: "NO EXISTE ESTE ALUMNO" }), -1, "un alumno que no está no coincide con nadie");
+eq(TABLA_GRUPO.filter((f) => enFilas.filaCoincideAlumno(f, { curp: CURP_B })).length, 0, "una CURP ajena no coincide con ninguna fila");
+
+// Con CURP presente en la tabla, el CURP manda sobre el nombre.
+const CON_CURP = [
+  ["alumno_nombre", "CURP", "PARCIAL 1"],
+  ["PASCUAL ALBINO GABRIEL", CURP_A, "9"],
+  ["OLGUIN CASTRO BRENDA", CURP_B, "7"],
+];
+eq(enFilas.buscarIndiceFilaAlumno(CON_CURP, { curp: CURP_A }), 1, "la CURP localiza su fila");
+eq(enFilas.buscarIndiceFilaAlumno(CON_CURP, { curp: CURP_B }), 2, "y la otra CURP la suya");
+// El criterio se evalúa POR FILA (CURP o nombre): por eso la action construye
+// siempre la pareja del MISMO alumno, y entonces la fila es exactamente una.
+eq(
+  CON_CURP.filter((f) =>
+    enFilas.filaCoincideAlumno(f, { curp: CURP_A, nombreCompleto: "PASCUAL ALBINO GABRIEL" }),
+  ).length,
+  1,
+  "criterio del mismo alumno (curp + su nombre): 1 fila de 2",
+);
+eq(
+  CON_CURP.filter((f) => enFilas.filaCoincideAlumno(f, { curp: CURP_A })).length,
+  1,
+  "1 fila de 2 alumnos: nunca la tabla del grupo",
+);
+
+// ── 9) Resultado ───────────────────────────────────────────────────────────
 console.log(`\n${pruebas - fallos}/${pruebas} pruebas correctas`);
 if (fallos > 0) {
   console.error(`${fallos} fallo(s).`);

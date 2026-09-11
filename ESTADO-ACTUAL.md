@@ -8,7 +8,7 @@ append-only desde mayo y contiene afirmaciones ya falsas.
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-10 (rediseño Océano: Fase 0 matriz de permisos · Fase 1/1.1 tokens y shell · Fase 2 piezas del alumno · Fase 3 contenido nuevo · Fase 3.1 cierre del alumno)
+- **Última revisión:** 2026-09-10 (rediseño Océano: Fase 0 permisos · Fase 1/1.1 tokens y shell · Fase 2 piezas del alumno · Fase 3/3.1 cierre del alumno · Fase 4 shell del tutor)
 - **HEAD:** `d631e4f` (2026-09-04) + cambios de PROMPT-1/2/3 sin commitear
 
 ---
@@ -445,6 +445,37 @@ La UI gobierna con `puede()` (barra, layout, páginas y paneles). Validación:
 - **Consecuencia:** la lista de «cosas que `/perfil` hace para un alumno y `/oceano` no» ya
   está **vacía**. `/perfil` sigue en pie y sin restylear (sus 81 claro): su retiro es un
   cambio propio y posterior (Fase 9), y ya no hay pérdida que lo justifique.
+
+**Rediseño Océano — Fase 4: shell del tutor (2026-09-10).**
+- **PASO 0 — hueco de alcance CERRADO (antes de tocar interfaz).**
+  `actionObtenerVistaMateria` exigía `calificacion.ver` (que el tutor tiene) pero solo filtraba
+  por fila al **alumno**: un tutor caía al camino de vista COMPLETA y recibía las
+  calificaciones de **todo el grupo**. Ahora recibe un `curpConsulta` opcional y, si la sesión
+  es de tutor, valida la relación contra `listarCurpsDeTutor` y devuelve **solo la fila de ese
+  alumno** (mismo criterio CURP + nombre normalizado que el alumno, reutilizando
+  `leerVistaMateriaAlumno`/`buscarIndiceFilaAlumno`). Un CURP ajeno se **niega**. Mismo patrón
+  que `actionObtenerHorarioAlumno`. **La matriz no se tocó**: `test-permisos` sigue 475/0.
+- **PASO 1 — selector de alumno vinculado** (`selector-alumno-oceano.tsx`), en el sidebar por
+  encima de los apartados. Cambiar de alumno es una **navegación** (`?alumno=CURP`) y el
+  servidor trae sus datos; la pestaña y el apartado activos se conservan (estado del shell).
+  Con un solo alumno se elige solo; sin ninguno lo dice con una frase. La lista la resuelve el
+  servidor (`actionListarAlumnosDelTutor`), **una vez por navegación**: la UI no decide sobre
+  qué alumno se puede consultar.
+- **PASO 2 — datos cableados** sin duplicar nada: las piezas del alumno reciben el `curp` del
+  alumno elegido (no el de la sesión) y el rol **no entra en el JSX**. Los flags de edición
+  vienen de la action: para el tutor `puedeEditarDatosPersonales`/`puedeEditarEtiquetas` son
+  `true`, así que **Información personal** y **Seguimiento médico** editan por grupo (el
+  guardado envía solo las claves de su grupo: `patchCamposPersonales` no toca las demás) y el
+  panel de etiquetas queda editable. La opción «permitir justificación» del calendario se
+  declara **en el hueco** (`opcionesDePieza`), no por rol.
+- **Validación.** `npx tsc --noEmit` = 0 · `test-permisos.mjs` **475/0** y
+  `test-auditoria-permisos.mjs` **229/0** (sin modificar) · `test-rediseno-oceano.mjs`
+  **180/180** (se amplió con el criterio de fila: +10) · `test:suites` **36/36** · `next build`
+  = 0 · `diag-restyle-oceano.mjs`: claro **772 → 772** y Fase 4 **51 → 51** (no se movieron),
+  oscuro 370 → 392. Prueba de alcance: `scripts/diag-alcance-tutor.mjs` (ver informe).
+- **Nota:** se amplió la suite pura (`test-rediseno-oceano.mjs`) con `buscar-en-filas` porque
+  ese módulo pasó a formar parte del **camino de seguridad** del PASO 0; el prompt lo autoriza
+  cuando el PASO 0 añade/usa módulo puro.
 
 ## 8. Cómo se valida un cambio
 
