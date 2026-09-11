@@ -47,6 +47,7 @@ const archivos = [
   // y su sitio natural es junto a los demás módulos de navegación/contenido.
   ["lib/navegacion/notificaciones-alumno.ts", "navegacion/notificaciones-alumno.js"],
   // Fases 6 y 7 — emparejamiento hueco→pieza de directivo y tecnico.
+  ["lib/navegacion/contenido-docente.ts", "navegacion/contenido-docente.js"],
   ["lib/navegacion/contenido-directivo.ts", "navegacion/contenido-directivo.js"],
   ["lib/navegacion/contenido-tecnico.ts", "navegacion/contenido-tecnico.js"],
 ];
@@ -72,6 +73,7 @@ const tabular = require(path.join(tmp, "asistencia/asistencia-tabular.js"));
 const nav = require(path.join(tmp, "navegacion/mapa-navegacion.js"));
 const enFilas = require(path.join(tmp, "buscar-en-filas.js"));
 const notif = require(path.join(tmp, "navegacion/notificaciones-alumno.js"));
+const cDoc = require(path.join(tmp, "navegacion/contenido-docente.js"));
 const cDir = require(path.join(tmp, "navegacion/contenido-directivo.js"));
 const cTec = require(path.join(tmp, "navegacion/contenido-tecnico.js"));
 
@@ -511,6 +513,8 @@ eq(
 // un bug silencioso — el shell montaria una pieza que nadie deberia alcanzar.
 console.log("\ncontenido-directivo · contenido-tecnico");
 
+const esActivo = (rol, p, a) => nav.apartado(rol, p, a)?.estado === "activo";
+
 function compruebaHuecos(modulo, rol, etiqueta) {
   for (const clave of modulo.huecosConPieza()) {
     const [p, a] = clave.split("/");
@@ -522,6 +526,34 @@ function compruebaHuecos(modulo, rol, etiqueta) {
 
 compruebaHuecos(cDir, "directivo", "directivo");
 compruebaHuecos(cTec, "tecnico", "tecnico");
+
+// contenido-docente sirve a los DOS roles: sus huecos tienen que existir y
+// estar activos en el mapa de maestro Y en el de directivo. Si divergieran,
+// una pestaña compartida dejaria de serlo sin que nadie lo notara.
+compruebaHuecos(cDoc, "maestro", "docente/maestro");
+compruebaHuecos(cDoc, "directivo", "docente/directivo");
+
+// Y los dos modulos no pueden solaparse: un hueco con dos emparejamientos es
+// exactamente el camino paralelo que esta separacion evita (R6).
+for (const clave of cDoc.huecosConPieza()) {
+  const [p, a] = clave.split("/");
+  ok(cDir.piezaDe(p, a) === null, `docente y directivo no se solapan en ${clave}`);
+}
+
+// El calendario escolar del docente NO tiene pieza a proposito: el unico
+// componente que existe es un EDITOR y el maestro no tiene calendario.editar.
+eq(
+  cDoc.piezaDe("calendario-asistencias", "calendario-escolar"),
+  null,
+  "calendario escolar del docente sin pieza: el panel existente es un editor",
+);
+ok(esActivo("maestro", "calendario-asistencias", "calendario-escolar"),
+  "…pero el apartado SI esta activo en el mapa: le falta vista, no permiso");
+
+// Los dos modos de calificaciones son dos vistas del MISMO hueco.
+ok(cDoc.esModoConfiguracion("Configuración de columnas"), "reconoce el modo de configuracion");
+ok(!cDoc.esModoConfiguracion("Avance"), "«Avance» no es configuracion");
+ok(!cDoc.esModoConfiguracion(null), "sin modo no es configuracion");
 
 // El directivo NO empareja las pestañas que comparte con el docente: si lo
 // hiciera habria dos fuentes para el mismo hueco (R6).

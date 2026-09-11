@@ -27,6 +27,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PortalRole } from "@/lib/auth/types";
 import { opcionesDePieza, piezaDe } from "@/lib/navegacion/contenido-alumno";
+import { piezaDe as piezaDocenteDe } from "@/lib/navegacion/contenido-docente";
 import {
   apartadoInicial,
   ordenSidebar,
@@ -39,13 +40,17 @@ import {
   ContenidoAlumnoOceano,
   type DatosAlumnoOceano,
 } from "./contenido-alumno-oceano";
+import {
+  ContenidoDocenteOceano,
+  type DatosDocenteOceano,
+} from "./contenido-docente-oceano";
 import { ContenidoMarcadorOceano } from "./contenido-marcador-oceano";
 import { NavSuperiorOceano } from "./nav-superior-oceano";
 import { SelectorAlumnoOceano } from "./selector-alumno-oceano";
 import { SidebarOceano } from "./sidebar-oceano";
 
-/** Datos ya resueltos por el servidor para las piezas reales del alumno. */
-export type { DatosAlumnoOceano };
+/** Datos ya resueltos por el servidor para las piezas reales. */
+export type { DatosAlumnoOceano, DatosDocenteOceano };
 
 type Seleccion = {
   idPestana: string;
@@ -71,6 +76,7 @@ export function ShellOceano({
   rol,
   nombre,
   datosAlumno = null,
+  datosDocente = null,
   alumnosVinculados,
   alumnoSeleccionado = null,
 }: {
@@ -78,6 +84,8 @@ export function ShellOceano({
   nombre: string;
   /** Fase 2 — datos del alumno (misma action que /perfil). null = sin piezas. */
   datosAlumno?: DatosAlumnoOceano | null;
+  /** Fase 5 — catálogo del docente, YA filtrado por el servidor (R-4). */
+  datosDocente?: DatosDocenteOceano | null;
   /**
    * Fase 4 — alumnos VINCULADOS que el selector puede ofrecer. `undefined` =
    * este rol no lleva selector (no se dibuja nada). La lista la resuelve el
@@ -161,6 +169,15 @@ export function ShellOceano({
               permitirJustificacion={opcionesDePieza(activa.id, activo.id).permitirJustificacion}
               datos={datosAlumno}
             />
+          ) : activa && activo && piezaDocenteDe(activa.id, activo.id) && datosDocente ? (
+            /* Fase 5 — las dos pestañas que comparten maestro y directivo. El
+               emparejamiento vive en `contenido-docente.ts`, uno solo para los
+               dos roles porque en el mapa son el MISMO objeto de pestaña. */
+            <ContenidoDocenteOceano
+              pieza={piezaDocenteDe(activa.id, activo.id)!}
+              modo={sel.modo}
+              datos={datosDocente}
+            />
           ) : (
             <ContenidoMarcadorOceano
               rol={rol}
@@ -168,7 +185,10 @@ export function ShellOceano({
               apartado={activo}
               modo={sel.modo}
               piezaSinDatos={Boolean(
-                activa && activo && piezaDe(activa.id, activo.id),
+                activa &&
+                  activo &&
+                  (piezaDe(activa.id, activo.id) ||
+                    piezaDocenteDe(activa.id, activo.id)),
               )}
             />
           )}

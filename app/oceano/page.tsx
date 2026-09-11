@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { actionObtenerPerfilAlumno } from "@/app/actions/escolar";
+import { actionListarMateriasConNombreVisible } from "@/app/actions/materias";
 import { actionListarAlumnosDelTutor } from "@/app/actions/tutores";
 import {
   ShellOceano,
   type DatosAlumnoOceano,
+  type DatosDocenteOceano,
 } from "@/app/components/oceano/shell-oceano";
 import { nombreCompletoAlumno } from "@/lib/escolar/alumno/alumnos";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
@@ -77,6 +79,20 @@ export default async function OceanoPage({
         }
       : null;
 
+  // Fase 5 — catálogo del docente. `actionListarMateriasConNombreVisible` solo
+  // exige `materia.ver_catalogo` y YA aplica el alcance R-4: con asignaciones
+  // activas devuelve las del maestro, sin ellas cae al catálogo del operativo.
+  // La pantalla pinta lo que la action devuelva; nunca pide «todo el catálogo».
+  const esDocente = rol === "maestro" || rol === "directivo";
+  const materiasDocente = esDocente ? await actionListarMateriasConNombreVisible() : [];
+  const datosDocente: DatosDocenteOceano | null = esDocente
+    ? {
+        materias: materiasDocente,
+        profesorClave: sesion?.matricula ?? "",
+        nombreProfesor: sesion?.nombre ?? sesion?.matricula ?? "",
+      }
+    : null;
+
   // `key={rol}`: si cambia el rol (otra sesión sobre la misma pestaña del
   // navegador), el shell se remonta con su estado inicial en vez de arrastrar
   // la pestaña activa de la sesión anterior. Cambiar de ALUMNO no remonta nada:
@@ -87,6 +103,7 @@ export default async function OceanoPage({
       rol={rol}
       nombre={sesion?.nombre ?? sesion?.matricula ?? ""}
       datosAlumno={datosAlumno}
+      datosDocente={datosDocente}
       alumnosVinculados={esTutor ? alumnosVinculados : undefined}
       alumnoSeleccionado={curpConsulta}
     />
