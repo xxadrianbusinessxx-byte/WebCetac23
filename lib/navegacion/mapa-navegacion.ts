@@ -106,6 +106,17 @@ const maq = (id: string, label: string, modos: string[] = []): Apartado => ({
 // ── Alumno y tutor comparten mapa ──────────────────────────────────────────
 // El tutor añade un selector de alumno vinculado que fija el alcance de toda la
 // navegación, pero los apartados son los mismos: ve lo de su hijo, no otra cosa.
+//
+// HUECO CONOCIDO (verificado 2026-09-11, bloquea retirar /tutor).
+// `actionListarMensajesDelTutor` devuelve los mensajes dirigidos AL TUTOR
+// —`destinatario_tipo = "tutor"`, con marca de leído— de TODOS sus alumnos a la
+// vez. Es una bandeja personal, y este mapa no tiene sitio para ella: todos sus
+// apartados están dentro del alcance de UN alumno seleccionado, y la bandeja
+// cruza ese alcance.
+// No se resuelve añadiéndola como modo de Notificaciones: mezclaría dos ámbitos
+// —lo de este hijo y lo mío— en el mismo apartado. Necesita decisión de diseño:
+// un apartado propio del tutor, o un nivel por encima del selector. Hasta
+// entonces, `/tutor` no se retira.
 const PERFIL_ALUMNO: Pestana = {
   id: "perfil",
   label: "Perfil",

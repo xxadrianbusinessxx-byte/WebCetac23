@@ -47,7 +47,11 @@ for (const [nombre, rel] of Object.entries(lectores)) {
 }
 
 // 3) Los lectores consumen el helper central (import presente).
-const conHelper = ["app/actions/asistencias.ts", "app/actions/carga-academica.ts", "app/configuracion/page.tsx", "lib/escolar/asistencia/asistencias.ts", "lib/escolar/catalogo/carga-academica.ts", "lib/escolar/ciclo/semestres.ts"].filter((rel) =>
+// 2026-09-11 (rediseño Océano, Fase 9): el lector de `app/configuracion/page.tsx`
+// se MOVIÓ a `app/oceano/page.tsx` al retirar esa ruta —ahora redirige—. No
+// desapareció un lector ni se abrió un camino paralelo: el mismo helper se llama
+// desde el portal. Siguen siendo seis y la regla no se relaja.
+const conHelper = ["app/actions/asistencias.ts", "app/actions/carga-academica.ts", "app/oceano/page.tsx", "lib/escolar/asistencia/asistencias.ts", "lib/escolar/catalogo/carga-academica.ts", "lib/escolar/ciclo/semestres.ts"].filter((rel) =>
   leer(rel).includes("obtenerCicloOperativoGlobal"));
 ok(`todos los lectores importan/usar el helper (${conHelper.length}/6)`, conHelper.length === 6, conHelper.join(","));
 
