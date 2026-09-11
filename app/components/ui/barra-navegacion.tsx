@@ -33,7 +33,17 @@ export function BarraNavegacionGlobal({
   tieneDocumentos: boolean;
 }) {
   const pathname = usePathname() ?? "";
-  if (!rol || pathname === "/" || pathname === "/login") return null;
+  // Fase 1 (Océano): `/oceano` monta su PROPIO nivel 1 (nav-superior-oceano),
+  // así que la barra legacy se retira de esa ruta para no apilar dos barras.
+  // En las rutas vivas la condición no cambia: el comportamiento es el de antes.
+  if (
+    !rol ||
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname.startsWith("/oceano")
+  ) {
+    return null;
+  }
 
   const items: ItemNav[] = [];
 

@@ -24,6 +24,58 @@
   --app-bg-blur: 90px;
 }
 
+/* ============================================================
+   Fase 1 (rediseño Océano, 2026-09-10) — Tokens del tema OSCURO.
+
+   Bloque copiado LITERAL de docs/sistema/TOKENS-OCEANO.css (fuente versionada;
+   ese archivo no se importa ni se borra). ADITIVO: los --app-bg-* de arriba NO
+   se tocan (R8). Reglas que viajan con los tokens:
+
+   1. --oc-alert es SOLO punto/indicador: da 2.24:1 sobre --oc-surface. Para
+      texto de estado se usa --oc-alert-text. NO son intercambiables.
+   2. Los componentes referencian el PAPEL (var(--oc-surface)), nunca el hex.
+      Un hex literal en un componente reabre la deuda D11 de MATRIZ-UX.
+   3. Procedencia: (m) medido en los PNG de Figma; (d) derivado por el diseño.
+
+   Documento hermano: docs/sistema/MATRIZ-UX.md §7 «Migración Océano».
+   Avance de la migración: node scripts/diag-restyle-oceano.mjs
+   ============================================================ */
+:root {
+  /* ── Fondo ── gradiente diagonal navy (inf. izq.) → teal (sup. der.) */
+  --oc-navy:          #022D65;  /* (m) hero y footer                    */
+  --oc-navy-mid:      #06386B;  /* (m) gradiente, inferior izquierda    */
+  --oc-teal:          #0D5C82;  /* (m) gradiente, superior derecha      */
+
+  /* ── Superficies ── */
+  --oc-surface:       #19293F;  /* (m) tarjetas de contenido            */
+  --oc-surface-login: #102C51;  /* (m) card de acceso                   */
+  --oc-input:         #1E3757;  /* (m) campos y grupo de pestañas       */
+  --oc-sidebar:       #1F3B60;  /* (m) panel lateral contextual         */
+
+  /* ── Acento ── único: CTA primario e ítem de navegación activo. */
+  --oc-mint:          #3DD9C7;  /* (m) CTA primario y nav activo        */
+  --oc-mint-ink:      #052E2A;  /* (d) texto SOBRE el botón menta       */
+
+  /* ── Texto ── --oc-muted sobre --oc-surface da 6.9:1 */
+  --oc-text:          #F2F7FA;  /* (m) títulos y cuerpo                 */
+  --oc-muted:         #9EB5C7;  /* (m) nav inactivo, metadatos          */
+
+  /* ── Estado ── */
+  --oc-ok:            #09C374;  /* (m) actividad vigente                */
+  --oc-alert:         #BB111B;  /* (m) SOLO punto. Ver regla 1 arriba.  */
+  --oc-alert-text:    #F2686F;  /* (d) el mismo estado EN TEXTO         */
+
+  /* ── Bordes ── */
+  --oc-border:        rgba(158, 181, 199, 0.16); /* (d) separadores     */
+  --oc-border-active: rgba(242, 247, 250, 0.85); /* (d) ítem activo 1px */
+
+  /* ── Fondo compuesto ── una sola declaración reutilizable. */
+  --oc-bg:
+    radial-gradient(1100px 620px at 88% -8%, rgba(13, 92, 130, 0.55), transparent 62%),
+    radial-gradient(900px 700px at 4% 104%, rgba(2, 45, 101, 0.75), transparent 60%),
+    var(--oc-navy);
+}
+
 @theme inline {
   --font-sans: var(--font-nunito);
 }

@@ -29,7 +29,20 @@ const OSCURO = /--oc-[a-z0-9-]+|var\(--oc-[a-z0-9-]+\)/g;
 // Reparto de archivos por fase del plan. Un archivo sin fase asignada cuenta en
 // el total pero no bloquea ninguna fase concreta.
 const FASES = {
-  1: ["app/globals.css", "app/layout.tsx", "app/page.tsx"],
+  1: [
+    "app/globals.css",
+    "app/layout.tsx",
+    "app/page.tsx",
+    // Fase 1 — shell Océano: la ruta de previsualización y sus cinco piezas.
+    // Sin esta lista el shell nuevo cae en «sin fase asignada» y el invariante
+    // de la fase (bajar claro · subir --oc-*) no se puede medir.
+    "app/oceano/page.tsx",
+    "app/components/oceano/shell-oceano.tsx",
+    "app/components/oceano/nav-superior-oceano.tsx",
+    "app/components/oceano/sidebar-oceano.tsx",
+    "app/components/oceano/barra-modo-oceano.tsx",
+    "app/components/oceano/contenido-marcador-oceano.tsx",
+  ],
   2: [
     "app/perfil/perfil-client.tsx",
     "app/components/materia-selector.tsx",
@@ -38,6 +51,9 @@ const FASES = {
     "app/components/calendario-asistencia-alumno.tsx",
     "app/components/etiquetas-dinamicas-panel.tsx",
     "app/components/materia-tabla-vista.tsx",
+    // Fase 2 — pieza nueva del shell que monta las anteriores (sin esta lista
+    // caería en «sin fase asignada» y el avance de la fase no la contaría).
+    "app/components/oceano/contenido-alumno-oceano.tsx",
   ],
   4: ["app/tutor/tutor-client.tsx"],
   5: [
