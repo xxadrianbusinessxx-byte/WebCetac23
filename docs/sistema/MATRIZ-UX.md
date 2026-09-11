@@ -5,7 +5,9 @@ Responde una sola pregunta: **«quiero cambiar tal cosa de la apariencia, ¿qué
 toco y a qué más afecta?»**
 
 - **Última medición:** 2026-09-08, sobre `app/**/*.tsx` (53 archivos, 13 100 líneas,
-  sin `app/_borrador/`).
+  sin `app/_borrador/`). **Delta posterior:** 2026-09-10, las fases 1, 1.1, 2 y 3 del
+  rediseño Océano añadieron 9 archivos y 1 206 líneas (hoy 62 archivos, 14 316 líneas;
+  ver §1).
 - **Hermano normativo:** `docs/normativo/ORDEN.md` §1 (dónde va un archivo nuevo).
 - **Hermano funcional:** `docs/sistema/MAPA-DEL-SISTEMA.md` (síntoma → archivo).
 
@@ -40,11 +42,11 @@ la **barra de navegación** — nada de lo que hay dentro de los paneles. Por es
 
 | Medida | Valor | Lectura |
 |---|---|---|
-| Archivos `.tsx` de UI | 53 | — |
+| Archivos `.tsx` de UI | 62 | — |
 | `className=` escritos | 1 565 | — |
 | Clases utilitarias | ~10 195 | — |
 | Valores arbitrarios `[...]` en `className` | 966 (97 distintos) | cada forma distinta es una decisión sin nombre |
-| Variables CSS declaradas | 23 (`app/globals.css` `:root`) | todas de fondo/nav |
+| Variables CSS declaradas | 37 (`app/globals.css`) | 20 de fondo/nav + **17 de la paleta Océano** (§4.8) |
 | Radios distintos | 13 | §4.3 |
 | Sombras `shadow-[...]` distintas | 40 | §4.4 (7 concentran el grueso) |
 | Tamaños de texto distintos | 12 | §4.5 |
@@ -53,6 +55,13 @@ la **barra de navegación** — nada de lo que hay dentro de los paneles. Por es
 | Piezas duplicadas a mano | 5 nombres, 25 copias | §5.2 / §7 |
 | Archivos con `style={{...}}` inline | 6 | posiciones de decoración, no color |
 | `focus:` / `focus-visible:` | 101 / 11 | §8 |
+
+> **Fases 1, 1.1, 2 y 3 del rediseño Océano (2026-09-10).** Añadieron 9 archivos (1 206
+> líneas) y los 17 tokens de §4.8. Las dos filas de conteo directo (archivos `.tsx`,
+> variables CSS) van actualizadas; las cifras **compuestas** (`className=`, clases
+> utilitarias, arbitrarios, radios, sombras, tamaños, opacidades y piezas duplicadas)
+> siguen siendo la medición del **2026-09-08 sobre 53 archivos**: se re-miden con los
+> greps de §9, no a ojo.
 
 ---
 
@@ -91,6 +100,7 @@ relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 
 |---|---|---|---|---|
 | `/` | `app/page.tsx` (todo) | `home-login-form.tsx` | **excepción:** `max-w-6xl` / `lg:max-w-7xl` + rejilla `lg:grid-cols-12` (3 · 5 · 4) | barra decorativa superior · `GlassShell` · `SectionPill` · `PanelTab` decorativo · `alumnos-estrella` · `eventos-inicio`. **Sin barra de navegación.** |
 | `/login` | `app/login/page.tsx` | — | — | `redirect("/")`; no pinta nada |
+| `/oceano` | `oceano/page.tsx` (66) | `components/oceano/shell-oceano.tsx` (149) + 7 piezas | **propio:** el shell pinta su fondo (`--oc-bg`) y el rail va anclado a x=0; no usa el contenedor estándar | **Fases 1-3** — shell único: barra superior por rol (nivel 1) + rail de apartados (nivel 2) + barra de modo (nivel 3), desde `lib/navegacion/mapa-navegacion.ts`. El contenido de los huecos con pieza lo decide `lib/navegacion/contenido-alumno.ts` y lo montan `contenido-alumno-oceano.tsx`, `asistencia-tabular-alumno.tsx` y `notificaciones-alumno.tsx`. No sustituye a ninguna ruta viva: convive con ellas (R8). |
 | `/perfil` | `perfil/page.tsx` | `perfil-client.tsx` (822) | estándar (+ variante centrada `items-center justify-center` para el estado vacío) | 4 pestañas `MainTabButton`: materia · estatus · comentarios · boleta. `BubblePill`, `materia-selector`, `materia-tabla-vista`, `materia-calificaciones-alumno`, `calendario-asistencia-alumno`, `horario-alumno-resumen`, `etiquetas-dinamicas-panel` |
 | `/profesor` | `profesor/page.tsx` | `profesor-client.tsx` (301) | estándar | `GreyActionPill`, `buscador-alumno-profesor`, `asistencias-panel`, `materia-selector`, `materia-tabla-vista`, `materia-mapeo-columnas` |
 | `/directivo` | `directivo/page.tsx` | `directivo-client.tsx` (606) | estándar | `PanelTab`, `GreyActionPill`, `PreviewPanel`, 3 `<section>`, `justificaciones-admin`, `materias-config-panel`, `profesores-credenciales-panel`, `materia-*` |
@@ -128,6 +138,12 @@ configuracion ─ ciclo-configurador/ ─ paso-{datos,academico,alumnos,horario,
                · tutores-panel · asignaciones-admin · baja-roster-panel · deshacer-paso-panel
 documentos ─ documentos-panel
 tutor ─ calendario-asistencia-alumno · horario-alumno-resumen
+oceano (Fases 1-3) ─ shell-oceano ─ nav-superior-oceano · sidebar-oceano · barra-modo-oceano
+                                  └ contenido-alumno-oceano ─ materia-selector · materia-calificaciones-alumno
+                                                             · horario-alumno-resumen · calendario-asistencia-alumno
+                                                             · etiquetas-dinamicas-panel · materia-tabla-vista
+                                                             · asistencia-tabular-alumno · notificaciones-alumno
+                                  └ contenido-marcador-oceano (huecos sin pieza)
 ```
 
 `frutiger-backdrop` y `glossy-person-icon` los usan **8 archivos cada uno**: son las
@@ -137,7 +153,8 @@ dos piezas realmente compartidas del sistema.
 
 ## 4. Tokens — los valores que hoy existen
 
-> Ninguno de estos valores tiene nombre en el código todavía (salvo los del fondo).
+> Ninguno de estos valores tiene nombre en el código todavía (salvo los del fondo y,
+> desde la Fase 1, la paleta Océano de §4.8).
 > La columna «dónde se cambia» dice la verdad de hoy, no el ideal.
 
 ### 4.1 Color
@@ -274,6 +291,30 @@ Todo el movimiento vive en `app/globals.css`. Ningún componente anima con JS.
 nav y decoración, y deja las burbujas estáticas a `opacity: 0.1`. Cualquier animación
 nueva debe entrar en ese bloque.
 
+### 4.8 Paleta Océano — los primeros tokens con nombre (Fase 1, 2026-09-10)
+
+`app/globals.css` declara **17 variables `--oc-*`** en un bloque **aditivo**: los
+`--app-bg-*` de §4.1/§4.2 siguen ahí y no se tocan (R8). Los **valores** no se repiten
+aquí: viven en `docs/sistema/TOKENS-OCEANO.css`, que es la fuente versionada (12 medidos
+píxel a píxel de los PNG de Figma, 4 derivados por el diseño, más el fondo compuesto).
+
+| Papel | Token | Quién lo usa hoy |
+|---|---|---|
+| Fondo de la firma (gradiente navy→teal) | `--oc-bg` | la raíz del shell |
+| Superficie de contenido | `--oc-surface` | panel de contenido del shell |
+| Panel lateral | `--oc-sidebar` | el rail lateral (fondo) |
+| Campos y grupos | `--oc-input` | chip de usuario, barra de modo |
+| Acento (único) | `--oc-mint` / `--oc-mint-ink` | CTA primario y pestaña activa del nivel 1 (**como texto, sin fondo**: es un toque, no un bloque) |
+| Texto / secundario | `--oc-text` / `--oc-muted` | todo el shell |
+| Estado | `--oc-ok` · `--oc-alert` · `--oc-alert-text` | estados de asistencia y justificación (fondo/borde + texto), aviso de columna duplicada |
+| Bordes | `--oc-border` · `--oc-border-active` | separadores y ítem activo (1 px) |
+
+Dos reglas que viajan con los tokens (están en el comentario de `globals.css` y en
+`TOKENS-OCEANO.css`): `--oc-alert` es **solo punto** —da 2.24:1 sobre `--oc-surface`,
+ilegible como texto— y su versión en texto es `--oc-alert-text`; y los componentes
+referencian el **papel** (`var(--oc-surface)`), nunca el hex, porque un hex literal en un
+componente reabre la deuda D11.
+
 ---
 
 ## 5. Catálogo de piezas
@@ -406,6 +447,61 @@ medida.** No es una deuda a saldar por separado: se salda *siendo* la migración
 
 **Invariante de la migración:** cada fase debe **bajar** su cifra de «claro» y **subir** la
 de `--oc-*`. Una fase que no mueve ninguna de las dos no tocó la superficie que decía tocar.
+
+**Fase 1 ejecutada (2026-09-10; corrección visual 1.1 el mismo día).** Tokens Océano
+aplicados a `app/globals.css` y shell único creado (`app/components/oceano/` + ruta de
+previsualización `/oceano`). La corrección 1.1 ajusta **presentación** contra los PNG de
+Figma y no toca arquitectura: el ítem activo del nivel 1 pasa de píldora menta rellena a
+**texto menta sin fondo** (la menta es un toque, no un bloque), el rail queda **anclado a
+x=0 y a todo el alto** (divide la pantalla en dos zonas, ya no flota), el chip de usuario
+pasa a **dos líneas** (nombre / rol, sin `uppercase`) y las pestañas se **reparten a lo
+ancho** de la barra con el chip al extremo derecho. Medición con `diag-restyle-oceano.mjs`
+(antes → después): `--oc-*` **0 → 93**; Fase 1 **11 claro / 0 oscuro (0 %) → 11 claro /
+93 oscuro (89 %)**; total de tema claro **905 → 905**. El descenso de 96 a 93 es
+exactamente lo que la corrección autoriza: al retirar el relleno menta del ítem activo
+desaparecen dos referencias a token.
+
+> ⚠ **La mitad «bajar claro» del invariante no se cumple en esta fase, y es deliberado:**
+> las 11 ocurrencias de tema claro que la Fase 1 tiene asignadas están **todas** en
+> `app/page.tsx` —la portada pública / login—, y el prompt de la fase prohíbe
+> reestructurarla («NO reestructurar la ruta publica ni el login todavia»). Fase 1 sube
+> `--oc-*` y deja el claro intacto; esa cifra baja cuando la portada entre en la migración.
+
+**Fase 2 ejecutada (2026-09-10).** El shell monta las **piezas reales del alumno** (los
+seis componentes que ya funcionaban en `/perfil`) y los seis se convierten a Océano oscuro:
+`materia-selector` (27→0 claro), `calendario-asistencia-alumno` (47→0),
+`etiquetas-dinamicas-panel` (25→0), `horario-alumno-resumen` (15→0),
+`materia-calificaciones-alumno` (12→0) y `materia-tabla-vista` (7→0). La decisión
+hueco→pieza vive en `lib/navegacion/contenido-alumno.ts` (módulo puro) y el cableado en
+`app/components/oceano/contenido-alumno-oceano.tsx`. Medición (antes → después): Fase 2
+**214 claro / 0 oscuro → 81 claro / 222 oscuro**; total de claro **905 → 772**; avance
+global **0 % → 30 %**; Fase 1 sigue en **11 claro / 93 oscuro**.
+
+> **Esta es la primera fase donde el invariante se cumple ENTERO** (el claro baja y `--oc-*`
+> sube). Los **81 claro** que quedan en la Fase 2 son todos de `perfil/perfil-client.tsx`,
+> que la fase **conserva a propósito** por R8 («no se borra en esta fase… su retiro es una
+> decisión posterior y explícita»): restylearlo sería trabajo que se tira al retirarlo.
+> Cuando se retire, la Fase 2 cerrará en 0 claro sin tocar nada más.
+
+**Fase 3 ejecutada (2026-09-10).** «Contenido nuevo, cero Supabase»: los cinco apartados
+del alumno que aún no tenían superficie ya la tienen, sobre las superficies de la Fase 1 y
+las piezas de la Fase 2. `Seguimiento médico` e `Información personal` renderizan su grupo
+de campos estructurados desde `grupos-campos-personales.ts` (la UI no decide qué es
+médico); `Seguimiento semestral` es una lista de solo lectura del array ya cargado;
+`Calendario › Asistencia` tiene sus dos sub-vistas («Calendario visual» reutiliza el
+calendario existente; «Datos crudos» usa `asistencia-tabular.ts`, sin recalcular nada); y
+`Notificaciones` compone comentarios + justificaciones con la decisión en el módulo puro
+`notificaciones-alumno.ts` (**29 pruebas nuevas**: la suite pasa de 140 a **169**).
+
+Medición (antes → después): claro **772 → 772** y Fase 2 **81 → 81** (la fase no restylea
+nada: no toca `/perfil`, que conserva sus 81 a propósito); `--oc-*` **326 → 359**; avance
+global 30 % → 32 %. Cero consultas nuevas y `app/actions/` sin una línea de lógica nueva.
+
+**Observación reportada, no resuelta aquí.** «Calendario visual» dentro de
+`calendario/asistencia` monta el MISMO `CalendarioAsistenciaAlumno` que el apartado
+`calendario/calendario-escolar`: es **redundante** con él (dos entradas a la misma vista).
+El prompt de la fase prohíbe decidirlo en caliente; queda como recomendación para un cambio
+propio (retirar el modo, o darle contenido distinto).
 
 **Lo que la migración NO cambia:** ni un permiso (salvo la Fase 0, que es explícitamente un
 cambio de matriz y va sola), ni un modelo de datos, ni la firma de ningún componente. Las

@@ -8,7 +8,7 @@ append-only desde mayo y contiene afirmaciones ya falsas.
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-07 (tras ejecutar PROMPT-1 a PROMPT-5)
+- **Última revisión:** 2026-09-10 (rediseño Océano: Fase 0 matriz de permisos · Fase 1/1.1 tokens y shell · Fase 2 piezas del alumno · Fase 3 contenido nuevo)
 - **HEAD:** `d631e4f` (2026-09-04) + cambios de PROMPT-1/2/3 sin commitear
 
 ---
@@ -68,6 +68,27 @@ Ninguna se cierra «de paso»: cada una necesita su propia migración verificada
   las decisiones de alcance «sobre quién» se conservan ortogonales
   (`resolverAccesoAlumno`, `nivelAccesoProfesor`). Es una decisión consciente, pero
   significa que **un bug de autorización en TS es un bug de seguridad sin red debajo**.
+- **Rediseño Océano · Fase 0 (2026-09-10) — regla estructural.** El conjunto
+  `directivo` de `lib/auth/permisos.ts` **ganó tres capacidades** del conjunto de
+  `maestro`, por **decisión explícita del responsable** (2026-09-10), para sostener un
+  rol de supervisión global que pueda operar sin depender de asignaciones (R-4). No es
+  la reparación de un descuido: antes del cambio la §4 decía `X` en las tres filas, y la
+  §4 es un espejo generado de `permisos.ts`. Hasta hoy estas actions respondían
+  «no tienes permiso» al directivo:
+  - `asistencia.subir` → `actionDescargarPlantillaAsistencia`,
+    `actionPrevisualizarAsistencias`, `actionConfirmarAsistencias` (`asistencias.ts`).
+  - `ciclo.ver` → `actionListarCiclosEscolares` (`calendario.ts`).
+  - `justificacion.solicitar` → `actionSolicitarJustificacionAsistencia`,
+    `actionSolicitarJustificacionConArchivo`, `actionObtenerMateriasJustificables`.
+  Ninguna otra capacidad y ningún otro rol se tocó: **solo se editó la matriz**, ninguna
+  action cambió su `exigir()` ni `capacidades.ts`. Es un cambio **puramente aditivo**
+  (ningún rol pierde nada). §4 regenerada con `scripts/gen-seccion4.mjs`; la §5 no se
+  movió (`npm run gen:matriz -- --check` = 0). Validado con `tsc --noEmit`,
+  `test-permisos.mjs`, `test-auditoria-permisos.mjs` y `next build`.
+  **Consecuencia anotada (no descubrirla después):** directivo ya tenía
+  `justificacion.resolver`; con `justificacion.solicitar` puede **solicitar y aprobar la
+  misma justificación**. Es intencionado (supervisión global sin depender de
+  asignaciones), no un efecto colateral.
 - Todo `scripts/` corre con `service_role` y salta RLS. No hay entorno de staging.
 
 ## 5. Estado de datos — última medición conocida
@@ -191,7 +212,8 @@ irrecuperable**: no se backfillea `profesor_id`, inventar la atribución sería 
 Reorganizado el 2026-09-06. Dónde va cada cosa: `docs/normativo/ORDEN.md`.
 
 ```
-app/      actions/ · components/ (paneles) · components/ui/ (primitivas) · _borrador/
+app/      actions/ · components/ (paneles) · components/ui/ (primitivas) · components/oceano/ (shell Fase 1) · _borrador/
+app/oceano/  previsualización del shell Océano (no sustituye a ninguna ruta viva)
 lib/      escolar/<7 familias> + transversales en la raíz · auth/ · supabase/ · _borrador/
 scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
@@ -287,6 +309,120 @@ La UI gobierna con `puede()` (barra, layout, páginas y paneles). Validación:
   módulos con I/O importados desde cliente) y B5 (resolver `app/_borrador/` +
   `lib/_borrador/` con decisión por archivo, chat retirado) quedan para la
   siguiente sesión con el contrato «mover, no reescribir».
+
+**Rediseño Océano — Fase 1: tokens y shell único (2026-09-10).**
+- **Tokens.** Los 17 `--oc-*` de `docs/sistema/TOKENS-OCEANO.css` entran en
+  `app/globals.css` en un bloque **aditivo**: los `--app-bg-*` no se tocan (R8) y la
+  fuente versionada sigue siendo ese archivo de `docs/` (no se importa ni se borra). Dos
+  reglas que viajan con los tokens: `--oc-alert` es **solo punto** (2.24:1 sobre
+  `--oc-surface`), el estado en texto usa `--oc-alert-text`; y los componentes referencian
+  el **papel** (`var(--oc-surface)`), nunca el hex — un hex literal reabre la deuda D11.
+- **Shell.** Un solo shell parametrizado por rol en `app/components/oceano/`
+  (`shell-oceano.tsx` es el ÚNICO `"use client"`; nav-superior, sidebar, barra-modo y
+  contenido-marcador son presentacionales) con los **tres niveles** del diseño: barra
+  superior por rol (1), sidebar de apartados con el activo en **primera posición** y borde
+  de 1 px (2) y barra de modo arriba a la derecha (3). **No consulta datos ni decide
+  dominio**: pestañas, apartados, modos, apagados y orden salen del módulo puro
+  `lib/navegacion/mapa-navegacion.ts`, que no se reescribió ni se duplicó. «Denegado por
+  capacidad» no se dibuja: lo decide la **ausencia** en el mapa.
+- **Ruta.** `/oceano` es **previsualización** y no sustituye a ninguna ruta viva (R8).
+  `app/components/ui/barra-navegacion.tsx` gana una condición para no pintarse en
+  `/oceano` y no apilar dos barras; en el resto de rutas el comportamiento es el de antes.
+- **Validación.** `npx tsc --noEmit` = 0 · `node scripts/test-rediseno-oceano.mjs`
+  **140/140** (sin modificarla) · `npm run test:suites` **36/36 en verde** · `next build` = 0
+  (la ruta `/oceano` aparece en el build) · `node scripts/diag-restyle-oceano.mjs --fase=1`:
+  `--oc-*` **0 → 93** y Fase 1 **11 claro / 0 oscuro → 11 claro / 93 oscuro**. El «claro» de
+  la Fase 1 no baja porque sus 11 ocurrencias están todas en `app/page.tsx`
+  (portada/login), que esta fase no puede reestructurar; queda anotado en
+  `docs/sistema/MATRIZ-UX.md` §7 (su invariante).
+- **Fase 1.1 (corrección visual, mismo día).** Cuatro divergencias de PRESENTACIÓN
+  corregidas contra los PNG de Figma, sin tocar arquitectura, lógica ni datos: (1) la
+  pestaña activa de la barra superior es **texto menta sin fondo** (era una píldora menta
+  rellena, que hacía dominar el acento y le quitaba sitio al CTA primario); (2) el rail
+  lateral queda **anclado al borde izquierdo (x=0) y a todo el alto** en vez de flotar
+  indentado; (3) el chip de usuario pasa a **dos líneas** —nombre en `--oc-text` con peso
+  fuerte y rol en `--oc-muted` menor— y pierde el `uppercase` que repetía el texto
+  («PROFESOR PROFESOR»: `nombreProfesor()` devuelve el nombre crudo de la BD y el rol se
+  forzaba a mayúsculas); (4) las pestañas se **reparten a lo ancho** de la barra con el
+  chip al extremo derecho. Verificado contra el mapa: `/oceano` con sesión de alumno = 4
+  pestañas y 6 apartados en Perfil; de profesor = 2 pestañas y 3 apartados en Materias.
+- **Pendiente (no se cierra aquí).** «Cerrar sesión» se dibuja **deshabilitado y con el
+  motivo a la vista**: hoy **no existe ninguna acción de cierre de sesión** en el sistema
+  (ni `actionCerrarSesion` ni route de logout) y esta fase no toca `app/actions/`.
+  Necesita, en su propio cambio y con autorización explícita, una action o un route
+  handler que borre la cookie `aulanube_portal`.
+
+**Rediseño Océano — Fase 2: reubicar lo que ya funciona + restyle oscuro (2026-09-10).**
+- **PASO 0 (layout del shell).** E1 — las pestañas del nivel 1 llevan **separación
+  fija** con el grupo sin tocar el borde y el chip al extremo derecho (`ml-auto`); se
+  retiró el `justify-between`, que con 2 pestañas (profesor) dejaba un hueco de ~1500 px.
+  E2 — el **grupo de apartados del rail flota verticalmente centrado** (`lg:justify-center`
+  en el aside; se centra el grupo, no cada ítem).
+- **Piezas reubicadas en el shell** (`/oceano`), sin cambiar props ni contratos:
+  `Materias › Calificación` ← `MateriaSelector` + `MateriaCalificacionesAlumno`;
+  `Calendario › Horario escolar` ← `HorarioAlumnoResumen`;
+  `Calendario › Calendario escolar` ← `CalendarioAsistenciaAlumno` (vista mensual);
+  `Perfil › Información personal` ← `EtiquetasDinamicasPanel`;
+  `Perfil › Estatus académico` ← `MateriaTablaVistaPanel` (lo que servían «Estatus» y
+  «Boleta», con la fila del alumno destacada). La decisión hueco→pieza vive en el módulo
+  puro **`lib/navegacion/contenido-alumno.ts`**; el shell solo pregunta por el hueco activo.
+- **Datos**: `app/oceano/page.tsx` llama a **`actionObtenerPerfilAlumno`** —la MISMA
+  Server Action que usa `/perfil`, no una consulta nueva— y **solo con sesión de alumno**
+  (es la audiencia de esas piezas y el único rol que resuelve su perfil sin elegir alumno).
+  Tutor/maestro/directivo necesitan selector de alumno: entran en su fase (4 y 5-6), y su
+  hueco muestra el marcador con la nota «pieza reubicada, falta cableado de datos».
+- **Restyle a tokens.** Los 6 componentes compartidos pasan de glass claro a Océano
+  oscuro referenciando el **papel** (`var(--oc-surface)`, `--oc-input`, `--oc-text`,
+  `--oc-muted`, `--oc-border`, `--oc-border-active`), el CTA primario a `--oc-mint` +
+  `--oc-mint-ink`, y los estados al par `--oc-ok` / `--oc-alert` (fondo o borde) +
+  `--oc-alert-text` (texto). Ningún hex literal nuevo.
+- **Validación.** `npx tsc --noEmit` = 0 · `test-rediseno-oceano.mjs` **140/140** (sin
+  modificarla) · `npm run test:suites` **36/36 en verde** · `next build` = 0 (con
+  `/oceano`) · `diag-restyle-oceano.mjs`: Fase 2 **214 claro / 0 oscuro → 81 claro /
+  222 oscuro** y total de claro **905 → 772**. **Es la primera fase donde el invariante se
+  cumple entero: el claro BAJA (214→81) y `--oc-*` SUBE (0→222).** El claro de la Fase 1
+  sigue en 11, como exige el prompt.
+- **Pendiente de esta fase (decisiones, no olvidos).** (1) Los **81 claro** que quedan son
+  todos de `app/perfil/perfil-client.tsx`, que esta fase **conserva a propósito** (R8: «no
+  se borra en esta fase… su retiro es una decisión posterior y explícita»): restylearlo
+  sería trabajo que se tira al retirarlo, y sus piezas ya son oscuras. (2)
+  `Perfil › Notificaciones` (comentarios + justificaciones) y `Calendario › Asistencia`
+  quedan con marcador: componen dos fuentes y son **contenido nuevo** (Fase 3), no
+  reubicación.
+
+**Rediseño Océano — Fase 3: contenido nuevo, cero Supabase (2026-09-10).**
+- **A · Seguimiento médico e Información personal.** Los dos apartados renderizan su
+  grupo de campos **estructurados** con `camposDeGrupo("personal"|"medico")` del módulo
+  puro `lib/escolar/alumno/grupos-campos-personales.ts` y las etiquetas amigables de
+  `informacion-personal.ts`. **No hay ninguna condición de dominio en el componente**: qué
+  campo es médico lo decide el módulo. `CAMPOS_PERSONALES_PRIMARIOS` no se tocó.
+- **B · Seguimiento semestral.** Lista de solo lectura de las materias, sobre el array
+  `materias` que ya venía cargado. Sin consulta y sin interacción.
+- **C · Asistencia › Datos crudos.** La tabla y el desglose salen del módulo puro
+  `lib/escolar/asistencia/asistencia-tabular.ts` (`vistaTabularAsistencia` +
+  `detallePorParcial`): el porcentaje global se recalcula desde los conteos (no se
+  promedian porcentajes) y un parcial sin clases registradas muestra guion. **El
+  componente no calcula nada.**
+- **D · Notificaciones.** Una sola lista con **comentarios + justificaciones**. La
+  decisión «qué entra y en qué orden» vive en el módulo puro nuevo
+  `lib/navegacion/notificaciones-alumno.ts` (fecha descendente · lo pendiente primero ·
+  sin fecha al final · desempate estable), con **29 pruebas nuevas** en
+  `scripts/test-rediseno-oceano.mjs` (140 → **169**). El aviso destacado usa `--oc-alert`
+  como punto y `--oc-alert-text` para el estado escrito.
+- **E · Asistencia › sub-vistas.** «Calendario visual» reutiliza el MISMO
+  `CalendarioAsistenciaAlumno`; «Datos crudos» es C. Las dos son excluyentes y comparten la
+  **misma** `actionObtenerEstadosAsistenciaAlumno`: no hay segunda vía de asistencia (R6).
+- **Lecturas.** Cero consultas nuevas: los comentarios ya vienen en
+  `actionObtenerPerfilAlumno`; las justificaciones, de `actionObtenerJustificacionesDeAlumno`
+  (la que ya usaba el calendario). `app/actions/` no ganó una línea.
+- **Seguridad.** Para una sesión de **alumno**, `resolverAccesoAlumno` devuelve
+  `puedeEditarEtiquetas/puedeEditarDatosPersonales/puedeSubirFoto = false` (solo lectura)
+  y la CURP solo puede ser la suya. Los campos médicos se muestran por la misma vía que ya
+  los mostraba `/perfil`: **no se amplió la visibilidad a ningún rol**.
+- **Validación.** `npx tsc --noEmit` = 0 · `test-rediseno-oceano.mjs` **169/169** ·
+  `npm run test:suites` **36/36 en verde** · `next build` = 0 (con `/oceano`) ·
+  `diag-restyle-oceano.mjs`: claro **772 → 772** (sin cambios, como exige la fase), oscuro
+  **326 → 359**, avance 30 % → 32 %; Fase 1 sigue en 11 y **Fase 2 sigue en 81**.
 
 ## 8. Cómo se valida un cambio
 

@@ -7,6 +7,7 @@
  *   · grupos-campos-personales — reparto personal / médico
  *   · asistencia-tabular      — resumen por parcial → forma de boleta
  *   · mapa-navegacion         — los tres niveles, los cinco roles
+ *   · notificaciones-alumno    — comentarios + justificaciones en una lista
  *
  * Uso: node scripts/test-rediseno-oceano.mjs
  */
@@ -38,7 +39,11 @@ const archivos = [
   ["lib/escolar/alumno/etiquetas.ts", "alumno/etiquetas.js"],
   ["lib/escolar/alumno/grupos-campos-personales.ts", "alumno/grupos-campos-personales.js"],
   ["lib/escolar/asistencia/asistencia-tabular.ts", "asistencia/asistencia-tabular.js"],
-  ["lib/navegacion/mapa-navegacion.ts", "navegacion/mapa-navegacion.js"],
+  [ "lib/navegacion/mapa-navegacion.ts", "navegacion/mapa-navegacion.js"],
+  // Fase 3 — la lista de «Perfil › Notificaciones» (comentarios + justificaciones).
+  // Se añadió a esta suite al crearse el módulo: es una decisión pura y sin I/O,
+  // y su sitio natural es junto a los demás módulos de navegación/contenido.
+  ["lib/navegacion/notificaciones-alumno.ts", "navegacion/notificaciones-alumno.js"],
 ];
 
 for (const [src, out] of archivos) {
@@ -60,6 +65,7 @@ const grupos = require(path.join(tmp, "alumno/grupos-campos-personales.js"));
 const etiquetas = require(path.join(tmp, "alumno/etiquetas.js"));
 const tabular = require(path.join(tmp, "asistencia/asistencia-tabular.js"));
 const nav = require(path.join(tmp, "navegacion/mapa-navegacion.js"));
+const notif = require(path.join(tmp, "navegacion/notificaciones-alumno.js"));
 
 // ── 2) Utilidades de prueba ────────────────────────────────────────────────
 let fallos = 0;
@@ -282,7 +288,94 @@ eq(nav.apartado("directivo", "administracion", "citas").modos.length, 3, "Citas 
 ok(nav.apartadosApagados("tecnico").length === 1, "el técnico solo tiene un apartado apagado (Documentos)");
 ok(nav.apartadosApagados("maestro").length === 1, "el profesor solo tiene Recursos apagado");
 
-// ── 7) Resultado ───────────────────────────────────────────────────────────
+// ── 7) notificaciones-alumno ───────────────────────────────────────────────
+console.log("\nnotificaciones-alumno");
+
+// Dos fuentes con fechas distintas, una sin fecha y un empate de fecha entre
+// fuentes (justificación aprobada vs comentario).
+const N_COMENTARIOS = [
+  { comentario: "Participa en clase", fecha: "2026-09-05" },
+  { comentario: "Comentario legacy sin fecha", fecha: null },
+  { comentario: "Faltó a la práctica", fecha: "2026-09-09" },
+];
+const N_JUSTIFICACIONES = [
+  { fecha: "2026-09-09", motivo: "Cita médica", estado: "aprobada" },
+  { fecha: "2026-09-10", motivo: "Trámite", estado: "pendiente" },
+];
+
+const lista = notif.notificacionesDeAlumno({
+  comentarios: N_COMENTARIOS,
+  justificaciones: N_JUSTIFICACIONES,
+});
+
+eq(lista.length, 5, "las DOS fuentes entran en la misma lista");
+eq(
+  lista.map((n) => n.clave),
+  ["justificacion-1", "comentario-2", "justificacion-0", "comentario-0", "comentario-1"],
+  "orden: fecha descendente · pendiente antes · desempate estable por clave",
+);
+eq(lista[0].fecha, "2026-09-10", "la primera es la más reciente");
+eq(lista[0].estado, "pendiente", "lo que pide acción va arriba (aviso del diseño)");
+eq(lista[lista.length - 1].fecha, null, "una entrada sin fecha va al final");
+eq(
+  lista.find((n) => n.clave === "comentario-2").fuente,
+  "comentario",
+  "el comentario conserva su fuente en la lista mezclada",
+);
+eq(
+  lista.find((n) => n.clave === "justificacion-0").estado,
+  "aprobada",
+  "la justificación conserva su estado",
+);
+eq(lista.find((n) => n.clave === "comentario-0").estado, null, "un comentario no tiene estado");
+
+// Determinista: el mismo dato produce el mismo orden.
+eq(
+  notif.notificacionesDeAlumno({ comentarios: N_COMENTARIOS, justificaciones: N_JUSTIFICACIONES }).map((n) => n.clave),
+  lista.map((n) => n.clave),
+  "dos llamadas con el mismo dato dan el mismo orden",
+);
+
+// No muta las entradas.
+eq(N_COMENTARIOS[0].fecha, "2026-09-05", "no reordena ni muta los comentarios de entrada");
+eq(N_JUSTIFICACIONES[0].estado, "aprobada", "no muta las justificaciones de entrada");
+
+// Los dos rótulos de modo los manda el mapa de navegación.
+eq(notif.MODO_COMENTARIOS, nav.apartado("alumno", "perfil", "notificaciones").modos[0], "el modo «Comentarios» es el del mapa");
+eq(notif.MODO_JUSTIFICACIONES, nav.apartado("alumno", "perfil", "notificaciones").modos[1], "el modo «Justificaciones» es el del mapa");
+eq(notif.fuenteDelModo(notif.MODO_COMENTARIOS), "comentario", "«Comentarios» filtra por comentarios");
+eq(notif.fuenteDelModo(notif.MODO_JUSTIFICACIONES), "justificacion", "«Justificaciones» filtra por justificaciones");
+eq(notif.fuenteDelModo(null), null, "sin modo no filtra");
+
+eq(notif.filtrarPorModo(lista, notif.MODO_COMENTARIOS).length, 3, "el modo Comentarios deja los 3 comentarios");
+eq(notif.filtrarPorModo(lista, notif.MODO_JUSTIFICACIONES).length, 2, "el modo Justificaciones deja las 2 justificaciones");
+eq(notif.filtrarPorModo(lista, notif.MODO_COMENTARIOS + "s").length, 5, "un modo desconocido no vacía la lista");
+ok(notif.filtrarPorModo(lista, null) !== lista, "filtrar devuelve una lista nueva, no la de entrada");
+
+// El aviso: los comentarios no tienen estado, así que no lo encienden.
+ok(notif.hayPendiente(lista), "hay pendiente → se enciende el punto de aviso");
+ok(
+  !notif.hayPendiente(notif.filtrarPorModo(lista, notif.MODO_COMENTARIOS)),
+  "en la vista de comentarios no hay nada pendiente",
+);
+
+// El límite se aplica DESPUÉS de ordenar.
+const corta = notif.notificacionesDeAlumno({
+  comentarios: N_COMENTARIOS,
+  justificaciones: N_JUSTIFICACIONES,
+  limite: 2,
+});
+eq(corta.map((n) => n.clave), ["justificacion-1", "comentario-2"], "el límite corta por el principio del orden");
+eq(lista.length, 5, "con límite, la lista completa no cambia");
+
+// Fuentes vacías: la lista es la otra fuente, sin inventar entradas.
+eq(notif.notificacionesDeAlumno({ comentarios: [], justificaciones: N_JUSTIFICACIONES }).length, 2, "sin comentarios, quedan las justificaciones");
+eq(notif.notificacionesDeAlumno({ comentarios: N_COMENTARIOS, justificaciones: [] }).length, 3, "sin justificaciones, quedan los comentarios");
+eq(notif.notificacionesDeAlumno({ comentarios: [], justificaciones: [] }).length, 0, "sin fuentes, lista vacía");
+eq(notif.ETIQUETA_FUENTE.comentario, "Comentario", "rótulo de fuente: comentario");
+eq(notif.ETIQUETA_FUENTE.justificacion, "Justificación", "rótulo de fuente: justificación");
+
+// ── 8) Resultado ───────────────────────────────────────────────────────────
 console.log(`\n${pruebas - fallos}/${pruebas} pruebas correctas`);
 if (fallos > 0) {
   console.error(`${fallos} fallo(s).`);
