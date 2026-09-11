@@ -46,6 +46,9 @@ const archivos = [
   // Se añadió a esta suite al crearse el módulo: es una decisión pura y sin I/O,
   // y su sitio natural es junto a los demás módulos de navegación/contenido.
   ["lib/navegacion/notificaciones-alumno.ts", "navegacion/notificaciones-alumno.js"],
+  // Fases 6 y 7 — emparejamiento hueco→pieza de directivo y tecnico.
+  ["lib/navegacion/contenido-directivo.ts", "navegacion/contenido-directivo.js"],
+  ["lib/navegacion/contenido-tecnico.ts", "navegacion/contenido-tecnico.js"],
 ];
 
 for (const [src, out] of archivos) {
@@ -69,6 +72,8 @@ const tabular = require(path.join(tmp, "asistencia/asistencia-tabular.js"));
 const nav = require(path.join(tmp, "navegacion/mapa-navegacion.js"));
 const enFilas = require(path.join(tmp, "buscar-en-filas.js"));
 const notif = require(path.join(tmp, "navegacion/notificaciones-alumno.js"));
+const cDir = require(path.join(tmp, "navegacion/contenido-directivo.js"));
+const cTec = require(path.join(tmp, "navegacion/contenido-tecnico.js"));
 
 // ── 2) Utilidades de prueba ────────────────────────────────────────────────
 let fallos = 0;
@@ -346,7 +351,14 @@ eq(nav.apartado("tecnico", "ciclo-escolar", "configurador").modos.length, 7, "el
 eq(nav.apartado("directivo", "administracion", "citas").modos.length, 3, "Citas apagado conserva sus 3 modos");
 
 // Registro de lo apagado, por rol.
-ok(nav.apartadosApagados("tecnico").length === 1, "el técnico solo tiene un apartado apagado (Documentos)");
+// Eran dos desde que se descubrió que el sistema de noticias está desactivado
+// (ningún componente llama a actionPublicarNoticiaInicio). Esta aserción decía
+// «uno» y la suite la cazó al cambiar el mapa: el número es la comprobación.
+eq(
+  nav.apartadosApagados("tecnico").map((x) => x.apartado.id).sort(),
+  ["documentos", "noticias"],
+  "el técnico tiene dos apartados apagados, y ambos en «Contenido»",
+);
 ok(nav.apartadosApagados("maestro").length === 1, "el profesor solo tiene Recursos apagado");
 
 // ── 7) notificaciones-alumno ───────────────────────────────────────────────
@@ -493,6 +505,61 @@ eq(
 );
 
 // ── 9) Resultado ───────────────────────────────────────────────────────────
+// ── 8) contenido-directivo y contenido-tecnico ─────────────────────────────
+// La prueba que importa: TODO hueco emparejado existe en el mapa y esta ACTIVO.
+// Un emparejamiento para un apartado apagado, o para uno que ese rol no ve, es
+// un bug silencioso — el shell montaria una pieza que nadie deberia alcanzar.
+console.log("\ncontenido-directivo · contenido-tecnico");
+
+function compruebaHuecos(modulo, rol, etiqueta) {
+  for (const clave of modulo.huecosConPieza()) {
+    const [p, a] = clave.split("/");
+    const ap = nav.apartado(rol, p, a);
+    ok(ap !== null, `${etiqueta}: ${clave} existe en el mapa de ${rol}`);
+    if (ap) ok(ap.estado === "activo", `${etiqueta}: ${clave} esta activo`);
+  }
+}
+
+compruebaHuecos(cDir, "directivo", "directivo");
+compruebaHuecos(cTec, "tecnico", "tecnico");
+
+// El directivo NO empareja las pestañas que comparte con el docente: si lo
+// hiciera habria dos fuentes para el mismo hueco (R6).
+for (const clave of cDir.huecosConPieza()) {
+  ok(
+    !cDir.esPestanaCompartida(clave.split("/")[0]),
+    `directivo: ${clave} no invade una pestaña compartida con el docente`,
+  );
+}
+eq(cDir.PESTANAS_COMPARTIDAS_CON_DOCENTE.length, 2, "son dos las pestañas compartidas");
+for (const p of cDir.PESTANAS_COMPARTIDAS_CON_DOCENTE) {
+  ok(nav.pestana("maestro", p) !== null, `la pestaña compartida «${p}» existe para el maestro`);
+  ok(nav.pestana("directivo", p) !== null, `la pestaña compartida «${p}» existe para el directivo`);
+}
+
+// El tecnico no ve contenido academico: ningun emparejamiento suyo puede
+// apuntar a calificaciones, asistencia ni boleta.
+for (const clave of cTec.huecosConPieza()) {
+  ok(
+    !/calificacion|asistencia|boleta|justificacion/.test(clave),
+    `tecnico: ${clave} no toca contenido academico`,
+  );
+}
+
+// Contenido del tecnico: la unica pestaña sin ningun apartado activo.
+const contenido = nav.pestana("tecnico", "contenido");
+ok(
+  contenido.apartados.every((a) => a.estado === "apagado"),
+  "«Contenido» del tecnico no tiene ningun apartado activo (Documentos y Noticias apagados)",
+);
+eq(
+  nav.apartado("tecnico", "contenido", "noticias").razon,
+  "decision",
+  "Noticias esta apagado por decision: el sistema Cloudinary esta desactivado",
+);
+eq(cTec.piezaDe("contenido", "noticias"), null, "un apartado apagado no tiene pieza");
+eq(cTec.piezaDe("inventada", "inexistente"), null, "un hueco desconocido devuelve null");
+
 console.log(`\n${pruebas - fallos}/${pruebas} pruebas correctas`);
 if (fallos > 0) {
   console.error(`${fallos} fallo(s).`);

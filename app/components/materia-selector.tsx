@@ -1,7 +1,15 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { normalizarNombre } from "@/lib/escolar/nombres";
+import {
+  aplicarFiltro,
+  etiquetaCarrera,
+  facetasDisponibles,
+  FILTRO_AMBITO_VACIO,
+  hayFiltroActivo,
+  sanearFiltro,
+  type FiltroAmbito,
+} from "@/lib/escolar/materia/facetas-materia";
 import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
 
 type Props = {
@@ -23,13 +31,6 @@ type Props = {
    */
   iniciarColapsado?: boolean;
 };
-
-/** Código corto de carrera para la presentación en filtros (MC, RH…). */
-function etiquetaCarrera(clave: string): string {
-  const c = clave.trim().toUpperCase();
-  if (c === "MECATRONICA") return "MC";
-  return c || clave.trim();
-}
 
 /**
  * Selector de materias tipo PANEL LATERAL / LISTA (sustituye al <select
@@ -53,69 +54,24 @@ export function MateriaSelector({
 }: Props) {
   const idBusqueda = useId();
   const [busqueda, setBusqueda] = useState("");
-  // C4.28 — filtros por grado / grupo / carrera para localizar rápido
-  // (ej. 1RO·A, 3RO·MC·A, 5TO·RH·A). El value de cada opción sigue siendo
-  // el idInterno (tabla física); estos filtros son SOLO presentación.
-  const [filtroGrado, setFiltroGrado] = useState("");
-  const [filtroGrupo, setFiltroGrupo] = useState("");
-  const [filtroCarrera, setFiltroCarrera] = useState("");
+  // C4.28 — el filtrado por grado / grupo / carrera y el buscador son una
+  // decisión PURA y viven en `lib/escolar/materia/facetas-materia.ts`. Aquí NO
+  // queda ninguna copia inline (R6): el módulo conserva las dos reglas que ya
+  // tenía este selector — una materia SIN GRADO no se muestra nunca («General»,
+  // activo por defecto) y el buscador encuentra por IDENTIDAD, así que «1RO A MC»
+  // sigue localizando la materia sin saberse su nombre.
+  // El value de cada opción sigue siendo el idInterno (tabla física).
+  const [filtro, setFiltro] = useState<FiltroAmbito>(FILTRO_AMBITO_VACIO);
   const [abierto, setAbierto] = useState(!iniciarColapsado);
 
-  const opcionesGrado = useMemo(
-    () =>
-      [...new Set(materias.map((m) => m.grado).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b, "es"),
-      ),
-    [materias],
-  );
-  const opcionesGrupo = useMemo(
-    () =>
-      [...new Set(materias.map((m) => m.grupo).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b, "es"),
-      ),
-    [materias],
-  );
-  const opcionesCarrera = useMemo(
-    () =>
-      [
-        ...new Set(
-          materias
-            .map((m) => m.carrera)
-            .filter((c): c is string => Boolean(c)),
-        ),
-      ].sort((a, b) => a.localeCompare(b, "es")),
-    [materias],
-  );
+  // Las facetas se calculan sobre la lista COMPLETA (lo hace el módulo): si se
+  // recalcularan sobre lo ya filtrado, elegir un grado vaciaría el selector de
+  // grupos y el usuario no podría volver atrás.
+  const facetas = useMemo(() => facetasDisponibles(materias), [materias]);
 
   const grupos = useMemo(() => {
     if (!abierto) return [];
-    const q = normalizarNombre(busqueda);
-
-    const filtradas = materias.filter((m) => {
-      // C4.28 — nunca mostrar "General": solo materias con grado resuelto
-      // desde el catálogo (grupo_materias → grupos).
-      if (!m.grado) return false;
-      if (filtroGrado && m.grado !== filtroGrado) return false;
-      if (filtroGrupo && m.grupo !== filtroGrupo) return false;
-      if (filtroCarrera && (m.carrera ?? "") !== filtroCarrera) return false;
-      if (q) {
-        const visible = normalizarNombre(m.nombreVisible);
-        const asignatura = normalizarNombre(m.asignatura);
-        const tecnico = normalizarNombre(m.idInterno);
-        const identidad = normalizarNombre(
-          `${m.grado} ${m.grupo} ${etiquetaCarrera(m.carrera ?? "")} ${
-            m.carrera ?? ""
-          }`.trim(),
-        );
-        return (
-          visible.includes(q) ||
-          asignatura.includes(q) ||
-          tecnico.includes(q) ||
-          identidad.includes(q)
-        );
-      }
-      return true;
-    });
+    const filtradas = aplicarFiltro(materias, filtro, busqueda);
 
     const mapa = new Map<string, MateriaConNombreVisible[]>();
     for (const m of filtradas) {
@@ -125,7 +81,13 @@ export function MateriaSelector({
       mapa.set(g, arr);
     }
     return [...mapa.entries()];
-  }, [abierto, busqueda, filtroGrado, filtroGrupo, filtroCarrera, materias]);
+  }, [abierto, busqueda, filtro, materias]);
+
+  /** Cambia una faceta: pasa por `sanearFiltro` para no quedarse en un valor
+   *  que ya no existe en la lista. */
+  function cambiarFaceta(parcial: Partial<FiltroAmbito>) {
+    setFiltro((f) => sanearFiltro(materias, { ...f, ...parcial }));
+  }
 
   return (
     <aside
@@ -169,56 +131,52 @@ export function MateriaSelector({
         <>
           <div className="mb-2 grid grid-cols-3 gap-1.5">
             <select
-              value={filtroGrado}
-              onChange={(e) => setFiltroGrado(e.target.value)}
+              value={filtro.grado ?? ""}
+              onChange={(e) => cambiarFaceta({ grado: e.target.value || null })}
               aria-label="Filtrar por grado"
               title="Filtrar por grado"
               className="rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-2 py-1.5 text-[10px] font-bold text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
             >
               <option value="">Grado: todos</option>
-              {opcionesGrado.map((g) => (
+              {facetas.grados.map((g) => (
                 <option key={g} value={g}>
                   {g}
                 </option>
               ))}
             </select>
             <select
-              value={filtroGrupo}
-              onChange={(e) => setFiltroGrupo(e.target.value)}
+              value={filtro.grupo ?? ""}
+              onChange={(e) => cambiarFaceta({ grupo: e.target.value || null })}
               aria-label="Filtrar por grupo"
               title="Filtrar por grupo"
               className="rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-2 py-1.5 text-[10px] font-bold text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
             >
               <option value="">Grupo: todos</option>
-              {opcionesGrupo.map((g) => (
+              {facetas.grupos.map((g) => (
                 <option key={g} value={g}>
                   {g}
                 </option>
               ))}
             </select>
             <select
-              value={filtroCarrera}
-              onChange={(e) => setFiltroCarrera(e.target.value)}
+              value={filtro.carrera ?? ""}
+              onChange={(e) => cambiarFaceta({ carrera: e.target.value || null })}
               aria-label="Filtrar por carrera"
               title="Filtrar por carrera"
               className="rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-2 py-1.5 text-[10px] font-bold text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
             >
               <option value="">Carrera: todas</option>
-              {opcionesCarrera.map((c) => (
+              {facetas.carreras.map((c) => (
                 <option key={c} value={c}>
                   {etiquetaCarrera(c)}
                 </option>
               ))}
             </select>
           </div>
-          {(filtroGrado || filtroGrupo || filtroCarrera) && (
+          {hayFiltroActivo(filtro) && (
             <button
               type="button"
-              onClick={() => {
-                setFiltroGrado("");
-                setFiltroGrupo("");
-                setFiltroCarrera("");
-              }}
+              onClick={() => setFiltro(FILTRO_AMBITO_VACIO)}
               className="mb-2 w-full rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110"
             >
               Limpiar filtros (grado · grupo · carrera)

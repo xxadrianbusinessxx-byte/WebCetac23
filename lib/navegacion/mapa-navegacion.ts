@@ -222,7 +222,11 @@ const CONTENIDO: Pestana = {
     // actions/documentos.ts, cinco capacidades concedidas). Apagarlo es una
     // decisión de interfaz, reversible. NO se borra ni se desconecta.
     off("documentos", "Documentos", "decision"),
-    act("noticias", "Noticias", ["Publicadas", "Nueva"]),
+    // El sistema de noticias (Cloudinary) esta DESACTIVADO: `eventos-inicio.tsx`
+    // lo declara y `actionPublicarNoticiaInicio` no la llama ningun componente.
+    // La capacidad `noticia.publicar` sigue concedida, pero no hay superficie
+    // que la ejerza. Apagado por decision, como Documentos: el codigo existe.
+    off("noticias", "Noticias", "decision"),
   ],
 };
 
