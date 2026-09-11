@@ -107,16 +107,18 @@ const maq = (id: string, label: string, modos: string[] = []): Apartado => ({
 // El tutor añade un selector de alumno vinculado que fija el alcance de toda la
 // navegación, pero los apartados son los mismos: ve lo de su hijo, no otra cosa.
 //
-// HUECO CONOCIDO (verificado 2026-09-11, bloquea retirar /tutor).
+// SALVO UNO. El tutor tiene un apartado que el alumno no:
 // `actionListarMensajesDelTutor` devuelve los mensajes dirigidos AL TUTOR
 // —`destinatario_tipo = "tutor"`, con marca de leído— de TODOS sus alumnos a la
-// vez. Es una bandeja personal, y este mapa no tiene sitio para ella: todos sus
-// apartados están dentro del alcance de UN alumno seleccionado, y la bandeja
-// cruza ese alcance.
-// No se resuelve añadiéndola como modo de Notificaciones: mezclaría dos ámbitos
-// —lo de este hijo y lo mío— en el mismo apartado. Necesita decisión de diseño:
-// un apartado propio del tutor, o un nivel por encima del selector. Hasta
-// entonces, `/tutor` no se retira.
+// vez. Es una bandeja personal y CRUZA el alcance del selector: no habla del
+// alumno elegido, habla del tutor.
+//
+// Por eso no es un modo de Notificaciones —mezclaría «lo de este hijo» con «lo
+// mío» en el mismo sitio— sino un apartado propio, el último, y su rótulo dice
+// de quién es. Decisión del responsable, 2026-09-11.
+//
+// Consecuencia: la pestaña Perfil ya NO es el mismo objeto para los dos roles.
+// Las otras tres sí lo siguen siendo.
 const PERFIL_ALUMNO: Pestana = {
   id: "perfil",
   label: "Perfil",
@@ -128,6 +130,14 @@ const PERFIL_ALUMNO: Pestana = {
     act("seguimiento-medico", "Seguimiento médico"),
     off("sesiones-programadas", "Sesiones programadas", "sin-datos"),
   ],
+};
+
+/** Perfil del TUTOR: lo mismo que el alumno más su bandeja. El rótulo dice «Mis»
+ *  a propósito: es lo único de esta pestaña que no habla del alumno elegido. */
+const PERFIL_TUTOR: Pestana = {
+  id: "perfil",
+  label: "Perfil",
+  apartados: [...PERFIL_ALUMNO.apartados, act("mensajes-tutor", "Mis mensajes")],
 };
 
 const MATERIAS_ALUMNO: Pestana = {
@@ -282,7 +292,7 @@ const CONTENIDO: Pestana = {
 /** El mapa. Una pestaña ausente para un rol es una pestaña que ese rol NO ve. */
 const MAPA: Record<PortalRole, Pestana[]> = {
   alumno: [PERFIL_ALUMNO, MATERIAS_ALUMNO, CALENDARIO_ALUMNO, CHAT],
-  tutor: [PERFIL_ALUMNO, MATERIAS_ALUMNO, CALENDARIO_ALUMNO, CHAT],
+  tutor: [PERFIL_TUTOR, MATERIAS_ALUMNO, CALENDARIO_ALUMNO, CHAT],
   maestro: [MATERIAS_DOCENTE, CALENDARIO_DOCENTE],
   directivo: [MATERIAS_DOCENTE, GRUPOS_BOLETA, CALENDARIO_DOCENTE, ADMINISTRACION],
   tecnico: [CICLO_ESCOLAR, CATALOGO, PERSONAS, CONTENIDO],

@@ -1,23 +1,31 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { puede } from "@/lib/auth/permisos";
-import { obtenerSesionPortal } from "@/lib/auth/session-server";
-import { TutorClient } from "./tutor-client";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "AulaNube — Tutor / Padre",
-  description:
-    "Portal del tutor: consulta de alumnos a cargo y gestión de credenciales.",
+  title: "AulaNube — Tutor",
+  description: "El panel del tutor vive en el portal.",
 };
 
-export default async function TutorPage() {
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) redirect("/login");
-  // Acceso por capacidad (PROMPT-3/T2): la vista "mi propio tutor" la usan el
-  // tutor autenticado y el directivo (para administrar); el alcance sobre qué
-  // registros puede cada uno se valida en las Server Actions.
-  if (!puede(sesion.rol, "tutor.ver_propio")) redirect("/perfil");
-  return <TutorClient sesion={sesion} />;
+/**
+ * RUTA RETIRADA (Fase 9 del rediseño Océano) — redirige al portal.
+ *
+ * Era la última bloqueada, y el bloqueo era real: `tutor-client.tsx` tenía una
+ * pestaña «Mensajes» que el shell no cubría. No era la misma lectura que las
+ * justificaciones del alumno — `actionListarMensajesDelTutor` devuelve lo
+ * dirigido AL TUTOR, de todos sus vinculados a la vez— así que retirar esta
+ * ruta antes habría borrado su bandeja.
+ *
+ * Se desbloqueó dándole apartado propio, `Perfil › Mis mensajes`, por decisión
+ * del responsable. Cobertura de las cuatro pestañas del cliente viejo:
+ *   datos ....... Perfil › Información personal (del alumno seleccionado)
+ *   alumnos ..... el selector del rail, que fija el alcance de todo
+ *   asistencia .. Calendario › Asistencia y Calendario escolar
+ *   mensajes .... Perfil › Mis mensajes
+ *
+ * `tutor-client.tsx` NO se borra: redirigir es reversible, borrar no (R8).
+ */
+export default function TutorPage() {
+  redirect("/oceano");
 }
-
-

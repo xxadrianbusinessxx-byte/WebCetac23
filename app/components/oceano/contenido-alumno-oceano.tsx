@@ -20,6 +20,7 @@ import type { ReactNode } from "react";
 import { actionObtenerVistaMateria } from "@/app/actions/escolar";
 import { actionGuardarCamposPersonales } from "@/app/actions/etiquetas-dinamicas";
 import { actionObtenerMapeoColumnasMateria } from "@/app/actions/materias";
+import { MensajesTutorPanel } from "@/app/components/mensajes-tutor-panel";
 import { AsistenciaTabularAlumno } from "./asistencia-tabular-alumno";
 import { NotificacionesAlumno } from "./notificaciones-alumno";
 import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistencia-alumno";
@@ -468,6 +469,13 @@ export function ContenidoAlumnoOceano({
   // crudos. El calendario visual se monta, único, en «Calendario escolar».
   if (pieza === "asistencia-tabular") {
     return <AsistenciaTabularAlumno curp={curp} nombreAlumno={nombre} />;
+  }
+
+  // Fase 9 — la bandeja del tutor. NO recibe `curp`: es lo único de esta
+  // pestaña que no depende del alumno seleccionado, porque los mensajes van
+  // dirigidos al tutor y cruzan a todos sus vinculados.
+  if (pieza === "perfil-mensajes-tutor") {
+    return <MensajesTutorPanel />;
   }
 
   // perfil-registro-calificaciones: lo que hoy sirven «Estatus» y «Boleta»

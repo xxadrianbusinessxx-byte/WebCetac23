@@ -296,12 +296,35 @@ for (const prohibido of ["boleta", "calificacion", "calificaciones", "asistencia
 }
 ok(!nav.pestanasDe("tecnico").some((p) => p.id === "administracion"), "el técnico no ve Administración escolar");
 
-// Tutor y alumno comparten mapa.
+// Tutor y alumno comparten las MISMAS PESTAÑAS…
 eq(
   nav.pestanasDe("tutor").map((p) => p.id),
   nav.pestanasDe("alumno").map((p) => p.id),
-  "tutor y alumno comparten mapa",
+  "tutor y alumno comparten las mismas pestañas",
 );
+
+// …pero el tutor tiene un apartado propio: su bandeja personal. Cruza el
+// alcance del selector de alumno, asi que no puede vivir en Notificaciones.
+ok(nav.apartado("tutor", "perfil", "mensajes-tutor"), "el tutor tiene «Mis mensajes»");
+eq(nav.apartado("alumno", "perfil", "mensajes-tutor"), null, "el alumno NO lo tiene");
+eq(
+  nav.pestana("tutor", "perfil").apartados.length,
+  nav.pestana("alumno", "perfil").apartados.length + 1,
+  "el Perfil del tutor es el del alumno mas uno",
+);
+// Es el ULTIMO: lo del alumno elegido va primero, lo del tutor al final.
+eq(
+  nav.pestana("tutor", "perfil").apartados.at(-1).id,
+  "mensajes-tutor",
+  "su bandeja va al final, separada de lo que habla del alumno",
+);
+// Las otras tres pestañas SI siguen siendo el mismo objeto.
+for (const id of ["materias", "calendario", "chat"]) {
+  ok(
+    nav.pestana("tutor", id) === nav.pestana("alumno", id),
+    `«${id}» sigue siendo el MISMO objeto para alumno y tutor`,
+  );
+}
 
 // Todo apagado tiene razón y texto; ningún activo los tiene.
 for (const rol of ROLES) {

@@ -29,7 +29,11 @@ export type PiezaAlumno =
   | "perfil-notificaciones"
   | "perfil-seguimiento-semestral"
   | "perfil-seguimiento-medico"
-  | "asistencia-tabular";
+  | "asistencia-tabular"
+  // Fase 9 — solo del TUTOR. El apartado `perfil/mensajes-tutor` no existe en
+  // el mapa del alumno, así que esta pieza nunca se le ofrece: la ausencia en
+  // el mapa es lo que decide, no una comprobación de rol aquí.
+  | "perfil-mensajes-tutor";
 
 /** Clave = `idPestana/idApartado`, tal cual los devuelve el mapa. */
 const HUECOS: Readonly<Record<string, PiezaAlumno>> = {
@@ -44,6 +48,7 @@ const HUECOS: Readonly<Record<string, PiezaAlumno>> = {
   "perfil/seguimiento-medico": "perfil-seguimiento-medico",
   "perfil/notificaciones": "perfil-notificaciones",
   "perfil/estatus-academico": "perfil-registro-calificaciones",
+  "perfil/mensajes-tutor": "perfil-mensajes-tutor",
 };
 
 /** Pieza que corresponde a un hueco, o `null` si ese hueco no tiene pieza. */
