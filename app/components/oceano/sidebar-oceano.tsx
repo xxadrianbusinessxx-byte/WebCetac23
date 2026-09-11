@@ -17,7 +17,7 @@
  * eso es «denegado por capacidad» y no se dibuja en absoluto.
  */
 import type { Apartado } from "@/lib/navegacion/mapa-navegacion";
-import { textoApagado } from "@/lib/navegacion/mapa-navegacion";
+import { esNavegable, textoApagado } from "@/lib/navegacion/mapa-navegacion";
 
 export function SidebarOceano({
   apartados,
@@ -41,8 +41,11 @@ export function SidebarOceano({
       <nav aria-label="Apartados de la pestaña">
         <ul className="flex flex-col gap-1.5">
           {apartados.map((a) => {
-            const activo = a.id === idActivo && a.estado === "activo";
+            // Una MAQUETA se abre igual que un apartado activo: la diferencia
+            // es que no opera, y eso se dice dentro, no negándole la entrada.
+            const activo = a.id === idActivo && esNavegable(a);
             const apagado = a.estado === "apagado";
+            const esMaqueta = a.estado === "maqueta";
             const aviso = textoApagado(a);
             return (
               <li key={a.id}>
@@ -59,7 +62,16 @@ export function SidebarOceano({
                         : "border-transparent text-[var(--oc-muted)] hover:text-[var(--oc-text)]"
                   }`}
                 >
-                  <span className="block text-sm font-semibold">{a.label}</span>
+                  <span className="flex items-center gap-2 text-sm font-semibold">
+                    {a.label}
+                    {/* Marca discreta: se entra, pero no guarda. No es un
+                        estado de error, así que no lleva el color de alerta. */}
+                    {esMaqueta ? (
+                      <span className="rounded-full border border-[var(--oc-border)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[var(--oc-muted)]">
+                        Vista previa
+                      </span>
+                    ) : null}
+                  </span>
                   {aviso ? (
                     <span className="mt-1 block text-[11px] font-medium leading-snug">{aviso}</span>
                   ) : null}

@@ -29,7 +29,27 @@
  */
 import type { PortalRole } from "../auth/types";
 
-export type EstadoApartado = "activo" | "apagado";
+/**
+ * TRES estados, no dos. La distinción entre los dos últimos es la que pidió el
+ * responsable el 2026-09-11 y cambia qué ve el usuario:
+ *
+ *   activo   — responde de verdad: lee y escribe contra el servidor.
+ *   maqueta  — SE NAVEGA y se ve la pantalla tal como está dibujada en Figma,
+ *              pero NO opera: los botones no hacen nada y los modos cambian la
+ *              vista sin tocar el backend. Es visualización, no simulación —
+ *              no inventa datos ni finge que guardó.
+ *   apagado  — solo se dibuja el rótulo del apartado, deshabilitado. Se usa
+ *              cuando NO HAY NADA QUE ENSEÑAR: el diseño no dibujó esa
+ *              pantalla, así que no hay maqueta posible.
+ *
+ * Por qué importa la diferencia entre `maqueta` y `apagado`: el criterio no es
+ * «¿tiene backend?» sino «¿existe el frame en Figma?». Citas, Reportes,
+ * Constancias, Buzón y Actividades están dibujados por completo y se pueden
+ * enseñar; Recursos, Chat y Sesiones programadas aparecen como rótulo en el
+ * sidebar y ningún frame muestra su contenido. Inventarles una pantalla sería
+ * diseñar, no migrar.
+ */
+export type EstadoApartado = "activo" | "maqueta" | "apagado";
 
 /** Por qué está apagado. Cambia el texto que ve el usuario, y no son
  *  intercambiables: uno explica una dependencia real, el otro una decisión. */
@@ -39,6 +59,11 @@ export const TEXTO_APAGADO: Record<RazonApagado, string> = {
   "sin-datos": "Disponible cuando se defina su estructura de datos.",
   decision: "Disponible próximamente.",
 };
+
+/** Aviso que acompaña a toda maqueta. No se oculta: quien la ve tiene que
+ *  saber que lo que pulse no va a guardar nada. */
+export const TEXTO_MAQUETA =
+  "Vista previa del diseño. Los controles todavía no operan: falta estructurar sus datos.";
 
 export type Apartado = {
   id: string;
@@ -70,6 +95,14 @@ const off = (
   modos: string[] = [],
 ): Apartado => ({ id, label, estado: "apagado", razon, modos });
 
+/** Maqueta: hay frame en Figma, así que se enseña. Navega y no opera. */
+const maq = (id: string, label: string, modos: string[] = []): Apartado => ({
+  id,
+  label,
+  estado: "maqueta",
+  modos,
+});
+
 // ── Alumno y tutor comparten mapa ──────────────────────────────────────────
 // El tutor añade un selector de alumno vinculado que fija el alcance de toda la
 // navegación, pero los apartados son los mismos: ve lo de su hijo, no otra cosa.
@@ -90,8 +123,13 @@ const MATERIAS_ALUMNO: Pestana = {
   id: "materias",
   label: "Materias",
   apartados: [
-    off("actividades", "Actividades y tareas", "sin-datos"),
+    // MAQUETA: el diseño dibuja las dos pantallas —la lista con sus tarjetas
+    // VENCIDA/ACTIVA y el detalle con descripción, dropzone y «Subir actividad»
+    // más el peso (20 %)—. Se enseñan; subir no hace nada todavía.
+    maq("actividades", "Actividades y tareas", ["Lista", "Detalle"]),
     act("calificacion", "Calificación"),
+    // Recursos aparece en el sidebar de los tres roles y NINGÚN frame dibuja su
+    // contenido. No hay maqueta posible sin inventarla.
     off("recursos", "Recursos", "sin-datos"),
   ],
 };
@@ -152,19 +190,19 @@ const ADMINISTRACION: Pestana = {
   id: "administracion",
   label: "Administración escolar",
   apartados: [
-    off("citas", "Citas", "sin-datos", [
-      "Configurar citas",
-      "Citas pendientes",
-      "Citas programadas",
-    ]),
-    off("reportes", "Reportes", "sin-datos", ["Crea un reporte", "Reportes"]),
-    off("recursos-administrativos", "Recursos administrativos", "sin-datos", [
+    // Los cuatro son MAQUETA: el archivo de Figma los dibuja por completo —once
+    // frames de Administración escolar— con sus tarjetas, sus botones y sus
+    // barras de modo. Se enseñan tal cual; Aceptar, Rechazar y Guardar no
+    // hacen nada porque las cuatro entidades no existen en Supabase.
+    maq("citas", "Citas", ["Configurar citas", "Citas pendientes", "Citas programadas"]),
+    maq("reportes", "Reportes", ["Crea un reporte", "Reportes"]),
+    maq("recursos-administrativos", "Recursos administrativos", [
       "Constancias",
       "Constancias programadas",
       "Configurar cita de constancia",
     ]),
     act("alumnos-tutores", "Alumnos / Tutores"),
-    off("buzon", "Buzón", "sin-datos", ["Buzón de quejas", "Buzón (comentarios)"]),
+    maq("buzon", "Buzón", ["Buzón de quejas", "Buzón (comentarios)"]),
   ],
 };
 
@@ -257,11 +295,24 @@ export function apartado(
   return pestana(rol, idPestana)?.apartados.find((a) => a.id === idApartado) ?? null;
 }
 
-/** Primer apartado navegable de una pestaña: a dónde entra el usuario al
- *  pulsarla. Si todos están apagados devuelve `null` y la pestaña muestra su
- *  estado en vez de contenido. */
+/**
+ * ¿Se puede entrar a este apartado? Activo y maqueta sí; apagado no.
+ * Es la única pregunta que debe hacerse el shell para decidir si navega: si
+ * compara contra `"activo"` a mano, las maquetas dejan de ser alcanzables.
+ */
+export function esNavegable(a: Apartado | null): boolean {
+  return a?.estado === "activo" || a?.estado === "maqueta";
+}
+
+/**
+ * Primer apartado navegable de una pestaña: a dónde entra el usuario al
+ * pulsarla. Prefiere uno ACTIVO sobre una maqueta — entrar a lo que funciona
+ * antes que a lo que solo se enseña—, y solo cae a la maqueta si no hay
+ * ninguno activo. `null` = la pestaña no tiene ninguno navegable.
+ */
 export function apartadoInicial(rol: PortalRole | null, idPestana: string): Apartado | null {
-  return pestana(rol, idPestana)?.apartados.find((a) => a.estado === "activo") ?? null;
+  const aps = pestana(rol, idPestana)?.apartados ?? [];
+  return aps.find((a) => a.estado === "activo") ?? aps.find((a) => a.estado === "maqueta") ?? null;
 }
 
 /**
@@ -275,17 +326,35 @@ export function ordenSidebar(apartados: readonly Apartado[], idActivo: string): 
   return [activo, ...apartados.filter((a) => a.id !== idActivo)];
 }
 
-/** Texto a mostrar en un apartado apagado. `null` si está activo. */
+/** Texto a mostrar en un apartado apagado. `null` si no lo está. */
 export function textoApagado(a: Apartado): string | null {
   if (a.estado !== "apagado") return null;
   return TEXTO_APAGADO[a.razon ?? "sin-datos"];
 }
 
-/** Todos los apartados apagados de un rol. Para el registro de lo pendiente. */
-export function apartadosApagados(rol: PortalRole): { pestana: string; apartado: Apartado }[] {
+/** Aviso de una maqueta. `null` si no lo es. Nunca se oculta: quien la usa
+ *  tiene que saber que lo que pulse no guarda. */
+export function textoMaqueta(a: Apartado): string | null {
+  return a.estado === "maqueta" ? TEXTO_MAQUETA : null;
+}
+
+/** Apartados de un rol en un estado dado. Para el registro de lo pendiente. */
+function apartadosEn(
+  rol: PortalRole,
+  estado: EstadoApartado,
+): { pestana: string; apartado: Apartado }[] {
   const out: { pestana: string; apartado: Apartado }[] = [];
   for (const p of pestanasDe(rol)) {
-    for (const a of p.apartados) if (a.estado === "apagado") out.push({ pestana: p.id, apartado: a });
+    for (const a of p.apartados) if (a.estado === estado) out.push({ pestana: p.id, apartado: a });
   }
   return out;
+}
+
+export function apartadosApagados(rol: PortalRole) {
+  return apartadosEn(rol, "apagado");
+}
+
+/** Lo que se enseña pero no opera. Es la lista de lo que falta estructurar. */
+export function apartadosMaqueta(rol: PortalRole) {
+  return apartadosEn(rol, "maqueta");
 }

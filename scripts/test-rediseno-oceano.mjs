@@ -323,7 +323,56 @@ ok(
   "dependencia de datos y decisión se explican distinto",
 );
 eq(nav.apartado("tecnico", "contenido", "documentos").razon, "decision", "Documentos está apagado por decisión");
-eq(nav.apartado("alumno", "materias", "actividades").razon, "sin-datos", "Actividades está apagado por falta de datos");
+// ── Maquetas: se enseñan porque el diseño las dibujó ───────────────────────
+// El criterio NO es «¿tiene backend?» sino «¿existe el frame en Figma?».
+// Actividades tiene sus dos pantallas dibujadas; Recursos y Chat no tienen
+// ninguna, así que no hay maqueta posible sin inventarla.
+eq(nav.apartado("alumno", "materias", "actividades").estado, "maqueta", "Actividades se enseña: el diseño la dibuja");
+eq(nav.apartado("alumno", "materias", "recursos").estado, "apagado", "Recursos no: ningún frame dibuja su contenido");
+eq(nav.apartado("alumno", "chat", "chat").estado, "apagado", "Chat tampoco");
+
+for (const id of ["citas", "reportes", "recursos-administrativos", "buzon"]) {
+  eq(nav.apartado("directivo", "administracion", id).estado, "maqueta", `${id} se enseña (once frames lo dibujan)`);
+  ok(nav.apartado("directivo", "administracion", id).modos.length > 0, `${id} conserva su barra de modo`);
+}
+
+// Una maqueta SE NAVEGA. Si no, no sirve para nada.
+ok(nav.esNavegable(nav.apartado("directivo", "administracion", "citas")), "una maqueta es navegable");
+ok(nav.esNavegable(nav.apartado("alumno", "materias", "calificacion")), "un activo es navegable");
+ok(!nav.esNavegable(nav.apartado("alumno", "materias", "recursos")), "un apagado NO es navegable");
+ok(!nav.esNavegable(null), "sin apartado no se navega");
+
+// Y lleva su aviso: quien la usa tiene que saber que no guarda.
+ok(nav.textoMaqueta(nav.apartado("directivo", "administracion", "buzon")), "la maqueta lleva aviso");
+ok(nav.textoMaqueta(nav.apartado("alumno", "materias", "calificacion")) === null, "un activo no lleva aviso de maqueta");
+ok(nav.textoApagado(nav.apartado("directivo", "administracion", "buzon")) === null, "una maqueta no es un apagado");
+
+// apartadoInicial prefiere lo que FUNCIONA sobre lo que solo se enseña.
+eq(nav.apartadoInicial("directivo", "administracion").id, "alumnos-tutores", "entra al activo, no a la primera maqueta");
+eq(nav.apartadoInicial("alumno", "materias").id, "calificacion", "igual en Materias del alumno");
+
+// TODA maqueta del mapa tiene pantalla dibujada, y viceversa. Un apartado en
+// estado `maqueta` sin pantalla seria un hueco mudo: se entra y no hay nada.
+// Se comprueba leyendo el fichero de maquetas, no importandolo (es JSX).
+{
+  const fuente = fs.readFileSync(path.join(root, "app/components/oceano/maquetas-oceano.tsx"), "utf8");
+  const dibujadas = new Set(
+    [...fuente.matchAll(/"([a-z-]+\/[a-z-]+)":\s*[A-Z]/g)].map((m) => m[1]),
+  );
+  const enElMapa = new Set();
+  for (const rol of ROLES) {
+    for (const { pestana: p, apartado: a } of nav.apartadosMaqueta(rol)) {
+      enElMapa.add(`${p}/${a.id}`);
+    }
+  }
+  for (const clave of enElMapa) {
+    ok(dibujadas.has(clave), `la maqueta ${clave} tiene pantalla dibujada`);
+  }
+  for (const clave of dibujadas) {
+    ok(enElMapa.has(clave), `la pantalla ${clave} corresponde a una maqueta del mapa`);
+  }
+  eq(dibujadas.size, enElMapa.size, "no sobra ni falta ninguna pantalla de maqueta");
+}
 
 // apartadoInicial salta los apagados.
 eq(nav.apartadoInicial("alumno", "materias").id, "calificacion", "entra al primer apartado ACTIVO, no al primero");

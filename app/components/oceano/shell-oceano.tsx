@@ -30,11 +30,14 @@ import { opcionesDePieza, piezaDe } from "@/lib/navegacion/contenido-alumno";
 import { piezaDe as piezaDocenteDe } from "@/lib/navegacion/contenido-docente";
 import {
   apartadoInicial,
+  esNavegable,
   ordenSidebar,
   pestana,
   pestanasDe,
+  textoMaqueta,
   type Apartado,
 } from "@/lib/navegacion/mapa-navegacion";
+import { hayMaqueta, MaquetaOceano } from "./maquetas-oceano";
 import { BarraModoOceano } from "./barra-modo-oceano";
 import {
   ContenidoAlumnoOceano,
@@ -103,8 +106,11 @@ export function ShellOceano({
   // la tiene, se cae a la primera. El shell nunca dibuja una pestaña inventada.
   const activa = pestana(rol, sel.idPestana) ?? pestanas[0] ?? null;
   const apartados = activa?.apartados ?? [];
+  // NAVEGABLE, no «activo»: una maqueta también se abre. Comparar contra
+  // "activo" a mano dejaría las maquetas fuera de alcance — que es justo lo
+  // contrario de para lo que existen.
   const activo: Apartado | null =
-    apartados.find((a) => a.id === sel.idApartado && a.estado === "activo") ?? null;
+    apartados.find((a) => a.id === sel.idApartado && esNavegable(a)) ?? null;
 
   function irAPestana(idPestana: string) {
     const inicial = apartadoInicial(rol, idPestana);
@@ -113,8 +119,8 @@ export function ShellOceano({
 
   function irAApartado(idApartado: string) {
     const a = apartados.find((x) => x.id === idApartado);
-    if (!a || a.estado !== "activo") return; // apagado = se dibuja, no navega
-    setSel((s) => ({ ...s, idApartado, modo: a.modos[0] ?? null }));
+    if (!esNavegable(a ?? null)) return; // apagado = se dibuja el rótulo, no navega
+    setSel((s) => ({ ...s, idApartado, modo: a!.modos[0] ?? null }));
   }
 
   return (
@@ -162,7 +168,20 @@ export function ShellOceano({
           {/* Fase 2 — si el hueco activo tiene pieza real Y hay datos, se monta
               el componente; si no, el marcador de la Fase 1. La decisión
               hueco→pieza vive en `lib/navegacion/contenido-alumno.ts`. */}
-          {activa && activo && piezaDe(activa.id, activo.id) && datosAlumno ? (
+          {/* El aviso de maqueta va ARRIBA y no se oculta: quien entra tiene
+              que saber, antes de pulsar nada, que esto no guarda. */}
+          {activo && textoMaqueta(activo) ? (
+            <p className="mb-4 rounded-lg border border-[var(--oc-border-active)] bg-[var(--oc-input)] px-4 py-3 text-xs font-semibold text-[var(--oc-muted)]">
+              {textoMaqueta(activo)}
+            </p>
+          ) : null}
+
+          {/* Orden de precedencia: pieza real del alumno → pieza del docente →
+              maqueta del diseño → marcador. Una maqueta nunca tapa una pieza
+              que funciona. */}
+          {activa && activo && activo.estado === "maqueta" && hayMaqueta(activa.id, activo.id) ? (
+            <MaquetaOceano idPestana={activa.id} idApartado={activo.id} modo={sel.modo} />
+          ) : activa && activo && piezaDe(activa.id, activo.id) && datosAlumno ? (
             <ContenidoAlumnoOceano
               pieza={piezaDe(activa.id, activo.id)!}
               modo={sel.modo}
