@@ -1,87 +1,162 @@
-import type { ReactNode } from "react";
+import Link from "next/link";
 import { actionAlumnosEstrella } from "@/app/actions/home";
 import { AlumnosEstrellaPanel } from "@/app/components/alumnos-estrella";
 import { EventosInicio } from "@/app/components/eventos-inicio";
-import { FrutigerBackdrop } from "@/app/components/ui/frutiger-backdrop";
-import { HomeLoginForm } from "./components/home-login-form";
 
 export const metadata = {
-  title: "AulaNube — Inicio de sesión",
-  description: "Acceso a la plataforma escolar.",
+  title: "CETAC 23 El Marqués",
+  description:
+    "Somos libres, críticos y humanistas. Conoce nuestra oferta educativa y accede al portal escolar.",
 };
 
-function GlassShell({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`rounded-[1.75rem] border border-white/60 bg-white/30 shadow-[0_8px_32px_rgba(56,189,248,0.14),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
+/**
+ * PORTADA PÚBLICA (Fase 8 del rediseño Océano).
+ *
+ * Antes esta ruta era portada Y login a la vez: el formulario vivía aquí y
+ * `/login` se limitaba a redirigir. El diseño las separa, así que el acceso se
+ * mudó a `/login` y aquí queda solo lo que ve un visitante.
+ *
+ * Es PÚBLICA: no consulta la sesión y no exige ninguna capacidad
+ * (`portada.ver` es la única capacidad pública del sistema). La única lectura
+ * es la de alumnos estrella, que ya era pública.
+ *
+ * ── Una divergencia declarada con el frame ────────────────────────────────
+ * El frame «Pantalla de bienvenida» dibuja hero, Visión y Valores, la oferta
+ * educativa y el pie. NO dibuja «Alumnos estrella» ni «Cree en ti», que son
+ * dos bloques que esta portada ya tenía y que siguen funcionando. Quitarlos
+ * sería una decisión de producto, no una migración, así que se conservan
+ * debajo de la oferta educativa. Si sobran, se retiran en su propio cambio.
+ *
+ * Los teléfonos y correos del pie son literales SIN VALOR en el frame
+ * («Numero telefonico :»). Se dejan como el diseño los define en vez de
+ * inventarlos.
+ */
 
-function PanelTab() {
-  return (
-    <div className="mb-3 flex justify-center">
-      <div className="min-h-9 min-w-[5rem] rounded-2xl border border-sky-900/20 px-4 py-2 shadow-[inset_0_2px_0_rgba(255,255,255,0.2),inset_0_-2px_0_rgba(0,0,0,0.15)] bg-linear-to-b from-sky-700 via-sky-800 to-sky-950" />
-    </div>
-  );
-}
+const VALORES = [
+  "Respeto",
+  "Responsabilidad",
+  "Libertad",
+  "Bondad",
+  "Tolerancia",
+  "Solidaridad",
+  "Empatía",
+  "Justicia",
+  "Equidad",
+];
 
-function SectionPill({ children }: { children: ReactNode }) {
-  return (
-    <div className="mb-5 flex justify-center">
-      <div className="rounded-full border border-white/70 bg-linear-to-b from-sky-200/90 via-sky-100/80 to-white/70 px-6 py-2 text-center text-xs font-extrabold uppercase tracking-widest text-sky-900 shadow-[0_4px_16px_rgba(14,165,233,0.2),inset_0_1px_0_rgba(255,255,255,0.95)]">
-        {children}
-      </div>
-    </div>
-  );
-}
+const CARRERAS = [
+  { nombre: "MECATRÓNICA", fondo: "#4C7CBC" },
+  { nombre: "RECURSOS HUMANOS", fondo: "#3D6CAA" },
+];
 
 export default async function Home() {
   const alumnosEstrella = await actionAlumnosEstrella();
 
   return (
-    <FrutigerBackdrop>
-      <div className="relative z-10 mx-auto flex min-h-dvh max-w-6xl flex-col px-4 pb-24 pt-6 sm:px-6 lg:max-w-7xl lg:px-8 lg:pt-8">
-        <div className="mb-5 flex h-11 items-stretch overflow-hidden rounded-full border border-white/65 bg-white/35 py-1 pl-1 pr-1 shadow-[0_8px_28px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:h-12">
-          <div className="min-w-0 flex-1 rounded-full bg-white/10" />
-          <div
-            className="ml-1 w-[38%] max-w-md shrink-0 rounded-full border border-white/25 bg-linear-to-b from-sky-600 via-sky-800 to-sky-950 shadow-[inset_0_2px_0_rgba(255,255,255,0.2),inset_0_-2px_0_rgba(0,0,0,0.2)] sm:w-[32%]"
-            aria-hidden
-          />
+    <div
+      className="relative z-10 flex min-h-dvh flex-col text-[var(--oc-text)]"
+      style={{ background: "var(--oc-bg)" }}
+    >
+      {/* Barra superior del frame: contacto · nombre · acceso */}
+      <header className="flex items-center justify-between gap-4 px-5 py-3 text-xs sm:px-8">
+        <a href="#contacto" className="text-[var(--oc-muted)] transition hover:text-[var(--oc-text)]">
+          Contacta con nosotros
+        </a>
+        <p className="hidden font-semibold uppercase tracking-wide text-[var(--oc-muted)] sm:block">
+          CETAC 23 El Marqués
+        </p>
+        <Link href="/login" className="text-[var(--oc-muted)] transition hover:text-[var(--oc-text)]">
+          Inicia sesión
+        </Link>
+      </header>
+
+      <main className="flex-1">
+        {/* Hero */}
+        <section className="px-5 py-14 text-center sm:px-8 sm:py-20">
+          <h1 className="mx-auto max-w-4xl text-balance text-4xl font-bold leading-tight tracking-tight text-[#A6C4D2] sm:text-5xl lg:text-6xl">
+            Somos libres, críticos y humanistas. Orgullo Cetac 23
+          </h1>
+        </section>
+
+        {/* Visión y Valores, a dos columnas como el frame */}
+        <section className="grid gap-10 px-5 pb-16 sm:px-8 lg:grid-cols-2 lg:gap-16">
+          <div>
+            <h2 className="mb-2 text-lg font-semibold">Visión</h2>
+            <p className="max-w-prose text-sm leading-relaxed text-[var(--oc-text)]">
+              Ser una institución líder e innovadora de la cual egresan profesionistas éticos,
+              críticos y humanistas que aporten al desarrollo sostenible de nuestra sociedad.
+            </p>
+          </div>
+          <div>
+            <h2 className="mb-2 text-lg font-semibold">Valores</h2>
+            <ul className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-[var(--oc-text)]">
+              {VALORES.map((v) => (
+                <li key={v}>· {v}</li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        {/* Oferta educativa: dos bandas a sangre, como el diseño */}
+        <section className="pb-4">
+          <h2 className="px-5 pb-8 text-center text-2xl font-medium sm:px-8 sm:text-3xl">
+            Conoce nuestra oferta educativa
+          </h2>
+          {CARRERAS.map((c) => (
+            <div
+              key={c.nombre}
+              className="flex min-h-[9rem] items-center px-5 py-10 sm:px-10"
+              style={{ background: c.fondo }}
+            >
+              {/* El frame dibuja estas bandas VACÍAS salvo por el rótulo. No se
+                  les inventa contenido: cuando haya material de cada carrera,
+                  entra aquí. */}
+              <p className="text-3xl font-medium tracking-tight text-[var(--oc-text)] sm:text-4xl">
+                {c.nombre}
+              </p>
+            </div>
+          ))}
+        </section>
+
+        {/* Bloques que esta portada ya tenía y el frame no sitúa. Ver cabecera. */}
+        <section className="grid gap-6 px-5 py-14 sm:px-8 lg:grid-cols-2">
+          <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-5">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--oc-muted)]">
+              Alumnos estrella
+            </h2>
+            <AlumnosEstrellaPanel alumnos={alumnosEstrella} />
+          </div>
+          <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-5">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--oc-muted)]">
+              Cree en ti
+            </h2>
+            <EventosInicio />
+          </div>
+        </section>
+      </main>
+
+      <footer
+        id="contacto"
+        className="grid gap-8 border-t border-[var(--oc-border)] px-5 py-12 text-sm sm:px-8 lg:grid-cols-3"
+      >
+        <div>
+          <p className="text-[var(--oc-muted)]">Numero telefonico :</p>
+          <p className="mt-3 text-[var(--oc-muted)]">Correo electronico</p>
+          <p className="mt-5 font-semibold">Contáctanos</p>
         </div>
-
-        <div className="mb-6 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-12 lg:gap-6 lg:items-start">
-          <section className="lg:col-span-3">
-            <GlassShell className="p-5 sm:p-6">
-              <SectionPill>Alumnos estrella</SectionPill>
-              <AlumnosEstrellaPanel alumnos={alumnosEstrella} />
-            </GlassShell>
-          </section>
-
-          <section className="lg:col-span-5">
-            <GlassShell className="p-6 sm:p-8">
-              <PanelTab />
-              <SectionPill>Inicio de sesión</SectionPill>
-              <HomeLoginForm />
-            </GlassShell>
-          </section>
-
-          <section className="lg:col-span-4">
-            <GlassShell className="flex h-full min-h-[320px] flex-col p-5 sm:p-6">
-              <SectionPill>Cree en ti</SectionPill>
-              <EventosInicio />
-            </GlassShell>
-          </section>
+        <div>
+          <p className="text-[var(--oc-muted)]">Numero telefonico :</p>
+          <p className="mt-3 text-[var(--oc-muted)]">Correo electronico</p>
+          <p className="mt-5 font-semibold">Redes sociales</p>
         </div>
-      </div>
-    </FrutigerBackdrop>
+        <div>
+          <p className="text-[var(--oc-muted)]">
+            Avenida Villas de la Piedad, La Piedad, San Miguel Colorado, 76246 La Cañada, QRO,
+            México
+          </p>
+          <p className="mt-5 font-semibold">Ubicación</p>
+        </div>
+      </footer>
+    </div>
   );
 }

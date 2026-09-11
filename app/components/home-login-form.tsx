@@ -3,34 +3,30 @@
 import { useActionState } from "react";
 import { loginWithNombreCompleto, type LoginFormState } from "@/app/actions/login";
 
-function BubbleField({
-  label,
-  variant,
-}: {
-  label: string;
-  variant: "identificador" | "clave";
-}) {
-  const isClave = variant === "clave";
-
-  const shell = isClave
-    ? "border-white/40 bg-linear-to-b from-sky-600 via-sky-700 to-sky-900 text-white placeholder:text-sky-100/85 shadow-[0_8px_24px_rgba(2,132,199,0.35),inset_0_2px_0_rgba(255,255,255,0.35),inset_0_-3px_0_rgba(0,0,0,0.2)]"
-    : "border-white/60 bg-linear-to-b from-slate-100 via-slate-200/95 to-slate-300/90 text-slate-800 placeholder:text-slate-500 shadow-[0_6px_20px_rgba(15,23,42,0.08),inset_0_2px_0_rgba(255,255,255,0.9),inset_0_-2px_0_rgba(15,23,42,0.06)]";
-
+/**
+ * Formulario de acceso. La lógica NO cambió en el rediseño Océano: sigue
+ * enviando a `loginWithNombreCompleto`, con los mismos campos
+ * (`identificador`, `clave`) y el mismo mecanismo de sesión.
+ *
+ * Lo que cambió es el envoltorio. El tema claro construía cada campo con un
+ * degradado de tres paradas y un brillo superior simulado con un `<span>`
+ * absoluto — la burbuja Frutiger Aero. Sobre superficie oscura ese brillo es
+ * una raya, así que desaparece: los campos son planos, con el borde del
+ * sistema, y el foco se marca con `--oc-border-active` en vez de un anillo de
+ * color.
+ */
+function Campo({ label, variant }: { label: string; variant: "identificador" | "clave" }) {
+  const esClave = variant === "clave";
   return (
-    <label className="relative block">
-      <span className="sr-only">{label}</span>
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-medium text-[var(--oc-muted)]">{label}</span>
       <input
-        type={isClave ? "password" : "text"}
-        name={isClave ? "clave" : "identificador"}
+        type={esClave ? "password" : "text"}
+        name={esClave ? "clave" : "identificador"}
         required
-        placeholder={label}
-        autoComplete={isClave ? "current-password" : "name"}
-
-        className={`w-full rounded-full border px-6 py-4 text-center text-sm font-extrabold uppercase tracking-widest outline-none transition focus-visible:ring-2 focus-visible:ring-sky-300 ${shell}`}
-      />
-      <span
-        className="pointer-events-none absolute inset-x-8 top-1 h-[32%] rounded-b-[100%] bg-linear-to-b from-white/45 to-transparent opacity-80"
-        aria-hidden
+        placeholder={esClave ? "••••••••" : "Ej. Juan Pérez López"}
+        autoComplete={esClave ? "current-password" : "name"}
+        className="w-full rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-3 text-sm text-[var(--oc-text)] outline-none transition placeholder:text-[var(--oc-muted)] focus:border-[var(--oc-border-active)]"
       />
     </label>
   );
@@ -39,30 +35,26 @@ function BubbleField({
 const initialState: LoginFormState = {};
 
 export function HomeLoginForm() {
-  const [state, formAction, pending] = useActionState(
-    loginWithNombreCompleto,
-    initialState,
-  );
+  const [state, formAction, pending] = useActionState(loginWithNombreCompleto, initialState);
 
   return (
-    <form className="mx-auto flex max-w-sm flex-col gap-4" action={formAction} noValidate>
-      <BubbleField label="Identificador" variant="identificador" />
-      <BubbleField label="Clave" variant="clave" />
+    <form className="flex flex-col gap-5" action={formAction} noValidate>
+      <Campo label="Nombre completo" variant="identificador" />
+      <Campo label="Clave" variant="clave" />
 
       {state.error ? (
-        <p
-          className="text-center text-xs font-semibold uppercase tracking-wide text-red-600"
-          role="alert"
-        >
+        <p className="text-center text-xs font-semibold text-[var(--oc-alert-text)]" role="alert">
           {state.error}
         </p>
       ) : null}
+
+      {/* CTA primario: el único uso de la menta en esta pantalla. */}
       <button
         type="submit"
         disabled={pending}
-        className="relative mt-2 overflow-hidden rounded-full border border-white/50 bg-linear-to-b from-sky-300 via-sky-500 to-sky-700 px-8 py-3.5 text-sm font-extrabold uppercase tracking-widest text-white shadow-[0_8px_24px_rgba(14,165,233,0.45),inset_0_2px_0_rgba(255,255,255,0.55),inset_0_-3px_0_rgba(0,0,0,0.4)] transition enabled:active:scale-[0.98] disabled:opacity-60 before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-[44%] before:rounded-b-[100%] before:bg-linear-to-b before:from-white/65 before:to-transparent"
+        className="mt-1 rounded-lg bg-[var(--oc-mint)] px-8 py-3 text-sm font-bold text-[var(--oc-mint-ink)] transition enabled:hover:brightness-110 enabled:active:scale-[0.99] disabled:opacity-60"
       >
-        {pending ? "Entrando…" : "Entrar"}
+        {pending ? "Entrando…" : "Iniciar sesión"}
       </button>
     </form>
   );
