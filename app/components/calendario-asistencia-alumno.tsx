@@ -79,7 +79,7 @@ function PanelTab({
 }) {
   return (
     <span
-      className={`rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] sm:text-[11px] ${className}`}
+      className={`rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)] sm:text-[11px] ${className}`}
     >
       {children}
     </span>
@@ -104,14 +104,20 @@ function GreyActionPill({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35),0_3px_10px_rgba(2,6,23,0.12)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      className={`rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
       {children}
     </button>
   );
 }
 
-/** Etiquetas y colores por estado de asistencia. */
+/**
+ * Etiquetas y colores por estado de asistencia.
+ * En el tema Océano: el estado «vigente» usa `--oc-ok`, el «problema» usa
+ * `--oc-alert` como FONDO/borde (nunca como texto: da 2.24:1 sobre superficie)
+ * y su versión legible es `--oc-alert-text`. Los que no tienen estado propio
+ * (pendiente, sin clase) se resuelven con superficies de la paleta.
+ */
 const INFO_ESTADO: Record<
   EstadoAsistencia,
   { etiqueta: string; simbolo: string; clase: string; texto: string }
@@ -119,26 +125,27 @@ const INFO_ESTADO: Record<
   asistio: {
     etiqueta: "Asistió",
     simbolo: "🟢",
-    clase: "bg-emerald-200/80 border-emerald-500/60 text-emerald-900",
-    texto: "text-emerald-800",
+    clase: "bg-[var(--oc-ok)]/20 border-[var(--oc-ok)]/60 text-[var(--oc-text)]",
+    texto: "text-[var(--oc-ok)]",
   },
   falta: {
     etiqueta: "Falta",
     simbolo: "🔴",
-    clase: "bg-red-200/80 border-red-500/60 text-red-900",
-    texto: "text-red-800",
+    clase:
+      "bg-[var(--oc-alert)]/20 border-[var(--oc-alert)]/60 text-[var(--oc-alert-text)]",
+    texto: "text-[var(--oc-alert-text)]",
   },
   pendiente: {
     etiqueta: "Pendiente",
     simbolo: "🟠",
-    clase: "bg-amber-200/80 border-amber-500/60 text-amber-900",
-    texto: "text-amber-800",
+    clase: "bg-[var(--oc-input)] border-[var(--oc-border-active)] text-[var(--oc-text)]",
+    texto: "text-[var(--oc-text)]",
   },
   sin_clase: {
     etiqueta: "Sin clase",
     simbolo: "⚪",
-    clase: "bg-slate-200/80 border-slate-400/60 text-slate-700",
-    texto: "text-slate-700",
+    clase: "bg-[var(--oc-surface)] border-[var(--oc-border)] text-[var(--oc-muted)]",
+    texto: "text-[var(--oc-muted)]",
   },
 };
 
@@ -385,21 +392,21 @@ export function CalendarioAsistenciaAlumno({
       <PanelTab className="mx-auto w-fit">Asistencia</PanelTab>
 
       {nombreAlumno && (
-        <p className="text-center text-xs font-extrabold uppercase tracking-wide text-sky-900">
+        <p className="text-center text-xs font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
           {nombreAlumno}
         </p>
       )}
 
       {datos?.cicloNombre && (
-        <div className="flex flex-wrap items-center justify-center gap-2 rounded-full border border-white/60 bg-white/55 px-3 py-2 text-[10px] font-bold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
-          <label className="text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+        <div className="flex flex-wrap items-center justify-center gap-2 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-[10px] font-bold text-[var(--oc-muted)]">
+          <label className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
             Ciclo
           </label>
-          <span className="rounded-full border border-emerald-400/70 bg-emerald-100/90 px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-wide text-emerald-900">
+          <span className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
             {datos.cicloNombre}
           </span>
           {datos.grado && (
-            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-600">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--oc-muted)]">
               {datos.grado} · {datos.grupo}
               {datos.carrera ? ` · ${datos.carrera}` : ""}
             </span>
@@ -409,19 +416,19 @@ export function CalendarioAsistenciaAlumno({
 
       {error && (
 
-        <p className="text-center text-xs font-semibold text-red-700" role="alert">
+        <p className="text-center text-xs font-semibold text-[var(--oc-alert-text)]" role="alert">
           {error}
         </p>
       )}
 
       {cargando ? (
-        <p className="text-center text-sm font-semibold text-slate-600">
+        <p className="text-center text-sm font-semibold text-[var(--oc-muted)]">
           Cargando asistencia…
         </p>
       ) : (
         <>
           {/* Resumen */}
-          <div className="flex flex-wrap items-center justify-center gap-2 rounded-3xl border border-white/55 bg-slate-400/25 p-3 text-[10px] font-bold text-slate-700 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+          <div className="flex flex-wrap items-center justify-center gap-2 rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-3 text-[10px] font-bold text-[var(--oc-text)]">
             <span className="flex items-center gap-1">
               <span>🟢</span> {resumen.asistencias} asistió
             </span>
@@ -434,15 +441,15 @@ export function CalendarioAsistenciaAlumno({
             <span className="flex items-center gap-1">
               <span>⚪</span> {resumen.sinClase} sin clase
             </span>
-            <span className="ml-1 rounded-full border border-sky-500/50 bg-sky-100/90 px-3 py-1 text-[11px] font-extrabold text-sky-900">
+            <span className="ml-1 rounded-full border border-[var(--oc-border-active)] bg-[var(--oc-surface)] px-3 py-1 text-[11px] font-extrabold text-[var(--oc-text)]">
               {resumen.porcentaje}% asistencia
             </span>
           </div>
 
           {/* Desglose POR PARCIAL (derivado del ciclo, resuelto en servidor) */}
           {datos && datos.resumenPorParcial.length > 0 && (
-            <div className="flex flex-col gap-1.5 rounded-3xl border border-white/55 bg-white/55 p-3 text-[10px] font-bold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-md">
-              <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+            <div className="flex flex-col gap-1.5 rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-3 text-[10px] font-bold text-[var(--oc-text)]">
+              <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                 Por parcial
               </p>
               {datos.resumenPorParcial.map((r) => (
@@ -450,7 +457,7 @@ export function CalendarioAsistenciaAlumno({
                   key={r.parcial.id}
                   className="flex flex-wrap items-center justify-between gap-2"
                 >
-                  <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
                     {r.parcial.nombre} · {r.parcial.fecha_inicio} a{" "}
                     {r.parcial.fecha_fin}
                   </span>
@@ -459,20 +466,20 @@ export function CalendarioAsistenciaAlumno({
                     <span>🔴 {r.faltas}</span>
                     <span>🟠 {r.pendientes}</span>
                     <span>⚪ {r.sinClase}</span>
-                    <span className="rounded-full border border-sky-500/50 bg-sky-100/90 px-2 py-0.5 text-[10px] font-extrabold text-sky-900">
+                    <span className="rounded-full border border-[var(--oc-border-active)] bg-[var(--oc-surface)] px-2 py-0.5 text-[10px] font-extrabold text-[var(--oc-text)]">
                       {r.porcentaje}%
                     </span>
                   </span>
                 </div>
               ))}
               {datos.conflictosParcial.length > 0 && (
-                <p className="text-[10px] font-semibold text-red-700" role="alert">
+                <p className="text-[10px] font-semibold text-[var(--oc-alert-text)]" role="alert">
                   {datos.conflictosParcial.length} día(s) caen en parciales
                   solapados y no se cuentan en ningún resumen.
                 </p>
               )}
               {datos.diasSinParcial.length > 0 && (
-                <p className="text-[10px] font-semibold text-amber-700">
+                <p className="text-[10px] font-semibold text-[var(--oc-alert-text)]">
                   {datos.diasSinParcial.length} día(s) no pertenecen a ningún
                   parcial activo y no se asignan a un parcial.
                 </p>
@@ -481,7 +488,7 @@ export function CalendarioAsistenciaAlumno({
           )}
 
           {/* Leyenda */}
-          <div className="flex flex-wrap items-center justify-center gap-3 rounded-full border border-white/60 bg-white/55 px-3 py-2 text-[10px] font-bold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
+          <div className="flex flex-wrap items-center justify-center gap-3 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-[10px] font-bold text-[var(--oc-muted)]">
             {(Object.keys(INFO_ESTADO) as EstadoAsistencia[]).map((e) => (
               <span key={e} className="flex items-center gap-1">
                 <span>{INFO_ESTADO[e].simbolo}</span>
@@ -491,10 +498,10 @@ export function CalendarioAsistenciaAlumno({
           </div>
 
           {/* Calendario visual mensual */}
-          <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+          <div className="rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-3">
             <div className="mb-2 flex items-center justify-between">
               <GreyActionPill onClick={() => cambiarMes(-1)}>‹</GreyActionPill>
-              <p className="text-sm font-extrabold uppercase tracking-wide text-sky-900">
+              <p className="text-sm font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
                 {NOMBRES_MESES[mesVisible.getMonth()]} {mesVisible.getFullYear()}
               </p>
               <GreyActionPill onClick={() => cambiarMes(1)}>›</GreyActionPill>
@@ -504,7 +511,7 @@ export function CalendarioAsistenciaAlumno({
               {NOMBRES_DIAS.map((d, i) => (
                 <div
                   key={i}
-                  className="pb-1 text-center text-[10px] font-extrabold uppercase tracking-wide text-slate-500"
+                  className="pb-1 text-center text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]"
                 >
                   {d}
                 </div>
@@ -526,8 +533,8 @@ export function CalendarioAsistenciaAlumno({
                       setMensajeAnulacion(null);
                     }}
                     className={`flex min-h-[3rem] flex-col items-center justify-center rounded-xl border p-1 text-xs font-bold transition hover:brightness-105 sm:min-h-[3.5rem] ${info.clase} ${
-                      esSeleccionado ? "ring-2 ring-sky-500 ring-offset-1" : ""
-                    } ${esHoy ? "outline outline-2 outline-sky-400" : ""}`}
+                      esSeleccionado ? "ring-2 ring-[var(--oc-border-active)]" : ""
+                    } ${esHoy ? "outline outline-2 outline-[var(--oc-border-active)]" : ""}`}
                     title={info.etiqueta}
                   >
                     <span>{Number(fecha.slice(8))}</span>
@@ -540,11 +547,11 @@ export function CalendarioAsistenciaAlumno({
 
           {/* Detalle del día seleccionado */}
           {seleccionado && diaSeleccionado && (
-            <div className="rounded-3xl border border-sky-400/50 bg-sky-100/70 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
-              <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+            <div className="rounded-3xl border border-[var(--oc-border-active)] bg-[var(--oc-input)] p-4">
+              <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                 {seleccionado} · {INFO_ESTADO[diaSeleccionado.estado].etiqueta}
               </p>
-              <div className="flex flex-col items-center gap-1 text-xs font-semibold text-slate-700">
+              <div className="flex flex-col items-center gap-1 text-xs font-semibold text-[var(--oc-text)]">
                 <p>
                   Clases esperadas: {diaSeleccionado.clasesEsperadas}
                 </p>
@@ -559,7 +566,7 @@ export function CalendarioAsistenciaAlumno({
               {permitirJustificacion &&
                 diaSeleccionado.estado === "falta" && (
                   <div className="mt-3 flex flex-col gap-2">
-                    <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                    <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                       Justificación de la falta
                     </p>
                     {justificacionDia ? (
@@ -567,10 +574,10 @@ export function CalendarioAsistenciaAlumno({
                         role="status"
                         className={`rounded-2xl border px-4 py-3 text-center text-xs font-bold ${
                           justificacionDia.estado === "pendiente"
-                            ? "border-amber-500/60 bg-amber-100/90 text-amber-900"
+                            ? "border-[var(--oc-border-active)] bg-[var(--oc-input)] text-[var(--oc-text)]"
                             : justificacionDia.estado === "rechazada"
-                              ? "border-red-500/60 bg-red-100/90 text-red-900"
-                              : "border-emerald-500/60 bg-emerald-100/90 text-emerald-900"
+                              ? "border-[var(--oc-alert)]/60 bg-[var(--oc-alert)]/15 text-[var(--oc-alert-text)]"
+                              : "border-[var(--oc-ok)]/60 bg-[var(--oc-ok)]/15 text-[var(--oc-text)]"
                         }`}
                       >
                         {justificacionDia.estado === "pendiente"
@@ -585,14 +592,14 @@ export function CalendarioAsistenciaAlumno({
                     ) : (
                       <>
                         {profesorClave && (
-                          <label className="flex flex-col gap-1 rounded-2xl border border-white/70 bg-white/90 px-3 py-2">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                          <label className="flex flex-col gap-1 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                               Clase a justificar (del horario del día)
                             </span>
                             <select
                               value={materiaJust}
                               onChange={(e) => setMateriaJust(e.target.value)}
-                              className="rounded-full border border-sky-700/30 bg-white px-3 py-1.5 text-xs font-bold text-sky-900 outline-none"
+                              className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-surface)] px-3 py-1.5 text-xs font-bold text-[var(--oc-text)] outline-none"
                             >
                               <option value="">Día completo</option>
                               {materiasDia.map((m) => (
@@ -607,7 +614,7 @@ export function CalendarioAsistenciaAlumno({
                           </label>
                         )}
                         {profesorClave && materiasDia.length === 0 && (
-                          <p className="text-center text-[10px] font-semibold text-amber-800">
+                          <p className="text-center text-[10px] font-semibold text-[var(--oc-alert-text)]">
                             No se pudo leer el horario del grupo para ese día
                             (aplica supabase/agregar-materia-justificaciones.sql
                             para justificar por clase).
@@ -619,9 +626,9 @@ export function CalendarioAsistenciaAlumno({
                           rows={2}
                           maxLength={500}
                           placeholder="Motivo de la falta (obligatorio)…"
-                          className="w-full resize-none rounded-2xl border border-white/70 bg-white/95 px-4 py-3 text-sm font-semibold text-sky-900"
+                          className="w-full resize-none rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-3 text-sm font-semibold text-[var(--oc-text)]"
                         />
-                        <label className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-sky-500/60 bg-white/80 px-4 py-3 text-xs font-bold text-sky-900">
+                        <label className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-3 text-xs font-bold text-[var(--oc-text)]">
                           <span>
                             {archivo
                               ? `Archivo listo: ${archivo.name}`
@@ -634,7 +641,7 @@ export function CalendarioAsistenciaAlumno({
                               setArchivo(e.target.files?.[0] ?? null);
                               setMensajeJustificacion(null);
                             }}
-                            className="max-w-full text-[11px] font-semibold text-sky-900 file:mr-3 file:rounded-full file:border-0 file:bg-sky-800 file:px-4 file:py-1.5 file:text-[11px] file:font-extrabold file:uppercase file:text-white"
+                            className="max-w-full text-[11px] font-semibold text-[var(--oc-text)] file:mr-3 file:rounded-full file:border-0 file:bg-[var(--oc-mint)] file:px-4 file:py-1.5 file:text-[11px] file:font-extrabold file:uppercase file:text-[var(--oc-mint-ink)]"
                             aria-label="Seleccionar archivo de justificación"
                           />
                         </label>
@@ -668,8 +675,8 @@ export function CalendarioAsistenciaAlumno({
                       <p
                         className={`text-center text-xs font-semibold ${
                           mensajeJustificacion.startsWith("Justificación enviada")
-                            ? "text-sky-900"
-                            : "text-red-700"
+                            ? "text-[var(--oc-text)]"
+                            : "text-[var(--oc-alert-text)]"
                         }`}
                         role="status"
                       >
@@ -686,7 +693,7 @@ export function CalendarioAsistenciaAlumno({
                 profesorClave &&
                 diaSeleccionado.estado === "asistio" && (
                   <div className="mt-3 flex flex-col items-center gap-2">
-                    <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+                    <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                       Anular asistencia registrada por ti
                     </p>
                     <GreyActionPill
@@ -699,8 +706,8 @@ export function CalendarioAsistenciaAlumno({
                       <p
                         className={`text-center text-xs font-semibold ${
                           mensajeAnulacion.startsWith("Asistencia anulada")
-                            ? "text-sky-900"
-                            : "text-red-700"
+                            ? "text-[var(--oc-text)]"
+                            : "text-[var(--oc-alert-text)]"
                         }`}
                         role="status"
                       >

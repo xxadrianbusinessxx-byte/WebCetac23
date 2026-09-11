@@ -14,20 +14,20 @@ function GrupoCalificaciones({
 }) {
   if (!items.length) return null;
   return (
-    <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:p-4">
-      <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+    <div className="rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-3 sm:p-4">
+      <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-muted)]">
         {titulo}
       </p>
       <ul className="flex flex-col gap-1.5">
         {items.map((it, i) => (
           <li
             key={`${it.etiqueta}-${i}`}
-            className="flex items-center justify-between gap-3 rounded-2xl border border-white/60 bg-white/80 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] px-3 py-2"
           >
-            <span className="text-[11px] font-bold uppercase tracking-wide text-sky-900">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--oc-muted)]">
               {it.etiqueta}
             </span>
-            <span className="text-sm font-extrabold text-sky-950">
+            <span className="text-sm font-extrabold text-[var(--oc-text)]">
               {it.valor || "—"}
             </span>
           </li>
@@ -64,7 +64,7 @@ export function MateriaCalificacionesAlumno({
 }) {
   if (!vista || !vista.filas.length) {
     return (
-      <p className="w-full text-center text-sm font-semibold text-slate-700">
+      <p className="w-full text-center text-sm font-semibold text-[var(--oc-muted)]">
         {materiaNombre} — el profesor aún no ha publicado calificaciones.
         Espera actualizaciones por parte del profesor.
       </p>
@@ -94,7 +94,7 @@ export function MateriaCalificacionesAlumno({
 
   if (sinDatosRelevantes) {
     return (
-      <p className="w-full text-center text-sm font-semibold text-slate-700">
+      <p className="w-full text-center text-sm font-semibold text-[var(--oc-muted)]">
         No hay calificaciones relevantes para mostrar en {materiaNombre}.
       </p>
     );
@@ -119,14 +119,14 @@ export function MateriaCalificacionesAlumno({
       )}
       {promedioPonderado !== null && (
         <div className="sm:col-span-2">
-          <div className="rounded-3xl border border-violet-400/60 bg-violet-100/50 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md sm:p-4">
-            <p className="mb-1 text-center text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+          <div className="rounded-3xl border border-[var(--oc-border-active)] bg-[var(--oc-input)] p-3 sm:p-4">
+            <p className="mb-1 text-center text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-muted)]">
               Promedio calculado
             </p>
-            <p className="text-center text-2xl font-extrabold text-sky-950">
+            <p className="text-center text-2xl font-extrabold text-[var(--oc-text)]">
               {promedioPonderado}
             </p>
-            <p className="mt-1 text-center text-[10px] font-semibold text-slate-600">
+            <p className="mt-1 text-center text-[10px] font-semibold text-[var(--oc-muted)]">
               Promedio ponderado según los pesos que configuró tu profesor.
             </p>
           </div>

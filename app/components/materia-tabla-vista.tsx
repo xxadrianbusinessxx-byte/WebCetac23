@@ -3,17 +3,24 @@
 import type { CategoriaColumnaCalificaciones } from "@/lib/escolar/materia/columnas-calificaciones";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 
-/** Tinte sutil por categoría semántica (mantiene la estética del sistema). */
+/**
+ * Tinte por categoría semántica. En el tema Océano NO hay un token por color de
+ * categoría y un hex literal en un componente reabre la deuda D11, así que el
+ * encabezado se pinta con la superficie de campo (`--oc-input`) y la jerarquía
+ * la da el texto. El mapa se conserva para poder re-tintar por categoría cuando
+ * existan tokens semánticos; el aviso de columna DUPLICADA sí mantiene su
+ * estado (`--oc-alert-text`).
+ */
 const TINTE_CATEGORIA: Record<CategoriaColumnaCalificaciones, string> = {
-  alumno: "bg-sky-200/50",
-  curp: "bg-slate-200/50",
-  actividad: "bg-sky-100/60",
-  parcial: "bg-indigo-100/60",
-  promedio: "bg-emerald-100/60",
-  final: "bg-emerald-200/60",
-  asistencia: "bg-amber-100/60",
-  auxiliar: "bg-slate-100/60",
-  desconocida: "bg-slate-200/40",
+  alumno: "bg-[var(--oc-input)]",
+  curp: "bg-[var(--oc-input)]",
+  actividad: "bg-[var(--oc-input)]",
+  parcial: "bg-[var(--oc-input)]",
+  promedio: "bg-[var(--oc-input)]",
+  final: "bg-[var(--oc-input)]",
+  asistencia: "bg-[var(--oc-input)]",
+  auxiliar: "bg-[var(--oc-input)]",
+  desconocida: "bg-[var(--oc-input)]",
 };
 
 export function MateriaTablaVistaPanel({
@@ -34,7 +41,7 @@ export function MateriaTablaVistaPanel({
 }) {
   if (!vista || !vista.filas.length) {
     return (
-      <p className="text-sm font-semibold text-slate-700">
+      <p className="text-sm font-semibold text-[var(--oc-muted)]">
         {materiaNombre} — sin datos cargados. Sube un Excel para reemplazar el
         contenido de esta materia.
       </p>
@@ -45,9 +52,9 @@ export function MateriaTablaVistaPanel({
 
   return (
     <div className="w-full overflow-x-auto">
-      <table className="min-w-full border-collapse text-left text-xs text-slate-800">
+      <table className="min-w-full border-collapse text-left text-xs text-[var(--oc-text)]">
         <thead>
-          <tr className="border-b border-white/50 bg-white/40">
+          <tr className="border-b border-[var(--oc-border)] bg-[var(--oc-input)]">
             {vista.encabezados.map((h, i) => {
               const info = columnas[i];
               const categoria = info?.categoria ?? "desconocida";
@@ -58,7 +65,7 @@ export function MateriaTablaVistaPanel({
                   key={`h-${i}`}
                   className={`px-2 py-2 font-extrabold uppercase ${
                     TINTE_CATEGORIA[categoria]
-                  } ${esDuplicada ? "bg-amber-200/70 text-amber-900" : ""}`}
+                  } ${esDuplicada ? "text-[var(--oc-alert-text)]" : ""}`}
                   title={
                     esDuplicada
                       ? "Columna duplicada en el archivo original"
@@ -68,7 +75,7 @@ export function MateriaTablaVistaPanel({
                   <span className="flex flex-col">
                     <span>{h}</span>
                     {mostrarDetalleColumnas && original && original !== h && (
-                      <span className="text-[8px] font-semibold normal-case tracking-normal text-slate-500">
+                      <span className="text-[8px] font-semibold normal-case tracking-normal text-[var(--oc-muted)]">
                         {original}
                       </span>
                     )}
@@ -87,9 +94,9 @@ export function MateriaTablaVistaPanel({
           {vista.filas.map((fila, ri) => (
             <tr
               key={`r-${ri}`}
-              className={`border-b border-white/30 ${
+              className={`border-b border-[var(--oc-border)] ${
                 ri === filaDestacada
-                  ? "bg-sky-200/55 ring-1 ring-inset ring-sky-500/40"
+                  ? "bg-[var(--oc-input)] ring-1 ring-inset ring-[var(--oc-border-active)]"
                   : ""
               }`}
             >

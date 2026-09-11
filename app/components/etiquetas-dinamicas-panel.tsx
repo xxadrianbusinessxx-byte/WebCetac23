@@ -41,14 +41,14 @@ function PillButton({
 }) {
   const fondo =
     tone === "sky"
-      ? "bg-linear-to-b from-sky-500 via-sky-600 to-sky-700"
-      : "bg-linear-to-b from-slate-400 via-slate-500 to-slate-600";
+      ? "bg-[var(--oc-mint)] text-[var(--oc-mint-ink)]"
+      : "border-[var(--oc-border)] bg-[var(--oc-input)] text-[var(--oc-text)]";
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-full border border-white/70 ${fondo} px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35),0_3px_10px_rgba(2,6,23,0.12)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60`}
+      className={`rounded-full border border-[var(--oc-border)] ${fondo} px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60`}
     >
       {children}
     </button>
@@ -180,7 +180,7 @@ export function EtiquetasDinamicasPanel({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+        <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
           Etiquetas personales ({filas.length}/{MAX_ETIQUETAS_POR_ALUMNO})
         </p>
         {puedeImportar && (
@@ -201,15 +201,15 @@ export function EtiquetasDinamicasPanel({
       </div>
 
       {filas.length === 0 ? (
-        <p className="text-center text-xs font-semibold text-slate-600">
+        <p className="text-center text-xs font-semibold text-[var(--oc-muted)]">
           Aún no hay etiquetas personales.
           {puedeEditar ? " Agrega una con el botón «+ Agregar»." : ""}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-white/55 bg-slate-400/25 p-2 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-          <table className="w-full text-left text-[11px] font-semibold text-slate-700">
+        <div className="overflow-x-auto rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-2">
+          <table className="w-full text-left text-[11px] font-semibold text-[var(--oc-muted)]">
             <thead>
-              <tr className="border-b border-white/60 text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+              <tr className="border-b border-[var(--oc-border)] text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                 <th className="px-2 py-1">Título</th>
                 <th className="px-2 py-1">Valor</th>
                 <th className="px-2 py-1 text-right">Acciones</th>
@@ -219,7 +219,7 @@ export function EtiquetasDinamicasPanel({
               {filas.map((fila, i) => (
                 <tr
                   key={fila.id ?? `nueva-${i}`}
-                  className="border-b border-white/40 last:border-0"
+                  className="border-b border-[var(--oc-border)] last:border-0"
                 >
                   <td className="px-1 py-1">
                     <input
@@ -228,7 +228,7 @@ export function EtiquetasDinamicasPanel({
                       disabled={!puedeEditar}
                       onChange={(e) => cambiar(i, "titulo", e.target.value)}
                       placeholder="Ej. Deporte"
-                      className="w-full min-w-[7rem] rounded-xl border border-white/70 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-inner outline-none focus:border-sky-600 disabled:bg-white/50 disabled:text-slate-600"
+                      className="w-full min-w-[7rem] rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-1.5 text-xs font-semibold text-[var(--oc-text)] outline-none placeholder:text-[var(--oc-muted)] focus:border-[var(--oc-border-active)] disabled:opacity-60"
                     />
                   </td>
                   <td className="px-1 py-1">
@@ -238,7 +238,7 @@ export function EtiquetasDinamicasPanel({
                       disabled={!puedeEditar}
                       onChange={(e) => cambiar(i, "valor", e.target.value)}
                       placeholder="Ej. Fútbol"
-                      className="w-full min-w-[7rem] rounded-xl border border-white/70 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-inner outline-none focus:border-sky-600 disabled:bg-white/50 disabled:text-slate-600"
+                      className="w-full min-w-[7rem] rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-1.5 text-xs font-semibold text-[var(--oc-text)] outline-none placeholder:text-[var(--oc-muted)] focus:border-[var(--oc-border-active)] disabled:opacity-60"
                     />
                   </td>
                   <td className="px-1 py-1">
@@ -249,7 +249,7 @@ export function EtiquetasDinamicasPanel({
                           onClick={() => mover(i, -1)}
                           disabled={i === 0}
                           aria-label="Subir"
-                          className="rounded-lg border border-white/70 bg-white/80 px-2 py-1 text-[11px] font-extrabold text-sky-800 hover:bg-white disabled:opacity-40"
+                          className="rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] px-2 py-1 text-[11px] font-extrabold text-[var(--oc-text)] disabled:opacity-40"
                         >
                           ↑
                         </button>
@@ -258,7 +258,7 @@ export function EtiquetasDinamicasPanel({
                           onClick={() => mover(i, 1)}
                           disabled={i === filas.length - 1}
                           aria-label="Bajar"
-                          className="rounded-lg border border-white/70 bg-white/80 px-2 py-1 text-[11px] font-extrabold text-sky-800 hover:bg-white disabled:opacity-40"
+                          className="rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] px-2 py-1 text-[11px] font-extrabold text-[var(--oc-text)] disabled:opacity-40"
                         >
                           ↓
                         </button>
@@ -266,13 +266,13 @@ export function EtiquetasDinamicasPanel({
                           type="button"
                           onClick={() => quitar(i)}
                           aria-label="Eliminar"
-                          className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-extrabold text-red-700 hover:bg-red-100"
+                          className="rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] px-2 py-1 text-[11px] font-extrabold text-[var(--oc-alert-text)]"
                         >
                           ✕
                         </button>
                       </div>
                     ) : (
-                      <span className="block text-right text-[10px] text-slate-500">
+                      <span className="block text-right text-[10px] text-[var(--oc-muted)]">
                         {fila.orden + 1}
                       </span>
                     )}
@@ -297,7 +297,7 @@ export function EtiquetasDinamicasPanel({
 
       {mensaje && (
         <p
-          className={`text-center text-xs font-semibold ${mensaje.ok ? "text-sky-900" : "text-red-700"}`}
+          className={`text-center text-xs font-semibold ${mensaje.ok ? "text-[var(--oc-text)]" : "text-[var(--oc-alert-text)]"}`}
           role={mensaje.ok ? "status" : "alert"}
         >
           {mensaje.texto}

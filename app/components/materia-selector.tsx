@@ -130,9 +130,9 @@ export function MateriaSelector({
   return (
     <aside
       aria-label={titulo}
-      className={`flex w-full flex-col rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md ${className}`}
+      className={`flex w-full flex-col rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-3 ${className}`}
     >
-      <p className="mb-2 px-1 text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+      <p className="mb-2 px-1 text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-muted)]">
         {titulo}
       </p>
 
@@ -146,7 +146,7 @@ export function MateriaSelector({
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder={buscarPlaceholder}
-          className="w-full rounded-2xl border border-white/70 bg-white/90 px-3 py-2 text-[11px] font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/50"
+          className="w-full rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] px-3 py-2 text-[11px] font-bold text-[var(--oc-text)] outline-none placeholder:text-[var(--oc-muted)] focus:border-[var(--oc-border-active)]"
         />
       </div>
 
@@ -154,14 +154,14 @@ export function MateriaSelector({
         <button
           type="button"
           onClick={() => setAbierto((v) => !v)}
-          className="mb-2 w-full rounded-full border border-sky-700/40 bg-white/80 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
+          className="mb-2 w-full rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110"
         >
           {abierto ? "No ver nada (ocultar catálogo)" : "Ver catálogo completo"}
         </button>
       )}
 
       {!abierto ? (
-        <p className="px-1 py-2 text-center text-xs font-semibold text-slate-600">
+        <p className="px-1 py-2 text-center text-xs font-semibold text-[var(--oc-muted)]">
           Catálogo oculto por eficiencia. Pulsa «Ver catálogo completo» para
           cargarlo.
         </p>
@@ -173,7 +173,7 @@ export function MateriaSelector({
               onChange={(e) => setFiltroGrado(e.target.value)}
               aria-label="Filtrar por grado"
               title="Filtrar por grado"
-              className="rounded-xl border border-white/70 bg-white/85 px-2 py-1.5 text-[10px] font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none focus:ring-2 focus:ring-sky-400/50"
+              className="rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-2 py-1.5 text-[10px] font-bold text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
             >
               <option value="">Grado: todos</option>
               {opcionesGrado.map((g) => (
@@ -187,7 +187,7 @@ export function MateriaSelector({
               onChange={(e) => setFiltroGrupo(e.target.value)}
               aria-label="Filtrar por grupo"
               title="Filtrar por grupo"
-              className="rounded-xl border border-white/70 bg-white/85 px-2 py-1.5 text-[10px] font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none focus:ring-2 focus:ring-sky-400/50"
+              className="rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-2 py-1.5 text-[10px] font-bold text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
             >
               <option value="">Grupo: todos</option>
               {opcionesGrupo.map((g) => (
@@ -201,7 +201,7 @@ export function MateriaSelector({
               onChange={(e) => setFiltroCarrera(e.target.value)}
               aria-label="Filtrar por carrera"
               title="Filtrar por carrera"
-              className="rounded-xl border border-white/70 bg-white/85 px-2 py-1.5 text-[10px] font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none focus:ring-2 focus:ring-sky-400/50"
+              className="rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-2 py-1.5 text-[10px] font-bold text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
             >
               <option value="">Carrera: todas</option>
               {opcionesCarrera.map((c) => (
@@ -219,20 +219,20 @@ export function MateriaSelector({
                 setFiltroGrupo("");
                 setFiltroCarrera("");
               }}
-              className="mb-2 w-full rounded-full border border-sky-700/40 bg-white/70 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-sky-900 transition hover:bg-white"
+              className="mb-2 w-full rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110"
             >
               Limpiar filtros (grado · grupo · carrera)
             </button>
           )}
           <div className="flex max-h-72 flex-col gap-3 overflow-y-auto pr-1 lg:max-h-[28rem]">
         {grupos.length === 0 ? (
-          <p className="px-1 py-2 text-center text-xs font-semibold text-slate-600">
+          <p className="px-1 py-2 text-center text-xs font-semibold text-[var(--oc-muted)]">
             Sin coincidencias.
           </p>
         ) : (
           grupos.map(([grado, items]) => (
             <div key={grado} className="flex flex-col gap-1.5">
-              <p className="px-1 pb-0.5 text-[10px] font-extrabold uppercase tracking-widest text-sky-800/80">
+              <p className="px-1 pb-0.5 text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-muted)]">
                 {grado}
               </p>
               {items.map((m) => {
@@ -243,17 +243,17 @@ export function MateriaSelector({
                     type="button"
                     onClick={() => onSeleccionar(m.idInterno)}
                     aria-pressed={activa}
-                    className={`flex min-h-12 w-full flex-col justify-center rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 ${
+                    className={`flex min-h-12 w-full flex-col justify-center rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--oc-border-active)] ${
                       activa
-                        ? "border-sky-500/60 bg-sky-100/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_8px_rgba(14,165,233,0.18)]"
-                        : "border-white/60 bg-white/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] hover:border-sky-300/70 hover:bg-white/70"
+                        ? "border-[var(--oc-border-active)] bg-[var(--oc-surface)]"
+                        : "border-[var(--oc-border)] bg-transparent hover:bg-[var(--oc-surface)]"
                     }`}
                   >
-                    <span className="text-[11px] font-extrabold uppercase leading-snug tracking-wide text-sky-900">
+                    <span className="text-[11px] font-extrabold uppercase leading-snug tracking-wide text-[var(--oc-text)]">
                       {m.nombreVisible}
                     </span>
                     {mostrarIdTecnico && (
-                      <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                      <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--oc-muted)]">
                         {m.idInterno}
                       </span>
                     )}
