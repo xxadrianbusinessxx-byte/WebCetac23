@@ -21,6 +21,8 @@ import { CalendarioEscolarPanel } from "@/app/components/calendario-escolar-pane
 import { CicloConfigurador } from "@/app/components/ciclo-configurador";
 import { DeshacerPasoPanel } from "@/app/components/deshacer-paso-panel";
 import { HorarioEscolarPanel } from "@/app/components/horario-escolar-panel";
+import { ImportarEtiquetasPanel } from "@/app/components/importar-etiquetas-panel";
+import { RosterAlumnosPanel } from "@/app/components/roster-alumnos-panel";
 import { MateriasConfigPanel } from "@/app/components/materias-config-panel";
 import { ProfesoresCredencialesPanel } from "@/app/components/profesores-credenciales-panel";
 import { TutoresPanel } from "@/app/components/tutores-panel";
@@ -39,9 +41,12 @@ function Pendiente({ children }: { children: ReactNode }) {
 export function ContenidoTecnicoOceano({
   pieza,
   modo,
+  periodos,
 }: {
   pieza: PiezaTecnico;
   modo: string | null;
+  /** Ciclos disponibles para la carga académica. Los resuelve el servidor. */
+  periodos: string[];
 }) {
   switch (pieza) {
     case "ciclo-configurador":
@@ -85,20 +90,19 @@ export function ContenidoTecnicoOceano({
     case "asignaciones-profesor":
       return <AsignacionesProfesorAdmin />;
 
-    case "roster-alumnos":
-      // Baja y restauración es la parte que YA es un componente propio. Roster,
-      // Etiquetas, Estatus e Inscripciones siguen dentro de
-      // `configuracion-client.tsx` (938 líneas) y salen de ahí cuando ese
-      // archivo se retire, no antes.
-      return (
-        <div className="flex flex-col gap-4">
-          <BajaRosterPanel />
-          <Pendiente>
-            Roster, Etiquetas, Estatus e Inscripciones siguen dentro de la
-            consola de configuración. Se trasladan cuando esa ruta se retire.
-          </Pendiente>
-        </div>
-      );
+    case "roster-alumnos": {
+      // Los tres paneles del alumnado. Roster y Etiquetas se EXTRAJERON de
+      // `configuracion-client.tsx`, donde vivían escritos en línea; por eso
+      // antes este apartado solo podía ofrecer Baja y restauración.
+      //
+      // Roster y carga académica van en el MISMO panel a propósito: comparten
+      // el archivo subido y el mapeo de columnas, así que son un solo flujo.
+      // Los modos del mapa deciden cuál se muestra.
+      const m = (modo ?? "").toLowerCase();
+      if (m.startsWith("baja")) return <BajaRosterPanel />;
+      if (m.startsWith("etiquetas")) return <ImportarEtiquetasPanel />;
+      return <RosterAlumnosPanel periodos={periodos} />;
+    }
 
     case "tutores":
       return <TutoresPanel />;

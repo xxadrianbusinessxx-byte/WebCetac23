@@ -9,7 +9,9 @@ import {
   type DatosDocenteOceano,
 } from "@/app/components/oceano/shell-oceano";
 import { puede } from "@/lib/auth/permisos";
+import { createClient } from "@/lib/supabase/server";
 import { nombreCompletoAlumno } from "@/lib/escolar/alumno/alumnos";
+import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo/ciclo-estado";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 
 // La sesión vive en una cookie firmada: esta ruta no se prerenderiza.
@@ -104,6 +106,17 @@ export default async function OceanoPage({
   const datosDirectivo: DatosDirectivoOceano | null =
     rol === "directivo" ? { materias: materiasDocente } : null;
 
+  // Fase 9 — el ciclo operativo, para la carga académica del técnico. Misma
+  // lectura que hace hoy `/configuracion`; solo se pide a ese rol.
+  const periodos =
+    rol === "tecnico"
+      ? await (async () => {
+          const supabase = await createClient();
+          const ciclo = await obtenerCicloOperativoGlobal(supabase);
+          return ciclo.ok && ciclo.periodo ? [String(ciclo.periodo.nombre).trim()] : [];
+        })()
+      : [];
+
   // `key={rol}`: si cambia el rol (otra sesión sobre la misma pestaña del
   // navegador), el shell se remonta con su estado inicial en vez de arrastrar
   // la pestaña activa de la sesión anterior. Cambiar de ALUMNO no remonta nada:
@@ -116,6 +129,7 @@ export default async function OceanoPage({
       datosAlumno={datosAlumno}
       datosDocente={datosDocente}
       datosDirectivo={datosDirectivo}
+      periodos={periodos}
       alumnosVinculados={esTutor ? alumnosVinculados : undefined}
       alumnoSeleccionado={curpConsulta}
     />

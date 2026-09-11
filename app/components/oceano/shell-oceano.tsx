@@ -88,6 +88,7 @@ export function ShellOceano({
   datosAlumno = null,
   datosDocente = null,
   datosDirectivo = null,
+  periodos = [],
   alumnosVinculados,
   alumnoSeleccionado = null,
 }: {
@@ -99,6 +100,8 @@ export function ShellOceano({
   datosDocente?: DatosDocenteOceano | null;
   /** Fase 6 — lo exclusivo del directivo (Grupos/Boleta, Alumnos/Tutores). */
   datosDirectivo?: DatosDirectivoOceano | null;
+  /** Fase 9 — ciclos para la carga académica del técnico. */
+  periodos?: string[];
   /**
    * Fase 4 — alumnos VINCULADOS que el selector puede ofrecer. `undefined` =
    * este rol no lleva selector (no se dibuja nada). La lista la resuelve el
@@ -206,6 +209,7 @@ export function ShellOceano({
             <ContenidoTecnicoOceano
               pieza={piezaTecnicoDe(activa.id, activo.id)!}
               modo={sel.modo}
+              periodos={periodos}
             />
           ) : activa && activo && piezaDirectivoDe(activa.id, activo.id) && datosDirectivo ? (
             /* Fase 6 — lo exclusivo del directivo. Va ANTES del docente en la
