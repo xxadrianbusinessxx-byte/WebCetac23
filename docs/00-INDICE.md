@@ -37,6 +37,7 @@ hay que arreglarlo — no cargar todo por si acaso.
 | Optimizar rendimiento | + `docs/historial/OPTIMIZACION_RENDIMIENTO_400_500.md` (1 928 líneas: leer solo la sección que aplique) |
 | Auditar un cambio antes de aceptarlo | + `docs/normativo/CONTRATO-DE-CAMBIO.md` |
 | Tocar permisos, roles o una Server Action | + `docs/sistema/MATRIZ-PERMISOS.md` |
+| Cambiar apariencia: color, forma, tipografía, o dónde va una zona de la UI | + `docs/sistema/MATRIZ-UX.md` (**§6 dice qué archivo tocar y a qué afecta**) |
 
 ---
 
@@ -66,6 +67,7 @@ hay que arreglarlo — no cargar todo por si acaso.
 |---|---|
 | `MAPA-DEL-SISTEMA.md` | **Síntoma → archivos a abrir.** El índice inverso. |
 | `MATRIZ-PERMISOS.md` | Matriz de permisos: §3 alcance por rol (5 roles), §4 **implementada** (código ⇄ §4 verificada por `test-permisos`), §5 inventario generado de las 138 Server Actions con su guardia HOY (`exigir: capacidad`), §6 decisiones del PROMPT-2. |
+| `MATRIZ-UX.md` | **Matriz de UX.** Dónde vive cada decisión visual: §2 capas, §3 mapa de rutas y zonas, §4 tokens medidos (color, glass, radios, sombras, tipografía, movimiento), §5 catálogo de piezas y sus recetas, §6 «quiero cambiar X → toco Y», §7 deuda medida + plan de consolidación, §8 invariantes, §10 bitácora. Se actualiza en el mismo cambio que lo vuelve falso. |
 | `FLUJO-TECNICO.md` | Recorrido completo: stack, petición paso a paso, inventario por módulo, deudas. |
 | `flujo-tecnico.canvas` | El mismo mapa en visual (Obsidian). |
 | `modulos/CICLO_EVALUACIONES_MODULO.md` | Ciclo y parciales. |
