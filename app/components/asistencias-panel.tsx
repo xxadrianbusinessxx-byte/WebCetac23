@@ -41,7 +41,7 @@ function PillButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-full border border-white/70 bg-linear-to-b from-sky-500 via-sky-600 to-sky-700 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35),0_3px_10px_rgba(2,6,23,0.12)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      className={`rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
       {children}
     </button>
@@ -63,13 +63,13 @@ function SelectField({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+      <span className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
         {label}
       </span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+        className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
       >
         <option value="">{placeholder}</option>
         {options.map((o) => (
@@ -84,16 +84,16 @@ function SelectField({
 
 function Resumen({ resumen }: { resumen: ResumenAsistencia }) {
   return (
-    <div className="rounded-2xl border border-white/55 bg-white/60 p-4 text-xs font-semibold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-      <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+    <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4 text-xs font-semibold text-[var(--oc-muted)]">
+      <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
         Resumen de la plantilla
       </p>
       {resumen.aviso && (
-        <p className="mb-2 rounded-2xl border border-amber-300 bg-amber-100 px-3 py-2 text-[11px] font-bold text-amber-900">
+        <p className="mb-2 rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 px-3 py-2 text-[11px] font-bold text-[var(--oc-alert-text)]">
           {resumen.aviso}
         </p>
       )}
-      <p className="mb-1 text-[10px] font-semibold text-slate-500">
+      <p className="mb-1 text-[10px] font-semibold text-[var(--oc-muted)]">
         Fuente de la fila CLASES:{" "}
         {resumen.usaHorario ? "horario oficial de la materia" : "sin horario"}
       </p>
@@ -106,7 +106,7 @@ function Resumen({ resumen }: { resumen: ResumenAsistencia }) {
       </div>
 
       {resumen.pendientes > 0 && (
-        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-[11px] text-amber-800">
+        <div className="mt-3 rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 px-4 py-2 text-[11px] text-[var(--oc-alert-text)]">
           <p className="font-extrabold">
             {resumen.pendientes} día(s) de clase del parcial no vienen en el
             archivo y quedarán como PENDIENTES (no se marcan como falta).
@@ -120,7 +120,7 @@ function Resumen({ resumen }: { resumen: ResumenAsistencia }) {
       )}
 
       {resumen.discrepancias > 0 && (
-        <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-2 text-[11px] text-sky-900">
+        <div className="mt-3 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] text-[var(--oc-text)]">
           <p className="font-extrabold">
             {resumen.discrepancias} discrepancia(s) entre la fila CLASES del
             archivo y el horario oficial de la materia. Se usa el horario (fuente
@@ -135,14 +135,14 @@ function Resumen({ resumen }: { resumen: ResumenAsistencia }) {
       )}
 
       {resumen.omitidosDetalle.length > 0 && (
-        <ul className="mt-2 max-h-28 list-inside list-disc overflow-auto text-[11px] text-amber-700">
+        <ul className="mt-2 max-h-28 list-inside list-disc overflow-auto text-[11px] text-[var(--oc-alert-text)]">
           {resumen.omitidosDetalle.map((d, i) => (
             <li key={i}>{d}</li>
           ))}
         </ul>
       )}
       {resumen.erroresDetalle.length > 0 && (
-        <ul className="mt-2 max-h-28 list-inside list-disc overflow-auto text-[11px] text-red-700">
+        <ul className="mt-2 max-h-28 list-inside list-disc overflow-auto text-[11px] text-[var(--oc-alert-text)]">
           {resumen.erroresDetalle.map((d, i) => (
             <li key={i}>{d}</li>
           ))}
@@ -439,42 +439,42 @@ export function AsistenciasPanel({
 
   return (
     <section
-      className="relative mt-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4"
+      className="relative mt-6 overflow-hidden rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3 sm:p-4"
       aria-label="Asistencias por materia"
     >
       <div className="relative z-[1] flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-          <h2 className="text-sm font-extrabold uppercase tracking-wide text-sky-900">
+          <h2 className="text-sm font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
             Asistencias por materia
           </h2>
-          <span className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] sm:text-[11px]">
+          <span className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] sm:text-[11px]">
             Elige materia · el sistema calcula las clases por día
           </span>
         </div>
 
         {/* FASE HORARIO — materias del documento para el grupo seleccionado. */}
-        <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+            <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
               Horario oficial del grupo
             </p>
-            <span className="text-[10px] font-semibold text-slate-600">
+            <span className="text-[10px] font-semibold text-[var(--oc-muted)]">
               Materias extraídas del horario semanal
             </span>
           </div>
           {!grado || !grupo || !ciclo ? (
-            <p className="mt-2 text-xs font-semibold text-slate-500">
+            <p className="mt-2 text-xs font-semibold text-[var(--oc-muted)]">
               Selecciona grado y grupo para ver las materias programadas
               del ciclo operativo y descargar su plantilla por parcial.
             </p>
           ) : !horarioCargado ? (
-            <p className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800" role="alert">
+            <p className="mt-2 rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 px-3 py-2 text-[11px] font-semibold text-[var(--oc-alert-text)]" role="alert">
               {avisoHorario ??
                 "El grupo no tiene horario oficial cargado para este ciclo."}
             </p>
           ) : (
             <>
-              <p className="mt-2 text-[11px] font-semibold text-slate-600">
+              <p className="mt-2 text-[11px] font-semibold text-[var(--oc-muted)]">
                 {grado} · grupo {grupo}
                 {carrera ? ` · ${carrera}` : ""} —{" "}
                 {materias.length} materia(s) programada(s)
@@ -488,8 +488,8 @@ export function AsistenciasPanel({
                       onClick={() => onMateriaChange(m.clave)}
                       className={`rounded-full border px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide transition ${
                         m.clave === materiaClave
-                          ? "border-sky-600 bg-sky-200 text-sky-950"
-                          : "border-white/70 bg-white/70 text-sky-900 hover:bg-white"
+                          ? "border-[var(--oc-border-active)] bg-[var(--oc-input)] text-[var(--oc-text)]"
+                          : "border-[var(--oc-border)] bg-[var(--oc-input)] text-[var(--oc-text)] hover:brightness-110"
                       }`}
                     >
                       {m.nombre} · {m.totalSemana}
@@ -498,7 +498,7 @@ export function AsistenciasPanel({
                 </div>
               )}
               {avisoHorario && (
-                <p className="mt-2 text-[11px] font-semibold text-amber-800">
+                <p className="mt-2 text-[11px] font-semibold text-[var(--oc-alert-text)]">
                   {avisoHorario}
                 </p>
               )}
@@ -508,11 +508,11 @@ export function AsistenciasPanel({
 
         {/* Selector de contexto + materia */}
         {avisoOperativo && (
-          <div className="rounded-2xl border border-amber-300 bg-amber-100 px-3 py-2 text-[11px] font-bold text-amber-900">
+          <div className="rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 px-3 py-2 text-[11px] font-bold text-[var(--oc-alert-text)]">
             {avisoOperativo}
           </div>
         )}
-        <div className="grid grid-cols-1 gap-3 rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:grid-cols-2 lg:grid-cols-6">
+        <div className="grid grid-cols-1 gap-3 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4 sm:grid-cols-2 lg:grid-cols-6">
           <SelectField
             label="Grado"
             value={grado}
@@ -535,28 +535,28 @@ export function AsistenciasPanel({
             placeholder="Todas / tronco común"
           />
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
               Ciclo (operativo)
             </span>
             <span
-              className={`rounded-full border px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] ${
+              className={`rounded-full border px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide ${
                 ciclo
-                  ? "border-emerald-400/70 bg-emerald-100/90 text-emerald-900"
-                  : "border-amber-300 bg-amber-100 text-amber-900"
+                  ? "border-[var(--oc-ok)]/50 bg-[var(--oc-ok)]/15 text-[var(--oc-ok)]"
+                  : "border-[var(--oc-border)] bg-[var(--oc-input)] text-[var(--oc-muted)]"
               }`}
             >
               {ciclo || "Sin ciclo operativo"}
             </span>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
               Parcial
             </span>
             <select
               value={parcialId}
               onChange={(e) => onParcialChange(e.target.value)}
               disabled={parciales.length === 0}
-              className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white outline-none focus:ring-2 focus:ring-sky-400/60 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <option value="">
                 {parciales.length === 0
@@ -571,14 +571,14 @@ export function AsistenciasPanel({
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
               Materia
             </span>
             <select
               value={materiaClave}
               onChange={(e) => onMateriaChange(e.target.value)}
               disabled={materias.length === 0}
-              className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white outline-none focus:ring-2 focus:ring-sky-400/60 disabled:opacity-50"
+              className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)] disabled:opacity-50"
             >
               <option value="">
                 {materias.length === 0 ? "Sin materias" : "Selecciona materia"}
@@ -592,7 +592,7 @@ export function AsistenciasPanel({
           </label>
         </div>
         {!avisoOperativo && (
-          <p className="text-[10px] font-semibold text-slate-500">
+          <p className="text-[10px] font-semibold text-[var(--oc-muted)]">
             Ciclo global: periodo OPERATIVO de /configuracion. La plantilla se genera
             con los días de clase del calendario acotados al parcial elegido.
           </p>
@@ -600,24 +600,24 @@ export function AsistenciasPanel({
 
         {/* Clases por día de la materia seleccionada (automático del horario) */}
         {materiaSeleccionada && (
-          <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-            <p className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+          <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
+            <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
               {materiaSeleccionada.nombre} — clases por día (automático)
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {DIAS_SEMANA_CORTOS.map((d, i) => (
                 <span
                   key={d}
-                  className="rounded-full border border-white/70 bg-white/70 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-sky-900"
+                  className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]"
                 >
                   {DIAS_LARGO[i]} · {materiaSeleccionada.porDia[d] ?? 0}
                 </span>
               ))}
-              <span className="rounded-full border border-emerald-400/70 bg-emerald-100/80 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-emerald-900">
+              <span className="rounded-full border border-[var(--oc-ok)]/50 bg-[var(--oc-ok)]/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-ok)]">
                 Total semana · {materiaSeleccionada.totalSemana}
               </span>
             </div>
-            <p className="mt-2 text-[10px] font-semibold text-slate-600">
+            <p className="mt-2 text-[10px] font-semibold text-[var(--oc-muted)]">
               La fila CLASES de la plantilla se llena automáticamente con estas
               cantidades.
             </p>
@@ -625,13 +625,13 @@ export function AsistenciasPanel({
         )}
 
         {errorGrupos && (
-          <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-700">
+          <p className="rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 px-4 py-2 text-xs font-semibold text-[var(--oc-alert-text)]">
             {errorGrupos}
           </p>
         )}
 
         {/* Descarga de la plantilla de asistencias de la materia */}
-        <div className="flex flex-col gap-2 rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <PillButton
               onClick={() => void onDescargar()}
@@ -639,7 +639,7 @@ export function AsistenciasPanel({
             >
               {descargando ? "Generando…" : "Descargar plantilla"}
             </PillButton>
-            <span className="text-[11px] font-semibold text-slate-600">
+            <span className="text-[11px] font-semibold text-[var(--oc-muted)]">
               {materiaSeleccionada
                 ? `Materia: ${materiaSeleccionada.nombre}`
                 : "Selecciona la materia para descargar su plantilla"}
@@ -647,12 +647,12 @@ export function AsistenciasPanel({
           </div>
           <div className="flex flex-col gap-1">
             {mensajeDescarga && (
-              <p className="text-xs font-semibold text-sky-900" role="status">
+              <p className="text-xs font-semibold text-[var(--oc-text)]" role="status">
                 {mensajeDescarga}
               </p>
             )}
             {avisoPlantilla && (
-              <p className="text-[11px] font-semibold text-amber-800" role="status">
+              <p className="text-[11px] font-semibold text-[var(--oc-alert-text)]" role="status">
                 {avisoPlantilla}
               </p>
             )}
@@ -660,12 +660,12 @@ export function AsistenciasPanel({
         </div>
 
         {/* Subir la plantilla llena (asistencias de la materia) */}
-        <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+            <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
               Sube la plantilla llena
             </p>
-            <span className="text-[10px] font-semibold text-slate-600">
+            <span className="text-[10px] font-semibold text-[var(--oc-muted)]">
               CURP | NOMBRE | fechas · re-subir no duplica
             </span>
           </div>
@@ -674,8 +674,8 @@ export function AsistenciasPanel({
               olvidados arriba hacen que la plantilla se guarde (y la materia se
               traspase) en el sitio equivocado. */}
           {seleccionCompleta ? (
-            <div className="mt-3 rounded-2xl border border-sky-500/60 bg-sky-50/90 px-4 py-3">
-              <p className="text-[10px] font-extrabold uppercase tracking-wide text-sky-900">
+            <div className="mt-3 rounded-2xl border border-[var(--oc-border-active)] bg-[var(--oc-input)] px-4 py-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
                 Vas a subir la plantilla de:
               </p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -688,16 +688,16 @@ export function AsistenciasPanel({
                 ].map(([etiqueta, valor]) => (
                   <span
                     key={etiqueta}
-                    className="rounded-full border border-sky-600/40 bg-white/90 px-3 py-1 text-[11px] font-bold text-sky-900"
+                    className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-1 text-[11px] font-bold text-[var(--oc-text)]"
                   >
-                    <span className="font-extrabold uppercase tracking-wide text-sky-700">
+                    <span className="font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
                       {etiqueta}:
                     </span>{" "}
                     {valor}
                   </span>
                 ))}
               </div>
-              <p className="mt-2 text-[11px] font-semibold text-sky-900">
+              <p className="mt-2 text-[11px] font-semibold text-[var(--oc-text)]">
                 Se atribuirá a{" "}
                 <span className="font-extrabold">
                   {nombreProfesor?.trim() || "tu perfil"}
@@ -706,13 +706,13 @@ export function AsistenciasPanel({
                 pasan a ser tuyos. Si otro profesor la tenía, deja de tenerla
                 (conserva sus demás materias).
               </p>
-              <p className="mt-1 text-[10px] font-semibold text-amber-800">
+              <p className="mt-1 text-[10px] font-semibold text-[var(--oc-alert-text)]">
                 Verifica que el archivo corresponda a esta materia y parcial
                 antes de continuar.
               </p>
             </div>
           ) : (
-            <p className="mt-2 rounded-2xl border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">
+            <p className="mt-2 rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 px-3 py-2 text-[11px] font-semibold text-[var(--oc-alert-text)]">
               Antes de subir, elige arriba:{" "}
               {[
                 !grado && "grado",
@@ -731,7 +731,7 @@ export function AsistenciasPanel({
               accept=".csv,.xlsx,.xls,text/csv"
               onChange={onArchivoElegido}
               disabled={!seleccionCompleta}
-              className="max-w-xs rounded-xl border border-white/70 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-inner outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              className="max-w-xs rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-semibold text-[var(--oc-text)] outline-none disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Seleccionar plantilla de asistencia llena"
             />
             <PillButton
@@ -742,13 +742,13 @@ export function AsistenciasPanel({
             </PillButton>
           </div>
           {preview && (
-            <div className="mt-3 rounded-2xl border border-white/60 bg-white/70 p-3">
+            <div className="mt-3 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3">
               <Resumen resumen={preview} />
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <PillButton
                   onClick={() => void onConfirmar()}
                   disabled={confirmando}
-                  className="from-emerald-500 via-emerald-600 to-emerald-700"
+                  className="text-[var(--oc-ok)]"
                 >
                   {confirmando ? "Guardando…" : "Confirmar asistencias"}
                 </PillButton>
@@ -756,8 +756,8 @@ export function AsistenciasPanel({
                   <p
                     className={`text-xs font-semibold ${
                       mensajeConfirmar.includes("correctamente")
-                        ? "text-emerald-900"
-                        : "text-red-700"
+                        ? "text-[var(--oc-ok)]"
+                        : "text-[var(--oc-alert-text)]"
                     }`}
                     role="status"
                   >
@@ -774,14 +774,14 @@ export function AsistenciasPanel({
           <PillButton
             onClick={() => void onDescargarPlantillaMateria()}
             disabled={!grado || !grupo || descargandoMateria}
-            className="from-slate-400 via-slate-500 to-slate-600"
+            className=""
           >
             {descargandoMateria
               ? "Generando…"
               : "Descargar plantilla de materia (calificaciones)"}
           </PillButton>
           {mensajeDescargaMateria && (
-            <p className="text-xs font-semibold text-sky-900" role="status">
+            <p className="text-xs font-semibold text-[var(--oc-text)]" role="status">
               {mensajeDescargaMateria}
             </p>
           )}

@@ -84,7 +84,7 @@ function GrupoCheckboxes({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-text)]">
         {titulo}
       </p>
       <ul className="flex flex-col gap-1.5">
@@ -96,17 +96,17 @@ function GrupoCheckboxes({
           return (
             <li key={col}>
               <label
-                className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2 text-[11px] font-bold uppercase tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] transition ${
+                className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2 text-[11px] font-bold uppercase tracking-wide transition ${
                   deshabilitada
-                    ? "cursor-not-allowed border-white/40 bg-white/30 text-slate-400"
+                    ? "cursor-not-allowed border-[var(--oc-border)] bg-[var(--oc-surface)] text-[var(--oc-muted)]"
                     : marcada
-                      ? "border-sky-500/60 bg-sky-100/90 text-sky-900"
-                      : "border-white/60 bg-white/70 text-sky-900 hover:bg-white/90"
+                      ? "border-[var(--oc-border-active)] bg-[var(--oc-input)] text-[var(--oc-text)]"
+                      : "border-[var(--oc-border)] bg-[var(--oc-input)] text-[var(--oc-text)] hover:brightness-110"
                 }`}
               >
                 <input
                   type="checkbox"
-                  className="h-4 w-4 accent-sky-600"
+                  className="h-4 w-4 accent-[var(--oc-mint)]"
                   checked={marcada}
                   disabled={deshabilitada}
                   onChange={() => onToggle(col)}
@@ -114,13 +114,13 @@ function GrupoCheckboxes({
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate">{col}</span>
                   {identificarColumnaCalificacion(col).etiqueta !== col && (
-                    <span className="text-[9px] font-semibold normal-case tracking-normal text-slate-500">
+                    <span className="text-[9px] font-semibold normal-case tracking-normal text-[var(--oc-muted)]">
                       {identificarColumnaCalificacion(col).etiqueta}
                     </span>
                   )}
                 </span>
                 {deshabilitada && (
-                  <span className="ml-auto text-[9px] font-semibold normal-case text-slate-400">
+                  <span className="ml-auto text-[9px] font-semibold normal-case text-[var(--oc-muted)]">
                     asignada a {usadaEn}
                   </span>
                 )}
@@ -151,13 +151,13 @@ function SelectColumna({
     "";
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+      <label className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-text)]">
         {titulo}
       </label>
       <select
         value={valorResuelto}
         onChange={(e) => onChange(e.target.value || null)}
-        className="w-full rounded-2xl border border-white/70 bg-white/90 px-3 py-2 text-[11px] font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none focus:ring-2 focus:ring-sky-400/50"
+        className="w-full rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-[11px] font-bold text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
       >
         <option value="">(Ninguna)</option>
         {opciones.map((col) => {
@@ -328,31 +328,31 @@ export function MateriaMapeoColumnas({
   }
 
   return (
-    <div className="flex w-full flex-col gap-4 rounded-3xl border border-white/55 bg-slate-400/25 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md sm:p-6">
-      <p className="text-center text-sm font-extrabold uppercase tracking-widest text-sky-950">
+    <div className="flex w-full flex-col gap-4 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4 sm:p-6">
+      <p className="text-center text-sm font-extrabold uppercase tracking-widest text-[var(--oc-text)]">
         Configurar columnas del archivo
       </p>
-      <p className="text-center text-xs font-semibold text-slate-600">
+      <p className="text-center text-xs font-semibold text-[var(--oc-muted)]">
         Archivo: {asistente.archivo.name} · Revisa que cada columna represente
         lo correcto antes de subir.
       </p>
 
       {/* MODO DE APLICACIÓN (BLOQUE 7C.2) */}
-      <div className="flex flex-col gap-2 rounded-3xl border border-white/55 bg-sky-100/40 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
-        <p className="text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+      <div className="flex flex-col gap-2 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
+        <p className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-text)]">
           ¿Cómo se aplicará este archivo?
         </p>
         <label
           className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-2 transition ${
             modo === "actualizar"
-              ? "border-sky-500/60 bg-sky-100/90 text-sky-900"
-              : "border-white/60 bg-white/60 text-sky-900 hover:bg-white/80"
+              ? "border-[var(--oc-border-active)] bg-[var(--oc-input)] text-[var(--oc-text)]"
+              : "border-[var(--oc-border)] bg-[var(--oc-input)] text-[var(--oc-text)] hover:brightness-110"
           }`}
         >
           <input
             type="radio"
             name="modo-avance"
-            className="mt-1 h-4 w-4 accent-sky-600"
+            className="mt-1 h-4 w-4 accent-[var(--oc-mint)]"
             checked={modo === "actualizar"}
             onChange={() => setModo("actualizar")}
           />
@@ -360,7 +360,7 @@ export function MateriaMapeoColumnas({
             <span className="text-[11px] font-extrabold uppercase tracking-wide">
               Actualizar / agregar avance
             </span>
-            <span className="text-[10px] font-semibold normal-case text-slate-600">
+            <span className="text-[10px] font-semibold normal-case text-[var(--oc-muted)]">
               Conserva todo lo existente y solo modifica/agrega lo que trae este
               archivo (recomendado para resubidas por avances).
             </span>
@@ -369,14 +369,14 @@ export function MateriaMapeoColumnas({
         <label
           className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-2 transition ${
             modo === "reemplazar"
-              ? "border-amber-500/60 bg-amber-100/90 text-amber-950"
-              : "border-white/60 bg-white/60 text-sky-900 hover:bg-white/80"
+              ? "border-[var(--oc-alert)]/60 bg-[var(--oc-alert)]/20 text-[var(--oc-alert-text)]"
+              : "border-[var(--oc-border)] bg-[var(--oc-input)] text-[var(--oc-text)] hover:brightness-110"
           }`}
         >
           <input
             type="radio"
             name="modo-avance"
-            className="mt-1 h-4 w-4 accent-amber-600"
+            className="mt-1 h-4 w-4 accent-[var(--oc-mint)]"
             checked={modo === "reemplazar"}
             onChange={() => setModo("reemplazar")}
           />
@@ -384,7 +384,7 @@ export function MateriaMapeoColumnas({
             <span className="text-[11px] font-extrabold uppercase tracking-wide">
               Reemplazar completamente
             </span>
-            <span className="text-[10px] font-semibold normal-case text-slate-600">
+            <span className="text-[10px] font-semibold normal-case text-[var(--oc-muted)]">
               Borra el contenido actual de la materia y carga este archivo
               completo.
             </span>
@@ -393,7 +393,7 @@ export function MateriaMapeoColumnas({
       </div>
 
       {colisiones.length > 0 && (
-        <div className="rounded-2xl border border-amber-400/60 bg-amber-100/80 px-4 py-3 text-[11px] font-semibold text-amber-950 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)]">
+        <div className="rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 px-4 py-3 text-[11px] font-semibold text-[var(--oc-alert-text)]">
           Estas columnas se diferencian únicamente por mayúsculas/tildes y
           pueden resultar ambiguas al mapearlas:{" "}
           {colisiones.map((c, i) => (
@@ -407,8 +407,8 @@ export function MateriaMapeoColumnas({
       )}
 
       {/* PASO 1 — IDENTIFICACIÓN */}
-      <div className="rounded-3xl border border-white/55 bg-sky-100/40 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
-        <p className="mb-2 text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+      <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
+        <p className="mb-2 text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-text)]">
           Paso 1 · Identificación del alumno
         </p>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -432,7 +432,7 @@ export function MateriaMapeoColumnas({
             onChange={(v) => setMapeo((m) => ({ ...m, columnaCurp: v }))}
           />
         </div>
-        <p className="mt-2 text-[10px] font-semibold text-slate-600">
+        <p className="mt-2 text-[10px] font-semibold text-[var(--oc-muted)]">
           Se unirán en el orden seleccionado para identificar al alumno. Puedes
           usar nombre, CURP o ambos. El sistema normaliza mayúsculas, espacios
           y acentos para encontrar al alumno correcto.
@@ -441,7 +441,7 @@ export function MateriaMapeoColumnas({
 
       {/* PASO 2 — CALIFICACIONES */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-3xl border border-white/55 bg-slate-100/30 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
           <GrupoCheckboxes
             titulo="Actividades"
             columnas={asistente.encabezados}
@@ -456,7 +456,7 @@ export function MateriaMapeoColumnas({
             usadaEn="otra categoría"
           />
         </div>
-        <div className="rounded-3xl border border-white/55 bg-slate-100/30 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
           <GrupoCheckboxes
             titulo="Parciales / evaluaciones"
             columnas={asistente.encabezados}
@@ -471,7 +471,7 @@ export function MateriaMapeoColumnas({
             usadaEn="otra categoría"
           />
         </div>
-        <div className="flex flex-col gap-3 rounded-3xl border border-white/55 bg-slate-100/30 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
+        <div className="flex flex-col gap-3 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
           <SelectColumna
             titulo="Promedio"
             valor={mapeo.columnaPromedio}
@@ -489,11 +489,11 @@ export function MateriaMapeoColumnas({
 
       {/* PASO OPCIONAL — PESOS DE ACTIVIDADES (promedio ponderado) */}
       {mapeo.columnasActividades.length > 0 && (
-        <div className="rounded-3xl border border-white/55 bg-violet-100/30 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
-          <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
+          <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-text)]">
             Paso opcional · Pesos de actividades (promedio ponderado)
           </p>
-          <p className="mb-3 text-[10px] font-semibold text-slate-600">
+          <p className="mb-3 text-[10px] font-semibold text-[var(--oc-muted)]">
             Asigna un porcentaje (0-100) a cada actividad para que el alumno vea
             un «Promedio calculado». Si lo dejas vacío no cambia nada (promedio
             ponderado desactivado). La suma no debe superar 100%.
@@ -502,13 +502,13 @@ export function MateriaMapeoColumnas({
             {mapeo.columnasActividades.map((col) => (
               <li
                 key={col}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-white/60 bg-white/80 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2"
               >
-                <span className="min-w-0 truncate text-[11px] font-bold uppercase tracking-wide text-sky-900">
+                <span className="min-w-0 truncate text-[11px] font-bold uppercase tracking-wide text-[var(--oc-text)]">
                   {col}
                 </span>
                 <label className="flex shrink-0 items-center gap-1.5">
-                  <span className="text-[10px] font-bold text-slate-500">%</span>
+                  <span className="text-[10px] font-bold text-[var(--oc-muted)]">%</span>
                   <input
                     type="number"
                     min={0}
@@ -517,22 +517,22 @@ export function MateriaMapeoColumnas({
                     value={pesoInput(col)}
                     onChange={(e) => setPesoActividad(col, e.target.value)}
                     placeholder="—"
-                    className="w-20 rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-3 py-1.5 text-center text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                    className="w-20 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-1.5 text-center text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]"
                     aria-label={`Peso de la actividad ${col}`}
                   />
                 </label>
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[10px] font-semibold text-slate-600">
+          <p className="mt-2 text-[10px] font-semibold text-[var(--oc-muted)]">
             Suma de pesos: {sumaPesos}%
             {sumaPesos > 100 && (
-              <span className="ml-2 rounded-full border border-red-300/60 bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-800">
+              <span className="ml-2 rounded-full border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 px-2 py-0.5 text-[10px] font-extrabold text-[var(--oc-alert-text)]">
                 No puede superar 100%
               </span>
             )}
             {sumaPesos > 0 && sumaPesos <= 100 && (
-              <span className="ml-2 rounded-full border border-emerald-300/60 bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
+              <span className="ml-2 rounded-full border border-[var(--oc-ok)]/40 bg-[var(--oc-ok)]/15 px-2 py-0.5 text-[10px] font-extrabold text-[var(--oc-ok)]">
                 Promedio ponderado activo
               </span>
             )}
@@ -541,7 +541,7 @@ export function MateriaMapeoColumnas({
       )}
 
       {/* PASO 3 — OCULTAR */}
-      <div className="rounded-3xl border border-white/55 bg-amber-100/30 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
+      <div className="rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 p-4">
         <GrupoCheckboxes
           titulo="Columnas que no verá el alumno"
           columnas={asistente.encabezados}
@@ -555,15 +555,15 @@ export function MateriaMapeoColumnas({
           deshabilitarSiUsada={(c) => columnaUsadaEn(c, "Oculta")}
           usadaEn="otra categoría"
         />
-        <p className="mt-2 text-[10px] font-semibold text-slate-600">
+        <p className="mt-2 text-[10px] font-semibold text-[var(--oc-muted)]">
           Estas columnas NO se eliminan de Supabase. Solo se ocultan en la
           vista del alumno; profesor y directivo siguen viéndolas.
         </p>
       </div>
 
       {/* PASO 4 — VISTA PREVIA */}
-      <div className="rounded-3xl border border-white/55 bg-emerald-100/30 p-4 shadow-[inset_0_2px_0_rgba(255,255,255,0.6)] backdrop-blur-md">
-        <p className="mb-2 text-[10px] font-extrabold uppercase tracking-widest text-sky-900">
+      <div className="rounded-2xl border border-[var(--oc-ok)]/40 bg-[var(--oc-ok)]/15 p-4">
+        <p className="mb-2 text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-text)]">
           Paso 4 · Así verá las calificaciones el alumno
         </p>
         <MateriaCalificacionesAlumno
@@ -574,7 +574,7 @@ export function MateriaMapeoColumnas({
       </div>
 
       {!validacion.ok && (
-        <ul className="rounded-2xl border border-red-300/60 bg-red-50/80 px-4 py-3 text-xs font-semibold text-red-800">
+        <ul className="rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 px-4 py-3 text-xs font-semibold text-[var(--oc-alert-text)]">
           {validacion.errores.map((e, i) => (
             <li key={i}>· {e}</li>
           ))}
@@ -585,7 +585,7 @@ export function MateriaMapeoColumnas({
         <p
           role="status"
           className={`text-center text-xs font-semibold ${
-            mensaje.ok ? "text-sky-900" : "text-red-700"
+            mensaje.ok ? "text-[var(--oc-text)]" : "text-[var(--oc-alert-text)]"
           }`}
         >
           {mensaje.texto}
@@ -597,7 +597,7 @@ export function MateriaMapeoColumnas({
           type="button"
           onClick={onCancelar}
           disabled={guardando}
-          className="rounded-full border border-white/60 bg-white/70 px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-sky-800 transition hover:bg-white/90 disabled:opacity-60"
+          className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110 disabled:opacity-60"
         >
           Cancelar
         </button>
@@ -605,7 +605,7 @@ export function MateriaMapeoColumnas({
           type="button"
           onClick={() => void confirmar()}
           disabled={!validacion.ok || guardando}
-          className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-full border border-transparent bg-[var(--oc-mint)] px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-mint-ink)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {guardando
             ? "Guardando y subiendo…"
