@@ -24,6 +24,47 @@
       var(--oc-surface), nunca #19293F. Un hex literal en un componente
       reabre la deuda D11 que esta capa existe para cerrar.
 
+   ── CÓMO SE ELIGE UN TOKEN AL MIGRAR UN COMPONENTE ────────────────────
+   Añadido el 2026-09-11, al inventariar el restyle del profesor. La duda
+   real no es «qué color», es «cuál de los dos»: la misma clase clara
+   (`bg-white/80`) es un campo en un sitio y un panel en otro, y elegir un
+   token fijo para todas acierta unas y aplana otras.
+
+   FONDO — pregunta: ¿el usuario puede escribir aquí o pulsarlo para
+   cambiar su estado?
+     sí, es interactivo ....... --oc-input      campo, chip, celda editable,
+                                                pestaña, botón secundario
+     no, solo contiene ........ --oc-surface    panel, tarjeta, contenedor
+     es el rail lateral ....... --oc-sidebar
+
+   TEXTO — pregunta: ¿esto ES el contenido, o habla SOBRE el contenido?
+     es el contenido .......... --oc-text       título, valor, cuerpo
+     habla sobre él ........... --oc-muted      rótulo, unidad, ayuda,
+                                                metadato, opción inactiva
+
+   BORDE
+     separa ................... --oc-border
+     marca lo seleccionado .... --oc-border-active
+
+   ESTADO
+     correcto / vigente ....... --oc-ok
+     problema, como punto,
+       fondo o borde .......... --oc-alert
+     problema, EN TEXTO ....... --oc-alert-text   (ver regla 2 arriba)
+
+   DEGRADADOS — no se traducen parada por parada.
+   Un `from-slate-400 via-slate-500 to-slate-600` NO se convierte en tres
+   tokens: se sustituye por UNA superficie plana. El diseño Océano usa
+   gradiente en un solo sitio, el fondo global (`--oc-bg`); ningún panel,
+   botón ni chip lleva degradado. Traducir solo el `from-` deja el degradado
+   roto y, lo que es peor, el diagnóstico en verde.
+
+   REGLA DE CIERRE — un componente se migra ENTERO o no se toca.
+   Texto claro sobre panel claro es coherente; texto oscuro sobre panel
+   claro es ilegible. Un componente a medias es peor que uno sin empezar.
+   Comprobación: tras migrar un archivo, `diag-restyle-oceano.mjs` debe
+   contar CERO claro en él.
+
    Documento hermano: docs/sistema/MATRIZ-UX.md §7 «Migración Océano».
    Avance de la migración: node scripts/diag-restyle-oceano.mjs
    ══════════════════════════════════════════════════════════════════════ */

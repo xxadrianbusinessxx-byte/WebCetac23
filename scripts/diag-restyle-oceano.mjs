@@ -18,10 +18,20 @@ const args = process.argv.slice(2);
 const JSON_OUT = args.includes("--json");
 const FASE = (args.find((a) => a.startsWith("--fase=")) ?? "").split("=")[1] ?? null;
 
-// Clases del tema CLARO que el rediseño debe retirar. La lista sale de la
-// medicion de docs/sistema/MATRIZ-UX.md §4 (tokens que hoy existen).
+// Clases del tema CLARO que el rediseño debe retirar: cualquier literal de
+// paleta Tailwind, que es exactamente lo que la deuda D11 existe para eliminar.
+//
+// RE-CALIBRADO el 2026-09-11. La version anterior solo miraba siete formas
+// concretas (bg-white/N, text-sky-8NN, from-sky-N...) y veia el 42% del
+// problema: 772 de 1832. Se le escapaban los degradados enteros —via-* y to-*
+// no estaban— asi que sustituir solo el `from-` de una cadena dejaba el
+// degradado roto Y el contador en verde. Un FALSO VERDE es peor que no medir.
+//
+// Consecuencia: las cifras anteriores al 2026-09-11 (baseline 905, luego 772)
+// NO son comparables con las de ahora. Quedan en los commits como registro
+// historico de su momento; la linea base real es la de abajo.
 const CLARO =
-  /bg-white\/[0-9]+|text-sky-[89][0-9]{2}|text-slate-[67][0-9]{2}|border-white\/[0-9]+|bg-slate-[34][0-9]{2}\/[0-9]+|from-sky-[0-9]+|bg-sky-[0-9]+/g;
+  /\b(?:bg|text|border|from|via|to|ring|divide|outline|shadow|fill|stroke)-(?:white|black|slate|sky|red|emerald|amber|indigo|violet|rose|green|blue|cyan|teal|gray|zinc|orange|yellow|purple|pink|fuchsia|lime)(?:-[0-9]{2,3})?(?:\/[0-9]+)?\b/g;
 
 // Tokens del tema OSCURO que el rediseño introduce (globals.css, Fase 1).
 const OSCURO = /--oc-[a-z0-9-]+|var\(--oc-[a-z0-9-]+\)/g;
