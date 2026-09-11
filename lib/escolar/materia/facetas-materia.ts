@@ -37,8 +37,35 @@ export const FILTRO_AMBITO_VACIO: FiltroAmbito = {
 
 /** Valor con el que se representa «sin carrera» en la UI. Las materias de 1RO
  *  no tienen carrera (`carrera: null`) y deben poder filtrarse igual que el
- *  resto; sin esta etiqueta quedarían inalcanzables desde el selector. */
+ *  resto; sin esta etiqueta quedarían inalcanzables desde el selector.
+ *
+ *  DIFERENCIA DELIBERADA con `materia-selector.tsx`: allí el filtro compara
+ *  contra `m.carrera ?? ""`, y como `""` es falsy la condición nunca dispara —
+ *  es decir, hoy NO se puede filtrar «solo las que no tienen carrera». Esta
+ *  constante lo arregla. Es una mejora, no un cambio de criterio. */
 export const SIN_CARRERA = "SIN CARRERA";
+
+/**
+ * C4.28 — «General» no se muestra nunca: solo materias con grado resuelto
+ * desde el catálogo (grupo_materias → grupos). Una materia sin grado es una
+ * fila cuyo origen no se pudo resolver, y ofrecerla al usuario es ofrecerle
+ * algo que no puede abrir.
+ *
+ * La regla ya vivía dentro de `materia-selector.tsx`; vive aquí para que las
+ * pantallas que reutilicen este módulo no la pierdan por el camino.
+ * Se puede desactivar explícitamente, pero por defecto está puesta: quien la
+ * quite tiene que escribirlo.
+ */
+export const EXCLUIR_SIN_GRADO_POR_DEFECTO = true;
+
+/** Código corto de carrera para la presentación en filtros (MECATRONICA → MC).
+ *  Mismo criterio que `materia-selector.tsx`, para que el usuario pueda buscar
+ *  «1RO A MC» y encuentre lo mismo en las dos pantallas. */
+export function etiquetaCarrera(clave: string | null): string {
+  const c = (clave ?? "").trim().toUpperCase();
+  if (c === "MECATRONICA") return "MC";
+  return c;
+}
 
 export type Facetas = {
   grados: string[];
@@ -55,11 +82,15 @@ function ordenar(valores: Iterable<string>): string[] {
  * sobre la ya filtrada: si se recalculara sobre el resultado, elegir un grado
  * vaciaría el selector de grupos y el usuario no podría volver atrás.
  */
-export function facetasDisponibles(items: readonly FacetableMateria[]): Facetas {
+export function facetasDisponibles(
+  items: readonly FacetableMateria[],
+  excluirSinGrado = EXCLUIR_SIN_GRADO_POR_DEFECTO,
+): Facetas {
   const grados = new Set<string>();
   const grupos = new Set<string>();
   const carreras = new Set<string>();
   for (const m of items) {
+    if (excluirSinGrado && !m.grado) continue;
     if (m.grado) grados.add(m.grado);
     if (m.grupo) grupos.add(m.grupo);
     carreras.add(m.carrera ?? SIN_CARRERA);
@@ -91,7 +122,12 @@ export function coincideAmbito(m: FacetableMateria, filtro: FiltroAmbito): boole
 export function coincideTexto(m: FacetableMateria, texto: string): boolean {
   const q = normalizarNombre(texto);
   if (!q) return true;
-  const campos = [m.nombreVisible ?? "", m.asignatura, m.idInterno];
+  // La cuarta cadena es la IDENTIDAD: permite escribir «1RO A MC» y encontrar
+  // la materia sin saberse su nombre. Es lo que ya hace materia-selector.tsx;
+  // omitirla aquí habría hecho que el buscador nuevo encontrara menos que el
+  // viejo, que es la peor forma de migrar una pantalla.
+  const identidad = `${m.grado} ${m.grupo} ${etiquetaCarrera(m.carrera)} ${m.carrera ?? ""}`;
+  const campos = [m.nombreVisible ?? "", m.asignatura, m.idInterno, identidad];
   return campos.some((c) => normalizarNombre(c).includes(q));
 }
 
@@ -103,8 +139,14 @@ export function aplicarFiltro<T extends FacetableMateria>(
   items: readonly T[],
   filtro: FiltroAmbito,
   texto = "",
+  excluirSinGrado = EXCLUIR_SIN_GRADO_POR_DEFECTO,
 ): T[] {
-  return items.filter((m) => coincideAmbito(m, filtro) && coincideTexto(m, texto));
+  return items.filter(
+    (m) =>
+      (!excluirSinGrado || Boolean(m.grado)) &&
+      coincideAmbito(m, filtro) &&
+      coincideTexto(m, texto),
+  );
 }
 
 /**

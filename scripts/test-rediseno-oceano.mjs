@@ -142,6 +142,56 @@ const copia = JSON.stringify(M);
 facetas.aplicarFiltro(M, { grado: "2DO", grupo: null, carrera: null }, "hidraulica");
 ok(JSON.stringify(M) === copia, "no muta la lista de entrada");
 
+// ── C4.28 — «General» no se muestra nunca ──────────────────────────────────
+// Regla que ya vivía dentro de materia-selector.tsx. Si el módulo no la
+// absorbe, sustituir el filtrado inline por este módulo haría REAPARECER las
+// materias sin grado: una regresión silenciosa contra una decisión ya tomada.
+const CON_HUERFANA = [
+  ...M,
+  { idInterno: "huerfana_x", grado: "", grupo: "", carrera: null, asignatura: "HUERFANA", nombreVisible: "Huérfana" },
+];
+
+ok(facetas.EXCLUIR_SIN_GRADO_POR_DEFECTO === true, "C4.28 está activa por defecto");
+eq(
+  facetas.aplicarFiltro(CON_HUERFANA, facetas.FILTRO_AMBITO_VACIO).length,
+  4,
+  "una materia sin grado NO aparece (C4.28)",
+);
+eq(
+  facetas.aplicarFiltro(CON_HUERFANA, facetas.FILTRO_AMBITO_VACIO, "", false).length,
+  5,
+  "la regla se puede desactivar, pero hay que pedirlo explícitamente",
+);
+ok(
+  !facetas.facetasDisponibles(CON_HUERFANA).grados.includes(""),
+  "la materia sin grado tampoco ensucia el selector de grados",
+);
+eq(
+  facetas.aplicarFiltro(CON_HUERFANA, facetas.FILTRO_AMBITO_VACIO, "huerfana").length,
+  0,
+  "ni siquiera buscándola por su nombre: sin grado no se puede abrir",
+);
+
+// ── Búsqueda por identidad — «1RO A MC» ────────────────────────────────────
+eq(facetas.etiquetaCarrera("MECATRONICA"), "MC", "MECATRONICA se abrevia MC");
+eq(facetas.etiquetaCarrera("RH"), "RH", "una clave corta se queda igual");
+eq(facetas.etiquetaCarrera(null), "", "carrera null no revienta");
+eq(
+  facetas.aplicarFiltro(M, facetas.FILTRO_AMBITO_VACIO, "2DO A MC").map((m) => m.idInterno),
+  ["2do_a_mecatronica_hidraulica"],
+  "busca por identidad con el codigo corto de carrera",
+);
+eq(
+  facetas.aplicarFiltro(M, facetas.FILTRO_AMBITO_VACIO, "3RO A").map((m) => m.idInterno),
+  ["3ro_a_rh_reclutamiento"],
+  "busca por grado y grupo juntos",
+);
+eq(
+  facetas.aplicarFiltro(M, facetas.FILTRO_AMBITO_VACIO, "mecatronica").length,
+  1,
+  "la carrera completa tambien encuentra",
+);
+
 // ── 4) grupos-campos-personales ────────────────────────────────────────────
 console.log("\ngrupos-campos-personales");
 
