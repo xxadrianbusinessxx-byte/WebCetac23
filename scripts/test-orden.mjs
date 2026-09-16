@@ -46,6 +46,10 @@ import path from "node:path";
 
 const root = path.join(import.meta.dirname, "..");
 const DETALLE = process.argv.includes("--detalle");
+// `--json` existe para que otra herramienta lea el resultado sin re-implementar
+// las diez reglas. Lo consume `gen-panel-repo.mjs`: si el panel las midiera por
+// su cuenta habría dos fuentes para la misma verdad (R6), y divergirían.
+const JSON_OUT = process.argv.includes("--json");
 
 // ── Utilidades ─────────────────────────────────────────────────────────────
 
@@ -239,6 +243,23 @@ comprobar("C10", "todo scripts/*.mjs tiene fila en scripts/README.md", 35, () =>
 }, "deuda histórica: la regla es posterior a casi todos");
 
 // ── Informe ────────────────────────────────────────────────────────────────
+
+if (JSON_OUT) {
+  const reglas = resultados.map((r) => ({
+    id: r.id,
+    regla: r.regla,
+    modo: r.umbral === 0 ? "dura" : "trinquete",
+    umbral: r.umbral,
+    actual: r.hallazgos.length,
+    estado:
+      r.hallazgos.length > r.umbral ? (r.umbral === 0 ? "falla" : "subio")
+      : r.hallazgos.length < r.umbral ? "bajo" : "ok",
+    deuda: r.deuda ?? null,
+    archivos: r.hallazgos.map((h) => `${h.archivo} — ${h.detalle}`),
+  }));
+  process.stdout.write(JSON.stringify({ medido: new Date().toISOString(), reglas }, null, 2) + "\n");
+  process.exit(reglas.some((r) => r.estado === "falla" || r.estado === "subio") ? 1 : 0);
+}
 
 console.log("ORDEN.md — comprobación mecánica\n");
 
