@@ -8,8 +8,8 @@ append-only desde mayo y contiene afirmaciones ya falsas.
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-10 (rediseño Océano: Fase 0 permisos · Fase 1/1.1 tokens y shell · Fase 2 piezas del alumno · Fase 3/3.1 cierre del alumno · Fase 4/4.1 shell y alcance del tutor)
-- **HEAD:** `d631e4f` (2026-09-04) + cambios de PROMPT-1/2/3 sin commitear
+- **Última revisión:** 2026-09-16 (reconciliación de pendientes contra la base: 4 de los 8 ya estaban resueltos; ver docs/sistema/PENDIENTES-2026-09-16.md)
+- **HEAD:** `de35eab` (2026-09-16) · árbol limpio
 
 ---
 
@@ -169,40 +169,38 @@ esquema de clave de 472 alumnos es decisión aparte y no entra en este prompt.
 
 ## 6. Pendiente humano (no lo puede hacer un agente)
 
-1. Ejecutar en el SQL Editor de Supabase (PROMPT-1, en orden):
-   - `supabase/agregar-grupo-materia-justificaciones.sql` (T1: habilita
-     justificación por clase con `grupo_materia_id`). **Sustituye** a
-     `supabase/agregar-materia-justificaciones.sql`, que quedó marcado
-     SUPERSEDIDO y NO debe ejecutarse.
-   - `supabase/agregar-fk-asistencia.sql` (T5: versión idempotente de las 9 FK,
-     que ya existen en la BD con 0 huérfanos).
-   - `supabase/agregar-indices-asistencia.sql` (T6: índices para el volumen de
-     asistencia; el particionado queda fuera, ver PROMPT-1 §4 T6 paso 4).
-   - `supabase/agregar-atribucion-profesor-asistencia.sql` (Prompt C, R-1:
-     queda pendiente de ejecutar si la FK de `asistencia_alumnos.profesor_id`
-     llegara a faltar en algún entorno).
-2. Corregir las CLAVE duplicadas de `PROFESORES`. **PROMPT-5/A1 aplicó la marca**
-   `debe_cambiar_credenciales=true` a los 19 profesores con clave compartida
-   (16 con `4321` + 3 con `8080`; el técnico ID 21 no se tocó). Cada profesor la
-   cambia al entrar (flujo A4).
-3. Rotar la contraseña de Supabase y eliminar cualquier copia en texto plano fuera del repo.
-4. Revisar las **68 filas** de `asistencia_alumnos` sin `periodo_id` (fechas
-   fuera del rango del operativo 2026-08-31 → 2026-12-11): son históricas del
-   clon `2026-2027` y se conservan sin atribuir; decidir si se archivan.
-5. **Poblar `asignaciones_profesor` (A2)** desde la consola del técnico
-   (PROMPT-3/T3) para que `p0-diag-contexto.mjs` muestre
-   `asignacionesActivas > 0` en el ciclo operativo.
-6. **Commitear** los cambios de PROMPT-1 a PROMPT-5 (todo en el working tree, sin
-   commitear).
-7. PROMPT-4/T4: si el técnico deshace un paso sobre datos reales de un ciclo
-   BORRADOR, hacerlo con la previsualización del panel (los borrados del
-   operativo quedan bloqueados por diseño).
-8. **PROMPT-5 pendiente (Parte B, puntos de parada):** B3 (mover `.from()` de
-   `justificaciones.ts` y `asistencias.ts` a `lib/`), B4 (partir en `-puro` los
-   4 módulos con I/O importados desde cliente) y B5 (resolver
-   `app/_borrador/` + `lib/_borrador/` con decisión por archivo y el chat
-   retirado) se ejecutan en la siguiente sesión. La Parte A (A1+A2), B1, B2, B6
-   y B7 ya están aplicados (ver «Cierre y verificación» más abajo).
+> Reconciliado contra la base el **2026-09-16** con `scripts/diag-sql-aplicado.mjs`.
+> Se retiraron 4 pendientes que ya estaban resueltos (el SQL de
+> `grupo_materia_id`, las 9 FK, la atribución de profesor y «commitear»).
+> De los 44 `.sql` del repo **solo 1 sigue sin aplicar**, y es un concepto
+> abandonado: `agregar-periodo-vigente.sql` (`periodos.vigente`, sin uso en código).
+
+1. **Ejecutar en el SQL Editor** (preparados, idempotentes, en este orden):
+   - `supabase/crear-rpc-obtener-perfil-alumno.sql` — reemplaza la RPC con el
+     filtro O-1 (`AND gm.grupo_id = v_grupo_id`). Sin él, cada materia del
+     alumno devuelve una fila por ciclo y gana una al azar. Hoy no se nota
+     (un solo ciclo); reaparece al crear 2027-2028.
+   - `supabase/agregar-fk-calendario-periodo.sql` — última FK que faltaba
+     (R5). La columna ya está poblada 77/77; el script reporta y aborta si
+     encontrara huérfanos, nunca borra.
+   - `supabase/agregar-indices-asistencia.sql` — único cuya aplicación no se
+     puede verificar por PostgREST (los índices no salen en el spec). Con
+     3 863 filas en `asistencia_alumnos` conviene confirmarlo a mano.
+2. **Corregir las CLAVE duplicadas de `PROFESORES`.** La marca
+   `debe_cambiar_credenciales=true` está puesta en 19 cuentas (PROMPT-5/A1);
+   cada profesor la cambia al entrar (flujo A4). Medición 2026-09-16:
+   **15 de 21 aún comparten clave**.
+3. Rotar la contraseña de Supabase y eliminar cualquier copia en texto plano
+   fuera del repo.
+4. Decidir qué hacer con las **68 filas** de `asistencia_alumnos` sin
+   `periodo_id` (de 3 863; fechas fuera del rango del operativo). Son
+   históricas del clon; se conservan sin atribuir.
+5. **Estrenar el traspaso de materia**: `asignaciones_profesor` sigue en **0
+   filas**. La consola del técnico está lista y el Prompt D tiene 26 casos
+   puros, pero nadie ha subido una plantilla todavía. Es el código sin
+   estrenar de mayor riesgo del sistema.
+6. PROMPT-4/T4: si el técnico deshace un paso sobre datos reales de un ciclo
+   BORRADOR, hacerlo con la previsualización del panel.
 
 Las 81 filas históricas de `clases_impartidas` con clave `4321` tienen **autoría
 irrecuperable**: no se backfillea `profesor_id`, inventar la atribución sería peor.
@@ -219,7 +217,7 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas al 2026-09-07: **34 suites** (30 + `test-permisos` y
+Red de pruebas al 2026-09-07: **36 suites** (30 + `test-permisos` y
 `test-auditoria-permisos` del PROMPT-2 + `test-reactivacion-inscripciones`
 del PROMPT-4/T1 + `test-borrar-paso` del PROMPT-4/T4), 0 fallos;
 `npx tsc --noEmit` en 0 errores; `next build` completa con **9 rutas**.
@@ -227,7 +225,7 @@ del PROMPT-4/T1 + `test-borrar-paso` del PROMPT-4/T4), 0 fallos;
 `docs/sistema/MATRIZ-PERMISOS.md` con los **5 roles** (475 checks).
 Desde PROMPT-5/B6 hay un runner único (`npm run test:suites` →
 `scripts/correr-todas-las-suites.mjs`) y un workflow de CI
-(`.github/workflows/verificacion.yml`: tsc · compilar · 34 suites ·
+(`.github/workflows/verificacion.yml`: tsc · compilar · 36 suites ·
 permisos · gen:matriz --check · build).
 
 **Chat global retirado (2026-09-06).** Decisión de producto; hay un reemplazo previsto

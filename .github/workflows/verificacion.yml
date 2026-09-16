@@ -39,5 +39,7 @@ jobs:
       - name: Matriz al día (gen:matriz --check)
         run: node scripts/gen-matriz-permisos.mjs --check
 
+      - name: ESTADO-ACTUAL.md al dia (HEAD + nº de suites)
+        run: npm run verificar:estado
       - name: Build (9 rutas)
         run: npm run build

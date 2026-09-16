@@ -286,9 +286,12 @@ export async function actionObtenerPerfilAlumno(
     if (grupoCatalogo && semestreActivo) {
       // C4.28 — identidad desde el catálogo (grupo_materias → grupos → carreras
       // y materias). El nombre físico de la tabla NUNCA se interpreta.
+      // O-1 — acotado al grupo del alumno: el mismo `tabla_legacy` existe en
+      // todos los ciclos clonados y sin este filtro ganaba una fila al azar.
       identidades = await resolverIdentidadesCatalogo(
         supabaseLectura,
         tablasLegacy,
+        { grupoId: grupoCatalogo.grupo.id },
       );
     }
   }

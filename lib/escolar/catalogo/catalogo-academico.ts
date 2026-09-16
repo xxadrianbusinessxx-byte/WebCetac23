@@ -405,6 +405,16 @@ function embedAUno<T>(v: T | T[] | null | undefined): T | null {
 export async function resolverIdentidadesCatalogo(
   supabase: SupabaseClient,
   tablasLegacy: readonly string[],
+  opciones?: {
+    /**
+     * O-1 — Acota la resolución a UN grupo. Un mismo `tabla_legacy` se repite en
+     * todos los ciclos clonados, así que sin este filtro la consulta devuelve
+     * una fila por ciclo y el `Map` se queda con la última (no determinista).
+     * Pásalo SIEMPRE que resuelvas la identidad de un alumno concreto; omítelo
+     * solo cuando la resolución sea global (catálogo del profesor/directivo).
+     */
+    grupoId?: string | null;
+  },
 ): Promise<Map<string, MateriaIdentidadCatalogo>> {
   const mapa = new Map<string, MateriaIdentidadCatalogo>();
   const tablas = [
@@ -416,12 +426,16 @@ export async function resolverIdentidadesCatalogo(
   ];
   if (!tablas.length) return mapa;
 
-  const { data, error } = await supabase
+  let consulta = supabase
     .from(TABLA_GRUPO_MATERIAS)
     .select(
       "id, tabla_legacy, activo, grupos(id, grado, nombre, carrera_id), materias(id, clave, nombre)",
     )
     .in("tabla_legacy", tablas);
+  const grupoId = opciones?.grupoId?.trim();
+  if (grupoId) consulta = consulta.eq("grupo_id", grupoId);
+
+  const { data, error } = await consulta;
   if (error || !data?.length) return mapa;
 
   const filas = data as Array<{

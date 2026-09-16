@@ -206,6 +206,10 @@ BEGIN
     LEFT JOIN materias m ON m.id = gm.materia_id
     LEFT JOIN carreras c ON c.id = g.carrera_id
     WHERE gm.tabla_legacy = ANY(v_tablas_legacy)
+      -- O-1: acotar al grupo del alumno. El mismo tabla_legacy existe en TODOS
+      -- los ciclos clonados; sin este filtro sale una fila por ciclo y la app
+      -- se queda con la ultima (no determinista). Coste O(n ciclos).
+      AND gm.grupo_id = v_grupo_id
       AND g.id IS NOT NULL
       AND m.id IS NOT NULL;
   ELSE

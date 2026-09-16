@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // ARTEFACTOS DE COMPILACION de las suites puras: `npm run test:compilar`
+    // deja ahi el JS CommonJS de los modulos TS. No es codigo del repo (esta
+    // gitignorado) y lintarlo generaba 135 de los 151 errores del 2026-09-16,
+    // enterrando los ~29 hallazgos reales de app/ y lib/. Ver
+    // docs/sistema/PENDIENTES-2026-09-16.md §1.
+    "scripts/.tmp-*/**",
   ]),
 ]);
 
