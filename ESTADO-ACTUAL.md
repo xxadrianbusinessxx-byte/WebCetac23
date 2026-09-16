@@ -8,8 +8,8 @@ append-only desde mayo y contiene afirmaciones ya falsas.
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-16 (reconciliación de pendientes contra la base: 4 de los 8 ya estaban resueltos; ver docs/sistema/PENDIENTES-2026-09-16.md)
-- **HEAD:** `de35eab` (2026-09-16) · árbol limpio
+- **Última revisión:** 2026-09-16 (ORDEN.md gana comprobación mecánica: `scripts/test-orden.mjs`)
+- **HEAD:** `0571122` (2026-09-16) · árbol limpio
 
 ---
 
@@ -217,16 +217,32 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas al 2026-09-07: **36 suites** (30 + `test-permisos` y
-`test-auditoria-permisos` del PROMPT-2 + `test-reactivacion-inscripciones`
-del PROMPT-4/T1 + `test-borrar-paso` del PROMPT-4/T4), 0 fallos;
-`npx tsc --noEmit` en 0 errores; `next build` completa con **9 rutas**.
+Red de pruebas: **37 suites**, 0 fallos; `npx tsc --noEmit` en 0 errores;
+`next build` completa con **9 rutas**.
 `test-permisos.mjs` compara el código contra la §4 de
 `docs/sistema/MATRIZ-PERMISOS.md` con los **5 roles** (475 checks).
 Desde PROMPT-5/B6 hay un runner único (`npm run test:suites` →
 `scripts/correr-todas-las-suites.mjs`) y un workflow de CI
-(`.github/workflows/verificacion.yml`: tsc · compilar · 36 suites ·
-permisos · gen:matriz --check · build).
+(`.github/workflows/verificacion.yml`: tsc · compilar · suites ·
+permisos · gen:matriz --check · verificar:estado · build).
+
+**La 37.ª no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs`
+(2026-09-16) es la mitad mecánica de `docs/normativo/ORDEN.md`. Existe porque
+las reglas de capas eran prosa, y este repo lo tocan dos agentes de IA además
+de una persona: se puede entregar código que compila, pasa las suites y aun
+así subió lógica a la action, importó `@/` dentro de `lib/escolar/` (rompe las
+suites sin romper el build) o llamó `probe-` a un script que escribe. Ni `tsc`
+ni el build ven nada de eso.
+
+Diez reglas, en dos modos. **Duras** (umbral 0, se cumplen hoy y ya no se
+pueden romper por descuido): C1 alias `@/` en `lib/escolar`, C2 `lib/`→`app/`,
+C3 cliente con `lib/supabase`/`server-only`, C4 action→action, C5 `-puro` con
+I/O, C6 `test-`/`diag-`/`probe-` que escriben, C7 raíz cerrada.
+**Trinquete** (deuda declarada con prompt asignado; fallan solo si el número
+SUBE): C8 = 13 actions con `.from()` y C9 = 7 archivos >1 000 líneas, ambos de
+`PROMPT_E_CAPAS_Y_TAMANO.md`; C10 = 35 scripts sin fila en `scripts/README.md`.
+El umbral es lo que permite añadir un guardián a un repo vivo: una regla que
+falla desde el primer día por deuda preexistente se desactiva en una semana.
 
 **Chat global retirado (2026-09-06).** Decisión de producto; hay un reemplazo previsto
 sin fecha. El código completo se conserva en `app/_borrador/chat/` y

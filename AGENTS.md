@@ -49,5 +49,53 @@ de 12 líneas que se pega al final de cada prompt para Cline.
 
 ## Reparto
 
-Claude diagnostica, mide y redacta prompts. Cline (DeepSeek) implementa.
-Cómo se redacta un prompt: `criterios.prompts`.
+Claude diagnostica, mide, redacta el prompt **y revisa lo entregado**.
+Cline (DeepSeek) implementa. Cómo se redacta un prompt: `criterios.prompts`.
+
+```
+Claude    diagnostica → decide arquitectura → redacta el prompt
+              ↓
+Cline     implementa → corre suites → corrige lo suyo
+              ↓
+CI        tsc · suites · test-orden · permisos · build      ← árbitro objetivo
+              ↓
+Claude    revisa: ¿funciona Y respeta la arquitectura?
+              ↓                         ↓
+            acepta                   nuevo prompt → Cline
+```
+
+**La revisión no es opcional, y no pregunta solo «¿funciona?».** Un
+implementador puede entregar algo que compila, pasa las suites y aun así
+duplicó lógica, creó una segunda fuente de verdad, subió I/O a la action o se
+saltó una capa. Eso el CI no lo ve entero y `tsc` no lo ve en absoluto — por
+eso existe `scripts/test-orden.mjs`, que convierte la mitad comprobable de
+`ORDEN.md` en una suite. Lo que el script no alcanza, lo revisa Claude contra
+el checklist de `CONTRATO-DE-CAMBIO.md` §2.
+
+### Presupuesto de contexto por agente
+
+No es el mismo, y confundirlos es lo que hace caro el reparto:
+
+| Agente | Recibe | Por qué |
+|---|---|---|
+| Claude | el repo: puede investigar a fondo | diagnosticar exige ver relaciones que no están en ningún archivo |
+| Cline | **solo el paquete del prompt** | con 500 KB de docs gasta la ventana antes de escribir una línea, y no necesita decidir nada: la decisión ya está tomada |
+
+El paquete de Cline se genera, no se escribe a mano:
+
+```bash
+node scripts/gen-contexto-cline.mjs --tarea=crear <archivos que se van a tocar>
+```
+
+Devuelve el presupuesto de lectura que corresponde (de `docs/00-INDICE.md`), la
+capa de cada archivo y qué exige, las suites que lo cubren, los términos del
+glosario que de verdad aparecen, y el bloque del CONTRATO. A mano se olvida
+alguno y el prompt acaba diciendo «lee el repo», que es lo contrario del
+presupuesto.
+
+### Qué nunca se delega sin revisión
+
+Decidir el esquema · elegir la fuente de verdad de un dominio · tocar
+`lib/auth/` · retirar legacy o un fallback · bajar un umbral de
+`test-orden.mjs`. Un umbral que baja para que el CI pase apaga el guardián, y
+apagarlo es una decisión de arquitectura disfrazada de arreglo.

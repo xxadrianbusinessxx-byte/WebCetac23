@@ -1,0 +1,288 @@
+#!/usr/bin/env node
+/**
+ * test-orden.mjs — la mitad MECÁNICA de `docs/normativo/ORDEN.md`.
+ *
+ * QUÉ MIDE: que el código cumpla las reglas de ORDEN.md que se pueden
+ *           comprobar leyendo archivos (capas, nombres, scripts, raíz).
+ * QUÉ ESCRIBE: nada. Solo lee el filesystem. No toca red ni Supabase.
+ * CÓMO SE EJECUTA: node scripts/test-orden.mjs
+ *                  node scripts/test-orden.mjs --detalle   (lista cada archivo)
+ *
+ * ── Por qué existe ─────────────────────────────────────────────────────────
+ * ORDEN.md está escrito con precisión poco común, pero era prosa: solo se
+ * cumplía si quien tocaba el repo se acordaba. Y este repo lo tocan DOS
+ * agentes de IA además de una persona. Un implementador puede entregar algo
+ * que compila, pasa las suites y aun así subió lógica a la action, importó
+ * `@/` dentro de `lib/escolar/` o llamó `probe-` a un script que escribe.
+ * `tsc` no ve nada de eso, y el build tampoco.
+ *
+ * Mismo patrón que `gen-matriz-permisos --check` y `verificar-estado-actual`,
+ * que son los dos sitios donde este repo ya evitó que un documento se
+ * desincronizara: comparar contra la realidad y fallar si divergen.
+ *
+ * ── Dos tipos de comprobación ──────────────────────────────────────────────
+ * DURA      (`umbral: 0`) — la regla se cumple hoy. Cualquier violación falla.
+ *                           Añadirla ahora no cuesta nada y ya no se puede
+ *                           romper por descuido.
+ * TRINQUETE (`umbral: N`) — la regla NO se cumple hoy; hay deuda declarada y
+ *                           con prompt asignado. Falla solo si el número SUBE.
+ *                           Cuando baja, avisa para que se ajuste el umbral.
+ *
+ * El trinquete es lo que permite añadir el guardián a un repo vivo sin
+ * bloquear todo el trabajo. Una regla que falla desde el primer día por deuda
+ * preexistente se desactiva a la semana, y entonces no protege nada.
+ *
+ * ── Por qué no es grep ─────────────────────────────────────────────────────
+ * Un grep ingenuo sobre estas reglas da FALSOS POSITIVOS, y se comprobó antes
+ * de escribir esto: `ciclo-estado-puro.ts` «importaba supabase» en un
+ * comentario que citaba un `.sql`, y `test-auditoria-ciclo-f5.mjs` «escribía»
+ * porque comparaba contra la cadena `".delete()"`. Un guardián que grita en
+ * falso se ignora, o peor, alguien «arregla» código correcto para callarlo.
+ * Por eso todo se mide sobre el archivo con comentarios y literales de cadena
+ * neutralizados.
+ */
+import fs from "node:fs";
+import path from "node:path";
+
+const root = path.join(import.meta.dirname, "..");
+const DETALLE = process.argv.includes("--detalle");
+
+// ── Utilidades ─────────────────────────────────────────────────────────────
+
+/** Archivos bajo `dir` que cumplen `filtro`, recursivo, saltando lo generado. */
+function listar(dir, filtro, acc = []) {
+  const abs = path.join(root, dir);
+  if (!fs.existsSync(abs)) return acc;
+  for (const e of fs.readdirSync(abs, { withFileTypes: true })) {
+    if (e.name === "node_modules" || e.name === ".next" || e.name.startsWith(".tmp-")) continue;
+    const rel = path.join(dir, e.name).replace(/\\/g, "/");
+    if (e.isDirectory()) listar(rel, filtro, acc);
+    else if (filtro(rel)) acc.push(rel);
+  }
+  return acc;
+}
+
+const leer = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+
+/**
+ * Neutraliza comentarios y literales de cadena, conservando la longitud y los
+ * saltos de línea para que los números de línea sigan siendo válidos.
+ *
+ * No es un parser de TypeScript y no pretende serlo: es suficiente para que
+ * «mencionar algo en un comentario» y «hacerlo» dejen de ser indistinguibles,
+ * que es justo donde el grep fallaba.
+ */
+function codigoDesnudo(src) {
+  let out = "";
+  let i = 0;
+  const N = src.length;
+  while (i < N) {
+    const c = src[i];
+    const d = src[i + 1];
+    if (c === "/" && d === "/") {
+      while (i < N && src[i] !== "\n") { out += " "; i++; }
+    } else if (c === "/" && d === "*") {
+      out += "  "; i += 2;
+      while (i < N && !(src[i] === "*" && src[i + 1] === "/")) { out += src[i] === "\n" ? "\n" : " "; i++; }
+      out += "  "; i += 2;
+    } else if (c === '"' || c === "'" || c === "`") {
+      const cierre = c;
+      out += " "; i++;
+      while (i < N && src[i] !== cierre) {
+        if (src[i] === "\\") { out += "  "; i += 2; continue; }
+        out += src[i] === "\n" ? "\n" : " ";
+        i++;
+      }
+      out += " "; i++;
+    } else {
+      out += c; i++;
+    }
+  }
+  return out;
+}
+
+/** Los `import ... from "X"` de un archivo. Se leen del original: la ruta ES
+ *  una cadena, así que desnudarla la borraría. */
+function importsDe(src) {
+  const fuera = [];
+  for (const m of src.matchAll(/(?:^|\n)\s*(?:import|export)[^;\n]*?from\s+["']([^"']+)["']/g)) fuera.push(m[1]);
+  for (const m of src.matchAll(/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g)) fuera.push(m[1]);
+  return fuera;
+}
+
+// ── Motor de comprobaciones ────────────────────────────────────────────────
+
+const resultados = [];
+
+/**
+ * @param {string} id       C1, C2…
+ * @param {string} regla    qué exige ORDEN.md, en una línea
+ * @param {number} umbral   0 = dura; N = trinquete con deuda declarada
+ * @param {() => {archivo:string, detalle:string}[]} buscar
+ * @param {string} [deuda]  por qué el umbral no es 0, y quién lo baja
+ */
+function comprobar(id, regla, umbral, buscar, deuda) {
+  const hallazgos = buscar();
+  resultados.push({ id, regla, umbral, hallazgos, deuda });
+}
+
+const ES_TS = (f) => /\.tsx?$/.test(f) && !/\.d\.ts$/.test(f);
+
+// ── C1 · lib/escolar no usa el alias «@/» ──────────────────────────────────
+// ORDEN.md §1b. No es estilo: las suites compilan módulos sueltos con
+// `ts.transpileModule` y `tsc` NO reescribe `@/`, así que un import absoluto
+// aquí rompe la suite sin romper el build. Falla en el sitio equivocado.
+comprobar("C1", "lib/escolar/** importa por ruta relativa, nunca «@/»", 0, () =>
+  listar("lib/escolar", ES_TS)
+    .flatMap((f) => importsDe(leer(f)).filter((s) => s.startsWith("@/")).map((s) => ({ archivo: f, detalle: s }))),
+);
+
+// ── C2 · lib/ nunca importa app/ ───────────────────────────────────────────
+// ORDEN.md §2, «la prueba del algodón»: si borras `app/` entero, `lib/` debe
+// seguir compilando.
+comprobar("C2", "lib/** nunca importa de app/", 0, () =>
+  listar("lib", ES_TS)
+    .flatMap((f) => importsDe(leer(f)).filter((s) => s.startsWith("@/app/") || /(^|\/)\.\.\/app\//.test(s)).map((s) => ({ archivo: f, detalle: s }))),
+);
+
+// ── C3 · los componentes cliente no arrastran el servidor ──────────────────
+// ORDEN.md §2: un `"use client"` que importa `lib/supabase/*` o `server-only`
+// mete en el bundle del navegador código que solo puede correr en servidor.
+comprobar("C3", "«use client» no importa lib/supabase ni server-only", 0, () =>
+  listar("app", (f) => ES_TS(f))
+    .filter((f) => /^\s*["']use client["']/.test(leer(f)))
+    .flatMap((f) => importsDe(leer(f)).filter((s) => /lib\/supabase|^server-only$/.test(s)).map((s) => ({ archivo: f, detalle: s }))),
+);
+
+// ── C4 · una action no llama a otra action ─────────────────────────────────
+// ORDEN.md §2: si dos actions comparten algo, ese algo baja a `lib/`.
+comprobar("C4", "app/actions/** no importa otra action", 0, () =>
+  listar("app/actions", ES_TS)
+    .flatMap((f) => importsDe(leer(f)).filter((s) => /@\/app\/actions\//.test(s)).map((s) => ({ archivo: f, detalle: s }))),
+);
+
+// ── C5 · un módulo «-puro» es puro ─────────────────────────────────────────
+// ORDEN.md §2: `lib/*-puro.ts` solo importa tipos; nada de I/O. Se mide sobre
+// el código desnudo: `ciclo-estado-puro.ts` nombra un `.sql` en un comentario
+// y eso NO es I/O.
+comprobar("C5", "lib/**-puro.ts no hace I/O", 0, () =>
+  listar("lib", (f) => /-puro\.tsx?$/.test(f))
+    .flatMap((f) => {
+      const src = leer(f);
+      const mal = importsDe(src).filter((s) => /supabase|node:fs|^fs$/.test(s));
+      const cuerpo = codigoDesnudo(src);
+      const usa = /\bcreateClient\s*\(|\bfetch\s*\(/.test(cuerpo);
+      return [
+        ...mal.map((s) => ({ archivo: f, detalle: `importa ${s}` })),
+        ...(usa ? [{ archivo: f, detalle: "llama a createClient/fetch" }] : []),
+      ];
+    }),
+);
+
+// ── C6 · un script de solo lectura no escribe ──────────────────────────────
+// ORDEN.md §4, «regla dura», y existe porque SE VIOLÓ: había `probe-*` que
+// vaciaban tablas en producción. Se mide sobre el código desnudo: una suite
+// que compara contra la cadena ".delete()" no escribe nada.
+comprobar("C6", "test-/diag-/probe- nunca escriben en la base", 0, () =>
+  listar("scripts", (f) => /\/(test|diag|probe)-[^/]+\.mjs$/.test(f))
+    .flatMap((f) => {
+      const cuerpo = codigoDesnudo(leer(f));
+      return [...cuerpo.matchAll(/\.(insert|update|upsert|delete|rpc)\s*\(/g)]
+        .map((m) => ({ archivo: f, detalle: `.${m[1]}(` }));
+    }),
+);
+
+// ── C7 · la raíz está cerrada ──────────────────────────────────────────────
+// ORDEN.md §1: «Nada nuevo en la raíz». Lo permitido es configuración.
+const RAIZ_PERMITIDA = new Set([
+  "eslint.config.mjs", "next.config.ts", "next-env.d.ts", "postcss.config.mjs", "proxy.ts",
+]);
+comprobar("C7", "la raíz solo contiene configuración conocida", 0, () =>
+  fs.readdirSync(root)
+    .filter((f) => /\.(ts|tsx|mjs|js|cjs)$/.test(f) && !RAIZ_PERMITIDA.has(f))
+    .map((f) => ({ archivo: f, detalle: "archivo nuevo en la raíz" })),
+);
+
+// ── C8 · el I/O no vive en la action ───────────────────────────────────────
+// CONTRATO §1 punto 2 y ORDEN.md §2. TRINQUETE: hoy son 13 y tienen prompt
+// asignado (PROMPT_E_CAPAS_Y_TAMANO.md, R-1, que los lleva a 0).
+comprobar("C8", "app/actions/** no habla con Supabase directamente", 13, () =>
+  listar("app/actions", ES_TS)
+    .filter((f) => /\.from\s*\(/.test(codigoDesnudo(leer(f))))
+    .map((f) => ({ archivo: f, detalle: "usa .from()" })),
+  "PROMPT_E_CAPAS_Y_TAMANO.md · R-1 lo baja a 0",
+);
+
+// ── C9 · ningún archivo es intocable ───────────────────────────────────────
+// Evaluación 09-08, punto 7. TRINQUETE: eran 4 en septiembre y hoy son 7 —
+// crecen solos, que es justo lo que un umbral detiene.
+const LIMITE_LINEAS = 1000;
+comprobar("C9", `ningún archivo de app/ o lib/ supera ${LIMITE_LINEAS} líneas`, 7, () =>
+  [...listar("app", ES_TS), ...listar("lib", ES_TS)]
+    .map((f) => ({ f, n: leer(f).split("\n").length }))
+    .filter((x) => x.n > LIMITE_LINEAS)
+    .sort((a, b) => b.n - a.n)
+    .map((x) => ({ archivo: x.f, detalle: `${x.n} líneas` })),
+  "PROMPT_E_CAPAS_Y_TAMANO.md · R-3 los parte por responsabilidad",
+);
+
+// ── C10 · todo script está inventariado ────────────────────────────────────
+// ORDEN.md §4: «Todo script nuevo: … y una fila en scripts/README.md. Sin eso,
+// no está terminado». TRINQUETE: hoy faltan 35, casi todos anteriores a la
+// regla. Lo que importa es que no crezca.
+comprobar("C10", "todo scripts/*.mjs tiene fila en scripts/README.md", 35, () => {
+  const readme = fs.existsSync(path.join(root, "scripts/README.md")) ? leer("scripts/README.md") : "";
+  return listar("scripts", (f) => /^scripts\/[^/]+\.mjs$/.test(f))
+    .map((f) => path.basename(f))
+    .filter((b) => !readme.includes(b))
+    .map((b) => ({ archivo: `scripts/${b}`, detalle: "sin fila en README" }));
+}, "deuda histórica: la regla es posterior a casi todos");
+
+// ── Informe ────────────────────────────────────────────────────────────────
+
+console.log("ORDEN.md — comprobación mecánica\n");
+
+let fallos = 0;
+let aflojar = 0;
+
+for (const r of resultados) {
+  const n = r.hallazgos.length;
+  const dura = r.umbral === 0;
+  const mal = n > r.umbral;
+  const mejor = !dura && n < r.umbral;
+
+  let marca;
+  if (mal) marca = dura ? "FALLA" : "SUBIÓ";
+  else if (mejor) marca = "BAJÓ";
+  else marca = "ok";
+
+  const cifra = dura ? `${n}` : `${n}/${r.umbral}`;
+  console.log(`  ${marca.padEnd(6)} ${r.id}  ${r.regla}  ·  ${cifra}`);
+
+  if (mal) {
+    fallos++;
+    const muestra = DETALLE ? r.hallazgos : r.hallazgos.slice(0, 6);
+    for (const h of muestra) console.log(`         ${h.archivo}  —  ${h.detalle}`);
+    if (!DETALLE && r.hallazgos.length > 6) {
+      console.log(`         … y ${r.hallazgos.length - 6} más (--detalle para verlos)`);
+    }
+    if (r.deuda) console.log(`         deuda declarada: ${r.deuda}`);
+  } else if (mejor) {
+    aflojar++;
+    console.log(`         bajó de ${r.umbral} a ${n}: ajusta el umbral en este archivo para que no vuelva a subir.`);
+  } else if (DETALLE && n > 0) {
+    for (const h of r.hallazgos) console.log(`         ${h.archivo}  —  ${h.detalle}`);
+  }
+}
+
+console.log();
+if (fallos > 0) {
+  console.log(`${fallos} regla(s) incumplida(s). Una regla DURA no admite excepciones;`);
+  console.log("un TRINQUETE solo falla si la deuda sube, y bajarla es el trabajo, no el obstáculo.");
+  process.exit(1);
+}
+if (aflojar > 0) {
+  console.log(`Todo en orden. ${aflojar} umbral(es) se pueden apretar: la deuda bajó y nadie lo registró.`);
+} else {
+  console.log(`Todo en orden: ${resultados.length} reglas comprobadas.`);
+}

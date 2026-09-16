@@ -21,6 +21,27 @@ Si el índice no te lleva a lo que necesitas, arréglalo — no compenses leyend
 
 ## Reparto de trabajo
 
-Claude diagnostica, mide y redacta el prompt. **Cline (DeepSeek) implementa.**
-Al redactar un prompt: seguir `criterios.prompts` y cerrar con el bloque de
-`docs/normativo/CONTRATO-DE-CAMBIO.md` §1.
+Claude diagnostica, mide, redacta el prompt **y revisa lo entregado**.
+**Cline (DeepSeek) implementa.** El bucle completo y el presupuesto de contexto
+de cada agente están en `AGENTS.md` §Reparto — no se duplican aquí.
+
+Al redactar un prompt: **generar el paquete, no escribirlo a mano.**
+
+```bash
+node scripts/gen-contexto-cline.mjs --tarea=crear <archivos que se van a tocar>
+```
+
+Sale con el presupuesto de lectura, la capa de cada archivo, las suites que lo
+cubren, los términos del glosario que aplican y el bloque del CONTRATO §1.
+
+## Antes de dar por bueno lo que entregó Cline
+
+```bash
+node scripts/test-orden.mjs        # capas, nombres, scripts, raíz
+npm run test:ci                    # suites + ESTADO-ACTUAL al día
+```
+
+`test-orden.mjs` es la mitad mecánica de `ORDEN.md`. Lo que no alcanza, se
+revisa contra el checklist de `docs/normativo/CONTRATO-DE-CAMBIO.md` §2.
+**Nunca bajes un umbral de `test-orden.mjs` para que pase**: eso apaga el
+guardián y es una decisión de arquitectura disfrazada de arreglo.
