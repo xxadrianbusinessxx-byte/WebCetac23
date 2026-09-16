@@ -9,7 +9,7 @@ Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vu
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
 - **Última revisión:** 2026-09-16 (ORDEN.md gana comprobación mecánica: `scripts/test-orden.mjs`)
-- **HEAD:** `0571122` (2026-09-16) · árbol limpio
+- **HEAD:** `d71fd59` (2026-09-16) · árbol limpio
 
 ---
 

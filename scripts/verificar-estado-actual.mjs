@@ -48,6 +48,18 @@ try {
   avisos.push("No se pudo leer el HEAD de git (¿fuera de un repo?); se omite ese check.");
 }
 
+// Cuántos commits puede quedarse atrás la cabecera antes de considerarse
+// podrida. No es 0 y no puede serlo: exigir igualdad EXACTA hacía este check
+// imposible de satisfacer. Escribes el sha X, commiteas, y el HEAD pasa a ser
+// Y ≠ X — el propio commit que pone el documento al día lo vuelve a
+// desincronizar, y el CI (que corre en cada PR) fallaba siempre.
+//
+// La intención original se conserva entera: lo que hay que impedir es que la
+// cabecera se quede 31 commits atrás, como estaba el 2026-09-16. Por eso se
+// exige que el sha declarado sea ANCESTRO del HEAD real —no un commit
+// cualquiera ni una rama abandonada— y que la distancia sea corta.
+const MAX_COMMITS_ATRAS = 10;
+
 if (headReal) {
   // Acepta "**HEAD:** `abc1234`" y variantes con o sin backticks/negritas.
   const m = texto.match(/HEAD:?\*{0,2}\s*`?([0-9a-f]{7,40})`?/i);
@@ -56,18 +68,32 @@ if (headReal) {
       `No se encontró una línea "HEAD: <sha>" en ${ARCHIVO}. La cabecera debe declarar sobre qué commit se escribió.`,
     );
   } else if (!headReal.startsWith(m[1]) && !m[1].startsWith(headReal)) {
-    let distancia = "";
+    const declarado = m[1];
+    let esAncestro = false;
+    let n = null;
     try {
-      const n = execSync(`git rev-list --count ${m[1]}..HEAD`, { cwd: root })
-        .toString()
-        .trim();
-      distancia = ` (${n} commit(s) por detrás)`;
+      execSync(`git merge-base --is-ancestor ${declarado} HEAD`, { cwd: root, stdio: "ignore" });
+      esAncestro = true;
+      n = Number(execSync(`git rev-list --count ${declarado}..HEAD`, { cwd: root }).toString().trim());
     } catch {
-      /* el sha declarado puede no existir ya; no es esencial */
+      /* no es ancestro, o el sha declarado ya no existe */
     }
-    fallos.push(
-      `${ARCHIVO} declara HEAD \`${m[1]}\` pero el HEAD real es \`${headReal}\`${distancia}.`,
-    );
+
+    if (!esAncestro) {
+      fallos.push(
+        `${ARCHIVO} declara HEAD \`${declarado}\`, que NO es ancestro del HEAD real \`${headReal}\`. ` +
+          `O el documento viene de otra rama, o el sha ya no existe.`,
+      );
+    } else if (n > MAX_COMMITS_ATRAS) {
+      fallos.push(
+        `${ARCHIVO} declara HEAD \`${declarado}\` y el real es \`${headReal}\`: ${n} commits por detrás ` +
+          `(máximo ${MAX_COMMITS_ATRAS}). La cabecera se quedó vieja.`,
+      );
+    } else if (n > 1) {
+      avisos.push(
+        `la cabecera va ${n} commits por detrás (\`${declarado}\` → \`${headReal}\`); tolerado hasta ${MAX_COMMITS_ATRAS}.`,
+      );
+    }
   }
 }
 

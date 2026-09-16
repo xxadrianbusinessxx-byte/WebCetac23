@@ -179,7 +179,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 146 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 147 Server Actions.
 
 ### `asignaciones-profesor.ts`
 
@@ -375,6 +375,12 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 146 Server Actions.
 | `actionListarJustificacionesPendientesConDetalle` | exigir: justificacion.ver_todas | `justificacion.ver_todas` |
 | `actionListarHistorialJustificaciones` | exigir: justificacion.ver_todas | `justificacion.ver_todas` |
 
+### `login.ts`
+
+| Action | Guardia hoy | Capacidad |
+|---|---|---|
+| `actionCerrarSesion` | **SIN SESION** | `SIN ASIGNAR` |
+
 ### `materias.ts`
 
 | Action | Guardia hoy | Capacidad |
@@ -442,6 +448,27 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 146 Server Actions.
 ---
 
 ## 6. Hallazgos de la auditoría
+
+### 6.0 La única action con `SIN ASIGNAR` a propósito (2026-09-16)
+
+`actionCerrarSesion` aparece en la §5 como **SIN SESION · SIN ASIGNAR** y no es
+un descuido: **no hay capacidad que asignarle.**
+
+`exigir()` responde «¿puede este rol ejecutar tal capacidad?». Cerrar la propia
+sesión no es una capacidad que un rol tenga o deje de tener: la action no lee
+ni escribe datos de nadie, solo retira la credencial de quien la envía. Pedir
+permiso ahí tendría además un efecto perverso — una sesión rota o con un rol
+que ya no existe no podría salir de sí misma, que es justo cuando más falta
+hace poder salir.
+
+Está declarada como excepción en `scripts/test-auditoria-permisos.mjs`
+(`OPERAN_SOBRE_LA_PROPIA_CREDENCIAL`), junto a las dos públicas de
+`portada.ver` y la delegación verificada de etiquetas.
+
+> **Por qué se anota aquí.** Al crearla se declaró la excepción en el detector
+> pero NO en este inventario, y `gen:matriz --check` —que es otro auditor, con
+> otra lista— salió con código 1 y habría dejado el CI de `main` en rojo. Dos
+> auditores sobre la misma regla necesitan enterarse los dos.
 
 ### 6.1 Dieciséis actions no leían la sesión (resuelto en PROMPT-2)
 
