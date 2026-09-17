@@ -17,7 +17,12 @@
 //
 // Uso:  node scripts/verificar-estado-actual.mjs
 //       node scripts/verificar-estado-actual.mjs --check   (igual; explícito)
+//       node scripts/verificar-estado-actual.mjs --json    (para gen-estado.mjs)
 // Sale con código 1 si algo diverge. Pensado para el CI.
+//
+// `--json` existe por el mismo motivo que en `test-orden.mjs`: que el panel lea
+// estas tres medidas en vez de volver a calcularlas. Si el panel las midiera
+// habría dos fuentes para la misma verdad (R6) y divergirían.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -37,6 +42,19 @@ const lineas = texto.split(/\r?\n/);
 
 const fallos = [];
 const avisos = [];
+
+const JSON_OUT = process.argv.includes("--json");
+/** Lo que este script mide, en crudo. Se rellena por el camino. */
+const datos = {
+  headReal: null,
+  headDeclarado: null,
+  commitsAtras: null,
+  suitesReales: 0,
+  suitesDeclaradas: null,
+  lineas: lineas.length,
+  limiteLineas: LIMITE_LINEAS,
+  maxCommitsAtras: null,
+};
 
 // --- 1) HEAD declarado vs real -------------------------------------------
 let headReal = null;
@@ -59,10 +77,14 @@ try {
 // exige que el sha declarado sea ANCESTRO del HEAD real —no un commit
 // cualquiera ni una rama abandonada— y que la distancia sea corta.
 const MAX_COMMITS_ATRAS = 10;
+datos.headReal = headReal;
+datos.maxCommitsAtras = MAX_COMMITS_ATRAS;
 
 if (headReal) {
   // Acepta "**HEAD:** `abc1234`" y variantes con o sin backticks/negritas.
   const m = texto.match(/HEAD:?\*{0,2}\s*`?([0-9a-f]{7,40})`?/i);
+  datos.headDeclarado = m?.[1] ?? null;
+  if (m && (headReal.startsWith(m[1]) || m[1].startsWith(headReal))) datos.commitsAtras = 0;
   if (!m) {
     fallos.push(
       `No se encontró una línea "HEAD: <sha>" en ${ARCHIVO}. La cabecera debe declarar sobre qué commit se escribió.`,
@@ -78,6 +100,7 @@ if (headReal) {
     } catch {
       /* no es ancestro, o el sha declarado ya no existe */
     }
+    datos.commitsAtras = esAncestro ? n : null;
 
     if (!esAncestro) {
       fallos.push(
@@ -103,6 +126,8 @@ const suitesReales = fs
   .filter((f) => /^test-.*\.mjs$/.test(f)).length;
 
 const mSuites = texto.match(/\*{0,2}(\d{1,3})\s+suites?\*{0,2}/i);
+datos.suitesReales = suitesReales;
+datos.suitesDeclaradas = mSuites ? Number(mSuites[1]) : null;
 if (!mSuites) {
   avisos.push(`No se encontró un "<N> suites" en ${ARCHIVO}; se omite ese check.`);
 } else if (Number(mSuites[1]) !== suitesReales) {
@@ -125,6 +150,13 @@ if (lineas.length > LIMITE_LINEAS) {
 }
 
 // --- Informe ---------------------------------------------------------------
+if (JSON_OUT) {
+  process.stdout.write(
+    JSON.stringify({ medido: new Date().toISOString(), ...datos, fallos, avisos }, null, 2) + "\n",
+  );
+  process.exit(fallos.length === 0 ? 0 : 1);
+}
+
 console.log(`Verificación de ${ARCHIVO}`);
 console.log(`  HEAD real        : ${headReal ?? "(desconocido)"}`);
 console.log(`  suites reales    : ${suitesReales}`);

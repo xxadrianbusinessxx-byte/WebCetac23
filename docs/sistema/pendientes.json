@@ -1,0 +1,130 @@
+{
+  "_comentario": [
+    "Pendientes que NINGÚN script puede medir: operación, decisiones y trabajo asignado.",
+    "Se edita A MANO. Lo que sí se puede medir NO va aquí — va a su script, y el panel lo",
+    "lee de ahí (R6: una sola fuente por verdad). Por eso 'los 13 .from() en actions' no",
+    "aparece: lo mide test-orden C8 y el panel ya lo muestra.",
+    "",
+    "Campos: id · titulo · detalle · riesgo (alto|medio|bajo) · quien · verificar (comando",
+    "que lo comprueba, si existe) · doc · revisado (fecha de la última verificación real)",
+    "· estado (abierto|cerrado).",
+    "",
+    "'revisado' es el campo que importa: el panel muestra hace cuántos días que nadie",
+    "comprueba este pendiente. Un pendiente falso cuesta lo mismo de leer que uno real y",
+    "entrena a ignorar la lista — el 09-16 cuatro de ocho ya estaban resueltos.",
+    "",
+    "Sembrado desde docs/sistema/PENDIENTES-2026-09-16.md §1 y §3."
+  ],
+  "pendientes": [
+    {
+      "id": "traspaso-sin-estrenar",
+      "titulo": "asignaciones_profesor sigue con 0 filas",
+      "detalle": "La consola del técnico está lista (PROMPT-3/T3) y el traspaso probado con 26 casos puros, pero nadie ha subido una plantilla. Es código entero sin estrenar en producción: el riesgo más alto del sistema.",
+      "riesgo": "alto",
+      "quien": "persona — es operación, no código",
+      "verificar": "node scripts/diag-asignaciones-profesor.mjs",
+      "doc": "docs/historial/informes/INFORME-PROMPT-D_TRASPASO_MATERIA.md",
+      "revisado": "2026-09-16",
+      "estado": "abierto"
+    },
+    {
+      "id": "claves-compartidas-profesores",
+      "titulo": "15 de 21 profesores comparten contraseña",
+      "detalle": "debe_cambiar_credenciales está marcado en 19, pero el cambio real solo ocurre cuando cada profesor entra. Hasta entonces, quien sepa el nombre de un colega puede entrar como él.",
+      "riesgo": "alto",
+      "quien": "persona — hay que hacer entrar a cada profesor",
+      "verificar": "node scripts/diag-credenciales-duplicadas.mjs",
+      "doc": "ESTADO-ACTUAL.md",
+      "revisado": "2026-09-16",
+      "estado": "abierto"
+    },
+    {
+      "id": "rotar-password-supabase",
+      "titulo": "Rotar la contraseña de Supabase",
+      "detalle": "No verificable desde el repo. La service_role salta RLS y no hay staging: lo que se toca, se toca en producción.",
+      "riesgo": "alto",
+      "quien": "persona — panel de Supabase",
+      "verificar": null,
+      "doc": null,
+      "revisado": "2026-09-16",
+      "estado": "abierto"
+    },
+    {
+      "id": "o1-rpc-sin-acotar",
+      "titulo": "O-1: la RPC de perfil de alumno no acota por grupo",
+      "detalle": "Falta AND gm.grupo_id = v_grupo_id en crear-rpc-obtener-perfil-alumno.sql:208. Sigue siendo UNA línea, abierta desde el 09-08. Con un solo ciclo el sobrecoste es ×1 y no se nota: vuelve multiplicado el día que exista el ciclo 2027-2028. Un bug latente que se esconde solo es peor que uno visible.",
+      "riesgo": "medio",
+      "quien": "Cline — prompt de una línea",
+      "verificar": "node scripts/diag-sql-aplicado.mjs",
+      "doc": "docs/sistema/PENDIENTES-2026-09-16.md",
+      "revisado": "2026-09-16",
+      "estado": "abierto"
+    },
+    {
+      "id": "lint-fuera-del-ci",
+      "titulo": "El lint no está en el CI y subió a 151 errores",
+      "detalle": "140 → 151 en 8 días. La mayoría son de scripts/**/*.mjs y deberían excluirse; quedan ~29 reales. Sin paso de lint en el CI seguirá subiendo solo, igual que los archivos de >1000 líneas.",
+      "riesgo": "medio",
+      "quien": "Cline — excluir scripts del lint y añadir el paso al workflow",
+      "verificar": "npm run lint",
+      "doc": ".github/workflows",
+      "revisado": "2026-09-16",
+      "estado": "abierto"
+    },
+    {
+      "id": "fk-calendario-periodo",
+      "titulo": "calendario_escolar.periodo_id sigue sin FK",
+      "detalle": "La columna está poblada al 100 %, así que la FK es gratis. Es la raíz de los fallos históricos de calendario y asistencia: texto vs UUID.",
+      "riesgo": "medio",
+      "quien": "Cline — una sentencia SQL",
+      "verificar": "node scripts/diag-relaciones-supabase.mjs",
+      "doc": "docs/sistema/PENDIENTES-2026-09-16.md",
+      "revisado": "2026-09-16",
+      "estado": "abierto"
+    },
+    {
+      "id": "remedir-rendimiento",
+      "titulo": "Re-medir rendimiento (FASE 11)",
+      "detalle": "Las cifras de OPTIMIZACION_RENDIMIENTO_400_500.md son de la FASE 10. Desde entonces: reorganización del repo, 9 FK nuevas, asistencia por materia y el rediseño visual de los 5 roles. Hoy se optimizaría a ciegas. asistencia_alumnos pasó de ~1000 a 3863 filas.",
+      "riesgo": "medio",
+      "quien": "merece su propio prompt",
+      "verificar": null,
+      "doc": "docs/historial/OPTIMIZACION_RENDIMIENTO_400_500.md",
+      "revisado": "2026-09-16",
+      "estado": "abierto"
+    },
+    {
+      "id": "filas-sin-periodo",
+      "titulo": "68 de 3863 filas de asistencia_alumnos sin periodo_id",
+      "detalle": "Fechas fuera del rango del operativo. Hay que decidir si se archivan; no es un bug, es una decisión pendiente.",
+      "riesgo": "bajo",
+      "quien": "persona — decisión",
+      "verificar": "node scripts/diag-asistencia-periodo.mjs",
+      "doc": "docs/sistema/PENDIENTES-2026-09-16.md",
+      "revisado": "2026-09-16",
+      "estado": "abierto"
+    },
+    {
+      "id": "indices-asistencia",
+      "titulo": "agregar-indices-asistencia.sql sin verificar",
+      "detalle": "Único SQL cuya aplicación no se puede comprobar por PostgREST: los índices no salen en el spec OpenAPI. Con 3863 filas y creciendo, conviene confirmarlo en el SQL Editor.",
+      "riesgo": "bajo",
+      "quien": "persona — SQL Editor de Supabase",
+      "verificar": null,
+      "doc": "supabase",
+      "revisado": "2026-09-16",
+      "estado": "abierto"
+    },
+    {
+      "id": "prompt5-parte-b",
+      "titulo": "PROMPT-5 Parte B: B4 y B5 sin cerrar",
+      "detalle": "B4: partir los 4 módulos con I/O importados desde cliente. B5: app/_borrador/ y lib/_borrador/ siguen ahí. (B3 —los .from() en actions— no se repite aquí: lo mide test-orden C8 y el panel lo muestra en la zona técnica.)",
+      "riesgo": "bajo",
+      "quien": "Cline",
+      "verificar": "node scripts/test-orden.mjs --detalle",
+      "doc": "docs/normativo/PROMPT_E_CAPAS_Y_TAMANO.md",
+      "revisado": "2026-09-16",
+      "estado": "abierto"
+    }
+  ]
+}

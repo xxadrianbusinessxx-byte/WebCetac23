@@ -18,7 +18,9 @@
     "test:suites": "node scripts/correr-todas-las-suites.mjs",
     "test:permisos": "node scripts/test-permisos.mjs && node scripts/test-auditoria-permisos.mjs",
     "test:ci": "node scripts/correr-todas-las-suites.mjs && npm run verificar:estado",
-    "verificar:estado": "node scripts/verificar-estado-actual.mjs"
+    "verificar:estado": "node scripts/verificar-estado-actual.mjs",
+    "panel": "node scripts/gen-estado.mjs && node scripts/gen-panel.mjs",
+    "panel:json": "node scripts/gen-estado.mjs --sin-historico --salida=.panel/estado.json"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
