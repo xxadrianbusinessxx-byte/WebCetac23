@@ -208,9 +208,11 @@ comprobar("C7", "la raíz solo contiene configuración conocida", 0, () =>
 );
 
 // ── C8 · el I/O no vive en la action ───────────────────────────────────────
-// CONTRATO §1 punto 2 y ORDEN.md §2. TRINQUETE: hoy son 13 y tienen prompt
-// asignado (PROMPT_E_CAPAS_Y_TAMANO.md, R-1, que los lleva a 0).
-comprobar("C8", "app/actions/** no habla con Supabase directamente", 13, () =>
+// CONTRATO §1 punto 2 y ORDEN.md §2. Empezó siendo TRINQUETE (eran 13 archivos
+// con `.from()`). Al cerrar la parte 3 de `PROMPT_CLINE_E` llegó a 0, así que
+// pasa a regla DURA: una sola action que hable con Supabase vuelve a fallar.
+// Lo ganado queda clavado y ya no hay umbral que apretar.
+comprobar("C8", "app/actions/** no habla con Supabase directamente", 0, () =>
   listar("app/actions", ES_TS)
     .filter((f) => /\.from\s*\(/.test(codigoDesnudo(leer(f))))
     .map((f) => ({ archivo: f, detalle: "usa .from()" })),
@@ -218,10 +220,12 @@ comprobar("C8", "app/actions/** no habla con Supabase directamente", 13, () =>
 );
 
 // ── C9 · ningún archivo es intocable ───────────────────────────────────────
-// Evaluación 09-08, punto 7. TRINQUETE: eran 4 en septiembre y hoy son 7 —
-// crecen solos, que es justo lo que un umbral detiene.
+// Evaluación 09-08, punto 7. Empezó siendo TRINQUETE (eran 4 archivos, subieron
+// a 7). Al cerrar la parte 4 de `PROMPT_CLINE_E` llegó a 0 partiendo los seis
+// gigantes por responsabilidad, así que pasa a regla DURA: un archivo nuevo de
+// más de 1 000 líneas vuelve a fallar.
 const LIMITE_LINEAS = 1000;
-comprobar("C9", `ningún archivo de app/ o lib/ supera ${LIMITE_LINEAS} líneas`, 7, () =>
+comprobar("C9", `ningún archivo de app/ o lib/ supera ${LIMITE_LINEAS} líneas`, 0, () =>
   [...listar("app", ES_TS), ...listar("lib", ES_TS)]
     .map((f) => ({ f, n: leer(f).split("\n").length }))
     .filter((x) => x.n > LIMITE_LINEAS)

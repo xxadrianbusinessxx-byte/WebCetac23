@@ -25,6 +25,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   TABLA_ASIGNACIONES_PROFESOR,
+  TABLA_CARRERAS,
+  TABLA_GRUPO_MATERIAS,
+  TABLA_PERIODOS,
   TABLA_PROFESORES,
 } from "../tables";
 import { resolverGrupoMateria, resolverGrupoMateriasBatch } from "./catalogo-academico";
@@ -464,6 +467,162 @@ export async function listarAsignacionesAdmin(
     });
   }
   return { ok: true, asignaciones: salida };
+}
+
+/* ---------------------------------------------------------------------------
+ * OFERTA DE grupo_materias PARA EL SELECTOR ADMINISTRATIVO
+ * ------------------------------------------------------------------------- */
+
+type GrupoMateriaRef = {
+  id: string;
+  grado: string;
+  nombre: string;
+  carrera_id: string | null;
+  periodo_id: string;
+};
+
+type MateriaRef = { id: string; clave: string; nombre: string };
+
+/** PostgREST embeds pueden venir como objeto o como array según la FK. */
+function aUno<T>(v: T | T[] | null | undefined): T | null {
+  if (Array.isArray(v)) return (v[0] ?? null) as T | null;
+  return (v ?? null) as T | null;
+}
+
+type GrupoMateriaJoin = {
+  id: string;
+  tabla_legacy: string | null;
+  activo: boolean;
+  grupos: GrupoMateriaRef | GrupoMateriaRef[] | null;
+  materias: MateriaRef | MateriaRef[] | null;
+};
+
+export type GrupoMateriaParaAsignacion = {
+  grupoMateriaId: string;
+  /** Presentación humana: grado + grupo + carrera (ej. "2DO A RH"). */
+  descripcion: string;
+  /** Nombre visible de la materia (alias → materias.nombre → materias.clave). */
+  materiaNombre: string;
+  /** Solo debugging administrativo. */
+  materiaClave: string;
+  carreraClave: string | null;
+  periodoNombre: string;
+  /** Nombre físico de la tabla; solo debugging (la UI NO lo expone). */
+  tablaLegacy: string | null;
+};
+
+/**
+ * Lista la oferta de grupo_materias ACTIVA (grupo + carrera + materia +
+ * periodo) para el selector administrativo de asignaciones.
+ *
+ * El nombre visible de la materia sale del alias existente
+ * (materias_nombres_visibles) o del catálogo (materias.nombre/clave); NUNCA del
+ * nombre físico de la tabla (C4.28). Antes vivía en la Server Action.
+ */
+export async function listarGruposMateriasParaAsignacion(
+  supabase: SupabaseClient,
+): Promise<GrupoMateriaParaAsignacion[] | { ok: false; error: string }> {
+  const { data, error } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .select(
+      "id, tabla_legacy, activo, grupos(id, grado, nombre, carrera_id, periodo_id), materias(id, clave, nombre)",
+    )
+    .eq("activo", true)
+    .order("tabla_legacy");
+  if (error) return { ok: false, error: error.message };
+
+  const gms = (data ?? []) as unknown as GrupoMateriaJoin[];
+  const periodoIds = [
+    ...new Set(
+      gms.map((g) => aUno(g.grupos)?.periodo_id).filter((x): x is string => Boolean(x)),
+    ),
+  ];
+  const carreraIds = [
+    ...new Set(
+      gms.map((g) => aUno(g.grupos)?.carrera_id).filter((x): x is string => Boolean(x)),
+    ),
+  ];
+
+  const [periodosRes, carrerasRes] = await Promise.all([
+    periodoIds.length
+      ? supabase.from(TABLA_PERIODOS).select("id, nombre").in("id", periodoIds)
+      : Promise.resolve({ data: [], error: null }),
+    carreraIds.length
+      ? supabase.from(TABLA_CARRERAS).select("id, clave").in("id", carreraIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const periodoPorId = new Map(
+    ((periodosRes.data ?? []) as Array<{ id: string; nombre: string }>).map(
+      (p) => [p.id, p.nombre],
+    ),
+  );
+  const carreraPorId = new Map(
+    ((carrerasRes.data ?? []) as Array<{ id: string; clave: string }>).map(
+      (c) => [c.id, c.clave],
+    ),
+  );
+
+  const aliases = await listarNombresVisiblesMaterias(supabase);
+
+  return gms.map((g) => {
+    const grupo = aUno(g.grupos);
+    const materia = aUno(g.materias);
+    const carreraClave = grupo?.carrera_id
+      ? (carreraPorId.get(grupo.carrera_id) ?? null)
+      : null;
+    const grupoDesc = `${grupo?.grado ?? ""} ${grupo?.nombre ?? ""}`.trim();
+    const aliasResuelto = g.tabla_legacy
+      ? nombreVisibleDesdeMapa(aliases, g.tabla_legacy)
+      : "";
+    const materiaNombre =
+      (aliasResuelto && aliasResuelto !== g.tabla_legacy ? aliasResuelto : "") ||
+      (materia?.nombre?.trim() ?? "") ||
+      (materia?.clave?.trim() ?? "—");
+    return {
+      grupoMateriaId: g.id,
+      descripcion: grupoDesc
+        ? `${grupoDesc}${carreraClave ? " " + carreraClave : ""}`
+        : g.id,
+      materiaNombre,
+      materiaClave: materia?.clave ?? "—",
+      carreraClave,
+      periodoNombre: grupo?.periodo_id
+        ? (periodoPorId.get(grupo.periodo_id) ?? "—")
+        : "—",
+      tablaLegacy: g.tabla_legacy ?? null,
+    };
+  });
+}
+
+/**
+ * `grupo_id` de los grupos donde el profesor tiene ASIGNACIONES ACTIVAS
+ * (`asignaciones_profesor` → `grupo_materias`).
+ *
+ * Es el alcance R-4 del panel de asistencias: cuando el profesor ya tiene
+ * asignaciones, su alcance se acota a esos grupos. Bajada de
+ * `app/actions/asistencias.ts` (PROMPT E · R-1).
+ */
+export async function listarGrupoIdsAsignadosProfesor(
+  supabase: SupabaseClient,
+  profesorId: number,
+  limite = 500,
+): Promise<Set<string>> {
+  const { data: asig } = await supabase
+    .from(TABLA_ASIGNACIONES_PROFESOR)
+    .select("grupo_materias!inner(grupo_id)")
+    .eq("profesor_id", profesorId)
+    .eq("activo", true)
+    .limit(limite);
+
+  const grupoIds = new Set<string>();
+  for (const a of asig ?? []) {
+    const gm = (a as { grupo_materias?: unknown }).grupo_materias;
+    const g = Array.isArray(gm) ? gm[0] : gm;
+    const gid = (g as { grupo_id?: string } | undefined)?.grupo_id;
+    if (gid) grupoIds.add(String(gid));
+  }
+  return grupoIds;
 }
 
 

@@ -116,6 +116,33 @@ export async function listarPeriodos(
   return { filas: (sinEstado.data ?? []) as FilaPeriodoEstado[], esquema: false };
 }
 
+/** Fila mínima de `periodos` que necesitan los selectores de ciclo de la UI. */
+export type PeriodoSimple = {
+  id: string;
+  nombre: string;
+  activo: boolean;
+};
+
+/**
+ * Lista el catálogo de periodos (id, nombre, activo) del más reciente al más
+ * antiguo. Es la lectura que ya hacían por su cuenta los selectores de ciclo
+ * (horario, contexto académico): una sola consulta para todos ellos.
+ *
+ * `error` es `null` cuando Supabase no devolvió filas ni mensaje; cada
+ * consumidor decide su texto de respaldo (los textos existentes son distintos
+ * y este refactor no los cambia).
+ */
+export async function listarPeriodosSimple(
+  supabase: SupabaseClient,
+): Promise<{ ok: true; periodos: PeriodoSimple[] } | { ok: false; error: string | null }> {
+  const { data, error } = await supabase
+    .from(TABLA_PERIODOS)
+    .select("id, nombre, activo")
+    .order("created_at", { ascending: false });
+  if (error || !data) return { ok: false, error: error?.message ?? null };
+  return { ok: true, periodos: data as PeriodoSimple[] };
+}
+
 /**
  * F1 — Resolución del CICLO GLOBAL (operativo). Autoridad: estado='operativo'.
  * Fallback legacy EXPLÍCITO a activo=true solo si no existe columna estado o no

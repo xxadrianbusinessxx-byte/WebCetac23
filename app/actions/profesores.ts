@@ -4,10 +4,13 @@ import { setPortalSessionCookie } from "@/lib/auth/session";
 import { exigir } from "@/lib/auth/exigir";
 import {
   cambiarClaveProfesor,
+  cambiarDebeCambiarCredencialesProfesor,
   listarProfesores,
   nombreProfesor,
+  reponerClaveAccesoProfesor,
+  resolverProfesorIdPorClave,
+  validarObjetivoPermitidoParaTecnico,
 } from "@/lib/escolar/catalogo/profesores";
-import { TABLA_PROFESORES } from "@/lib/escolar/tables";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -51,12 +54,7 @@ export async function actionCambiarClaveProfesor(
 
   let profesorId = typeof sesion.profesorId === "number" ? sesion.profesorId : null;
   if (profesorId === null) {
-    const { data } = await supabase
-      .from(TABLA_PROFESORES)
-      .select("ID")
-      .eq("CLAVE", sesion.matricula)
-      .limit(1);
-    profesorId = data?.[0]?.ID ?? null;
+    profesorId = await resolverProfesorIdPorClave(supabase, sesion.matricula);
   }
   if (profesorId === null) {
     return { ok: false, error: "No se encontró tu registro de profesor." };
@@ -100,16 +98,10 @@ export async function actionReponerClaveAccesoProfesor(
   }
 
   const supabase = await createClient();
-  const frontera = await objetivoPermitidoParaTecnico(supabase, g.sesion!.rol, id);
+  const frontera = await validarObjetivoPermitidoParaTecnico(supabase, g.sesion!.rol, id);
   if (!frontera.ok) return { ok: false, error: frontera.error ?? "No autorizado." };
 
-  const { error } = await supabase
-    .from(TABLA_PROFESORES)
-    .update({ CLAVE: clave, debe_cambiar_credenciales: true })
-    .eq("ID", id);
-
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  return reponerClaveAccesoProfesor(supabase, id, clave);
 }
 
 export type ProfesorCredencial = {
@@ -155,28 +147,6 @@ export async function actionListarProfesoresCredenciales(): Promise<
   };
 }
 
-/** El técnico solo administra claves de rol maestro; directivo/técnico NO. */
-async function objetivoPermitidoParaTecnico(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  actor: string,
-  id: number,
-): Promise<{ ok: boolean; error?: string }> {
-  if (actor !== "tecnico") return { ok: true };
-  const { data } = await supabase
-    .from(TABLA_PROFESORES)
-    .select("Permisos")
-    .eq("ID", id)
-    .limit(1);
-  const permisos = String(data?.[0]?.Permisos ?? "").trim().toLowerCase();
-  if (!permisos.includes("profesor")) {
-    return {
-      ok: false,
-      error: "El técnico solo repone claves de cuentas de rol maestro.",
-    };
-  }
-  return { ok: true };
-}
-
 /**
  * Activa/desactiva el flag `debe_cambiar_credenciales` de un profesor (solo
  * directivo). Para cuando la administración decida forzar el cambio a alguien
@@ -197,14 +167,8 @@ export async function actionCambiarDebeCambiarCredencialesProfesor(
   }
 
   const supabase = await createClient();
-  const frontera = await objetivoPermitidoParaTecnico(supabase, g.sesion!.rol, id);
+  const frontera = await validarObjetivoPermitidoParaTecnico(supabase, g.sesion!.rol, id);
   if (!frontera.ok) return { ok: false, error: frontera.error ?? "No autorizado." };
 
-  const { error } = await supabase
-    .from(TABLA_PROFESORES)
-    .update({ debe_cambiar_credenciales: Boolean(valor) })
-    .eq("ID", id);
-
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  return cambiarDebeCambiarCredencialesProfesor(supabase, id, Boolean(valor));
 }

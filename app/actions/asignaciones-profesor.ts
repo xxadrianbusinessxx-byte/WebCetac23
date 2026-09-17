@@ -19,16 +19,16 @@ import {
   crearAsignacion,
   desactivarAsignacion,
   listarAsignacionesAdmin,
+  listarGruposMateriasParaAsignacion,
+  type GrupoMateriaParaAsignacion,
 } from "@/lib/escolar/catalogo/asignaciones-profesor";
-import {
-  listarNombresVisiblesMaterias,
-  nombreVisibleDesdeMapa,
-} from "@/lib/escolar/materia/nombres-visibles";
-import {
-  TABLA_CARRERAS,
-  TABLA_GRUPO_MATERIAS,
-  TABLA_PERIODOS,
-} from "@/lib/escolar/tables";
+
+/**
+ * El tipo de la oferta de grupo_materias vive en la capa de dominio
+ * (`lib/escolar/catalogo/asignaciones-profesor.ts`); se re-exporta aquí para no
+ * romper los imports existentes de la UI.
+ */
+export type { GrupoMateriaParaAsignacion };
 
 const NO_AUTORIZADO = {
   ok: false,
@@ -60,45 +60,11 @@ export async function actionListarProfesoresParaAsignacion(): Promise<
   }));
 }
 
-type GrupoMateriaRef = {
-  id: string;
-  grado: string;
-  nombre: string;
-  carrera_id: string | null;
-  periodo_id: string;
-};
-
-type MateriaRef = { id: string; clave: string; nombre: string };
-
-/** PostgREST embeds pueden venir como objeto o como array según la FK. */
-function aUno<T>(v: T | T[] | null | undefined): T | null {
-  if (Array.isArray(v)) return (v[0] ?? null) as T | null;
-  return (v ?? null) as T | null;
-}
-
-type GrupoMateriaJoin = {
-  id: string;
-  tabla_legacy: string | null;
-  activo: boolean;
-  grupos: GrupoMateriaRef | GrupoMateriaRef[] | null;
-  materias: MateriaRef | MateriaRef[] | null;
-};
-
-export type GrupoMateriaParaAsignacion = {
-  grupoMateriaId: string;
-  /** Presentación humana: grado + grupo + carrera (ej. "2DO A RH"). */
-  descripcion: string;
-  /** Nombre visible de la materia (alias → materias.nombre → materias.clave). */
-  materiaNombre: string;
-  /** Solo debugging administrativo. */
-  materiaClave: string;
-  carreraClave: string | null;
-  periodoNombre: string;
-  /** Nombre físico de la tabla; solo debugging (la UI NO lo expone). */
-  tablaLegacy: string | null;
-};
-
-/** Lista la oferta de grupo_materias (grupo + carrera + materia + periodo). */
+/**
+ * Lista la oferta de grupo_materias (grupo + carrera + materia + periodo).
+ * La consulta y el derivado del catálogo viven en la capa de dominio
+ * (`listarGruposMateriasParaAsignacion`); aquí solo se valida la capacidad.
+ */
 export async function actionListarGruposMateriasParaAsignacion(): Promise<
   GrupoMateriaParaAsignacion[] | { ok: false; error: string }
 > {
@@ -106,85 +72,7 @@ export async function actionListarGruposMateriasParaAsignacion(): Promise<
   if (!g.ok) return NO_AUTORIZADO;
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from(TABLA_GRUPO_MATERIAS)
-    .select(
-      "id, tabla_legacy, activo, grupos(id, grado, nombre, carrera_id, periodo_id), materias(id, clave, nombre)",
-    )
-    .eq("activo", true)
-    .order("tabla_legacy");
-  if (error) return { ok: false, error: error.message };
-
-  const gms = (data ?? []) as unknown as GrupoMateriaJoin[];
-  const grupoIds = [
-    ...new Set(gms.map((g) => aUno(g.grupos)?.id).filter((x): x is string => Boolean(x))),
-  ];
-  const periodoIds = [
-    ...new Set(
-      gms.map((g) => aUno(g.grupos)?.periodo_id).filter((x): x is string => Boolean(x)),
-    ),
-  ];
-  const carreraIds = [
-    ...new Set(
-      gms.map((g) => aUno(g.grupos)?.carrera_id).filter((x): x is string => Boolean(x)),
-    ),
-  ];
-
-  const [periodosRes, carrerasRes] = await Promise.all([
-    periodoIds.length
-      ? supabase.from(TABLA_PERIODOS).select("id, nombre").in("id", periodoIds)
-      : Promise.resolve({ data: [], error: null }),
-    carreraIds.length
-      ? supabase.from(TABLA_CARRERAS).select("id, clave").in("id", carreraIds)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-
-  const periodoPorId = new Map(
-    ((periodosRes.data ?? []) as Array<{ id: string; nombre: string }>).map(
-      (p) => [p.id, p.nombre],
-    ),
-  );
-  const carreraPorId = new Map(
-    ((carrerasRes.data ?? []) as Array<{ id: string; clave: string }>).map(
-      (c) => [c.id, c.clave],
-    ),
-  );
-
-  // C4.28 — el nombre visible de la materia sale del alias existente
-  // (materias_nombres_visibles) o del catálogo (materias.nombre/clave);
-  // NUNCA del nombre físico de la tabla.
-  const aliases = await listarNombresVisiblesMaterias(supabase);
-
-  return gms.map((g) => {
-    const grupo = aUno(g.grupos);
-    const materia = aUno(g.materias);
-    const carreraClave = grupo?.carrera_id
-      ? (carreraPorId.get(grupo.carrera_id) ?? null)
-      : null;
-    const grupoDesc = `${grupo?.grado ?? ""} ${grupo?.nombre ?? ""}`.trim();
-    const aliasResuelto = g.tabla_legacy
-      ? nombreVisibleDesdeMapa(aliases, g.tabla_legacy)
-      : "";
-    const materiaNombre =
-      (aliasResuelto && aliasResuelto !== g.tabla_legacy
-        ? aliasResuelto
-        : "") ||
-      (materia?.nombre?.trim() ?? "") ||
-      (materia?.clave?.trim() ?? "—");
-    return {
-      grupoMateriaId: g.id,
-      descripcion: grupoDesc
-        ? `${grupoDesc}${carreraClave ? " " + carreraClave : ""}`
-        : g.id,
-      materiaNombre,
-      materiaClave: materia?.clave ?? "—",
-      carreraClave,
-      periodoNombre: grupo?.periodo_id
-        ? (periodoPorId.get(grupo.periodo_id) ?? "—")
-        : "—",
-      tablaLegacy: g.tabla_legacy ?? null,
-    };
-  });
+  return listarGruposMateriasParaAsignacion(supabase);
 }
 
 export type CrearAsignacionInput = {

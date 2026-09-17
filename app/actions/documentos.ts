@@ -7,19 +7,19 @@ import { createClient } from "@/lib/supabase/server";
 import { clienteLecturaEscolar, createServiceClient } from "@/lib/supabase/service";
 
 import {
-  BUCKET_DOCUMENTOS,
   DOCUMENTO_MAX_BYTES,
-  TABLA_DOCUMENTOS,
   type NivelPermiso,
 } from "@/lib/escolar/tables";
 import {
   asignarPermiso,
   crearCarpeta,
   eliminarCarpeta,
+  eliminarDocumento,
   listarCarpetas,
   listarDocumentosDeCarpeta,
   listarPermisos,
   nivelAccesoProfesor,
+  obtenerDocumento,
   puedeEliminar,
   puedeSubir,
   puedeVer,
@@ -27,8 +27,9 @@ import {
   renombrarCarpeta,
   rutaStorageCarpeta,
   sanitizarNombreArchivo,
+  subirDocumento,
+  urlFirmadaDocumento,
   type CarpetaRow,
-
   type DocumentoRow,
   type PermisoCarpetaRow,
 } from "@/lib/escolar/documentos";
@@ -236,40 +237,13 @@ export async function actionSubirDocumento(
   const nombreUnico = `${Date.now()}_${sanitizarNombreArchivo(archivo.name)}`;
   const rutaStorage = `${rutaCarpeta}/${nombreUnico}`.replace(/^\/+/, "");
 
-
-  const buffer = Buffer.from(await archivo.arrayBuffer());
-  const { error: errorSubida } = await escritura.storage
-    .from(BUCKET_DOCUMENTOS)
-    .upload(rutaStorage, buffer, {
-      contentType: archivo.type || "application/octet-stream",
-      upsert: false,
-    });
-
-  if (errorSubida) {
-    return { ok: false, error: `No se pudo subir: ${errorSubida.message}` };
-  }
-
-  const { data, error } = await escritura
-    .from(TABLA_DOCUMENTOS)
-    .insert({
-      carpeta_id: carpetaId,
-      nombre_original: archivo.name,
-      ruta_storage: rutaStorage,
-      tipo: archivo.type || null,
-      tamano_bytes: archivo.size,
-      subido_por: nombre,
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    // Limpiar el archivo subido si falla el registro.
-    await escritura.storage.from(BUCKET_DOCUMENTOS).remove([rutaStorage]);
-    return { ok: false, error: error.message };
-  }
-
-
-  return { ok: true, id: data.id as string };
+  // Subida al bucket + registro en `documentos`: el I/O vive en
+  // lib/escolar/documentos.ts (la action solo valida sesión, tamaño y nivel).
+  return subirDocumento(escritura, archivo, {
+    carpetaId,
+    rutaStorage,
+    subidoPor: nombre,
+  });
 }
 
 export async function actionEliminarDocumento(
@@ -285,12 +259,7 @@ export async function actionEliminarDocumento(
   const lectura = await clienteLecturaEscolar(supabase);
   const escritura = createServiceClient() ?? supabase; // service role: omite RLS en escrituras
 
-  const { data: doc } = await supabase
-    .from(TABLA_DOCUMENTOS)
-    .select("id, carpeta_id, ruta_storage")
-    .eq("id", documentoId)
-    .maybeSingle();
-
+  const doc = await obtenerDocumento(supabase, documentoId);
   if (!doc) return { ok: false, error: "Documento no encontrado." };
 
   // Verificar permiso de eliminación.
@@ -298,28 +267,14 @@ export async function actionEliminarDocumento(
     const nivel = await nivelAccesoProfesor(
       lectura,
       nombreSesion(sesion),
-      doc.carpeta_id as string,
+      doc.carpeta_id,
     );
     if (!puedeEliminar(nivel)) {
       return { ok: false, error: "No tienes permiso para eliminar." };
     }
   }
 
-  const { error: errorStorage } = await escritura.storage
-    .from(BUCKET_DOCUMENTOS)
-    .remove([doc.ruta_storage as string]);
-  if (errorStorage) {
-    return { ok: false, error: `No se pudo eliminar del storage: ${errorStorage.message}` };
-  }
-
-  const { error } = await escritura
-    .from(TABLA_DOCUMENTOS)
-    .delete()
-    .eq("id", documentoId);
-  if (error) return { ok: false, error: error.message };
-
-
-  return { ok: true };
+  return eliminarDocumento(escritura, doc);
 }
 
 export async function actionDescargarDocumento(
@@ -334,34 +289,21 @@ export async function actionDescargarDocumento(
   const supabase = await createClient();
   const lectura = await clienteLecturaEscolar(supabase);
 
-  const { data: doc } = await supabase
-    .from(TABLA_DOCUMENTOS)
-    .select("id, carpeta_id, ruta_storage")
-    .eq("id", documentoId)
-    .maybeSingle();
-
+  const doc = await obtenerDocumento(supabase, documentoId);
   if (!doc) return { ok: false, error: "Documento no encontrado." };
 
   if (!esDirectivoConPermisos(sesion)) {
     const nivel = await nivelAccesoProfesor(
       lectura,
       nombreSesion(sesion),
-      doc.carpeta_id as string,
+      doc.carpeta_id,
     );
     if (!puedeVer(nivel)) {
       return { ok: false, error: "No tienes permiso para ver este documento." };
     }
   }
 
-  const { data, error } = await supabase.storage
-    .from(BUCKET_DOCUMENTOS)
-    .createSignedUrl(doc.ruta_storage as string, 60);
-
-  if (error || !data?.signedUrl) {
-    return { ok: false, error: "No se pudo generar el enlace de descarga." };
-  }
-
-  return { ok: true, url: data.signedUrl };
+  return urlFirmadaDocumento(supabase, doc.ruta_storage);
 }
 
 export async function actionAsignarPermiso(

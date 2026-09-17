@@ -22,669 +22,28 @@
  *     ofrece `inscribirAlumno({ unaActiva: true })`, no una constraint rígida.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { gradoASemestre, semestreActivoDeGrupo } from "../ciclo/semestres";
+import { gradoASemestre, semestreActivoDeGrupo, semestresInactivos } from "../ciclo/semestres";
 import {
   TABLA_ASIGNACIONES_PROFESOR,
   TABLA_CARRERAS,
   TABLA_GRUPO_MATERIAS,
   TABLA_GRUPOS,
-  TABLA_INSCRIPCIONES_ALUMNO,
   TABLA_MATERIAS,
   TABLA_PERIODOS,
 } from "../tables";
-
-/* ---------------------------------------------------------------------------
- * TIPOS DE FILA (catálogo)
- * ------------------------------------------------------------------------- */
-
-export type PeriodoRow = {
-  id: string;
-  nombre: string;
-  activo: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-export type CarreraRow = {
-  id: string;
-  clave: string;
-  nombre: string | null;
-  activo: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-export type MateriaRow = {
-  id: string;
-  clave: string;
-  nombre: string | null;
-  activo: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-export type GrupoRow = {
-  id: string;
-  periodo_id: string;
-  grado: string;
-  nombre: string;
-  carrera_id: string | null;
-  activo: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-export type GrupoMateriaRow = {
-  id: string;
-  grupo_id: string;
-  materia_id: string;
-  tabla_legacy: string | null;
-  activo: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-export type InscripcionRow = {
-  id: string;
-  curp: string;
-  grupo_id: string;
-  activo: boolean;
-  created_at: string;
-  updated_at: string;
-  /** PROMPT-4/T1: decisión humana (la sincronización no toca la fila). */
-  decision_manual?: boolean | null;
-  motivo?: string | null;
-};
-
-export type AsignacionProfesorRow = {
-  id: string;
-  grupo_materia_id: string;
-  profesor_clave: string;
-  /** C4.11 — Identidad estructural (PROFESORES.ID). Nullable: filas legacy
-   *  solo tienen profesor_clave hasta que la administración las recree. */
-  profesor_id?: number | null;
-  activo: boolean;
-  desde: string;
-  hasta: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-/* ---------------------------------------------------------------------------
- * RESULTADOS RESUELTOS
- * ------------------------------------------------------------------------- */
-
-export type GrupoAlumnoResuelto = {
-  inscripcion: InscripcionRow;
-  grupo: GrupoRow;
-  periodo: PeriodoRow;
-  carrera: CarreraRow | null;
-};
-
-export type MateriaAlumnoResuelta = {
-  grupoMateriaId: string;
-  tablaLegacy: string | null;
-  materia: MateriaRow;
-};
-
-export type GrupoMateriaResuelto = {
-  grupoMateria: GrupoMateriaRow;
-  materia: MateriaRow;
-  grupo: GrupoRow;
-  periodo: PeriodoRow;
-  carrera: CarreraRow | null;
-};
-
-export type AsignacionProfesorResuelta = {
-  asignacion: AsignacionProfesorRow;
-  grupoMateria: GrupoMateriaRow;
-  grupo: GrupoRow;
-  periodo: PeriodoRow;
-  carrera: CarreraRow | null;
-  materia: MateriaRow;
-};
-
-/* ---------------------------------------------------------------------------
- * UTILIDADES
- * ------------------------------------------------------------------------- */
-
-function normCurp(curp: string): string {
-  return curp.trim().toUpperCase();
-}
-
-function normClave(clave: string): string {
-  return clave.trim().toUpperCase();
-}
-
-/* ---------------------------------------------------------------------------
- * NORMALIZACIÓN PARA MATCHING (G2 — usada por C2)
- *
- * Estas funciones SOLO sirven para comparar datos legacy (ETIQUETAS
- * PERSONALES, archivos) contra registros del catálogo. NO modifican el valor
- * almacenado en `grupos` ni en ETIQUETAS PERSONALES, y NO son identidad: la
- * identidad persistida sigue siendo (periodo, grado, nombre, carrera_id).
- *
- * Equivalencias consideradas SEGURAS:
- *   - GRADO (solo representaciones inequívocas del mismo ordinal):
- *       «1º» «1°» «1RO» «1RO.» → 1RO
- *       «2º» «2°» «2DO» «2DO.» → 2DO
- *       «3º» «3°» «3RO» «3RO.» → 3RO
- *       «4º» «4°» «4TO» «4TO.» → 4TO
- *       «5º» «5°» «5TO» «5TO.» → 5TO
- *       «6º» «6°» «6TO» «6TO.» → 6TO
- *     NO se asume «2D0» = «2DO» ni «4O» = «4TO» (ambigüedad O/0 no resuelta).
- *   - CARRERA: mayúsculas, espacios repetidos y acentos/tildes. NO se fusionan
- *     nombres distintos (ej. «MECATRONICA» vs «ROBOTICA» siguen siendo
- *     distintas; solo «MECATRÓNICA» y «MECATRONICA» son equivalentes).
- *   - GRUPO: mayúsculas y espacios. NO se convierten «A-1», «A1» y «A» en la
- *     misma identidad (los separadores son significativos).
- * ------------------------------------------------------------------------- */
-
-/** Normalización base determinista: trim, mayúsculas, sin acentos, espacios colapsados. */
-export function normalizarTextoCatalogo(texto: string): string {
-  const t = (texto ?? "").trim().toUpperCase();
-  const sinAcentos = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  return sinAcentos.replace(/\s+/g, " ");
-}
-
-/** Equivalencias seguras de representación del GRADO (ver documentación superior). */
-const GRADO_EQUIVALENCIAS: Readonly<Record<string, string>> = {
-  "1º": "1RO",
-  "1°": "1RO",
-  "1RO.": "1RO",
-  "2º": "2DO",
-  "2°": "2DO",
-  "2DO.": "2DO",
-  "3º": "3RO",
-  "3°": "3RO",
-  "3RO.": "3RO",
-  "4º": "4TO",
-  "4°": "4TO",
-  "4TO.": "4TO",
-  "5º": "5TO",
-  "5°": "5TO",
-  "5TO.": "5TO",
-  "6º": "6TO",
-  "6°": "6TO",
-  "6TO.": "6TO",
-};
-
-/** Normaliza un GRADO para comparación (matching legacy ↔ catálogo). */
-export function normalizarGradoCatalogo(grado: string): string {
-  const base = normalizarTextoCatalogo(grado);
-  return GRADO_EQUIVALENCIAS[base] ?? base;
-}
-
-/** Normaliza un GRUPO para comparación (sin fusionar «A-1»/«A1»/«A»). */
-export function normalizarGrupoCatalogo(grupo: string): string {
-  return normalizarTextoCatalogo(grupo);
-}
-
-/** Normaliza una CARRERA para comparación (sin fusionar nombres distintos). */
-export function normalizarCarreraCatalogo(carrera: string): string {
-  return normalizarTextoCatalogo(carrera);
-}
-
-/* ---------------------------------------------------------------------------
- * INSCRIPCIONES
- * ------------------------------------------------------------------------- */
-
-/**
- * Inscripción ACTIVA de un alumno. null si no tiene.
- *
- * REGLA (G4): si por una inconsistencia temporal existieran VARIAS
- * inscripciones activas para el mismo CURP, el criterio de selección es
- * `created_at DESC` (la más reciente). La regla de negocio «una inscripción
- * activa por alumno» se mantiene en la capa de aplicación; NO se crea una
- * restricción estructural nueva.
- */
-export async function obtenerInscripcionActiva(
-  supabase: SupabaseClient,
-  curp: string,
-): Promise<InscripcionRow | null> {
-  const c = normCurp(curp);
-  if (!c) return null;
-  const { data, error } = await supabase
-    .from(TABLA_INSCRIPCIONES_ALUMNO)
-    .select("*")
-    .eq("curp", c)
-    .eq("activo", true)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  if (error || !data?.length) return null;
-  return data[0] as InscripcionRow;
-}
-
-/** Crea o re-activa la relación alumno → grupo. UPSERT por (curp, grupo_id). */
-export async function inscribirAlumno(
-  supabase: SupabaseClient,
-  curp: string,
-  grupoId: string,
-  opts?: { unaActiva?: boolean },
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const c = normCurp(curp);
-  const g = grupoId.trim();
-  if (!c || !g) return { ok: false, error: "CURP y grupo son obligatorios." };
-  if (opts?.unaActiva) {
-    const { error: up } = await supabase
-      .from(TABLA_INSCRIPCIONES_ALUMNO)
-      .update({ activo: false })
-      .eq("curp", c)
-      .eq("activo", true)
-      .neq("grupo_id", g);
-    if (up) return { ok: false, error: up.message };
-  }
-  const { error } = await supabase
-    .from(TABLA_INSCRIPCIONES_ALUMNO)
-    .upsert(
-      { curp: c, grupo_id: g, activo: true },
-      { onConflict: "curp,grupo_id" },
-    );
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
-
-/* ---------------------------------------------------------------------------
- * GRUPOS / OFERTA
- * ------------------------------------------------------------------------- */
-
-/** Grupo activo del alumno, con periodo y carrera resueltos. */
-export async function resolverGrupoAlumno(
-  supabase: SupabaseClient,
-  curp: string,
-): Promise<GrupoAlumnoResuelto | null> {
-  const inscripcion = await obtenerInscripcionActiva(supabase, curp);
-  if (!inscripcion) return null;
-
-  const { data: grupo, error: eG } = await supabase
-    .from(TABLA_GRUPOS)
-    .select("*")
-    .eq("id", inscripcion.grupo_id)
-    .eq("activo", true)
-    .maybeSingle();
-  if (eG || !grupo) return null;
-
-  const { data: periodo, error: eP } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("*")
-    .eq("id", (grupo as GrupoRow).periodo_id)
-    .eq("activo", true)
-    .maybeSingle();
-  if (eP || !periodo) return null;
-
-  let carrera: CarreraRow | null = null;
-  const carreraId = (grupo as GrupoRow).carrera_id;
-  if (carreraId) {
-    const { data: c, error: eC } = await supabase
-      .from(TABLA_CARRERAS)
-      .select("*")
-      .eq("id", carreraId)
-      .maybeSingle();
-    if (!eC && c) carrera = c as CarreraRow;
-  }
-
-  return {
-    inscripcion,
-    grupo: grupo as GrupoRow,
-    periodo: periodo as PeriodoRow,
-    carrera,
-  };
-}
-
-/** Materias del grupo del alumno (inscripción activa). */
-export async function resolverMateriasAlumno(
-  supabase: SupabaseClient,
-  curp: string,
-): Promise<MateriaAlumnoResuelta[]> {
-  const grupo = await resolverGrupoAlumno(supabase, curp);
-  if (!grupo) return [];
-
-  const { data: gms, error: e1 } = await supabase
-    .from(TABLA_GRUPO_MATERIAS)
-    .select("*")
-    .eq("grupo_id", grupo.grupo.id)
-    .eq("activo", true);
-  if (e1 || !gms?.length) return [];
-
-  const filasGm = gms as GrupoMateriaRow[];
-  const materiaIds = [...new Set(filasGm.map((gm) => gm.materia_id))];
-  const { data: materias, error: e2 } = await supabase
-    .from(TABLA_MATERIAS)
-    .select("*")
-    .in("id", materiaIds)
-    .eq("activo", true);
-  if (e2 || !materias) return [];
-
-  const porId = new Map((materias as MateriaRow[]).map((m) => [m.id, m]));
-  const out: MateriaAlumnoResuelta[] = [];
-  for (const gm of filasGm) {
-    const materia = porId.get(gm.materia_id);
-    if (materia) out.push({ grupoMateriaId: gm.id, tablaLegacy: gm.tabla_legacy, materia });
-  }
-  return out;
-}
-
-/* ---------------------------------------------------------------------------
- * IDENTIDAD DESDE CATÁLOGO (C4.28)
- *
- * Resuelve grado / grupo / carrera / asignatura desde la cadena autoritativa
- *
- *     grupo_materias.tabla_legacy → grupos → carreras
- *     grupo_materias.materia_id   → materias
- *
- * usando `tabla_legacy` SOLO como clave física. NUNCA parsea el nombre físico
- * (los identificadores físicos inmutables [GRADO][CARRERA][GRUPO]MAT### no
- * llevan semántica académica: solo identificación).
- * ------------------------------------------------------------------------- */
-
-export type MateriaIdentidadCatalogo = {
-  /** Nombre físico EXACTO de la tabla (puente de almacenamiento). */
-  tablaLegacy: string;
-  grupoMateriaId: string;
-  /** Estado de disponibilidad del grupo_materia (activo). */
-  gmActivo: boolean;
-  grado: string;
-  grupo: string;
-  carreraClave: string | null;
-  /** Nombre de presentación de la materia desde `materias` (catálogo). */
-  asignatura: string;
-};
-
-/** Normaliza un embed de PostgREST (objeto o array) a un único objeto. */
-function embedAUno<T>(v: T | T[] | null | undefined): T | null {
-  if (Array.isArray(v)) return (v[0] ?? null) as T | null;
-  return (v ?? null) as T | null;
-}
-
-/**
- * C4.28 — Mapa `tabla_legacy` → identidad académica desde el catálogo.
- * Solo lectura; devuelve un Map vacío si no hay correspondencias.
- * `gmActivo` informa si el grupo_materia está disponible (no filtra: la
- * visibilidad se decide en la capa de acciones).
- */
-export async function resolverIdentidadesCatalogo(
-  supabase: SupabaseClient,
-  tablasLegacy: readonly string[],
-  opciones?: {
-    /**
-     * O-1 — Acota la resolución a UN grupo. Un mismo `tabla_legacy` se repite en
-     * todos los ciclos clonados, así que sin este filtro la consulta devuelve
-     * una fila por ciclo y el `Map` se queda con la última (no determinista).
-     * Pásalo SIEMPRE que resuelvas la identidad de un alumno concreto; omítelo
-     * solo cuando la resolución sea global (catálogo del profesor/directivo).
-     */
-    grupoId?: string | null;
-  },
-): Promise<Map<string, MateriaIdentidadCatalogo>> {
-  const mapa = new Map<string, MateriaIdentidadCatalogo>();
-  const tablas = [
-    ...new Set(
-      (tablasLegacy ?? [])
-        .map((t) => (t ?? "").trim())
-        .filter((t): t is string => Boolean(t)),
-    ),
-  ];
-  if (!tablas.length) return mapa;
-
-  let consulta = supabase
-    .from(TABLA_GRUPO_MATERIAS)
-    .select(
-      "id, tabla_legacy, activo, grupos(id, grado, nombre, carrera_id), materias(id, clave, nombre)",
-    )
-    .in("tabla_legacy", tablas);
-  const grupoId = opciones?.grupoId?.trim();
-  if (grupoId) consulta = consulta.eq("grupo_id", grupoId);
-
-  const { data, error } = await consulta;
-  if (error || !data?.length) return mapa;
-
-  const filas = data as Array<{
-    id: string;
-    tabla_legacy: string | null;
-    activo: boolean;
-    grupos:
-      | { id: string; grado: string; nombre: string; carrera_id: string | null }
-      | { id: string; grado: string; nombre: string; carrera_id: string | null }[]
-      | null;
-    materias:
-      | { id: string; clave: string; nombre: string | null }
-      | { id: string; clave: string; nombre: string | null }[]
-      | null;
-  }>;
-
-  const carreraIds = [
-    ...new Set(
-      filas
-        .map((f) => embedAUno(f.grupos)?.carrera_id)
-        .filter((x): x is string => Boolean(x)),
-    ),
-  ];
-  const carreraClavePorId = new Map<string, string>();
-  if (carreraIds.length) {
-    const { data: carreras, error: eCarr } = await supabase
-      .from(TABLA_CARRERAS)
-      .select("id, clave")
-      .in("id", carreraIds);
-    if (!eCarr) {
-      for (const c of (carreras ?? []) as Array<{ id: string; clave: string }>) {
-        carreraClavePorId.set(c.id, c.clave);
-      }
-    }
-  }
-
-  for (const f of filas) {
-    const t = (f.tabla_legacy ?? "").trim();
-    if (!t) continue;
-    const grupo = embedAUno(f.grupos);
-    const materia = embedAUno(f.materias);
-    if (!grupo || !materia) continue;
-    mapa.set(t, {
-      tablaLegacy: t,
-      grupoMateriaId: f.id,
-      gmActivo: Boolean(f.activo),
-      grado: String(grupo.grado ?? "").trim(),
-      grupo: String(grupo.nombre ?? "").trim(),
-      carreraClave: grupo.carrera_id
-        ? (carreraClavePorId.get(grupo.carrera_id) ?? null)
-        : null,
-      asignatura: String(materia.nombre ?? materia.clave ?? "").trim(),
-    });
-  }
-  return mapa;
-}
-
-/** Busca el grupo por su identidad natural (periodo, grado, nombre, carrera). */
-export async function resolverGrupoPorIdentidad(
-  supabase: SupabaseClient,
-  identidad: {
-    periodo: string;
-    grado: string;
-    grupo: string;
-    carrera?: string | null;
-  },
-): Promise<GrupoRow | null> {
-  const periodoNombre = identidad.periodo.trim().toUpperCase();
-  const grado = identidad.grado.trim().toUpperCase();
-  const nombre = identidad.grupo.trim().toUpperCase();
-  const carrera = identidad.carrera?.trim().toUpperCase() || null;
-  if (!periodoNombre || !grado || !nombre) return null;
-
-  const { data: periodo, error: e0 } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("id")
-    .eq("nombre", periodoNombre)
-    .maybeSingle();
-  if (e0 || !periodo) return null;
-
-  let carreraId: string | null = null;
-  if (carrera) {
-    const { data: c, error: eC } = await supabase
-      .from(TABLA_CARRERAS)
-      .select("id")
-      .eq("clave", carrera)
-      .maybeSingle();
-    if (eC || !c) return null;
-    carreraId = c.id;
-  }
-
-  const base = supabase
-    .from(TABLA_GRUPOS)
-    .select("*")
-    .eq("periodo_id", periodo.id)
-    .eq("grado", grado)
-    .eq("nombre", nombre);
-
-  const { data: grupo, error: eG } = carreraId
-    ? await base.eq("carrera_id", carreraId).maybeSingle()
-    : await base.is("carrera_id", null).maybeSingle();
-  if (eG || !grupo) return null;
-  return grupo as GrupoRow;
-}
-
-/* ---------------------------------------------------------------------------
- * GRUPO_MATERIA
- * ------------------------------------------------------------------------- */
-
-/** Resuelve un grupo_materia con su materia, grupo, periodo y carrera. */
-export async function resolverGrupoMateria(
-  supabase: SupabaseClient,
-  grupoMateriaId: string,
-): Promise<GrupoMateriaResuelto | null> {
-  const id = grupoMateriaId.trim();
-  if (!id) return null;
-
-  const { data: gm, error: e1 } = await supabase
-    .from(TABLA_GRUPO_MATERIAS)
-    .select("*")
-    .eq("id", id)
-    .eq("activo", true)
-    .maybeSingle();
-  if (e1 || !gm) return null;
-  const grupoMateria = gm as GrupoMateriaRow;
-
-  const { data: materia, error: e2 } = await supabase
-    .from(TABLA_MATERIAS)
-    .select("*")
-    .eq("id", grupoMateria.materia_id)
-    .eq("activo", true)
-    .maybeSingle();
-  if (e2 || !materia) return null;
-
-  const { data: grupo, error: e3 } = await supabase
-    .from(TABLA_GRUPOS)
-    .select("*")
-    .eq("id", grupoMateria.grupo_id)
-    .eq("activo", true)
-    .maybeSingle();
-  if (e3 || !grupo) return null;
-
-  const { data: periodo, error: e4 } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("*")
-    .eq("id", (grupo as GrupoRow).periodo_id)
-    .eq("activo", true)
-    .maybeSingle();
-  if (e4 || !periodo) return null;
-
-  let carrera: CarreraRow | null = null;
-  const carreraId = (grupo as GrupoRow).carrera_id;
-  if (carreraId) {
-    const { data: c, error: e5 } = await supabase
-      .from(TABLA_CARRERAS)
-      .select("*")
-      .eq("id", carreraId)
-      .maybeSingle();
-    if (!e5 && c) carrera = c as CarreraRow;
-  }
-
-  return {
-    grupoMateria,
-    materia: materia as MateriaRow,
-    grupo: grupo as GrupoRow,
-    periodo: periodo as PeriodoRow,
-    carrera,
-  };
-}
-
-/**
- * O8 — Resuelve VARIOS grupo_materias en pocas consultas (`in(id)` + joins en
- * memoria). Devuelve un Map id → GrupoMateriaResuelto (null si no resuelve,
- * con la misma semántica que `resolverGrupoMateria`).
- *
- * Los ids sin resolución quedan con `null` (grupo_materia inactivo/inexistente
- * o algún elemento requerido inactivo/faltante), igual que `resolverGrupoMateria`.
- */
-export async function resolverGrupoMateriasBatch(
-  supabase: SupabaseClient,
-  grupoMateriaIds: readonly string[],
-): Promise<Map<string, GrupoMateriaResuelto | null>> {
-  const ids = [...new Set(grupoMateriaIds.map((x) => x.trim()).filter(Boolean))];
-  const mapa = new Map<string, GrupoMateriaResuelto | null>();
-  for (const id of ids) mapa.set(id, null);
-  if (ids.length === 0) return mapa;
-
-  const { data: gms, error: e1 } = await supabase
-    .from(TABLA_GRUPO_MATERIAS)
-    .select("*")
-    .in("id", ids)
-    .eq("activo", true);
-  if (e1 || !gms?.length) return mapa;
-
-  const gmPorId = new Map((gms as GrupoMateriaRow[]).map((g) => [g.id, g]));
-  const grupoIds = [...new Set([...gmPorId.values()].map((g) => g.grupo_id))];
-  const materiaIds = [...new Set([...gmPorId.values()].map((g) => g.materia_id))];
-
-  const [{ data: materias, error: e2 }, { data: grupos, error: e3 }] =
-    await Promise.all([
-      supabase.from(TABLA_MATERIAS).select("*").in("id", materiaIds).eq("activo", true),
-      supabase.from(TABLA_GRUPOS).select("*").in("id", grupoIds).eq("activo", true),
-    ]);
-  if (e2 || !materias || e3 || !grupos) return mapa;
-
-  const materiaPorId = new Map((materias as MateriaRow[]).map((m) => [m.id, m]));
-  const grupoPorId = new Map((grupos as GrupoRow[]).map((g) => [g.id, g]));
-
-  const periodoIds = [...new Set([...grupoPorId.values()].map((g) => g.periodo_id))];
-  const carreraIds = [
-    ...new Set(
-      [...grupoPorId.values()]
-        .map((g) => g.carrera_id)
-        .filter((x): x is string => Boolean(x)),
-    ),
-  ];
-
-  const [{ data: periodos, error: e4 }, { data: carreras, error: e5 }] =
-    await Promise.all([
-      supabase.from(TABLA_PERIODOS).select("*").in("id", periodoIds).eq("activo", true),
-      carreraIds.length
-        ? supabase.from(TABLA_CARRERAS).select("*").in("id", carreraIds)
-        : Promise.resolve({ data: [], error: null }),
-    ]);
-  if (e4 || !periodos || e5 || !carreras) return mapa;
-
-  const periodoPorId = new Map((periodos as PeriodoRow[]).map((p) => [p.id, p]));
-  const carreraPorId = new Map((carreras as CarreraRow[]).map((c) => [c.id, c]));
-
-  for (const [gid, gm] of gmPorId) {
-    const materia = materiaPorId.get(gm.materia_id);
-    const grupo = grupoPorId.get(gm.grupo_id);
-    if (!materia || !grupo) continue;
-    const periodo = periodoPorId.get(grupo.periodo_id);
-    if (!periodo) continue;
-    mapa.set(gid, {
-      grupoMateria: gm,
-      materia,
-      grupo,
-      periodo,
-      carrera: grupo.carrera_id ? (carreraPorId.get(grupo.carrera_id) ?? null) : null,
-    });
-  }
-  return mapa;
-}
-
-/* ---------------------------------------------------------------------------
- * ASIGNACIONES DE PROFESOR
- * ------------------------------------------------------------------------- */
+import {
+  normClave,
+  obtenerInscripcionActiva,
+  resolverGrupoMateria,
+  resolverIdentidadesCatalogo,
+  type AsignacionProfesorResuelta,
+  type AsignacionProfesorRow,
+  type CarreraRow,
+  type GrupoMateriaRow,
+  type GrupoRow,
+  type MateriaRow,
+  type PeriodoRow,
+} from "./catalogo-academico-resolucion";
 
 /**
  * Asignaciones activas de un profesor, con oferta resuelta.
@@ -1044,3 +403,157 @@ export async function cambiarProfesor(
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+/* ---------------------------------------------------------------------------
+ * C4.18 — ¿PUEDE CARGARSE/ACTUALIZARSE ESTA MATERIA?
+ * ------------------------------------------------------------------------- */
+
+/**
+ * C4.18 — ¿Por qué una materia NO debe cargarse/actualizarse? Devuelve el
+ * motivo (materia desactivada en `grupo_materias`, o semestre inactivo) o null
+ * si no hay impedimento.
+ *
+ * Antes vivía en `app/actions/escolar.ts`: decide sobre el CATÁLOGO, no sobre
+ * la sesión, así que pertenece a esta capa.
+ */
+export async function motivoMateriaNoCargable(
+  supabase: SupabaseClient,
+  idInterno: string,
+): Promise<string | null> {
+  const id = idInterno.trim();
+  if (!id) return null;
+  const { data: gms } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .select("tabla_legacy, activo")
+    .eq("tabla_legacy", id);
+  if (gms && gms.length > 0 && gms.every((g) => g.activo === false)) {
+    return "La materia está desactivada en el catálogo.";
+  }
+  // C4.28 — el semestre se resuelve desde el catálogo (grupo_materias →
+  // grupos.grado). El nombre físico de la tabla NUNCA se parsea.
+  const identidades = await resolverIdentidadesCatalogo(supabase, [id]);
+  const identidad = identidades.get(id);
+  if (identidad?.grado) {
+    const sem = gradoASemestre(identidad.grado);
+    if (sem !== null) {
+      const inactivos = await semestresInactivos(supabase);
+      if (inactivos.has(sem)) return "el semestre de esta materia está inactivo";
+    }
+  }
+  return null;
+}
+
+/* ---------------------------------------------------------------------------
+ * C4.18 — VISIBILIDAD DE LAS TABLAS DE MATERIA EN EL CATÁLOGO
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Filtra las tablas de materias que deben ser VISIBLES/OPERATIVAS:
+ *  - excluye las que tienen `grupo_materias.activo = false` (materia
+ *    desactivada administrativamente);
+ *  - excluye las de un SEMESTRE inactivo (academico_semestres). El grado se
+ *    resuelve desde el catálogo (grupo_materias → grupos.grado); NUNCA se
+ *    parsea el nombre físico de la tabla.
+ * Si la estructura de semestres no existe, no filtra por semestre.
+ * Las tablas legacy sin fila en grupo_materias se conservan (sin catálogo).
+ *
+ * Antes vivía en `app/actions/materias.ts`: es una lectura del catálogo.
+ */
+export async function filtrarTablasVisibles(
+  supabase: SupabaseClient,
+  tablas: readonly string[],
+): Promise<string[]> {
+  const [gmsRes, identidades] = await Promise.all([
+    supabase.from(TABLA_GRUPO_MATERIAS).select("tabla_legacy, activo"),
+    resolverIdentidadesCatalogo(supabase, tablas),
+  ]);
+  const inactivas = new Set(
+    ((gmsRes.data ?? []) as Array<{ tabla_legacy: string | null; activo: boolean }>)
+      .filter((g) => g.activo === false)
+      .map((g) => g.tabla_legacy),
+  );
+  const semInactivos = await semestresInactivos(supabase);
+  const out: string[] = [];
+  for (const t of tablas) {
+    if (inactivas.has(t)) continue;
+    const identidad = identidades.get(t);
+    const grado = identidad?.grado ?? null;
+    if (grado) {
+      const sem = gradoASemestre(grado);
+      if (sem !== null && semInactivos.has(sem)) continue;
+    }
+    out.push(t);
+  }
+  return out;
+}
+
+/**
+ * Tablas legacy marcadas como desactivadas (`activo = false`) en
+ * `grupo_materias`: son las materias OCULTAS que el panel de configuración
+ * ofrece reactivar. Antes vivía en `app/actions/materias.ts`.
+ */
+export async function listarTablasLegacyOcultas(
+  supabase: SupabaseClient,
+): Promise<string[]> {
+  const { data } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .select("tabla_legacy, activo");
+  return [
+    ...new Set(
+      ((data ?? []) as Array<{ tabla_legacy: string; activo: boolean }>)
+        .filter((g) => g.activo === false)
+        .map((g) => g.tabla_legacy),
+    ),
+  ];
+}
+
+/**
+ * C4.18 — Activa/desactiva la visibilidad de una materia en el catálogo.
+ *
+ * Desactivar = UPDATE `grupo_materias.activo = false` para la tabla_legacy:
+ *  - oculta la materia del panel de subir calificaciones y de la vista del
+ *    alumno (que ya filtra grupo_materias activos);
+ *  - NO borra materias, calificaciones, grupo_materias ni datos históricos.
+ * Reactivar = activo = true (se restaura sin recrear nada).
+ *
+ * Antes vivía en `app/actions/materias.ts`.
+ */
+export async function cambiarVisibilidadMateria(
+  supabase: SupabaseClient,
+  idInterno: string,
+  activo: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: filas, error: e0 } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .select("id")
+    .eq("tabla_legacy", idInterno)
+    .limit(1);
+  if (e0) return { ok: false, error: e0.message };
+  if (!filas?.length) {
+    return {
+      ok: false,
+      error: "La materia no está asociada al catálogo; no se puede cambiar su visibilidad.",
+    };
+  }
+
+  const { error } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .update({ activo })
+    .eq("tabla_legacy", idInterno);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/* ---------------------------------------------------------------------------
+ * PROMPT E · R-3 — este archivo tenía 1 186 líneas. Se partió por
+ * responsabilidad; las partes se re-exportan aquí para que ningún import
+ * existente se rompa (§10):
+ *
+ *   · ./catalogo-academico-resolucion.ts — tipos, normalización y resolución
+ *     (inscripciones, identidad de materia y oferta grupo_materias).
+ *
+ * Lo que queda aquí es la ADMINISTRACIÓN del catálogo: acceso y atribución de
+ * profesor, y visibilidad de las materias.
+ * ------------------------------------------------------------------------- */
+
+export * from "./catalogo-academico-resolucion";

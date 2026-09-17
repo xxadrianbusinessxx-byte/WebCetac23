@@ -48,9 +48,11 @@ import { archivoCsvAFilas } from "../csv";
 import {
   ESTADO_HISTORICO,
   consultarPeriodo,
+  obtenerCicloOperativoGlobal,
   resolverEstadoPeriodo,
   type FilaPeriodoEstado,
 } from "../ciclo/ciclo-estado";
+import { gradoASemestre } from "../ciclo/semestres";
 import { inscribirAlumnoEnCiclo } from "./inscripciones-borrador";
 import {
   detectarColumnasRoster,
@@ -818,6 +820,79 @@ export async function aplicarCargaAcademica(
     },
     inscripciones: { nuevas, cambiosDeGrupo, errores, erroresDetalle },
   };
+}
+
+/* ---------------------------------------------------------------------------
+ * C4.19 — CATÁLOGO REAL PARA «RECONOCIMIENTO ACADÉMICO DE ALUMNOS»
+ * ------------------------------------------------------------------------- */
+
+export type GrupoReconocimiento = {
+  id: string;
+  periodoId: string;
+  grado: string;
+  semestre: number;
+  nombre: string;
+  carreraId: string | null;
+  activo: boolean;
+};
+
+export type CatalogoReconocimiento = {
+  periodos: { id: string; nombre: string }[];
+  /** Incluye la pseudo-carrera SIN CARRERA (id=null). */
+  carreras: { id: string | null; clave: string; nombre: string }[];
+  grupos: GrupoReconocimiento[];
+};
+
+/**
+ * C4.19 — Catálogo REAL para el bloque «Reconocimiento académico de alumnos»:
+ * los valores salen de las tablas existentes, nada se hardcodea, y el semestre
+ * se deriva del grado con `gradoASemestre` (reutilizado). El periodo sale del
+ * ciclo OPERATIVO global (F1): si no hay uno único, devuelve error.
+ *
+ * Antes vivía en `app/actions/carga-academica.ts`; es lectura de catálogo y
+ * pertenece a esta capa.
+ */
+export async function listarCatalogoReconocimiento(
+  supabase: SupabaseClient,
+): Promise<CatalogoReconocimiento | { ok: false; error: string }> {
+  const ciclo = await obtenerCicloOperativoGlobal(supabase);
+  if (!ciclo.ok) return { ok: false, error: ciclo.error ?? "F1: no hay un único ciclo OPERATIVO." };
+  const periodos = ciclo.periodo
+    ? [{ id: ciclo.periodo.id, nombre: ciclo.periodo.nombre }]
+    : [];
+  const [{ data: carreras, error: e1 }, { data: grupos, error: e2 }] =
+    await Promise.all([
+      supabase.from(TABLA_CARRERAS).select("id, clave, nombre").eq("activo", true),
+      supabase
+        .from(TABLA_GRUPOS)
+        .select("id, periodo_id, grado, nombre, carrera_id, activo"),
+    ]);
+  if (e1 || e2) {
+    return {
+      ok: false,
+      error: e1?.message ?? e2?.message ?? "Error al cargar el catálogo.",
+    };
+  }
+
+  const carrerasLista = [
+    { id: null, clave: "SIN CARRERA", nombre: "SIN CARRERA" },
+    ...(carreras ?? []).map((c) => ({
+      id: c.id,
+      clave: c.clave,
+      nombre: c.nombre,
+    })),
+  ];
+  const gruposLista: GrupoReconocimiento[] = (grupos ?? []).map((g) => ({
+    id: g.id,
+    periodoId: g.periodo_id,
+    grado: g.grado,
+    semestre: gradoASemestre(g.grado) ?? 0,
+    nombre: g.nombre,
+    carreraId: g.carrera_id ?? null,
+    activo: g.activo,
+  }));
+
+  return { periodos: periodos ?? [], carreras: carrerasLista, grupos: gruposLista };
 }
 
 

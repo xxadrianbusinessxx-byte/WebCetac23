@@ -1,6 +1,4 @@
 "use server";
-import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo/ciclo-estado";
-
 
 /**
  * C3.1 — Server Actions de CARGA MASIVA (ALUMNOS + PERTENENCIA ACADÉMICA).
@@ -18,17 +16,22 @@ import { exigir } from "@/lib/auth/exigir";
 import { createClient } from "@/lib/supabase/server";
 import {
   aplicarCargaAcademica,
+  listarCatalogoReconocimiento,
   previsualizarCargaAcademica,
+  type CatalogoReconocimiento,
   type ContextoAcademico,
+  type GrupoReconocimiento,
   type PreviewCargaAcademica,
   type ResultadoAplicarCarga,
 } from "@/lib/escolar/catalogo/carga-academica";
 import { mapeoRosterValido, type MapeoRoster } from "@/lib/escolar/materia/mapeo-columnas";
-import {
-  TABLA_CARRERAS,
-  TABLA_GRUPOS,
-} from "@/lib/escolar/tables";
-import { gradoASemestre } from "@/lib/escolar/ciclo/semestres";
+
+/**
+ * Los tipos del catálogo de reconocimiento viven en la capa de dominio
+ * (`lib/escolar/catalogo/carga-academica.ts`); se re-exportan aquí para no
+ * romper los imports existentes de la UI.
+ */
+export type { CatalogoReconocimiento, GrupoReconocimiento };
 
 function extraerMapeoOError(
   formData: FormData,
@@ -142,27 +145,10 @@ export async function actionAplicarCargaAcademica(
   return aplicarCargaAcademica(supabase, archivo, { mapeo, contexto });
 }
 
-export type GrupoReconocimiento = {
-  id: string;
-  periodoId: string;
-  grado: string;
-  semestre: number;
-  nombre: string;
-  carreraId: string | null;
-  activo: boolean;
-};
-
-export type CatalogoReconocimiento = {
-  periodos: { id: string; nombre: string }[];
-  /** Incluye la pseudo-carrera SIN CARRERA (id=null). */
-  carreras: { id: string | null; clave: string; nombre: string }[];
-  grupos: GrupoReconocimiento[];
-};
-
 /**
  * C4.19 — Catálogo REAL para el bloque «Reconocimiento académico de alumnos»
- * (solo rol directivo). Los valores salen de las tablas existentes; nada se
- * hardcodea. El semestre se deriva del grado con `gradoASemestre` (reutilizado).
+ * (solo rol directivo). La consulta vive en la capa de dominio
+ * (`listarCatalogoReconocimiento`); aquí solo se valida la capacidad.
  */
 export async function actionListarCatalogoReconocimiento(): Promise<
   CatalogoReconocimiento | { ok: false; error: string }
@@ -171,44 +157,6 @@ export async function actionListarCatalogoReconocimiento(): Promise<
   if (!g.ok) {
     return { ok: false, error: "No autorizado: se requiere rol directivo." };
   }
-
   const supabase = await createClient();
-  const ciclo = await obtenerCicloOperativoGlobal(supabase);
-  if (!ciclo.ok) return { ok: false, error: ciclo.error ?? "F1: no hay un único ciclo OPERATIVO." };
-  const periodos = ciclo.periodo
-    ? [{ id: ciclo.periodo.id, nombre: ciclo.periodo.nombre }]
-    : [];
-  const [{ data: carreras, error: e1 }, { data: grupos, error: e2 }] =
-    await Promise.all([
-      supabase.from(TABLA_CARRERAS).select("id, clave, nombre").eq("activo", true),
-      supabase
-        .from(TABLA_GRUPOS)
-        .select("id, periodo_id, grado, nombre, carrera_id, activo"),
-    ]);
-  if (e1 || e2) {
-    return {
-      ok: false,
-      error: e1?.message ?? e2?.message ?? "Error al cargar el catálogo.",
-    };
-  }
-
-  const carrerasLista = [
-    { id: null, clave: "SIN CARRERA", nombre: "SIN CARRERA" },
-    ...(carreras ?? []).map((c) => ({
-      id: c.id,
-      clave: c.clave,
-      nombre: c.nombre,
-    })),
-  ];
-  const gruposLista: GrupoReconocimiento[] = (grupos ?? []).map((g) => ({
-    id: g.id,
-    periodoId: g.periodo_id,
-    grado: g.grado,
-    semestre: gradoASemestre(g.grado) ?? 0,
-    nombre: g.nombre,
-    carreraId: g.carrera_id ?? null,
-    activo: g.activo,
-  }));
-
-  return { periodos: periodos ?? [], carreras: carrerasLista, grupos: gruposLista };
+  return listarCatalogoReconocimiento(supabase);
 }

@@ -15,6 +15,7 @@
  */
 import { exigir } from "@/lib/auth/exigir";
 import { resolverAccesoAlumno } from "@/lib/escolar/alumno/acceso-alumno";
+import { listarCurpsExistentes } from "@/lib/escolar/alumno/alumnos";
 import {
   actualizarOrdenEtiquetasDinamicas,
   eliminarEtiquetaDinamica,
@@ -34,10 +35,7 @@ import {
   leerEtiquetasDesdeArchivoGlobal,
   leerEtiquetasDesdeArchivoIndividual,
 } from "@/lib/escolar/alumno/importar-etiquetas";
-import { TABLA_ALUMNOS } from "@/lib/escolar/tables";
 import { createClient } from "@/lib/supabase/server";
-
-const TAMANO_LOTE_CURPS = 50;
 
 /** Error estructurado (mismo patrón { ok, error } del proyecto). */
 type Err = { ok: false; error: string };
@@ -181,20 +179,12 @@ export async function actionImportarEtiquetasGlobal(
 
   const supabase = await createClient();
 
-  // 1) Validar existencia de alumnos (batch, sin N+1).
-  const curps = parse.filas.map((f) => f.curp);
-  const existentes = new Set<string>();
-  for (let i = 0; i < curps.length; i += TAMANO_LOTE_CURPS) {
-    const lote = curps.slice(i, i + TAMANO_LOTE_CURPS);
-    const { data, error } = await supabase
-      .from(TABLA_ALUMNOS)
-      .select("CURP")
-      .in("CURP", lote);
-    if (error || !data) continue;
-    for (const r of data as { CURP: string }[]) {
-      existentes.add(String(r.CURP ?? "").trim().toUpperCase());
-    }
-  }
+  // 1) Validar existencia de alumnos (batch, sin N+1). La consulta vive en
+  // lib/escolar/alumno/alumnos.ts: la action no habla con Supabase.
+  const existentes = await listarCurpsExistentes(
+    supabase,
+    parse.filas.map((f) => f.curp),
+  );
 
   // 2) Aplicar por alumno (reemplazo del conjunto). Los errores se acumulan.
   let actualizados = 0;

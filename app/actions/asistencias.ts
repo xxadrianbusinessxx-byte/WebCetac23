@@ -1,5 +1,4 @@
 "use server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo/ciclo-estado";
 
 
@@ -7,18 +6,22 @@ import { exigir } from "@/lib/auth/exigir";
 import { esRol } from "@/lib/auth/permisos";
 import { createClient } from "@/lib/supabase/server";
 import {
-  listarEvaluacionesDePeriodo,
-  type PeriodoEvaluacionRow,
+  resolverOperativoConParciales,
+  resolverOperativoYValidarParcial,
 } from "@/lib/escolar/ciclo/evaluaciones";
 import {
   calcularPorcentajeAsistencia,
   confirmarAsistencias,
+  esquemaAtribucionDisponible,
+  fijarClasesAsistidas,
   generarPlantillaAsistencia,
+  listarAportesDeProfesorEnDia,
   listarGruposAsistencia,
   obtenerAlumnosDelGrupo,
   obtenerEstadosAsistenciaAlumno,
   previsualizarAsistencias,
   profesorImparteEnGrupo,
+  resolverIdentidadAlumnoInscripcion,
   resumenAsistenciaPorParcial,
   type DiaEstadoAsistencia,
   type ParcialAsistencia,
@@ -28,23 +31,18 @@ import {
 } from "@/lib/escolar/asistencia/asistencias";
 import {
   consultarHorarioGrupoPorIdentidad,
+  listarGrupoIdsConHorario,
   obtenerGruposConCarreraDePeriodo,
   materiasDelHorario,
   totalBloquesGrupoPorDia,
 } from "@/lib/escolar/horario/horario-semanal";
-
-import {
-  TABLA_ASIGNACIONES_PROFESOR,
-  TABLA_ASISTENCIA_ALUMNOS,
-  TABLA_CARRERAS,
-  TABLA_GRUPOS,
-  TABLA_HORARIO_SEMANAL,
-  TABLA_INSCRIPCIONES_ALUMNO,
-  TABLA_JUSTIFICACIONES_ASISTENCIA,
-  TABLA_PERIODOS,
-} from "@/lib/escolar/tables";
+import { listarGrupoIdsAsignadosProfesor } from "@/lib/escolar/catalogo/asignaciones-profesor";
+import { consultarPeriodo } from "@/lib/escolar/ciclo/ciclo-estado";
+import { obtenerNombreCompletoAlumno } from "@/lib/escolar/alumno/alumnos";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores";
 import {
+  estadoJustificacionPrevia,
+  guardarJustificacionDiaCompleto,
   resolverContextoAlumnoDesdeInscripcion,
   resumenClasesYAsistencia,
 } from "@/lib/escolar/asistencia/justificaciones";
@@ -76,92 +74,6 @@ type ResultadoGrupos = {
   /** Aviso (sin operativo / esquema de parciales pendiente / sin parciales). */
   avisoOperativo: string | null;
 };
-
-/**
- * CICLO GLOBAL — resuelve el periodo OPERATIVO único y sus parciales ACTIVOS.
- * Usado por las Server Actions: el cliente nunca decide el ciclo.
- */
-async function resolverOperativoConParciales(
-  supabase: SupabaseClient,
-): Promise<
-  | {
-      ok: true;
-      periodoId: string;
-      periodoNombre: string;
-      parciales: PeriodoEvaluacionRow[];
-    }
-  | { ok: false; error: string }
-> {
-  const operativo = await obtenerCicloOperativoGlobal(supabase);
-  if (!operativo.ok) {
-    return {
-      ok: false,
-      error: operativo.error ?? "F1: no hay un único ciclo OPERATIVO.",
-    };
-  }
-  if (!operativo.periodo) {
-    return {
-      ok: false,
-      error:
-        "No hay ningún periodo OPERATIVO activado todavía. Activa el ciclo en Configuración.",
-    };
-  }
-  const evs = await listarEvaluacionesDePeriodo(
-    supabase,
-    String(operativo.periodo.id),
-  );
-  if (!evs.ok) {
-    return {
-      ok: false,
-      error: evs.error ?? "No se pudieron cargar los parciales del periodo.",
-    };
-  }
-  return {
-    ok: true,
-    periodoId: String(operativo.periodo.id),
-    periodoNombre: String(operativo.periodo.nombre),
-    parciales: evs.evaluaciones.filter((e) => e.activo !== false),
-  };
-}
-
-/**
- * CICLO GLOBAL + PARCIAL — valida que el parcial solicitado (evaluacionId)
- * pertenezca al periodo OPERATIVO. Un parcial de otro periodo = error; nunca
- * se usan parciales ajenos al ciclo operativo.
- */
-async function resolverOperativoYValidarParcial(
-  supabase: SupabaseClient,
-  evaluacionId: string | null,
-): Promise<
-  | {
-      ok: true;
-      periodoId: string;
-      periodoNombre: string;
-      parciales: ParcialAsistencia[];
-    }
-  | { ok: false; error: string }
-> {
-  const base = await resolverOperativoConParciales(supabase);
-  if (!base.ok) return base;
-  if (evaluacionId) {
-    const parcial = base.parciales.find(
-      (e) => e.id === evaluacionId && e.activo !== false,
-    );
-    if (!parcial) {
-      return {
-        ok: false,
-        error:
-          "El parcial seleccionado no pertenece al periodo operativo o está inactivo. Recarga la página.",
-      };
-    }
-  }
-  return {
-    ok: true,
-    periodoId: base.periodoId,
-    periodoNombre: base.periodoNombre,
-    parciales: base.parciales,
-  };
-}
 
 export async function actionListarGruposAsistencia(): Promise<
   | { ok: true; data: ResultadoGrupos }
@@ -438,53 +350,17 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
 
   // Identidad académica SOLO desde la inscripción ACTIVA de la CURP (mismo
   // patrón que actionObtenerHorarioAlumno): el cliente no manda grado/grupo.
-  const { data: inscripciones, error: errIns } = await supabase
-    .from(TABLA_INSCRIPCIONES_ALUMNO)
-    .select("grupo_id, activo")
-    .eq("curp", curp)
-    .eq("activo", true)
-    .limit(2);
-  if (errIns || !inscripciones || inscripciones.length === 0) {
-    return { ok: false, error: "El alumno no tiene inscripción activa." };
-  }
-  if (inscripciones.length > 1) {
-    return {
-      ok: false,
-      error: "El alumno tiene más de una inscripción activa. Revisa el catálogo.",
-    };
-  }
-  const { data: detalleGrupo, error: errGrupo } = await supabase
-    .from(TABLA_GRUPOS)
-    .select("grado, nombre, carrera_id, periodo_id, activo")
-    .eq("id", inscripciones[0].grupo_id)
-    .maybeSingle();
-  if (errGrupo || !detalleGrupo || detalleGrupo.activo === false) {
-    return {
-      ok: false,
-      error: "El grupo del alumno no es válido o está inactivo.",
-    };
-  }
-  if (
-    detalleGrupo.periodo_id &&
-    detalleGrupo.periodo_id !== operativo.periodoId
-  ) {
+  // La consulta vive en lib/escolar/asistencia/asistencias.ts.
+  const resuelta = await resolverIdentidadAlumnoInscripcion(supabase, curp);
+  if (!resuelta.ok) return { ok: false, error: resuelta.error };
+  const { grado, grupo, carrera, periodoId } = resuelta.identidad;
+  if (periodoId && periodoId !== operativo.periodoId) {
     return {
       ok: false,
       error:
         "La inscripción del alumno pertenece a un periodo distinto del OPERATIVO actual.",
     };
   }
-  let carrera = "";
-  if (detalleGrupo.carrera_id) {
-    const { data: detalleCarrera } = await supabase
-      .from(TABLA_CARRERAS)
-      .select("clave")
-      .eq("id", detalleGrupo.carrera_id)
-      .maybeSingle();
-    carrera = String(detalleCarrera?.clave ?? "");
-  }
-  const grado = String(detalleGrupo.grado ?? "");
-  const grupo = String(detalleGrupo.nombre ?? "");
 
   // Maestro: debe impartir en el grupo del alumno y ve SOLO su propio aporte.
   // PROMPT C/D: la identidad es SIEMPRE `profesor_id` (PROFESORES.ID); sin ella
@@ -588,78 +464,23 @@ export async function actionObtenerContextoAlumnoParaTutor(input: {
 
   // C4.3/C4.25 — Fuente ÚNICA: inscripciones_alumno (activa) → grupos → carreras.
   // Sin fallback hacia ETIQUETAS PERSONALES (identidad académica SOLO desde la
-  // inscripción que controla el directivo).
-  const { data: inscripciones, error: errIns } = await supabase
-    .from(TABLA_INSCRIPCIONES_ALUMNO)
-    .select("grupo_id, activo")
-    .eq("curp", curp)
-    .eq("activo", true)
-    .limit(2);
+  // inscripción que controla el directivo). La consulta vive en la capa de dominio.
+  const resuelta = await resolverIdentidadAlumnoInscripcion(supabase, curp);
+  if (!resuelta.ok) return { ok: false, error: resuelta.error };
+  const { grado, grupo, carrera, periodoId } = resuelta.identidad;
 
-  let grado = "";
-  let grupo = "";
-  let carrera = "";
+  // Nombre del ciclo con el lector central de periodos (misma fuente única).
   let ciclo = "";
-
-  if (errIns || !inscripciones || inscripciones.length === 0) {
-    return { ok: false, error: "El alumno no tiene inscripción activa." };
-  } else if (inscripciones.length > 1) {
-    // CASO E — múltiples inscripciones activas: anomalía; no elegir arbitrariamente.
-    return {
-      ok: false,
-      error: "El alumno tiene más de una inscripción activa. Revisa el catálogo.",
-    };
-  } else {
-    const { data: detalleGrupo, error: errGrupo } = await supabase
-      .from(TABLA_GRUPOS)
-      .select("grado, nombre, carrera_id, periodo_id, activo")
-      .eq("id", inscripciones[0].grupo_id)
-      .maybeSingle();
-    if (errGrupo || !detalleGrupo || detalleGrupo.activo === false) {
-      return {
-        ok: false,
-        error: "El grupo del alumno no es válido o está inactivo.",
-      };
-    }
-    grado = String(detalleGrupo.grado ?? "");
-    grupo = String(detalleGrupo.nombre ?? "");
-    if (detalleGrupo.carrera_id) {
-      const { data: detalleCarrera } = await supabase
-        .from(TABLA_CARRERAS)
-        .select("clave")
-        .eq("id", detalleGrupo.carrera_id)
-        .maybeSingle();
-      carrera = String(detalleCarrera?.clave ?? "");
-    }
-    if (detalleGrupo.periodo_id) {
-      const { data: detallePeriodo } = await supabase
-        .from(TABLA_PERIODOS)
-        .select("nombre")
-        .eq("id", detalleGrupo.periodo_id)
-        .maybeSingle();
-      ciclo = String(detallePeriodo?.nombre ?? "");
-    }
+  if (periodoId) {
+    const detallePeriodo = await consultarPeriodo(supabase, periodoId);
+    ciclo = String(detallePeriodo.periodo?.nombre ?? "");
   }
 
   // Nombre completo desde ALUMNOS.
-  const { data: alumno, error: errAlumno } = await supabase
-    .from("ALUMNOS")
-    .select("CURP, NOMBRE, P_APELLIDO, S_APELLIDO")
-    .eq("CURP", curp)
-    .limit(1)
-    .maybeSingle();
-  if (errAlumno || !alumno) {
+  const nombre = await obtenerNombreCompletoAlumno(supabase, curp);
+  if (nombre === null) {
     return { ok: false, error: "No se encontró el alumno." };
   }
-
-  const nombre = [
-    alumno.NOMBRE,
-    alumno.P_APELLIDO,
-    alumno.S_APELLIDO,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
 
   return {
     ok: true,
@@ -787,12 +608,12 @@ export async function actionSolicitarJustificacionAsistencia(input: {
   }
 
   // Estados previos: no re-solicitar algo aprobado o rechazado (historial).
-  const { data: previa } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .select("id, estado")
-    .eq("curp_alumno", curp)
-    .eq("fecha", fecha)
-    .maybeSingle();
+  const previa = await estadoJustificacionPrevia(supabase, {
+    curp,
+    fecha,
+    materiaClave: "",
+    conColumnaMateria: false,
+  });
   if (previa && previa.estado === "aprobada") {
     return { ok: false, error: "Esa falta ya fue aprobada." };
   }
@@ -804,27 +625,14 @@ export async function actionSolicitarJustificacionAsistencia(input: {
   }
 
   // UPSERT: una justificación por (curp, fecha). Re-solicitar actualiza.
-  const { error } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .upsert(
-      {
-        curp_alumno: curp,
-        fecha,
-        grado: contexto.grado,
-        grupo: contexto.grupo,
-        carrera: contexto.carrera,
-        motivo,
-        estado: "pendiente",
-        solicitante_tipo: solicitanteTipo,
-        solicitante_id: solicitanteId,
-      },
-      { onConflict: "curp_alumno,fecha" },
-    );
-
-  if (error) {
-    return { ok: false, error: "No se pudo guardar la justificación." };
-  }
-  return { ok: true };
+  return guardarJustificacionDiaCompleto(supabase, {
+    curp,
+    fecha,
+    contexto,
+    motivo,
+    solicitanteTipo,
+    solicitanteId,
+  });
 }
 
 /**
@@ -892,11 +700,7 @@ export async function actionAnularAsistenciaProfesor(input: {
 
   // Esquema C aplicado (columna profesor_id en asistencia_alumnos). Sin él no
   // se escribe nada (nada de operaciones por la contraseña).
-  const probe = await supabase
-    .from(TABLA_ASISTENCIA_ALUMNOS)
-    .select("profesor_id")
-    .limit(1);
-  if (probe.error) {
+  if (!(await esquemaAtribucionDisponible(supabase))) {
     return {
       ok: false,
       error:
@@ -905,18 +709,16 @@ export async function actionAnularAsistenciaProfesor(input: {
   }
 
   // Filas de ESTE profesor para ese alumno/día (puede haber una por materia).
-  const { data: filas, error: errBuscar } = await supabase
-    .from(TABLA_ASISTENCIA_ALUMNOS)
-    .select("id, clases_asistidas")
-    .eq("profesor_id", profesorId)
-    .eq("curp", curp)
-    .eq("fecha", fecha)
-    .eq("grado", grado)
-    .eq("grupo", grupo)
-    .limit(50);
-
-  if (errBuscar) return { ok: false, error: errBuscar.message };
-  if (!filas || filas.length === 0) {
+  const aportes = await listarAportesDeProfesorEnDia(supabase, {
+    profesorId,
+    curp,
+    fecha,
+    grado,
+    grupo,
+  });
+  if (!aportes.ok) return { ok: false, error: aportes.error };
+  const filas = aportes.filas;
+  if (filas.length === 0) {
     // Las 81 filas históricas tienen profesor_id NULL (clave compartida): no
     // son atribuibles de forma inequívoca (no se inventa backfill).
     return {
@@ -940,13 +742,7 @@ export async function actionAnularAsistenciaProfesor(input: {
   const nuevoValor = Math.max((Number(objetivo.clases_asistidas) || 0) - 1, 0);
 
   // UPDATE puntual sobre la fila concreta (id) — nunca la de otro profesor.
-  const { error: errUpdate } = await supabase
-    .from(TABLA_ASISTENCIA_ALUMNOS)
-    .update({ clases_asistidas: nuevoValor })
-    .eq("id", objetivo.id);
-
-  if (errUpdate) return { ok: false, error: errUpdate.message };
-  return { ok: true };
+  return fijarClasesAsistidas(supabase, String(objetivo.id), nuevoValor);
 }
 
 
@@ -1013,13 +809,9 @@ export async function actionListarAlumnosGruposProfesor(): Promise<
   }
 
   // Grupos del periodo con HORARIO cargado (1 consulta; sin N+1 por grupo).
-  const { data: bloques } = await supabase
-    .from(TABLA_HORARIO_SEMANAL)
-    .select("grupo_id")
-    .eq("periodo_id", operativo.periodo.id)
-    .limit(20000);
-  const conHorario = new Set(
-    (bloques ?? []).map((b) => String((b as { grupo_id: string }).grupo_id)),
+  const conHorario = await listarGrupoIdsConHorario(
+    supabase,
+    String(operativo.periodo.id),
   );
   const elegibles = grupos.filter((g) => conHorario.has(g.id));
   if (elegibles.length === 0) {
@@ -1042,19 +834,10 @@ export async function actionListarAlumnosGruposProfesor(): Promise<
     Number.isInteger(Number(sesion.profesorId)) &&
     Number(sesion.profesorId) > 0
   ) {
-    const { data: asig } = await supabase
-      .from(TABLA_ASIGNACIONES_PROFESOR)
-      .select("grupo_materias!inner(grupo_id)")
-      .eq("profesor_id", Number(sesion.profesorId))
-      .eq("activo", true)
-      .limit(500);
-    const grupoIdsAsignados = new Set<string>();
-    for (const a of asig ?? []) {
-      const gm = (a as { grupo_materias?: unknown }).grupo_materias;
-      const g = Array.isArray(gm) ? gm[0] : gm;
-      const gid = (g as { grupo_id?: string } | undefined)?.grupo_id;
-      if (gid) grupoIdsAsignados.add(String(gid));
-    }
+    const grupoIdsAsignados = await listarGrupoIdsAsignadosProfesor(
+      supabase,
+      Number(sesion.profesorId),
+    );
     if (grupoIdsAsignados.size > 0) {
       const restringidos = elegibles.filter((g) => grupoIdsAsignados.has(g.id));
       if (restringidos.length > 0) alcance = restringidos;

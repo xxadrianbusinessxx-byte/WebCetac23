@@ -1,6 +1,5 @@
 "use server";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { exigir } from "@/lib/auth/exigir";
 import { esRol } from "@/lib/auth/permisos";
 import {
@@ -39,6 +38,7 @@ import { actualizarMateriaDesdeArchivo } from "@/lib/escolar/materia/materia-ava
 import { obtenerMapeoColumnasMateria } from "@/lib/escolar/materia/mapeo-columnas-materia";
 import { leerVistaMateriaAlumno } from "@/lib/escolar/materia/materia-vista-alumno";
 import {
+  motivoMateriaNoCargable,
   resolverGrupoAlumno,
   resolverIdentidadesCatalogo,
   resolverMateriasAlumno,
@@ -56,7 +56,6 @@ import {
   gradoASemestre,
   semestreActivoDeGrupo,
   semestreActivoDesdeFilas,
-  semestresInactivos,
 } from "@/lib/escolar/ciclo/semestres";
 import {
   aliasActivosDesdeFilas,
@@ -78,15 +77,9 @@ import type {
   EtiquetasPersonalesRow,
   MateriaTablaVista,
 } from "@/lib/escolar/types";
-import { subirImagenCloudinary } from "@/lib/cloudinary/upload";
 import {
-  publicIdPerfilUpload,
-  urlFotoPerfilAvatar,
-} from "@/lib/cloudinary/urls";
-import { invalidarUrlFotoPerfil } from "@/lib/cloudinary/urls-server";
-import {
-  guardarUrlFotoPerfil,
   obtenerFotoPerfilAlumno,
+  subirFotoPerfilAlumno,
 } from "@/lib/escolar/alumno/foto-perfil";
 import { createClient } from "@/lib/supabase/server";
 import { clienteLecturaEscolar } from "@/lib/supabase/service";
@@ -456,36 +449,9 @@ export async function actionGuardarComentarioPersonal(
 }
 
 /**
- * C4.18 — ¿Por qué una materia NO debe cargarse/actualizarse? Devuelve el
- * motivo (materia desactivada en grupo_materias, o semestre inactivo) o null.
+ * C4.18 — ¿Por qué una materia NO debe cargarse/actualizarse? La decisión vive
+ * en `lib/escolar/catalogo/catalogo-academico.ts` (`motivoMateriaNoCargable`).
  */
-async function motivoMateriaNoCargable(
-  supabase: SupabaseClient,
-  idInterno: string,
-): Promise<string | null> {
-  const id = idInterno.trim();
-  if (!id) return null;
-  const { data: gms } = await supabase
-    .from(TABLA_GRUPO_MATERIAS)
-    .select("tabla_legacy, activo")
-    .eq("tabla_legacy", id);
-  if (gms && gms.length > 0 && gms.every((g) => g.activo === false)) {
-    return "La materia está desactivada en el catálogo.";
-  }
-  // C4.28 — el semestre se resuelve desde el catálogo (grupo_materias →
-  // grupos.grado). El nombre físico de la tabla NUNCA se parsea.
-  const identidades = await resolverIdentidadesCatalogo(supabase, [id]);
-  const identidad = identidades.get(id);
-  if (identidad?.grado) {
-    const sem = gradoASemestre(identidad.grado);
-    if (sem !== null) {
-      const inactivos = await semestresInactivos(supabase);
-      if (inactivos.has(sem)) return "el semestre de esta materia está inactivo";
-    }
-  }
-  return null;
-}
-
 export async function actionSubirMateriaExcel(
   nombreMateria: string,
   formData: FormData,
@@ -821,24 +787,9 @@ export async function actionSubirFotoPerfil(
   }
   const curp = resolucion.curp;
 
-  const buffer = Buffer.from(await archivo.arrayBuffer());
-  const subida = await subirImagenCloudinary(
-    buffer,
-    publicIdPerfilUpload(curp),
-  );
-  if (!subida.ok) return subida;
-
-  const guardado = await guardarUrlFotoPerfil(supabase, curp, subida.url);
-  if (!guardado.ok) return guardado;
-
-  // O5 — La foto cambió: invalida la caché para que sea visible de inmediato.
-  invalidarUrlFotoPerfil(curp);
-
-  // FASE 7 (6A-2) — Devuelve la URL de AVATAR (w_256,c_fill,f_auto,q_auto)
-  // consistente con la que devuelve obtenerUrlFotoPerfilSiExiste. La subida ya
-  // ocurrió (mismo public_id determinista), así que la URL transformada apunta
-  // al mismo recurso recién subido.
-  return { ok: true, url: urlFotoPerfilAvatar(curp) };
+  // El I/O de Cloudinary (buffer + subida con public_id determinista + caché)
+  // vive en lib/escolar/alumno/foto-perfil.ts.
+  return subirFotoPerfilAlumno(supabase, curp, archivo);
 }
 
 export async function actionEtiquetasResumen(curp: string) {

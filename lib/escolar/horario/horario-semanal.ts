@@ -855,4 +855,27 @@ export async function obtenerConteosHorarioMateria(
   };
 }
 
+/**
+ * `grupo_id` de los grupos del periodo que tienen AL MENOS un bloque de horario
+ * oficial cargado. Es la lectura que necesitan los paneles para no listar
+ * grupos sin horario (una consulta, sin N+1 por grupo).
+ *
+ * Bajada de `app/actions/asistencias.ts` (PROMPT E · R-1). El límite alto es el
+ * mismo que usaba la action: el horario de un periodo cabe de sobra.
+ */
+export async function listarGrupoIdsConHorario(
+  supabase: SupabaseClient,
+  periodoId: string,
+  limite = 20000,
+): Promise<Set<string>> {
+  const { data: bloques } = await supabase
+    .from(TABLA_HORARIO_SEMANAL)
+    .select("grupo_id")
+    .eq("periodo_id", periodoId)
+    .limit(limite);
+  return new Set(
+    (bloques ?? []).map((b) => String((b as { grupo_id: string }).grupo_id)),
+  );
+}
+
 

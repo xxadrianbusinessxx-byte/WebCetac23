@@ -22,80 +22,45 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores";
 import {
   aplicarAsistenciaJustificada,
-  BUCKET_JUSTIFICACIONES,
+  asegurarBucketJustificaciones,
+  bloquesPorMateriaDiaDe,
   crearMensajeJustificacion,
   esNombreArchivoJustificacionSeguro,
+  estadoJustificacionPrevia,
+  guardarJustificacionConArchivo,
+  justificacionesTienenColumnaMateria,
   JUSTIFICACION_MAX_BYTES,
   JUSTIFICACION_MIME_PERMITIDOS,
   JUSTIFICACION_MOTIVO_MAX,
+  listarJustificacionesConDetalle,
+  listarJustificacionesDeCurp,
+  listarJustificacionesDeCurps,
+  listarJustificacionesPendientes,
+  listarMensajesDeTutorConDetalle,
   listarMensajesJustificacion,
+  marcarEstadoJustificacion,
   marcarMensajesJustificacionLeidos,
   materiaTieneClaseEnDia,
+  obtenerJustificacion,
   resolverContextoAlumnoDesdeInscripcion,
   resolverTutorDeAlumno,
   resumenClasesYAsistencia,
-  rutaStorageJustificacion,
-  TABLA_JUSTIFICACIONES_ASISTENCIA,
+  urlFirmadaJustificacion,
   verificarEsquemaJustificaciones,
   type EstadoJustificacion,
   type FilaJustificacion,
+  type JustificacionConDetalle,
+  type MensajeJustificacionConDetalle,
 } from "@/lib/escolar/asistencia/justificaciones";
-import {
-  bloquesDeGrupoEnFecha,
-  consultarHorarioAlumno,
-} from "@/lib/escolar/horario/horario-semanal";
-import { TABLA_ALUMNOS, TABLA_MENSAJES_JUSTIFICACION } from "@/lib/escolar/tables";
-
-const NO_AUTORIZADO = { ok: false, error: "No tienes permiso." } as const;
 
 /**
- * Bloques del grupo del alumno ESE día, agrupados por materia_clave oficial.
- * Devuelve null cuando no hay horario/inscripción consultable.
+ * Los tipos de presentación viven en la capa de dominio
+ * (`lib/escolar/asistencia/justificaciones.ts`); se re-exportan aquí para no
+ * romper los imports existentes de la UI.
  */
-async function bloquesPorMateriaDiaDe(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  curp: string,
-  fecha: string,
-): Promise<{ bloquesPorMateria: Record<string, number>; nombres: Record<string, string> } | null> {
-  const consulta = await consultarHorarioAlumno(supabase, curp);
-  if (!consulta) return null;
-  const delDia = bloquesDeGrupoEnFecha(consulta.bloques, fecha);
-  const bloquesPorMateria: Record<string, number> = {};
-  const nombres: Record<string, string> = {};
-  for (const b of delDia) {
-    const k = String(b.materia_clave ?? "").trim();
-    if (!k) continue;
-    bloquesPorMateria[k] = (bloquesPorMateria[k] ?? 0) + 1;
-    if (!nombres[k]) nombres[k] = String(b.materia_nombre ?? k);
-  }
-  return { bloquesPorMateria, nombres };
-}
+export type { JustificacionConDetalle, MensajeJustificacionConDetalle };
 
-/** ¿La tabla ya tiene la columna `materia_clave` (SQL del Prompt B aplicado)? */
-async function justificacionesTienenColumnaMateria(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-): Promise<boolean> {
-  const { error } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .select("materia_clave")
-    .limit(1);
-  return !error;
-}
-
-/** Crea el bucket si no existe (best-effort con el cliente de servicio). */
-async function asegurarBucket() {
-  const servicio = createServiceClient();
-  if (!servicio) return;
-  try {
-    const { error } = await servicio.storage.createBucket(BUCKET_JUSTIFICACIONES, {
-      public: false,
-    });
-    // El error "already exists" es normal; no se propaga.
-    void error;
-  } catch {
-    /* no-op */
-  }
-}
+const NO_AUTORIZADO = { ok: false, error: "No tienes permiso." } as const;
 
 function esFechaFutura(fecha: string): boolean {
   const hoy = new Date();
@@ -134,13 +99,9 @@ async function leerJustificacionAutorizada(
   sesion: PortalSessionPayload,
   justificacionId: string,
 ): Promise<{ ok: true; fila: FilaJustificacion } | { ok: false; error: string }> {
-  const { data, error } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .select("*")
-    .eq("id", justificacionId)
-    .maybeSingle();
-  if (error || !data) return { ok: false, error: "Justificación no encontrada." };
-  const fila = data as FilaJustificacion;
+  const r = await obtenerJustificacion(supabase, justificacionId);
+  if (!r.ok) return r;
+  const fila = r.fila;
   const autorizado = await sesionAutorizaCurp(supabase, sesion, fila.curp_alumno);
   if (!autorizado) {
     return { ok: false, error: "No tienes permiso sobre esta justificación." };
@@ -278,17 +239,12 @@ export async function actionSolicitarJustificacionConArchivo(
   }
 
   // Estado de la justificación previa (misma clave: día completo o materia).
-  let qPrevia = supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .select("id, estado")
-    .eq("curp_alumno", curp)
-    .eq("fecha", fecha);
-  if (conColumnaMateria) {
-    qPrevia = materiaClave
-      ? qPrevia.eq("materia_clave", materiaClave)
-      : qPrevia.is("materia_clave", null);
-  }
-  const { data: previa } = await qPrevia.maybeSingle();
+  const previa = await estadoJustificacionPrevia(supabase, {
+    curp,
+    fecha,
+    materiaClave,
+    conColumnaMateria,
+  });
   if (previa && previa.estado === "aprobada") {
     return { ok: false, error: "Esa falta ya fue aprobada." };
   }
@@ -300,22 +256,12 @@ export async function actionSolicitarJustificacionConArchivo(
     };
   }
 
-  // Verificar esquema C4.25 (adjunto) y subir el archivo.
+  // Verificar esquema C4.25 (adjunto), asegurar el bucket y guardar.
   const esquema = await verificarEsquemaJustificaciones(supabase);
   if (!esquema.ok) return { ok: false, error: esquema.error };
 
-  await asegurarBucket();
-  const ruta = rutaStorageJustificacion(curp, fecha, archivo.name);
-  const storageClient = createServiceClient() ?? supabase;
-  const { error: upErr } = await storageClient.storage
-    .from(BUCKET_JUSTIFICACIONES)
-    .upload(ruta, archivo, {
-      contentType: archivo.type || "application/octet-stream",
-      upsert: true,
-    });
-  if (upErr) {
-    return { ok: false, error: `No se pudo subir el archivo: ${upErr.message}` };
-  }
+  const servicio = createServiceClient();
+  if (servicio) await asegurarBucketJustificaciones(servicio);
 
   const solicitanteTipo =
     esRol(sesion.rol, "tutor")
@@ -324,75 +270,17 @@ export async function actionSolicitarJustificacionConArchivo(
         ? ("alumno" as const)
         : ("profesor" as const);
 
-  const datosComunes = {
-    curp_alumno: curp,
+  // Subida del adjunto + escritura de la fila: I/O del dominio.
+  return guardarJustificacionConArchivo(supabase, servicio ?? supabase, archivo, {
+    curp,
     fecha,
-    grado: contexto.grado,
-    grupo: contexto.grupo,
-    carrera: contexto.carrera,
+    contexto,
     motivo,
-    estado: "pendiente" as const,
-    solicitante_tipo: solicitanteTipo,
-    solicitante_id: sesion.matricula,
-    archivo_path: ruta,
-    archivo_nombre: archivo.name,
-    archivo_mime: archivo.type || null,
-    archivo_size: archivo.size,
-    motivo_rechazo: null,
-  };
-
-  const limpiarArchivo = () =>
-    storageClient.storage.from(BUCKET_JUSTIFICACIONES).remove([ruta]);
-
-  if (!conColumnaMateria) {
-    // Esquema legacy: una justificación por (curp, fecha).
-    const { data, error } = await supabase
-      .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-      .upsert(datosComunes, { onConflict: "curp_alumno,fecha" })
-      .select("id")
-      .maybeSingle();
-    if (error || !data) {
-      await limpiarArchivo();
-      return { ok: false, error: "No se pudo guardar la justificación." };
-    }
-    return { ok: true, id: String(data.id) };
-  }
-
-  // Esquema nuevo: la UNIQUE se recrea sobre (curp_alumno, fecha,
-  // COALESCE(materia_clave,'')). PostgREST no acepta on_conflict sobre índices
-  // de expresión, así que el guardado es select → update/insert con la misma
-  // clave (idempotente).
-  const valorMateria = materiaClave ? materiaClave : null;
-  let qExistente = supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .select("id")
-    .eq("curp_alumno", curp)
-    .eq("fecha", fecha);
-  qExistente = valorMateria
-    ? qExistente.eq("materia_clave", valorMateria)
-    : qExistente.is("materia_clave", null);
-  const { data: existente } = await qExistente.maybeSingle();
-  if (existente) {
-    const { error } = await supabase
-      .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-      .update({ ...datosComunes, materia_clave: valorMateria })
-      .eq("id", String(existente.id));
-    if (error) {
-      await limpiarArchivo();
-      return { ok: false, error: "No se pudo guardar la justificación." };
-    }
-    return { ok: true, id: String(existente.id) };
-  }
-  const { data: nueva, error: errNueva } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .insert({ ...datosComunes, materia_clave: valorMateria })
-    .select("id")
-    .maybeSingle();
-  if (errNueva || !nueva) {
-    await limpiarArchivo();
-    return { ok: false, error: "No se pudo guardar la justificación." };
-  }
-  return { ok: true, id: String(nueva.id) };
+    materiaClave,
+    solicitanteTipo,
+    solicitanteId: sesion.matricula,
+    conColumnaMateria,
+  });
 }
 
 export type MateriaJustificableUI = {
@@ -452,13 +340,7 @@ export async function actionListarJustificacionesTutor(): Promise<
   const supabase = await createClient();
   const curps = await listarCurpsDeTutor(supabase, sesion.matricula);
   if (curps.length === 0) return { ok: true, justificaciones: [] };
-  const { data, error } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .select("*")
-    .in("curp_alumno", curps)
-    .order("created_at", { ascending: false });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, justificaciones: (data ?? []) as FilaJustificacion[] };
+  return listarJustificacionesDeCurps(supabase, curps);
 }
 
 /** Directivo: justificaciones pendientes de revisión. */
@@ -469,13 +351,7 @@ export async function actionListarJustificacionesPendientes(): Promise<
   const g = await exigir("justificacion.ver_todas");
   if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .select("*")
-    .eq("estado", "pendiente")
-    .order("created_at", { ascending: false });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, justificaciones: (data ?? []) as FilaJustificacion[] };
+  return listarJustificacionesPendientes(supabase);
 }
 
 /**
@@ -523,11 +399,11 @@ export async function actionAprobarJustificacion(
   // Marcar aprobada PRIMERO para que el recálculo del total del día incluya
   // esta justificación. El marcador __JUSTIFICACION__ se FIJA al total
   // recalculado (nunca suma de a uno).
-  const { error: upErr } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .update({ estado: "aprobada", motivo_rechazo: null })
-    .eq("id", justificacionId);
-  if (upErr) return { ok: false, error: upErr.message };
+  const marcado = await marcarEstadoJustificacion(supabase, justificacionId, {
+    estado: "aprobada",
+    motivoRechazo: null,
+  });
+  if (!marcado.ok) return { ok: false, error: marcado.error };
 
   const aplicado = await aplicarAsistenciaJustificada(supabase, {
     curp: fila.curp_alumno,
@@ -539,10 +415,9 @@ export async function actionAprobarJustificacion(
   });
   if (!aplicado.ok) {
     // Revertir el estado: no se deja una justificación aprobada sin integrar.
-    await supabase
-      .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-      .update({ estado: "pendiente" })
-      .eq("id", justificacionId);
+    await marcarEstadoJustificacion(supabase, justificacionId, {
+      estado: "pendiente",
+    });
     return { ok: false, error: aplicado.error };
   }
 
@@ -593,11 +468,11 @@ export async function actionRechazarJustificacion(
     return { ok: false, error: `La justificación ya fue ${fila.estado}.` };
   }
 
-  const { error: upErr } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .update({ estado: "rechazada", motivo_rechazo: motivo })
-    .eq("id", justificacionId);
-  if (upErr) return { ok: false, error: upErr.message };
+  const rechazado = await marcarEstadoJustificacion(supabase, justificacionId, {
+    estado: "rechazada",
+    motivoRechazo: motivo,
+  });
+  if (!rechazado.ok) return { ok: false, error: rechazado.error };
 
   const tutorId =
     fila.solicitante_tipo === "tutor"
@@ -627,13 +502,7 @@ export async function actionObtenerUrlArchivoJustificacion(
     return { ok: false, error: "Esta justificación no tiene adjunto." };
   }
   const storageClient = createServiceClient() ?? supabase;
-  const { data, error: sErr } = await storageClient.storage
-    .from(BUCKET_JUSTIFICACIONES)
-    .createSignedUrl(fila.archivo_path, 60);
-  if (sErr || !data?.signedUrl) {
-    return { ok: false, error: "No se pudo generar la URL del archivo." };
-  }
-  return { ok: true, url: data.signedUrl };
+  return urlFirmadaJustificacion(storageClient, fila.archivo_path);
 }
 
 /** Mensajes de una justificación (tutor vinculado, alumno propio o directivo). */
@@ -686,30 +555,10 @@ export async function actionObtenerJustificacionesDeAlumno(
   if (!(await sesionAutorizaCurp(supabase, sesion, c))) return NO_AUTORIZADO;
   const esquema = await verificarEsquemaJustificaciones(supabase);
   if (!esquema.ok) return { ok: false, error: esquema.error };
-  const { data, error } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .select("*")
-    .eq("curp_alumno", c)
-    .order("fecha", { ascending: true });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, justificaciones: (data ?? []) as FilaJustificacion[] };
+  return listarJustificacionesDeCurp(supabase, c);
 }
 
 /** Tutor: mensajes de justificaciones dirigidos a él, con detalle de la justificación. */
-export type MensajeJustificacionConDetalle = {
-  id: string;
-  justificacionId: string;
-  mensaje: string;
-  leido: boolean;
-  created_at: string;
-  justificacion: {
-    fecha: string;
-    curpAlumno: string;
-    estado: EstadoJustificacion;
-    motivoRechazo: string | null;
-  } | null;
-};
-
 export async function actionListarMensajesDelTutor(): Promise<
   | { ok: true; mensajes: MensajeJustificacionConDetalle[] }
   | { ok: false; error: string }
@@ -721,107 +570,9 @@ export async function actionListarMensajesDelTutor(): Promise<
   const esquema = await verificarEsquemaJustificaciones(supabase);
   if (!esquema.ok) return { ok: false, error: esquema.error };
 
-  const { data: mensajes, error } = await supabase
-    .from(TABLA_MENSAJES_JUSTIFICACION)
-    .select("id, justificacion_id, mensaje, leido, created_at")
-    .eq("destinatario_tipo", "tutor")
-    .eq("destinatario_id", sesion.matricula)
-    .order("created_at", { ascending: false });
-  if (error) return { ok: false, error: error.message };
-
-  const justIds = [...new Set((mensajes ?? []).map((m) => m.justificacion_id))];
-  const { data: justs } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .select("id, curp_alumno, fecha, estado, motivo_rechazo")
-    .in("id", justIds.length ? justIds : ["00000000-0000-0000-0000-000000000000"]);
-  const justPorId = new Map((justs ?? []).map((j) => [j.id, j]));
-
-  // Marcar leídos con el mecanismo existente (directivo → tutor).
-  for (const id of justIds) {
-    await marcarMensajesJustificacionLeidos(supabase, id, sesion.matricula);
-  }
-
-  return {
-    ok: true,
-    mensajes: (mensajes ?? []).map((m) => {
-      const j = justPorId.get(m.justificacion_id);
-      return {
-        id: m.id,
-        justificacionId: m.justificacion_id,
-        mensaje: m.mensaje,
-        leido: true,
-        created_at: m.created_at,
-        justificacion: j
-          ? {
-              fecha: j.fecha,
-              curpAlumno: j.curp_alumno,
-              estado: j.estado as EstadoJustificacion,
-              motivoRechazo: j.motivo_rechazo,
-            }
-          : null,
-      };
-    }),
-  };
+  return listarMensajesDeTutorConDetalle(supabase, sesion.matricula);
 }
 
-
-/** Nombres completos de alumnos por CURP (presentación del panel directivo). */
-async function obtenerNombresAlumnos(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  curps: string[],
-): Promise<Map<string, string>> {
-  const mapa = new Map<string, string>();
-  if (curps.length === 0) return mapa;
-  const { data } = await supabase
-    .from(TABLA_ALUMNOS)
-    .select("CURP, NOMBRE, P_APELLIDO, S_APELLIDO")
-    .in("CURP", curps);
-  for (const a of data ?? []) {
-    const curp = String(a.CURP ?? "").trim().toUpperCase();
-    if (!curp) continue;
-    const nombre = [a.NOMBRE, a.P_APELLIDO, a.S_APELLIDO]
-      .filter((v) => typeof v === "string" && v.trim())
-      .join(" ")
-      .trim();
-    mapa.set(curp, nombre);
-  }
-  return mapa;
-}
-
-export type JustificacionConDetalle = FilaJustificacion & {
-  alumnoNombre: string;
-};
-
-async function listarJustificacionesConDetalle(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  estado: { eq?: "pendiente"; neq?: "pendiente" },
-): Promise<
-  | { ok: true; justificaciones: JustificacionConDetalle[] }
-  | { ok: false; error: string }
-> {
-  let q = supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .select("*")
-    .order("created_at", { ascending: false });
-  if (estado.eq) q = q.eq("estado", estado.eq);
-  if (estado.neq) q = q.neq("estado", estado.neq);
-  const { data, error } = await q.limit(100);
-  if (error) return { ok: false, error: error.message };
-  const curps = [
-    ...new Set(
-      (data ?? []).map((j) => String(j.curp_alumno).trim().toUpperCase()),
-    ),
-  ];
-  const nombres = await obtenerNombresAlumnos(supabase, curps);
-  return {
-    ok: true,
-    justificaciones: (data ?? []).map((j) => ({
-      ...j,
-      alumnoNombre:
-        nombres.get(String(j.curp_alumno).trim().toUpperCase()) ?? "",
-    })) as JustificacionConDetalle[],
-  };
-}
 
 /** Directivo: solicitudes pendientes con nombre del alumno (panel administrativo). */
 export async function actionListarJustificacionesPendientesConDetalle(): Promise<

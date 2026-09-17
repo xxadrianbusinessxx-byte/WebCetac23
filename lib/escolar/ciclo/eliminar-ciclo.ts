@@ -23,6 +23,7 @@ import {
   TABLA_HORARIO_SEMANAL,
   TABLA_INSCRIPCIONES_ALUMNO,
   TABLA_JUSTIFICACIONES_ASISTENCIA,
+  TABLA_PERIODOS,
   TABLA_PERIODOS_EVALUACION,
   TABLA_SEMESTRES,
 } from "../tables";
@@ -204,4 +205,32 @@ export async function eliminarCicloRpc(
     detalle,
     mensaje: `Ciclo «${nombre}» eliminado: ${detalle.grupos} grupos · ${detalle.grupoMaterias} grupo_materias · ${detalle.horario} bloques de horario · ${detalle.parciales} parciales · ${detalle.calendario} días de calendario.`,
   };
+}
+
+/**
+ * Elimina un ciclo exigiendo la confirmación del nombre EXACTO del periodo.
+ * La lectura del nombre y su comparación viven aquí (dominio): la Server Action
+ * solo valida la capacidad y delega. El borrado real sigue siendo el RPC.
+ */
+export async function eliminarCicloConConfirmacion(
+  supabase: SupabaseClient,
+  periodoId: string,
+  nombreConfirmacion: string,
+): Promise<ResultadoEliminarCiclo> {
+  const { data: p } = await supabase
+    .from(TABLA_PERIODOS)
+    .select("id, nombre")
+    .eq("id", periodoId)
+    .maybeSingle();
+  if (!p) return { ok: false, error: "El ciclo no existe." };
+  const nombre = String((p as { nombre: string }).nombre);
+  const confirmacion = String(nombreConfirmacion ?? "").trim().toUpperCase();
+  if (confirmacion !== nombre) {
+    return {
+      ok: false,
+      error:
+        "Confirmación incorrecta: escribe el nombre exacto del ciclo para poder eliminarlo.",
+    };
+  }
+  return eliminarCicloRpc(supabase, periodoId);
 }

@@ -9,6 +9,11 @@ import {
   TABLA_MENSAJES_JUSTIFICACION,
   TABLA_TUTOR_ALUMNOS,
 } from "../tables";
+import { listarNombresCompletosPorCurp } from "../alumno/alumnos";
+import {
+  bloquesDeGrupoEnFecha,
+  consultarHorarioAlumno,
+} from "../horario/horario-semanal";
 
 /**
  * C4.25 — DOMINIO DE JUSTIFICACIONES DE ASISTENCIA (estructura backend).
@@ -420,3 +425,473 @@ export async function marcarMensajesJustificacionLeidos(
 
 export { TABLA_JUSTIFICACIONES_ASISTENCIA };
 
+/* ---------------------------------------------------------------------------
+ * REPOSITORIO / I-O DEL CIRCUITO
+ * ---------------------------------------------------------------------------
+ * Bajado de `app/actions/justificaciones.ts` (PROMPT E · R-1). La Server Action
+ * sigue validando la SESIÓN y el ALCANCE (rol + relación con el CURP) y
+ * delegando; ninguna función de aquí decide autorización. El cliente se crea en
+ * la action (incluido el de service role para Storage) y se recibe como
+ * parámetro, que es la convención de `lib/escolar/`.
+ */
+
+/** ¿La tabla ya tiene la columna `materia_clave` (SQL del Prompt B aplicado)? */
+export async function justificacionesTienenColumnaMateria(
+  supabase: SupabaseClient,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .select("materia_clave")
+    .limit(1);
+  return !error;
+}
+
+/**
+ * Crea el bucket de adjuntos si no existe (best-effort). Recibe el cliente de
+ * servicio ya construido: crear clientes es responsabilidad de la action.
+ */
+export async function asegurarBucketJustificaciones(
+  servicio: SupabaseClient,
+): Promise<void> {
+  try {
+    const { error } = await servicio.storage.createBucket(BUCKET_JUSTIFICACIONES, {
+      public: false,
+    });
+    // El error "already exists" es normal; no se propaga.
+    void error;
+  } catch {
+    /* no-op */
+  }
+}
+
+/** Sube el adjunto al bucket privado en la ruta ya calculada. */
+export async function subirArchivoJustificacion(
+  cliente: SupabaseClient,
+  ruta: string,
+  archivo: File,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { error } = await cliente.storage
+    .from(BUCKET_JUSTIFICACIONES)
+    .upload(ruta, archivo, {
+      contentType: archivo.type || "application/octet-stream",
+      upsert: true,
+    });
+  if (error) {
+    return { ok: false, error: `No se pudo subir el archivo: ${error.message}` };
+  }
+  return { ok: true };
+}
+
+/** Borra un adjunto del bucket (limpieza cuando el guardado falla). */
+export async function eliminarArchivoJustificacion(
+  cliente: SupabaseClient,
+  ruta: string,
+): Promise<void> {
+  await cliente.storage.from(BUCKET_JUSTIFICACIONES).remove([ruta]);
+}
+
+/** URL firmada y temporal (60 s) del adjunto. */
+export async function urlFirmadaJustificacion(
+  cliente: SupabaseClient,
+  ruta: string,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const { data, error } = await cliente.storage
+    .from(BUCKET_JUSTIFICACIONES)
+    .createSignedUrl(ruta, 60);
+  if (error || !data?.signedUrl) {
+    return { ok: false, error: "No se pudo generar la URL del archivo." };
+  }
+  return { ok: true, url: data.signedUrl };
+}
+
+/**
+ * Justificación por id (lectura cruda). El ALCANCE sobre su CURP lo valida la
+ * action con `sesionAutorizaCurp` antes de usar el resultado.
+ */
+export async function obtenerJustificacion(
+  supabase: SupabaseClient,
+  justificacionId: string,
+): Promise<{ ok: true; fila: FilaJustificacion } | { ok: false; error: string }> {
+  const { data, error } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .select("*")
+    .eq("id", justificacionId)
+    .maybeSingle();
+  if (error || !data) return { ok: false, error: "Justificación no encontrada." };
+  return { ok: true, fila: data as FilaJustificacion };
+}
+
+/**
+ * Estado de la justificación PREVIA con la misma clave: día completo o la
+ * materia concreta. `null` si no existe. Con el esquema legacy (sin la columna
+ * `materia_clave`) la clave es solo (curp, fecha).
+ */
+export async function estadoJustificacionPrevia(
+  supabase: SupabaseClient,
+  input: {
+    curp: string;
+    fecha: string;
+    materiaClave: string;
+    conColumnaMateria: boolean;
+  },
+): Promise<{ estado: EstadoJustificacion } | null> {
+  let q = supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .select("id, estado")
+    .eq("curp_alumno", input.curp)
+    .eq("fecha", input.fecha);
+  if (input.conColumnaMateria) {
+    q = input.materiaClave
+      ? q.eq("materia_clave", input.materiaClave)
+      : q.is("materia_clave", null);
+  }
+  const { data } = await q.maybeSingle();
+  if (!data) return null;
+  return { estado: data.estado as EstadoJustificacion };
+}
+
+/**
+ * Bloques del grupo del alumno ESE día, agrupados por `materia_clave` oficial
+ * (origen: horario_semanal, no la configuración del profesor).
+ * Devuelve null cuando no hay horario/inscripción consultable.
+ */
+export async function bloquesPorMateriaDiaDe(
+  supabase: SupabaseClient,
+  curp: string,
+  fecha: string,
+): Promise<
+  | { bloquesPorMateria: Record<string, number>; nombres: Record<string, string> }
+  | null
+> {
+  const consulta = await consultarHorarioAlumno(supabase, curp);
+  if (!consulta) return null;
+  const delDia = bloquesDeGrupoEnFecha(consulta.bloques, fecha);
+  const bloquesPorMateria: Record<string, number> = {};
+  const nombres: Record<string, string> = {};
+  for (const b of delDia) {
+    const k = String(b.materia_clave ?? "").trim();
+    if (!k) continue;
+    bloquesPorMateria[k] = (bloquesPorMateria[k] ?? 0) + 1;
+    if (!nombres[k]) nombres[k] = String(b.materia_nombre ?? k);
+  }
+  return { bloquesPorMateria, nombres };
+}
+
+/** Datos de una solicitud de justificación con adjunto (ya validados). */
+export type EntradaJustificacionConArchivo = {
+  curp: string;
+  fecha: string;
+  contexto: { grado: string; grupo: string; carrera: string };
+  motivo: string;
+  /** "" = día completo (comportamiento actual); con valor = justificación por clase. */
+  materiaClave: string;
+  solicitanteTipo: "tutor" | "alumno" | "profesor";
+  solicitanteId: string;
+  /** ¿Existe la columna `materia_clave`? (SQL del Prompt B aplicado). */
+  conColumnaMateria: boolean;
+};
+
+/**
+ * Guarda la justificación con su adjunto: sube el archivo, escribe la fila y,
+ * si el guardado falla, borra el archivo recién subido (sin huérfanos).
+ *
+ * Con el esquema legacy (sin `materia_clave`) la clave es (curp_alumno, fecha) y
+ * se resuelve con `upsert` + `onConflict`. Con el esquema nuevo la UNIQUE se
+ * recrea sobre (curp_alumno, fecha, COALESCE(materia_clave,'')), que PostgREST
+ * no acepta como `on_conflict` por ser un índice de expresión: se resuelve con
+ * select → update/insert, idempotente por la misma clave.
+ */
+export async function guardarJustificacionConArchivo(
+  supabase: SupabaseClient,
+  almacen: SupabaseClient,
+  archivo: File,
+  input: EntradaJustificacionConArchivo,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const ruta = rutaStorageJustificacion(input.curp, input.fecha, archivo.name);
+  const subida = await subirArchivoJustificacion(almacen, ruta, archivo);
+  if (!subida.ok) return subida;
+
+  const limpiarArchivo = () => eliminarArchivoJustificacion(almacen, ruta);
+
+  const datosComunes = {
+    curp_alumno: input.curp,
+    fecha: input.fecha,
+    grado: input.contexto.grado,
+    grupo: input.contexto.grupo,
+    carrera: input.contexto.carrera,
+    motivo: input.motivo,
+    estado: "pendiente" as const,
+    solicitante_tipo: input.solicitanteTipo,
+    solicitante_id: input.solicitanteId,
+    archivo_path: ruta,
+    archivo_nombre: archivo.name,
+    archivo_mime: archivo.type || null,
+    archivo_size: archivo.size,
+    motivo_rechazo: null,
+  };
+
+  if (!input.conColumnaMateria) {
+    // Esquema legacy: una justificación por (curp, fecha).
+    const { data, error } = await supabase
+      .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+      .upsert(datosComunes, { onConflict: "curp_alumno,fecha" })
+      .select("id")
+      .maybeSingle();
+    if (error || !data) {
+      await limpiarArchivo();
+      return { ok: false, error: "No se pudo guardar la justificación." };
+    }
+    return { ok: true, id: String(data.id) };
+  }
+
+  const valorMateria = input.materiaClave ? input.materiaClave : null;
+  let qExistente = supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .select("id")
+    .eq("curp_alumno", input.curp)
+    .eq("fecha", input.fecha);
+  qExistente = valorMateria
+    ? qExistente.eq("materia_clave", valorMateria)
+    : qExistente.is("materia_clave", null);
+  const { data: existente } = await qExistente.maybeSingle();
+  if (existente) {
+    const { error } = await supabase
+      .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+      .update({ ...datosComunes, materia_clave: valorMateria })
+      .eq("id", String(existente.id));
+    if (error) {
+      await limpiarArchivo();
+      return { ok: false, error: "No se pudo guardar la justificación." };
+    }
+    return { ok: true, id: String(existente.id) };
+  }
+  const { data: nueva, error: errNueva } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .insert({ ...datosComunes, materia_clave: valorMateria })
+    .select("id")
+    .maybeSingle();
+  if (errNueva || !nueva) {
+    await limpiarArchivo();
+    return { ok: false, error: "No se pudo guardar la justificación." };
+  }
+  return { ok: true, id: String(nueva.id) };
+}
+
+/**
+ * Marca el estado de una justificación. `motivoRechazo` solo se escribe si se
+ * pasa explícitamente: la reversión a `pendiente` no debe tocarlo.
+ */
+export async function marcarEstadoJustificacion(
+  supabase: SupabaseClient,
+  justificacionId: string,
+  cambios: { estado: EstadoJustificacion; motivoRechazo?: string | null },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const payload: Record<string, unknown> = { estado: cambios.estado };
+  if (cambios.motivoRechazo !== undefined) {
+    payload.motivo_rechazo = cambios.motivoRechazo;
+  }
+  const { error } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .update(payload)
+    .eq("id", justificacionId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Justificaciones de VARIOS CURP (tutor), de la más reciente a la más antigua. */
+export async function listarJustificacionesDeCurps(
+  supabase: SupabaseClient,
+  curps: readonly string[],
+): Promise<
+  { ok: true; justificaciones: FilaJustificacion[] } | { ok: false; error: string }
+> {
+  const { data, error } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .select("*")
+    .in("curp_alumno", [...curps])
+    .order("created_at", { ascending: false });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, justificaciones: (data ?? []) as FilaJustificacion[] };
+}
+
+/** Justificaciones de UN alumno, por fecha ascendente. */
+export async function listarJustificacionesDeCurp(
+  supabase: SupabaseClient,
+  curp: string,
+): Promise<
+  { ok: true; justificaciones: FilaJustificacion[] } | { ok: false; error: string }
+> {
+  const { data, error } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .select("*")
+    .eq("curp_alumno", curp)
+    .order("fecha", { ascending: true });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, justificaciones: (data ?? []) as FilaJustificacion[] };
+}
+
+/** Justificaciones PENDIENTES de revisión (panel directivo). */
+export async function listarJustificacionesPendientes(
+  supabase: SupabaseClient,
+): Promise<
+  { ok: true; justificaciones: FilaJustificacion[] } | { ok: false; error: string }
+> {
+  const { data, error } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .select("*")
+    .eq("estado", "pendiente")
+    .order("created_at", { ascending: false });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, justificaciones: (data ?? []) as FilaJustificacion[] };
+}
+
+/** Justificación con el nombre del alumno (presentación del panel). */
+export type JustificacionConDetalle = FilaJustificacion & {
+  alumnoNombre: string;
+};
+
+/**
+ * Justificaciones (máx. 100) filtradas por estado, con el nombre del alumno.
+ * Los nombres salen de UNA consulta a ALUMNOS por CURP (sin N+1).
+ */
+export async function listarJustificacionesConDetalle(
+  supabase: SupabaseClient,
+  estado: { eq?: EstadoJustificacion; neq?: EstadoJustificacion },
+): Promise<
+  | { ok: true; justificaciones: JustificacionConDetalle[] }
+  | { ok: false; error: string }
+> {
+  let q = supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (estado.eq) q = q.eq("estado", estado.eq);
+  if (estado.neq) q = q.neq("estado", estado.neq);
+  const { data, error } = await q.limit(100);
+  if (error) return { ok: false, error: error.message };
+
+  const curps = [
+    ...new Set((data ?? []).map((j) => String(j.curp_alumno).trim().toUpperCase())),
+  ];
+  const nombres = await listarNombresCompletosPorCurp(supabase, curps);
+  return {
+    ok: true,
+    justificaciones: (data ?? []).map((j) => ({
+      ...j,
+      alumnoNombre: nombres.get(String(j.curp_alumno).trim().toUpperCase()) ?? "",
+    })) as JustificacionConDetalle[],
+  };
+}
+
+/** Mensaje de justificación con el detalle de su justificación (panel del tutor). */
+export type MensajeJustificacionConDetalle = {
+  id: string;
+  justificacionId: string;
+  mensaje: string;
+  leido: boolean;
+  created_at: string;
+  justificacion: {
+    fecha: string;
+    curpAlumno: string;
+    estado: EstadoJustificacion;
+    motivoRechazo: string | null;
+  } | null;
+};
+
+/**
+ * Mensajes dirigidos a un destinatario (hoy: tutor) con el detalle de la
+ * justificación, de la más reciente a la más antigua. Al consultarlos se marcan
+ * como leídos con el mecanismo existente (`marcarMensajesJustificacionLeidos`),
+ * igual que antes hacía la action.
+ */
+export async function listarMensajesDeTutorConDetalle(
+  supabase: SupabaseClient,
+  destinatarioId: string,
+): Promise<
+  | { ok: true; mensajes: MensajeJustificacionConDetalle[] }
+  | { ok: false; error: string }
+> {
+  const { data: mensajes, error } = await supabase
+    .from(TABLA_MENSAJES_JUSTIFICACION)
+    .select("id, justificacion_id, mensaje, leido, created_at")
+    .eq("destinatario_tipo", "tutor")
+    .eq("destinatario_id", destinatarioId)
+    .order("created_at", { ascending: false });
+  if (error) return { ok: false, error: error.message };
+
+  const justIds = [...new Set((mensajes ?? []).map((m) => m.justificacion_id))];
+  const { data: justs } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .select("id, curp_alumno, fecha, estado, motivo_rechazo")
+    .in("id", justIds.length ? justIds : ["00000000-0000-0000-0000-000000000000"]);
+  const justPorId = new Map((justs ?? []).map((j) => [j.id, j]));
+
+  for (const id of justIds) {
+    await marcarMensajesJustificacionLeidos(supabase, id, destinatarioId);
+  }
+
+  return {
+    ok: true,
+    mensajes: (mensajes ?? []).map((m) => {
+      const j = justPorId.get(m.justificacion_id);
+      return {
+        id: m.id,
+        justificacionId: m.justificacion_id,
+        mensaje: m.mensaje,
+        leido: true,
+        created_at: m.created_at,
+        justificacion: j
+          ? {
+              fecha: j.fecha,
+              curpAlumno: j.curp_alumno,
+              estado: j.estado as EstadoJustificacion,
+              motivoRechazo: j.motivo_rechazo,
+            }
+          : null,
+      };
+    }),
+  };
+}
+
+/**
+ * UPSERT de la justificación de DÍA COMPLETO (sin adjunto) por la clave natural
+ * (curp_alumno, fecha): re-solicitar la misma fecha actualiza el motivo.
+ *
+ * Es el camino que usa el panel de asistencias (`actionSolicitarJustificacionAsistencia`),
+ * bajado de `app/actions/asistencias.ts` (PROMPT E · R-1).
+ */
+export async function guardarJustificacionDiaCompleto(
+  supabase: SupabaseClient,
+  datos: {
+    curp: string;
+    fecha: string;
+    contexto: { grado: string; grupo: string; carrera: string };
+    motivo: string;
+    solicitanteTipo: "tutor" | "alumno" | "profesor";
+    solicitanteId: string;
+  },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { error } = await supabase
+    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+    .upsert(
+      {
+        curp_alumno: datos.curp,
+        fecha: datos.fecha,
+        grado: datos.contexto.grado,
+        grupo: datos.contexto.grupo,
+        carrera: datos.contexto.carrera,
+        motivo: datos.motivo,
+        estado: "pendiente",
+        solicitante_tipo: datos.solicitanteTipo,
+        solicitante_id: datos.solicitanteId,
+      },
+      { onConflict: "curp_alumno,fecha" },
+    );
+  if (error) {
+    return { ok: false, error: "No se pudo guardar la justificación." };
+  }
+  return { ok: true };
+}
+
+/** Nombres completos de ALUMNOS por CURP (re-exportado para el panel directivo). */
+export { listarNombresCompletosPorCurp };

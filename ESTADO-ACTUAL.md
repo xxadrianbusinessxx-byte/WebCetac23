@@ -8,7 +8,7 @@ append-only desde mayo y contiene afirmaciones ya falsas.
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-16 (ORDEN.md gana comprobación mecánica: `scripts/test-orden.mjs`)
+- **Última revisión:** 2026-09-16 (PROMPT E: el I/O baja a `lib/` y C8/C9 pasan a regla dura)
 - **HEAD:** `d71fd59` (2026-09-16) · árbol limpio
 
 ---
@@ -237,12 +237,19 @@ ni el build ven nada de eso.
 Diez reglas, en dos modos. **Duras** (umbral 0, se cumplen hoy y ya no se
 pueden romper por descuido): C1 alias `@/` en `lib/escolar`, C2 `lib/`→`app/`,
 C3 cliente con `lib/supabase`/`server-only`, C4 action→action, C5 `-puro` con
-I/O, C6 `test-`/`diag-`/`probe-` que escriben, C7 raíz cerrada.
+I/O, C6 `test-`/`diag-`/`probe-` que escriben, C7 raíz cerrada, **C8 ninguna
+action habla con Supabase** y **C9 ningún archivo de `app/` o `lib/` pasa de
+1 000 líneas**.
 **Trinquete** (deuda declarada con prompt asignado; fallan solo si el número
-SUBE): C8 = 13 actions con `.from()` y C9 = 7 archivos >1 000 líneas, ambos de
-`PROMPT_E_CAPAS_Y_TAMANO.md`; C10 = 35 scripts sin fila en `scripts/README.md`.
-El umbral es lo que permite añadir un guardián a un repo vivo: una regla que
-falla desde el primer día por deuda preexistente se desactiva en una semana.
+SUBE): C10 = 35 scripts sin fila en `scripts/README.md`; el umbral es lo que
+permite añadir un guardián a un repo vivo, porque una regla que falla desde el
+primer día por deuda preexistente se desactiva en una semana.
+
+C8 y C9 nacieron como trinquete (13 actions con `.from()` y 7 archivos >1 000
+líneas) y **cerraron el 2026-09-16 al ejecutarse `PROMPT_E_CAPAS_Y_TAMANO.md`
+(partes 1–4)**: el I/O bajó a `lib/` y los seis gigantes se partieron por
+responsabilidad, con los re-exports intactos. Al llegar a 0 los dos umbrales
+pasaron a regla DURA. Informe: `docs/historial/informes/INFORME-PROMPT-E-CAPAS-Y-TAMANO.md`.
 
 **Cómo se llegó hasta aquí → `docs/historial/BITACORA-2026-09.md`.**
 El relato fase por fase (PROMPT-2 a PROMPT-5, rediseño Océano 1 a 9) vivía aquí

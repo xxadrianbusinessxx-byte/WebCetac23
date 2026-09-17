@@ -2,12 +2,10 @@
 
 import { exigir } from "@/lib/auth/exigir";
 import {
-  invalidarNoticiasInicio,
   listarUrlsNoticiasInicio,
-  publicIdNoticiaInicio,
+  publicarNoticiaInicio,
   type NoticiaInicioSlot,
 } from "@/lib/cloudinary/noticias";
-import { subirImagenCloudinary } from "@/lib/cloudinary/upload";
 
 /**
  * Pública por diseño: es la portada, se sirve antes del login. Capacidad
@@ -32,10 +30,5 @@ export async function actionPublicarNoticiaInicio(
     return { ok: false, error: "Solo se permiten imágenes." };
   }
 
-  const buffer = Buffer.from(await archivo.arrayBuffer());
-  const subida = await subirImagenCloudinary(buffer, publicIdNoticiaInicio(slot));
-  if (!subida.ok) return subida;
-  // O5 — La noticia cambió: invalida la caché para que sea visible de inmediato.
-  invalidarNoticiasInicio();
-  return { ok: true, url: subida.url };
+  return publicarNoticiaInicio(slot, archivo);
 }

@@ -20,7 +20,7 @@ import {
 } from "@/lib/escolar/ciclo/evaluaciones";
 import {
   diagnosticoEliminarCiclo,
-  eliminarCicloRpc,
+  eliminarCicloConConfirmacion,
   type DiagnosticoEliminarCiclo,
   type ResultadoEliminarCiclo,
 } from "@/lib/escolar/ciclo/eliminar-ciclo";
@@ -222,19 +222,5 @@ export async function actionEliminarCiclo(
     return { ok: false, error: "No autorizado: se requiere rol directivo." };
   }
   const supabase = await createClient();
-  const { data: p } = await supabase
-    .from("periodos")
-    .select("id, nombre")
-    .eq("id", periodoId)
-    .maybeSingle();
-  if (!p) return { ok: false, error: "El ciclo no existe." };
-  const nombre = String(p.nombre);
-  const confirmacion = String(nombreConfirmacion ?? "").trim().toUpperCase();
-  if (confirmacion !== nombre) {
-    return {
-      ok: false,
-      error: "Confirmación incorrecta: escribe el nombre exacto del ciclo para poder eliminarlo.",
-    };
-  }
-  return eliminarCicloRpc(supabase, periodoId);
+  return eliminarCicloConConfirmacion(supabase, periodoId, nombreConfirmacion);
 }

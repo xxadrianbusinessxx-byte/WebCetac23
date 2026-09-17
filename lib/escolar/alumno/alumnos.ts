@@ -170,6 +170,90 @@ export async function traerAlumnosExistentes(
   return todos;
 }
 
+/**
+ * Subconjunto de `curps` que EXISTE de verdad en ALUMNOS, consultado por lotes
+ * (`WHERE CURP IN (...)`) para no hacer una consulta por fila.
+ *
+ * Es una lectura de pertenencia: quien la usa decide qué hacer con los CURP
+ * ausentes. Vive aquí —y no en cada action— para que cualquier dominio
+ * (importación de etiquetas, generación masiva de tutores) reutilice el mismo
+ * patrón en lugar de escribir su propio `.from(TABLA_ALUMNOS)`.
+ */
+export async function listarCurpsExistentes(
+  supabase: SupabaseClient,
+  curps: readonly string[],
+  tamanoLote = 50,
+): Promise<Set<string>> {
+  const existentes = new Set<string>();
+  if (curps.length === 0 || tamanoLote <= 0) return existentes;
+
+  for (let i = 0; i < curps.length; i += tamanoLote) {
+    const lote = curps.slice(i, i + tamanoLote);
+    const { data, error } = await supabase
+      .from(TABLA_ALUMNOS)
+      .select("CURP")
+      .in("CURP", lote);
+    if (error || !data) continue;
+    for (const r of data as { CURP: string }[]) {
+      existentes.add(String(r.CURP ?? "").trim().toUpperCase());
+    }
+  }
+  return existentes;
+}
+
+/**
+ * Nombre completo de ALUMNOS por CURP, en UNA consulta (`WHERE CURP IN (...)`).
+ * Es la lectura de PRESENTACIÓN que necesitan los listados (p. ej. el panel de
+ * justificaciones) para no repetir la consulta ni hacer N+1.
+ */
+export async function listarNombresCompletosPorCurp(
+  supabase: SupabaseClient,
+  curps: readonly string[],
+): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>();
+  if (curps.length === 0) return mapa;
+
+  const { data } = await supabase
+    .from(TABLA_ALUMNOS)
+    .select("CURP, NOMBRE, P_APELLIDO, S_APELLIDO")
+    .in("CURP", [...curps]);
+  for (const a of data ?? []) {
+    const curp = String(a.CURP ?? "").trim().toUpperCase();
+    if (!curp) continue;
+    const nombre = [a.NOMBRE, a.P_APELLIDO, a.S_APELLIDO]
+      .filter((v) => typeof v === "string" && v.trim())
+      .join(" ")
+      .trim();
+    mapa.set(curp, nombre);
+  }
+  return mapa;
+}
+
+/**
+ * Nombre completo de UN alumno por CURP, o null si no existe (o si hay más de
+ * una fila con esa CURP: dato inconsistente, no se elige una). Es la lectura
+ * puntual que necesitan los paneles de asistencia; `listarNombresCompletosPorCurp`
+ * es la variante por lotes.
+ */
+export async function obtenerNombreCompletoAlumno(
+  supabase: SupabaseClient,
+  curp: string,
+): Promise<string | null> {
+  const key = curp.trim().toUpperCase();
+  if (!key) return null;
+  const { data, error } = await supabase
+    .from(TABLA_ALUMNOS)
+    .select("CURP, NOMBRE, P_APELLIDO, S_APELLIDO")
+    .eq("CURP", key)
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  return [data.NOMBRE, data.P_APELLIDO, data.S_APELLIDO]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
 /** Plan de sincronización calculado (sin ejecutar escrituras). */
 type PlanSincronizacion = {
   aInsertar: Record<string, string>[];

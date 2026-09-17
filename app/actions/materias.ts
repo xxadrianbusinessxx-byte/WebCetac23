@@ -24,56 +24,21 @@ import {
 import { listarMateriasCompletas } from "@/lib/escolar/materia/tablas-supabase";
 import { generarPlantillaMateriaXlsx } from "@/lib/escolar/materia/materias";
 import {
+  cambiarVisibilidadMateria,
+  filtrarTablasVisibles,
+  listarTablasLegacyOcultas,
   resolverAsignacionesProfesor,
   resolverAsignacionesProfesorPorId,
   resolverIdentidadesCatalogo,
   type AsignacionProfesorResuelta,
 } from "@/lib/escolar/catalogo/catalogo-academico";
-import { TABLA_GRUPO_MATERIAS } from "@/lib/escolar/tables";
-import {
-  gradoASemestre,
-  semestresInactivos,
-} from "@/lib/escolar/ciclo/semestres";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Filtra las tablas de materias que deben ser VISIBLES/OPERATIVAS:
- *  - excluye las que tienen `grupo_materias.activo = false` (materia
- *    desactivada administrativamente);
- *  - excluye las de un SEMESTRE inactivo (academico_semestres). El grado se
- *    resuelve desde el catálogo (grupo_materias → grupos.grado); NUNCA se
- *    parsea el nombre físico de la tabla.
- * Si la estructura de semestres no existe, no filtra por semestre.
- * Las tablas legacy sin fila en grupo_materias se conservan (sin catálogo).
+ * Filtra las tablas de materias visibles/operativas: la decisión vive en
+ * `lib/escolar/catalogo/catalogo-academico.ts` (`filtrarTablasVisibles`) y se
+ * usa directamente en este archivo.
  */
-async function filtrarTablasVisibles(
-  supabase: SupabaseClient,
-  tablas: readonly string[],
-): Promise<string[]> {
-  const [gmsRes, identidades] = await Promise.all([
-    supabase.from(TABLA_GRUPO_MATERIAS).select("tabla_legacy, activo"),
-    resolverIdentidadesCatalogo(supabase, tablas),
-  ]);
-  const inactivas = new Set(
-    ((gmsRes.data ?? []) as Array<{ tabla_legacy: string | null; activo: boolean }>)
-      .filter((g) => g.activo === false)
-      .map((g) => g.tabla_legacy),
-  );
-  const semInactivos = await semestresInactivos(supabase);
-  const out: string[] = [];
-  for (const t of tablas) {
-    if (inactivas.has(t)) continue;
-    const identidad = identidades.get(t);
-    const grado = identidad?.grado ?? null;
-    if (grado) {
-      const sem = gradoASemestre(grado);
-      if (sem !== null && semInactivos.has(sem)) continue;
-    }
-    out.push(t);
-  }
-  return out;
-}
 
 /**
  * Lista las materias del profesor.
@@ -507,22 +472,15 @@ export async function actionListarMateriasConfiguracion(): Promise<
   }
 
   const supabase = await createClient();
-  const [aliases, tablas, gms] = await Promise.all([
+  const [aliases, tablas, ocultas] = await Promise.all([
     listarNombresVisiblesMaterias(supabase),
     listarMateriasCompletas(),
-    supabase.from(TABLA_GRUPO_MATERIAS).select("tabla_legacy, activo"),
+    listarTablasLegacyOcultas(supabase),
   ]);
   // C4.28 — identidad desde el catálogo (grupo_materias → grupos/materias/
   // carreras); los nombres físicos ya no se interpretan.
   const identidades = await resolverIdentidadesCatalogo(supabase, tablas);
   const materias = materiasVisiblesDesdeCatalogo(tablas, identidades, aliases);
-  const ocultas = [
-    ...new Set(
-      ((gms.data ?? []) as Array<{ tabla_legacy: string; activo: boolean }>)
-        .filter((g) => g.activo === false)
-        .map((g) => g.tabla_legacy),
-    ),
-  ];
   return { ok: true, materias, ocultas };
 }
 
@@ -557,24 +515,10 @@ export async function actionCambiarVisibilidadMateria(
   const supabase = await createClient();
   const activo = Boolean(visible);
 
-  const { data: filas, error: e0 } = await supabase
-    .from(TABLA_GRUPO_MATERIAS)
-    .select("id")
-    .eq("tabla_legacy", id)
-    .limit(1);
-  if (e0) return { ok: false, error: e0.message };
-  if (!filas?.length) {
-    return {
-      ok: false,
-      error: "La materia no está asociada al catálogo; no se puede cambiar su visibilidad.",
-    };
-  }
-
-  const { error } = await supabase
-    .from(TABLA_GRUPO_MATERIAS)
-    .update({ activo })
-    .eq("tabla_legacy", id);
-  if (error) return { ok: false, error: error.message };
+  // El UPDATE de `grupo_materias` vive en la capa de dominio
+  // (`cambiarVisibilidadMateria`); la action solo valida la capacidad y el id.
+  const r = await cambiarVisibilidadMateria(supabase, id, activo);
+  if (!r.ok) return r;
 
   return {
     ok: true,

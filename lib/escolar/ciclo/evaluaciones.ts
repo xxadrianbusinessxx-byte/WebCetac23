@@ -4,6 +4,7 @@ import {
   configuracionPermitidaEnPeriodo,
   crearCicloBorrador,
   marcarCicloNoOperativo,
+  obtenerCicloOperativoGlobal,
   validarIntegridadCiclo,
 } from "./ciclo-estado";
 import {
@@ -603,5 +604,98 @@ export async function resolverCicloEvaluacionPorFecha(
 }
 
 //__EVALUACIONES_CONTINUA__
+
+/* ---------------------------------------------------------------------------
+ * CICLO OPERATIVO + PARCIALES (para las Server Actions)
+ * ---------------------------------------------------------------------------
+ * Bajado de `app/actions/asistencias.ts` (PROMPT E · R-3): resolver el ciclo
+ * operativo y validar el parcial es decisión de dominio, no de la action.
+ */
+
+/**
+ * Resuelve el periodo OPERATIVO único con sus parciales ACTIVOS. El cliente
+ * nunca decide el ciclo: esta es la única vía.
+ */
+export async function resolverOperativoConParciales(
+  supabase: SupabaseClient,
+): Promise<
+  | {
+      ok: true;
+      periodoId: string;
+      periodoNombre: string;
+      parciales: PeriodoEvaluacionRow[];
+    }
+  | { ok: false; error: string }
+> {
+  const operativo = await obtenerCicloOperativoGlobal(supabase);
+  if (!operativo.ok) {
+    return {
+      ok: false,
+      error: operativo.error ?? "F1: no hay un único ciclo OPERATIVO.",
+    };
+  }
+  if (!operativo.periodo) {
+    return {
+      ok: false,
+      error:
+        "No hay ningún periodo OPERATIVO activado todavía. Activa el ciclo en Configuración.",
+    };
+  }
+  const evs = await listarEvaluacionesDePeriodo(
+    supabase,
+    String(operativo.periodo.id),
+  );
+  if (!evs.ok) {
+    return {
+      ok: false,
+      error: evs.error ?? "No se pudieron cargar los parciales del periodo.",
+    };
+  }
+  return {
+    ok: true,
+    periodoId: String(operativo.periodo.id),
+    periodoNombre: String(operativo.periodo.nombre),
+    parciales: evs.evaluaciones.filter((e) => e.activo !== false),
+  };
+}
+
+/**
+ * CICLO GLOBAL + PARCIAL — resuelve el operativo y valida que el parcial
+ * solicitado (`evaluacionId`) pertenezca a él y esté activo. Un parcial de otro
+ * periodo = error: nunca se usan parciales ajenos al ciclo operativo.
+ */
+export async function resolverOperativoYValidarParcial(
+  supabase: SupabaseClient,
+  evaluacionId: string | null,
+): Promise<
+  | {
+      ok: true;
+      periodoId: string;
+      periodoNombre: string;
+      parciales: PeriodoEvaluacionRow[];
+    }
+  | { ok: false; error: string }
+> {
+  const base = await resolverOperativoConParciales(supabase);
+  if (!base.ok) return base;
+  if (evaluacionId) {
+    const parcial = base.parciales.find(
+      (e) => e.id === evaluacionId && e.activo !== false,
+    );
+    if (!parcial) {
+      return {
+        ok: false,
+        error:
+          "El parcial seleccionado no pertenece al periodo operativo o está inactivo. Recarga la página.",
+      };
+    }
+  }
+  return {
+    ok: true,
+    periodoId: base.periodoId,
+    periodoNombre: base.periodoNombre,
+    parciales: base.parciales,
+  };
+}
 
 

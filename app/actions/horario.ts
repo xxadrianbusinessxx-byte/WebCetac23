@@ -20,7 +20,7 @@ import {
   type PreviewImportacionHorario,
   type ResultadoAplicarHorario,
 } from "@/lib/escolar/horario/horario-importar";
-import { TABLA_PERIODOS } from "@/lib/escolar/tables";
+import { listarPeriodosSimple } from "@/lib/escolar/ciclo/ciclo-estado";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores";
 import { createClient } from "@/lib/supabase/server";
 
@@ -54,18 +54,9 @@ export async function actionListarPeriodosCatalogo(): Promise<
     return { ok: false, error: "Solo directivos pueden administrar el horario." };
   }
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("id, nombre, activo")
-    .order("created_at", { ascending: false });
-  if (error || !data) return { ok: false, error: error?.message ?? "Sin periodos." };
-  return {
-    ok: true,
-    periodos: (data as PeriodoCatalogoSimple[]).map((p) => ({
-      ...p,
-      nombre: p.nombre,
-    })),
-  };
+  const r = await listarPeriodosSimple(supabase);
+  if (!r.ok) return { ok: false, error: r.error ?? "Sin periodos." };
+  return { ok: true, periodos: r.periodos };
 }
 
 /** Grupos del catálogo de un periodo (para los filtros de consulta). */

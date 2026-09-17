@@ -309,3 +309,113 @@ export function rutaStorageCarpeta(
 
 
 export { BUCKET_DOCUMENTOS };
+
+/* ---------------------------------------------------------------------------
+ * ARCHIVOS — Storage + registro en `documentos`
+ * ---------------------------------------------------------------------------
+ * Todo el I/O de archivos de este dominio vive aquí: la Server Action solo
+ * valida la sesión, el tamaño y el nivel de acceso, y delega. El objeto
+ * `storage.from(BUCKET_DOCUMENTOS)` se usa con el cliente que recibe cada
+ * función (en las escrituras, el de service role que arma la action).
+ */
+
+/** Proyección mínima de un documento para operar sobre su archivo. */
+export type DocumentoResumen = {
+  id: string;
+  carpeta_id: string;
+  ruta_storage: string;
+};
+
+/** Documento por id (id, carpeta_id, ruta_storage), o null si no existe. */
+export async function obtenerDocumento(
+  supabase: SupabaseClient,
+  documentoId: string,
+): Promise<DocumentoResumen | null> {
+  const { data } = await supabase
+    .from(TABLA_DOCUMENTOS)
+    .select("id, carpeta_id, ruta_storage")
+    .eq("id", documentoId)
+    .maybeSingle();
+  return (data ?? null) as DocumentoResumen | null;
+}
+
+/**
+ * Sube el archivo al bucket y registra la fila en `documentos`.
+ * Si el registro falla, borra el archivo recién subido (no deja huérfanos).
+ * La `rutaStorage` la calcula la action (nombre único + ruta de carpetas).
+ */
+export async function subirDocumento(
+  supabase: SupabaseClient,
+  archivo: File,
+  datos: { carpetaId: string; rutaStorage: string; subidoPor: string },
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const buffer = Buffer.from(await archivo.arrayBuffer());
+  const { error: errorSubida } = await supabase.storage
+    .from(BUCKET_DOCUMENTOS)
+    .upload(datos.rutaStorage, buffer, {
+      contentType: archivo.type || "application/octet-stream",
+      upsert: false,
+    });
+
+  if (errorSubida) {
+    return { ok: false, error: `No se pudo subir: ${errorSubida.message}` };
+  }
+
+  const { data, error } = await supabase
+    .from(TABLA_DOCUMENTOS)
+    .insert({
+      carpeta_id: datos.carpetaId,
+      nombre_original: archivo.name,
+      ruta_storage: datos.rutaStorage,
+      tipo: archivo.type || null,
+      tamano_bytes: archivo.size,
+      subido_por: datos.subidoPor,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    // Limpiar el archivo subido si falla el registro.
+    await supabase.storage.from(BUCKET_DOCUMENTOS).remove([datos.rutaStorage]);
+    return { ok: false, error: error.message };
+  }
+
+  return { ok: true, id: data.id as string };
+}
+
+/** Elimina el archivo del Storage y después su fila (sin DELETE en cascada). */
+export async function eliminarDocumento(
+  supabase: SupabaseClient,
+  documento: Pick<DocumentoResumen, "id" | "ruta_storage">,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { error: errorStorage } = await supabase.storage
+    .from(BUCKET_DOCUMENTOS)
+    .remove([documento.ruta_storage]);
+  if (errorStorage) {
+    return {
+      ok: false,
+      error: `No se pudo eliminar del storage: ${errorStorage.message}`,
+    };
+  }
+
+  const { error } = await supabase
+    .from(TABLA_DOCUMENTOS)
+    .delete()
+    .eq("id", documento.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Enlace de descarga firmado y temporal (60 s) para un archivo del bucket. */
+export async function urlFirmadaDocumento(
+  supabase: SupabaseClient,
+  rutaStorage: string,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const { data, error } = await supabase.storage
+    .from(BUCKET_DOCUMENTOS)
+    .createSignedUrl(rutaStorage, 60);
+  if (error || !data?.signedUrl) {
+    return { ok: false, error: "No se pudo generar el enlace de descarga." };
+  }
+  return { ok: true, url: data.signedUrl };
+}

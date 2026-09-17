@@ -2,6 +2,7 @@ import "server-only";
 
 import { CLOUDINARY_FOLDER } from "@/lib/escolar/tables";
 import { cloudinaryConfigurado, getCloudinary } from "./config";
+import { subirImagenCloudinary } from "./upload";
 import { urlCloudinaryDesdePublicId } from "./urls";
 
 export const NOTICIAS_INICIO_SLOTS = [1, 2] as const;
@@ -62,4 +63,22 @@ export async function listarUrlsNoticiasInicio(): Promise<
     urlNoticiaInicioSiExiste(2),
   ]);
   return { 1: n1, 2: n2 };
+}
+
+/**
+ * Publica la imagen de un slot de noticias de inicio: convierte el archivo a
+ * buffer, lo sube a Cloudinary con el public_id determinista del slot e
+ * invalida la caché. Todo el I/O de Cloudinary vive aquí; la Server Action solo
+ * valida la sesión y el archivo antes de delegar.
+ */
+export async function publicarNoticiaInicio(
+  slot: NoticiaInicioSlot,
+  archivo: File,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const buffer = Buffer.from(await archivo.arrayBuffer());
+  const subida = await subirImagenCloudinary(buffer, publicIdNoticiaInicio(slot));
+  if (!subida.ok) return { ok: false, error: subida.error };
+  // O5 — La noticia cambió: invalida la caché para que sea visible de inmediato.
+  invalidarNoticiasInicio();
+  return { ok: true, url: subida.url };
 }

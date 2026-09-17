@@ -1,18 +1,18 @@
 "use server";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { exigir } from "@/lib/auth/exigir";
+import { listarPeriodosSimple } from "@/lib/escolar/ciclo/ciclo-estado";
 import {
   cargarMateriasDesdeCatalogo,
   clonarContextoAcademico,
   repararTablaLegacyDePeriodo,
+  validarPeriodosReparacion,
   verContextoAcademicoPeriodo,
   type ContextoAcademicoPeriodo,
   type ResultadoCargaMateriasCatalogo,
   type ResultadoClonContexto,
   type ResultadoRepararTablaLegacy,
 } from "@/lib/escolar/ciclo/contexto-ciclo";
-import { TABLA_PERIODOS } from "@/lib/escolar/tables";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -44,18 +44,9 @@ export async function actionListarPeriodosContexto(): Promise<
   const g = await exigir("ciclo.ver_contexto");
   if (!g.ok) return NO_AUTORIZADO;
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("id, nombre, activo")
-    .order("created_at", { ascending: false });
-  if (error || !data) return { ok: false, error: error?.message ?? "Sin ciclos." };
-  return {
-    ok: true,
-    periodos: (data as PeriodoSimple[]).map((p) => ({
-      ...p,
-      nombre: p.nombre,
-    })),
-  };
+  const r = await listarPeriodosSimple(supabase);
+  if (!r.ok) return { ok: false, error: r.error ?? "Sin ciclos." };
+  return { ok: true, periodos: r.periodos };
 }
 
 export async function actionVerContextoAcademico(
@@ -130,23 +121,6 @@ const REPARAR_VACIO = {
   aplicados: 0,
   error: "No autorizado: se requiere rol directivo.",
 } as const;
-
-/** Valida que ambos periodos existan (server-side, nunca confiar en el cliente). */
-async function validarPeriodosReparacion(
-  supabase: SupabaseClient,
-  ids: [string, string],
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { data, error } = await supabase
-    .from(TABLA_PERIODOS)
-    .select("id")
-    .in("id", ids);
-  if (error) return { ok: false, error: error.message };
-  const encontrados = new Set((data ?? []).map((p) => String((p as { id: string }).id)));
-  if (encontrados.size !== ids.length) {
-    return { ok: false, error: "Uno de los periodos indicados no existe." };
-  }
-  return { ok: true };
-}
 
 /**
  * Preview de la reparación de `tabla_legacy` (NO escribe): devuelve cuántas

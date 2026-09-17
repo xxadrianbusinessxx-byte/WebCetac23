@@ -308,7 +308,7 @@ console.log("6) Colisión (A y B con fila misma materia/grupo/fecha): B queda, A
 console.log("7) Nunca se busca ni se escribe por profesor_clave (estático)");
 {
   const sql = leer("supabase/crear-rpc-traspasar-materia.sql");
-  const mod = leer("lib/escolar/asistencia/asistencias.ts");
+  const mod = leer("lib/escolar/asistencia/asistencia-plantillas.ts");
   const actions = leer("app/actions/asistencias.ts");
   const helper = leer("lib/escolar/materia/traspaso-materia.ts");
 
