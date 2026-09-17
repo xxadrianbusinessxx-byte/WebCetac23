@@ -208,8 +208,8 @@ const conSuite = fichas.filter((f) => f.suites.length);
 const sinSuite = fichas.filter((f) => !f.suites.length);
 L.push("## RED DE SEGURIDAD\n");
 if (conSuite.length) {
-  L.push("Correr **antes y después**. Si una de estas cambia de resultado, cambiaste");
-  L.push("semántica aunque creas que era un refactor:\n");
+  L.push("Correr **antes y después**. Si una de estas cambia de RESULTADO, cambiaste");
+  L.push("semántica aunque creas que era un refactor — para y dilo.\n");
   for (const f of conSuite) L.push(`- \`${f.rel}\` → ${f.suites.map((s) => `\`node scripts/${s}\``).join(" · ")}`);
 } else {
   L.push("Ninguna suite cubre estos archivos hoy.");
@@ -224,6 +224,18 @@ if (sinSuite.some((f) => f.capa === "puro")) {
   L.push("sin prueba es una decisión que nadie verifica.");
 }
 L.push("");
+// Distinción aprendida en la revisión del PROMPT E (2026-09-16). La regla que
+// se dio entonces —«si tienes que tocar una suite, para»— era demasiado roma y
+// habría bloqueado trabajo correcto: hay suites de auditoría que nombran
+// archivos POR RUTA, y mover un archivo obliga a actualizar esa ruta sin que
+// cambie ninguna semántica. Lo que nunca se toca es el INVARIANTE.
+L.push("**Tocar una suite: cuándo sí y cuándo no.**");
+L.push("- Cambiar una RUTA o un nombre de archivo que la suite nombra, porque lo moviste: **sí**,");
+L.push("  y se dice en el informe. No cambia lo que la suite comprueba.");
+L.push("- Cambiar el INVARIANTE —el número esperado, la aserción, el umbral— para que pase: **no**.");
+L.push("  Eso es apagar el detector. Para y repórtalo.");
+L.push("- Si un elemento sale de una lista porque dejó de cumplir el rol que la lista audita,");
+L.push("  demuéstralo: dónde vive ahora y qué otra comprobación lo sigue cubriendo.\n");
 L.push("Además, siempre: `npx tsc --noEmit` · `npm run test:ci` · `node scripts/test-orden.mjs` · `npm run build`.\n");
 
 if (glosario.length) {
