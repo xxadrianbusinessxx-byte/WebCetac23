@@ -6,8 +6,8 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-16 (PROMPT E: el I/O baja a `lib/` y C8/C9 pasan a regla dura)
-- **HEAD:** `d71fd59` (2026-09-16) · árbol limpio
+- **Última revisión:** 2026-09-17 (PROMPT F cerrado; MAPA-DEL-SISTEMA §2 registra las deudas cerradas)
+- **HEAD:** `4eb3f53` (2026-09-17) · árbol limpio
 
 ---
 
@@ -49,7 +49,7 @@ Las tres, con su manifestación y ubicación, están en
    operativo cuelga de `periodo_id` (bucket canónico `SEMESTRE AGO26-ENE27`,
    77 filas, ligadas a `7cf5cca7`). La columna texto `ciclo_escolar`
    (`@deprecated`) se conserva como legado (R8) y ya no se escribe por ella.
-2. **Identidad del profesor** — 16 de 20 comparten CLAVE `4321`; `profesor_clave` queda como columna legacy.
+2. **Identidad del profesor** — varios comparten la CLAVE `4321`; `profesor_clave` queda como columna legacy. Cifra y verificación: `pendientes.json` → `claves-compartidas-profesores` (aquí decía «16 de 20» y la §5 «15 de 21»: dos cifras del mismo dato en el mismo archivo).
 3. **Una tabla física por materia** — nombres en texto, columnas creadas en caliente por RPC.
 
 Ninguna se cierra «de paso»: cada una necesita su propia migración verificada (R8).

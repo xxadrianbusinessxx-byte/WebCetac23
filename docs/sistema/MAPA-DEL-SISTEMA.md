@@ -102,18 +102,42 @@ Excepciones (dominios cuya lógica está repartida):
 
 ---
 
-## 2. Las tres deudas estructurales vivas
+## 2. Deudas: las vivas y las cerradas
 
-Antes de declarar un bug «nuevo», descartar que sea una de estas. Casi siempre lo es.
+Antes de declarar un bug «nuevo», descartar que sea una de las vivas. Casi siempre lo es.
+
+### 2a. Vivas — las tres estructurales
+
+Son deudas de **datos y esquema**. Ninguna se cierra «de paso» dentro de otro cambio:
+cada una necesita su propia migración verificada (R8).
 
 | # | Deuda | Cómo se manifiesta | Dónde |
 |---|---|---|---|
-| 1 | **Calendario con dos identidades** | (2026-09-06, PROMPT-1/T2) El calendario del operativo ya cuelga de `periodo_id` (bucket canónico `SEMESTRE AGO26-ENE27`, 77 filas ligadas). La columna texto `ciclo_escolar` sigue existiendo como legacy (R8): ya no se escribe por ella, pero cualquier lector legacy aún puede discrepar si la usa | `lib/escolar/ciclo/calendario.ts`: ruta por texto `ciclo_escolar` marcada `@deprecated`; backfill aplicado con `scripts/migrar-calendario-canonico.mjs` |
-| 2 | **Identidad del profesor** | Autoría equivocada en asistencia; 16 de 20 profesores comparten CLAVE `4321` | `atribucion-profesor.ts` ya exige `profesor_id`; `roster-validacion.ts::profesoresClaveAmbiguos()` sigue siendo necesario |
+| 1 | **Calendario con dos identidades** | (2026-09-06, PROMPT-1/T2) El calendario del operativo ya cuelga de `periodo_id` (bucket canónico `SEMESTRE AGO26-ENE27`, 77 filas ligadas). La columna texto `ciclo_escolar` sigue existiendo como legacy (R8): ya no se escribe por ella, pero cualquier lector legacy aún puede discrepar si la usa. **Falta la FK**: `supabase/agregar-fk-calendario-periodo.sql` está escrito y **sin aplicar** | `lib/escolar/ciclo/calendario.ts`: ruta por texto `ciclo_escolar` marcada `@deprecated`; backfill aplicado con `scripts/migrar-calendario-canonico.mjs`. Estado y verificación: `pendientes.json` → `fk-calendario-periodo` |
+| 2 | **Identidad del profesor** | Autoría equivocada en asistencia: varios profesores comparten la CLAVE `4321`. **La cifra exacta no se repite aquí a propósito** — vivía en tres documentos y ya divergió. Fuente única: `pendientes.json` → `claves-compartidas-profesores`, que trae su comando: `node scripts/diag-credenciales-duplicadas.mjs` | `atribucion-profesor.ts` ya exige `profesor_id`; `roster-validacion.ts::profesoresClaveAmbiguos()` sigue siendo necesario |
 | 3 | **Una tabla física por materia** | Columnas que no existen, nombres en texto, esquema descubierto en runtime | RPC de DDL + `materias_mapeo_columnas` + `materias_nombres_visibles` |
 
-Regla R8: **legacy no se elimina prematuramente.** Estas deudas se cierran con una
-migración propia y verificada, nunca de paso dentro de otro cambio.
+### 2b. Cerradas — y qué impide que vuelvan
+
+Se registran porque el `CONTRATO-DE-CAMBIO` lo exige, y porque una deuda cerrada
+sin guardián se reabre sola: los archivos de más de 1 000 líneas ya pasaron de 4
+a 7 mientras nadie miraba.
+
+| Deuda | Estaba | Cerrada por | Qué la sostiene ahora |
+|---|---|---|---|
+| **I/O en `app/actions/`** | 64 llamadas `.from()` en 13 archivos | PROMPT E (2026-09-16) | `test-orden.mjs` **C8**, regla DURA en 0 |
+| **Archivos intocables** | 7 archivos de más de 1 000 líneas | PROMPT E | `test-orden.mjs` **C9**, regla DURA en 0 |
+| **Lint sin puerta** | 17 errores, y el paso no estaba en el CI | PROMPT F (2026-09-16) | `npm run lint` en el workflow |
+| **Cuarentena `_borrador/`** | 21 archivos sin decidir | PROMPT F | ya no existe; lo archivado está en `scripts/_archivo/borrador/` |
+| **`ESTADO-ACTUAL.md` desbordado** | 531 líneas con una regla de ~150 | PROMPT F | `verificar-estado-actual.mjs`, ahora **fallo** y no aviso |
+| **Server-only en el bundle** | se creía abierta (B4) | **nunca lo estuvo** | medido: 0 símbolos de servidor en los 16 chunks. Ver `PROMPT_CLINE_B4_PURO_VS_IO.md` |
+
+> La última fila no es una deuda cerrada: es una deuda que **no existía** y que
+> estuvo dos meses escrita como si existiera. Un detector ingenuo la «confirma»
+> con 36 módulos culpables porque cuenta los `import type`, que TypeScript borra.
+> Antes de trabajar sobre una deuda documentada, medirla.
+
+Regla R8: **legacy no se elimina prematuramente.**
 
 ---
 
