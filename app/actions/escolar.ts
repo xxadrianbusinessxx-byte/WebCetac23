@@ -70,7 +70,7 @@ import {
   obtenerVistaMateria,
   reemplazarContenidoMateriaDesdeArchivo,
 } from "@/lib/escolar/materia/materias";
-import { COMENTARIO_MAX_LENGTH, TABLA_GRUPO_MATERIAS } from "@/lib/escolar/tables";
+import { COMENTARIO_MAX_LENGTH } from "@/lib/escolar/tables";
 import type {
   AlumnoRow,
   ComentarioRow,

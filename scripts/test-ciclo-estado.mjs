@@ -34,7 +34,6 @@ function clientePeriodos(periodos, esquemaEstado = true) {
     insert(filas) { this.op = "insert"; this.filas = Array.isArray(filas) ? filas : [filas]; return this; }
     update(p) { this.op = "update"; this.patch = p; return this; }
     async _ej() {
-      const conEstado = String(this.colsSeleccion ?? "").includes("estado");
       if (this.colsSeleccion === undefined) this.colsSeleccion = "";
       if (esquemaEstado === false && this.colsSeleccion.includes("estado")) {
         return { data: null, error: { message: "column periodos.estado does not exist (42703)" } };

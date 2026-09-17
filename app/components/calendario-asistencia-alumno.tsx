@@ -206,45 +206,51 @@ export function CalendarioAsistenciaAlumno({
   const [materiasDia, setMateriasDia] = useState<MateriaJustificableUI[]>([]);
   const [materiaJust, setMateriaJust] = useState("");
 
-  const cargar = useCallback(async () => {
-    if (!curp) return;
-    setCargando(true);
-    setError(null);
-    setDatos(null);
-    const res = await actionObtenerEstadosAsistenciaAlumno({
-      curp,
-      profesorClave,
-    });
-    setCargando(false);
-    if (res.ok) {
-      setDias(res.dias);
-      setDatos({
-        cicloNombre: res.cicloNombre,
-        grado: res.grado,
-        grupo: res.grupo,
-        carrera: res.carrera,
-        resumenPorParcial: res.resumenPorParcial,
-        conflictosParcial: res.conflictosParcial,
-        diasSinParcial: res.diasSinParcial,
+  const cargar = useCallback(() => {
+    // Los `setState` van dentro de los callbacks de la promesa, nunca en la fase
+    // síncrona del efecto: ahí fuerzan un render en cascada antes del dato
+    // (regla `react-hooks/set-state-in-effect`). Mismo patrón que
+    // `buscador-alumno-profesor.tsx` y `horario-escolar-panel.tsx`.
+    if (!curp) return Promise.resolve();
+    return Promise.resolve()
+      .then(() => {
+        setCargando(true);
+        setError(null);
+        setDatos(null);
+      })
+      .then(() => actionObtenerEstadosAsistenciaAlumno({ curp, profesorClave }))
+      .then((res) => {
+        setCargando(false);
+        if (res.ok) {
+          setDias(res.dias);
+          setDatos({
+            cicloNombre: res.cicloNombre,
+            grado: res.grado,
+            grupo: res.grupo,
+            carrera: res.carrera,
+            resumenPorParcial: res.resumenPorParcial,
+            conflictosParcial: res.conflictosParcial,
+            diasSinParcial: res.diasSinParcial,
+          });
+        } else {
+          setDias([]);
+          setError(res.error);
+        }
       });
-    } else {
-      setDias([]);
-      setError(res.error);
-    }
   }, [curp, profesorClave]);
 
   // Cargar las justificaciones del alumno para pintar su estado por día.
-  const cargarJustificaciones = useCallback(async () => {
-    if (!curp) {
-      setJustificaciones({});
-      return;
-    }
-    const res = await actionObtenerJustificacionesDeAlumno(curp);
-    if (res.ok) {
-      const mapa: Record<string, FilaJustificacion> = {};
-      for (const j of res.justificaciones) mapa[j.fecha] = j;
-      setJustificaciones(mapa);
-    }
+  const cargarJustificaciones = useCallback(() => {
+    // Mismo patrón que `cargar`: los `setState` van en el callback de la promesa.
+    if (!curp) return Promise.resolve().then(() => setJustificaciones({}));
+    return Promise.resolve()
+      .then(() => actionObtenerJustificacionesDeAlumno(curp))
+      .then((res) => {
+        if (!res.ok) return;
+        const mapa: Record<string, FilaJustificacion> = {};
+        for (const j of res.justificaciones) mapa[j.fecha] = j;
+        setJustificaciones(mapa);
+      });
   }, [curp]);
 
   useEffect(() => {

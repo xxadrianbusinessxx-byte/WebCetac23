@@ -31,13 +31,22 @@ export function ProfesoresCredencialesPanel({
   const [nuevaClave, setNuevaClave] = useState("");
   const [confirmarClave, setConfirmarClave] = useState("");
 
-  const recargar = useCallback(async () => {
-    setCargando(true);
-    setError(null);
-    const r = await actionListarProfesoresCredenciales();
-    setCargando(false);
-    if (r.ok) setProfesores(r.profesores);
-    else setError(r.error);
+  const recargar = useCallback(() => {
+    // Los `setState` van dentro de los callbacks de la promesa, nunca en la fase
+    // síncrona del efecto: ahí fuerzan un render en cascada antes del dato
+    // (regla `react-hooks/set-state-in-effect`). Mismo patrón que
+    // `buscador-alumno-profesor.tsx` y `horario-escolar-panel.tsx`.
+    return Promise.resolve()
+      .then(() => {
+        setCargando(true);
+        setError(null);
+      })
+      .then(() => actionListarProfesoresCredenciales())
+      .then((r) => {
+        setCargando(false);
+        if (r.ok) setProfesores(r.profesores);
+        else setError(r.error);
+      });
   }, []);
 
   useEffect(() => {

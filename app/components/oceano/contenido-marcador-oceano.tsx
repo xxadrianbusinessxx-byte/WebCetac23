@@ -15,6 +15,7 @@
  * vista las dos reglas críticas (--oc-alert solo como punto; su texto es
  * --oc-alert-text). Desaparece cuando entre el contenido real.
  */
+import Link from "next/link";
 import type { PortalRole } from "@/lib/auth/types";
 import { textoApagado, type Apartado, type Pestana } from "@/lib/navegacion/mapa-navegacion";
 import { ROTULO_ROL } from "./nav-superior-oceano";
@@ -102,12 +103,12 @@ export function ContenidoMarcadorOceano({
         <p className="mt-2 text-sm text-[var(--oc-muted)]">
           El shell Océano se parametriza por rol; sin sesión no hay pestañas que dibujar.
         </p>
-        <a
+        <Link
           href="/"
           className="mt-5 inline-block rounded-full bg-[var(--oc-mint)] px-5 py-2 text-sm font-bold text-[var(--oc-mint-ink)]"
         >
           Ir al acceso
-        </a>
+        </Link>
       </PanelMarcador>
     );
   }

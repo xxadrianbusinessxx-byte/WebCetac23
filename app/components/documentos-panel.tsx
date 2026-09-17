@@ -11,7 +11,6 @@ import {
   actionListarProfesoresPermisos,
   actionObtenerEstadoDocumentos,
   actionQuitarPermiso,
-  actionRenombrarCarpeta,
   actionSubirDocumento,
   type EstadoDocumentos,
 } from "@/app/actions/documentos";
@@ -91,7 +90,6 @@ const ETIQUETA_NIVEL: Record<NivelPermiso, string> = {
 
 export function DocumentosPanel() {
   const [estado, setEstado] = useState<EstadoDocumentos | null>(null);
-  const [cargando, setCargando] = useState(true);
   const [carpetaActualId, setCarpetaActualId] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -115,12 +113,16 @@ export function DocumentosPanel() {
   const [carpetaPermiso, setCarpetaPermiso] = useState("");
 
 
-  const cargar = useCallback(async (carpetaId: string | null) => {
-    setCargando(true);
-    const res = await actionObtenerEstadoDocumentos(carpetaId);
-    setEstado(res);
-    setCarpetaActualId(carpetaId);
-    setCargando(false);
+  const cargar = useCallback((carpetaId: string | null) => {
+    // El resultado se aplica dentro del callback de la promesa, nunca en la fase
+    // síncrona del efecto: ahí un `setState` obliga a React a un render en
+    // cascada antes de que llegue el dato (regla
+    // `react-hooks/set-state-in-effect`). Mismo patrón que
+    // `buscador-alumno-profesor.tsx` y `horario-escolar-panel.tsx`.
+    return actionObtenerEstadoDocumentos(carpetaId).then((res) => {
+      setEstado(res);
+      setCarpetaActualId(carpetaId);
+    });
   }, []);
 
   useEffect(() => {

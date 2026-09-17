@@ -30,7 +30,6 @@ const total = Number(head.headers.get("content-range")?.split("/")[1] ?? "0");
 const curps = [];
 let desde = 0;
 const PAGE = 1000;
-// eslint-disable-next-line no-constant-condition
 while (true) {
   const r = await fetch(
     `${urlBase}/rest/v1/ALUMNOS?select=CURP&order=CURP&offset=${desde}&limit=${PAGE}`,

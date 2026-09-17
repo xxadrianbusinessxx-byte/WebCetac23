@@ -334,7 +334,6 @@ export async function actionQuitarPermiso(
   if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden quitar permisos." };
   }
-  const sesion = g.sesion;
   const supabase = await createClient();
   const escritura = createServiceClient() ?? supabase; // service role: omite RLS en escrituras
   return quitarPermiso(escritura, permisoId);
@@ -351,7 +350,6 @@ export async function actionListarProfesoresPermisos(): Promise<
   if (!g.ok) {
     return { ok: false, error: "Solo directivos pueden administrar permisos." };
   }
-  const sesion = g.sesion;
   const supabase = await createClient();
   const lectura = await clienteLecturaEscolar(supabase);
   const rows = await listarProfesores(lectura);

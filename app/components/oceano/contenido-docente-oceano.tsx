@@ -75,17 +75,21 @@ export function ContenidoDocenteOceano({
   const [cargando, setCargando] = useState(false);
   const { asistente, abrir, cerrar } = useMateriaMapeo();
 
-  const refrescar = useCallback(async (idInterno: string) => {
-    if (!idInterno) {
-      setVista(null);
-      return;
-    }
-    setCargando(true);
-    // Misma action que usa /profesor. El maestro no pasa curp: el alcance por
-    // fila solo aplica al alumno y al tutor.
-    const v = await actionObtenerVistaMateria(idInterno);
-    setVista(v);
-    setCargando(false);
+  const refrescar = useCallback((idInterno: string) => {
+    // Los `setState` van dentro de los callbacks de la promesa, nunca en la fase
+    // síncrona del efecto: ahí fuerzan un render en cascada antes del dato
+    // (regla `react-hooks/set-state-in-effect`). Mismo patrón que
+    // `buscador-alumno-profesor.tsx` y `horario-escolar-panel.tsx`.
+    if (!idInterno) return Promise.resolve().then(() => setVista(null));
+    return Promise.resolve()
+      .then(() => setCargando(true))
+      // Misma action que usa /profesor. El maestro no pasa curp: el alcance por
+      // fila solo aplica al alumno y al tutor.
+      .then(() => actionObtenerVistaMateria(idInterno))
+      .then((v) => {
+        setVista(v);
+        setCargando(false);
+      });
   }, []);
 
   // Solo el hueco de calificaciones necesita la vista: los demás no disparan

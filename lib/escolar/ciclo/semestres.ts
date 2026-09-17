@@ -22,7 +22,6 @@ import { obtenerCicloOperativoGlobal } from "./ciclo-estado";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  TABLA_PERIODOS,
   TABLA_SEMESTRES,
   TABLA_GRUPOS,
   TABLA_GRUPO_MATERIAS,

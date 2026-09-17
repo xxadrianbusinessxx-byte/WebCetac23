@@ -412,7 +412,7 @@ const contextoB = () => ({
   const prev = await CARGA.previsualizarCargaAcademica(sb, csvRosterX(), { contexto: contextoB() });
   const d = prev.ok && prev.detalle.find((x) => x.curp === CURP_X);
   ok("L1: grupo destino resuelto a gB1 (no gA1)", d && d.grupoDestinoId === "gB1", JSON.stringify(d));
-  const res = await CARGA.aplicarCargaAcademica(sb, csvRosterX(), { contexto: contextoB() });
+  await CARGA.aplicarCargaAcademica(sb, csvRosterX(), { contexto: contextoB() });
   const filaB = db.inscripciones_alumno.find((x) => x.curp === CURP_X && x.grupo_id === "gB1");
   const filaA = db.inscripciones_alumno.find((x) => x.curp === CURP_X && x.grupo_id === "gA1");
   ok("L2: apply crea solo la fila B (gB1)", Boolean(filaB && filaB.activo === false));

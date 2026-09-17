@@ -9,7 +9,6 @@ import {
   actionObtenerVistaMateria,
   actionObtenerVistaRegistro,
   actionSubirEtiquetasStatus,
-  actionSubirMateriaExcel,
   actionSubirRegistroExcel,
 } from "@/app/actions/escolar";
 import {
@@ -156,22 +155,36 @@ export function DirectivoClient({ sesion, materias, registros }: Props) {
     materias.find((m) => m.idInterno === materiaSeleccionada)?.nombreVisible ??
     materiaSeleccionada;
 
-  const refrescarVista = useCallback(async (nombre: string) => {
-    setCargandoVista(true);
-    const vista = await actionObtenerVistaMateria(nombre);
-    setVistaMateria(vista);
-    setCargandoVista(false);
+  const refrescarVista = useCallback((nombre: string) => {
+    // Los `setState` van dentro de los callbacks de la promesa, nunca en la fase
+    // síncrona del efecto: ahí fuerzan un render en cascada antes del dato
+    // (regla `react-hooks/set-state-in-effect`). Mismo patrón que
+    // `buscador-alumno-profesor.tsx` y `horario-escolar-panel.tsx`.
+    return Promise.resolve()
+      .then(() => setCargandoVista(true))
+      .then(() => actionObtenerVistaMateria(nombre))
+      .then((vista) => {
+        setVistaMateria(vista);
+        setCargandoVista(false);
+      });
   }, []);
 
   useEffect(() => {
     if (materiaSeleccionada) void refrescarVista(materiaSeleccionada);
   }, [materiaSeleccionada, refrescarVista]);
 
-  const refrescarVistaRegistro = useCallback(async (nombre: string) => {
-    setCargandoVistaRegistro(true);
-    const vista = await actionObtenerVistaRegistro(nombre);
-    setVistaRegistro(vista);
-    setCargandoVistaRegistro(false);
+  const refrescarVistaRegistro = useCallback((nombre: string) => {
+    // Los `setState` van dentro de los callbacks de la promesa, nunca en la fase
+    // síncrona del efecto: ahí fuerzan un render en cascada antes del dato
+    // (regla `react-hooks/set-state-in-effect`). Mismo patrón que
+    // `buscador-alumno-profesor.tsx` y `horario-escolar-panel.tsx`.
+    return Promise.resolve()
+      .then(() => setCargandoVistaRegistro(true))
+      .then(() => actionObtenerVistaRegistro(nombre))
+      .then((vista) => {
+        setVistaRegistro(vista);
+        setCargandoVistaRegistro(false);
+      });
   }, []);
 
   useEffect(() => {

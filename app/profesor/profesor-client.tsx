@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   actionEnviarComentarioAlumno,
   actionObtenerVistaMateria,
-  actionSubirMateriaExcel,
 } from "@/app/actions/escolar";
 import { MateriaSelector } from "@/app/components/materia-selector";
 import {
@@ -81,11 +80,18 @@ export function ProfesorClient({ sesion, materias }: Props) {
     materias.find((m) => m.idInterno === materiaSeleccionada)?.nombreVisible ??
     materiaSeleccionada;
 
-  const refrescarVista = useCallback(async (nombre: string) => {
-    setCargandoVista(true);
-    const vista = await actionObtenerVistaMateria(nombre);
-    setVistaMateria(vista);
-    setCargandoVista(false);
+  const refrescarVista = useCallback((nombre: string) => {
+    // Los `setState` van dentro de los callbacks de la promesa, nunca en la fase
+    // síncrona del efecto: ahí fuerzan un render en cascada antes del dato
+    // (regla `react-hooks/set-state-in-effect`). Mismo patrón que
+    // `buscador-alumno-profesor.tsx` y `horario-escolar-panel.tsx`.
+    return Promise.resolve()
+      .then(() => setCargandoVista(true))
+      .then(() => actionObtenerVistaMateria(nombre))
+      .then((vista) => {
+        setVistaMateria(vista);
+        setCargandoVista(false);
+      });
   }, []);
 
   useEffect(() => {

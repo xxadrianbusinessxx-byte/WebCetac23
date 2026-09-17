@@ -64,21 +64,6 @@ async function paginar(tabla, select, extra = "") {
   return filas;
 }
 
-async function patchLote(tabla, ids, body) {
-  for (let i = 0; i < ids.length; i += 900) {
-    const lote = ids.slice(i, i + 900);
-    const r = await fetch(`${urlBase}/rest/v1/${encodeURIComponent(tabla)}?id=in.(${lote.join(",")})`, {
-      method: "PATCH",
-      headers: H,
-      body: JSON.stringify(body),
-    });
-    if (!r.ok) {
-      const txt = await r.text();
-      throw new Error(`PATCH ${tabla} -> ${r.status} ${txt.slice(0, 500)}`);
-    }
-  }
-}
-
 function enRango(fecha, a, b) {
   return fecha >= a && fecha <= b;
 }

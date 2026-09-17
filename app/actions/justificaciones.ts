@@ -47,7 +47,6 @@ import {
   resumenClasesYAsistencia,
   urlFirmadaJustificacion,
   verificarEsquemaJustificaciones,
-  type EstadoJustificacion,
   type FilaJustificacion,
   type JustificacionConDetalle,
   type MensajeJustificacionConDetalle,

@@ -90,5 +90,5 @@ hay que arreglarlo — no cargar todo por si acaso.
 | `docs/historial/README.md` | Por qué nada de esa carpeta describe el presente. |
 | `scripts/_peligrosos/` | Escriben o borran sin guarda. No ejecutar. |
 | `scripts/_archivo/` | Un solo uso, ya consumido. No re-ejecutar. |
-| `app/_borrador/` · `lib/_borrador/` | Código escrito, que compila, pero que no usa nadie. Cada uno con su README y su inventario. |
+| `scripts/_archivo/borrador/` | La cuarentena `_borrador/` (app y lib), resuelta archivo por archivo en el PROMPT F. Su README dice qué es cada cosa y de dónde vino. |
 | `supabase/*.sql` | Historial de esquema. Cada archivo es una migración aplicada. No borrar ninguno. |

@@ -22,7 +22,10 @@ const actCarga = leer("app/actions/carga-academica.ts");
 const libCarga = leer("lib/escolar/catalogo/carga-academica.ts");
 const paso = leer("app/components/ciclo-configurador/paso-academico.tsx");
 const client = leer("app/configuracion/configuracion-client.tsx");
-const recon = leer("app/_borrador/reconocimiento-academico.tsx");
+// PROMPT F (2026-09-16): este componente se ARCHIVÓ (la cuarentena `_borrador/` se
+// resolvió archivo por archivo). La aserción es la misma: comprueba que la UI de
+// reconocimiento usa el catálogo por periodo, no una vía propia.
+const recon = leer("scripts/_archivo/borrador/reconocimiento-academico.tsx");
 
 // Flujo Excel real existente (reutilizar, no duplicar).
 ok("preview existe (SOLO LECTURA)", /actionPrevisualizarCargaAcademica/.test(actCarga));

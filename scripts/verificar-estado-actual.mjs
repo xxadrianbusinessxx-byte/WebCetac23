@@ -137,15 +137,14 @@ if (!mSuites) {
 }
 
 // --- 3) Su propio límite de tamaño ----------------------------------------
-// AVISO, no fallo, MIENTRAS el recorte esté pendiente: al 2026-09-16 el archivo
-// tiene ~516 líneas y moverlas a docs/historial/ es cirugía documental con
-// criterio (qué es presente y qué es pasado), no un corte mecánico. En cuanto
-// ese recorte aterrice, cambiar `avisos.push` por `fallos.push` para que el CI
-// lo sostenga como sostiene el HEAD y el nº de suites.
+// FALLO desde el PROMPT F (2026-09-16): el recorte aterrizó (270 → 148 líneas),
+// así que el límite deja de ser un aviso y pasa a sostenerlo el CI, igual que el
+// HEAD y el nº de suites. Lo que se pase de ~150 es historial y va a
+// `docs/historial/`.
 if (lineas.length > LIMITE_LINEAS) {
-  avisos.push(
+  fallos.push(
     `${ARCHIVO} tiene ${lineas.length} líneas y su propia regla dice ~${LIMITE_LINEAS}. ` +
-      `Lo que sobra es historial y va a docs/historial/ (recorte pendiente).`,
+      `Lo que sobra es historial y va a docs/historial/.`,
   );
 }
 

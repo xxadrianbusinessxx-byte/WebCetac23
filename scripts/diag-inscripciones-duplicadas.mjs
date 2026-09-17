@@ -80,10 +80,8 @@ async function main() {
 
   // Roster por CURP si hay carpeta.
   let curpsRoster = new Set();
-  let nArchivos = 0;
   if (rosterCarpeta && fs.existsSync(rosterCarpeta)) {
     const archivos = fs.readdirSync(rosterCarpeta).filter((f) => /\.xlsx?$/i.test(f));
-    nArchivos = archivos.length;
     for (const f of archivos) {
       const wb = XLSX.read(fs.readFileSync(path.join(rosterCarpeta, f)), { type: "buffer" });
       const hoja = wb.Sheets[wb.SheetNames[0]];

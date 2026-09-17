@@ -12,7 +12,7 @@
  * Reportes, Recursos administrativos y Buzón son MAQUETA: el shell las monta
  * desde `maquetas-oceano.tsx` sin pasar por aquí.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { actionObtenerVistaRegistro } from "@/app/actions/escolar";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import {
@@ -107,11 +107,16 @@ export function ContenidoDirectivoOceano({
     setCargando(false);
   }, []);
 
-  useEffect(() => {
+  // El apartado activo manda: cuando `pieza` cambia, la selección se reinicia
+  // DURANTE el render (patrón «ajustar estado al cambiar una prop» de React), sin
+  // efecto que lo sincronice. El filtro se conserva a propósito entre apartados.
+  const [piezaDeSeleccion, setPiezaDeSeleccion] = useState(pieza);
+  if (piezaDeSeleccion !== pieza) {
+    setPiezaDeSeleccion(pieza);
     setRegistro("");
     setRotulo("");
     setVista(null);
-  }, [pieza]);
+  }
 
   if (pieza === "alumnos-tutores") {
     // El buscador de alumnos con su tutor todavía no tiene una pieza propia:

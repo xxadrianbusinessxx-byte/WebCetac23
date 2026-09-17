@@ -16,7 +16,6 @@ function ok(nombre, condicion, detalle = "") {
 }
 
 const pA = { id: "A", fecha_inicio: "2026-08-01", fecha_fin: "2026-12-31" };
-const pB = { id: "B", fecha_inicio: "2027-08-01", fecha_fin: "2027-12-31" };
 
 // Plantilla de A contra contexto A → ok; contra B → rechazo.
 {

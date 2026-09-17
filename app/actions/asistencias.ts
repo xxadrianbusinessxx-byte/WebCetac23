@@ -83,7 +83,6 @@ export async function actionListarGruposAsistencia(): Promise<
   if (!g.ok) {
     return { ok: false, error: "No tienes permiso para gestionar asistencias." };
   }
-  const sesion = g.sesion;
 
   const supabase = await createClient();
   const [operativo, grupos] = await Promise.all([

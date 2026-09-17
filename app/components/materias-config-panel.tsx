@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   actionCambiarVisibilidadMateria,
   actionGuardarNombreVisibleMateria,
@@ -44,9 +44,17 @@ export function MateriasConfigPanel({ materias }: Props) {
   const [abierto, setAbierto] = useState(false);
   const [cargandoConfig, setCargandoConfig] = useState(false);
 
-  useEffect(() => {
+  // El catálogo llega del servidor: cuando la prop cambia (tras
+  // `router.refresh()`), la copia local se re-sincroniza DURANTE el render
+  // (patrón «ajustar estado al cambiar una prop» de React), sin efecto que la
+  // espeje. La copia local sigue existiendo porque el panel la edita en
+  // caliente (guardar alias, activar/desactivar) antes de que el servidor
+  // devuelva el catálogo nuevo.
+  const [materiasPrevias, setMateriasPrevias] = useState(materias);
+  if (materiasPrevias !== materias) {
+    setMateriasPrevias(materias);
     setLista([...materias]);
-  }, [materias]);
+  }
 
   // C4.19 — carga PEREZOSA del catálogo completo (eficiencia): no se cargan
   // los cientos de materias al montar; se abren con el botón "Abrir catálogo".

@@ -168,12 +168,16 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
       const preferido = cicloInicial?.trim().toUpperCase();
       setCiclo(preferido && lista.includes(preferido) ? preferido : lista[0]!);
     }
-  }, [ciclo, cicloInicial]);
+  }, [ciclo, cicloInicial, modoPeriodo]);
 
   useEffect(() => {
     if (modoPeriodo) return;
-    void cargarCiclos();
-  }, [cargarCiclos]);
+    // La llamada viaja en el callback de una promesa: dentro del efecto, el
+    // `setState` síncrono de `cargarCiclos` dispara un render en cascada antes
+    // del dato (regla `react-hooks/set-state-in-effect`). Diferir la llamada un
+    // microtask no cambia lo que se pinta y deja UNA sola ruta de carga.
+    void Promise.resolve().then(() => cargarCiclos());
+  }, [cargarCiclos, modoPeriodo]);
 
   // Contexto explícito: si el workspace cambia de ciclo, el panel le sigue.
   useEffect(() => {
@@ -183,19 +187,22 @@ export function CalendarioEscolarPanel({ cicloInicial, periodoIdInicial, periodo
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCiclo(preferido);
     }
-  }, [cicloInicial, ciclos]);
+  }, [cicloInicial, ciclos, modoPeriodo]);
 
-  const cargarDias = useCallback(async (c: string) => {
-    if (!c && !modoPeriodo) {
-      setDias([]);
-      return;
-    }
-    setCargando(true);
-    const filas = modoPeriodo
-      ? await actionObtenerCalendarioDePeriodo(periodoIdInicial ?? "", periodoNombre ?? "")
-      : await actionObtenerCalendario(c);
-    setDias(filas);
-    setCargando(false);
+  const cargarDias = useCallback((c: string) => {
+    // Mismo patrón que `cargarCiclos`: los `setState` van en callbacks.
+    if (!c && !modoPeriodo) return Promise.resolve().then(() => setDias([]));
+    return Promise.resolve()
+      .then(() => setCargando(true))
+      .then(() =>
+        modoPeriodo
+          ? actionObtenerCalendarioDePeriodo(periodoIdInicial ?? "", periodoNombre ?? "")
+          : actionObtenerCalendario(c),
+      )
+      .then((filas) => {
+        setDias(filas);
+        setCargando(false);
+      });
   }, [modoPeriodo, periodoIdInicial, periodoNombre]);
 
   const claveCarga = modoPeriodo ? `periodo:${periodoIdInicial ?? ""}` : ciclo;

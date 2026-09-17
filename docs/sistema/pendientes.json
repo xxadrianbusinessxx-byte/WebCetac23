@@ -62,14 +62,14 @@
     },
     {
       "id": "lint-fuera-del-ci",
-      "titulo": "El lint no está en el CI y subió a 151 errores",
-      "detalle": "140 → 151 en 8 días. La mayoría son de scripts/**/*.mjs y deberían excluirse; quedan ~29 reales. Sin paso de lint en el CI seguirá subiendo solo, igual que los archivos de >1000 líneas.",
-      "riesgo": "medio",
-      "quien": "Cline — excluir scripts del lint y añadir el paso al workflow",
+      "titulo": "Lint en el CI (cerrado en PROMPT F, 2026-09-16)",
+      "detalle": "Cerrado: el lint entra al workflow tras dejar el repo en 0 errores (de 151 a 0; 135 eran ruido de scripts/.tmp-*). Quedan 0 errores y 1 warning residual, en scripts/gen-panel.mjs, que el propio prompt prohibía tocar. C8 y C9 de test-orden pasaron a regla dura en el mismo ciclo.",
+      "riesgo": "bajo",
+      "quien": "cerrado",
       "verificar": "npm run lint",
-      "doc": ".github/workflows",
+      "doc": ".github/workflows/verificacion.yml",
       "revisado": "2026-09-16",
-      "estado": "abierto"
+      "estado": "cerrado"
     },
     {
       "id": "fk-calendario-periodo",
@@ -117,12 +117,23 @@
     },
     {
       "id": "prompt5-parte-b",
-      "titulo": "PROMPT-5 Parte B: B4 y B5 sin cerrar",
-      "detalle": "B4: partir los 4 módulos con I/O importados desde cliente. B5: app/_borrador/ y lib/_borrador/ siguen ahí. (B3 —los .from() en actions— no se repite aquí: lo mide test-orden C8 y el panel lo muestra en la zona técnica.)",
+      "titulo": "PROMPT-5 Parte B: queda B4",
+      "detalle": "B3 (los .from() en las actions) lo cerró el PROMPT E: C8 es regla DURA en test-orden. B5 (app/_borrador/ y lib/_borrador/) lo cerró el PROMPT F: 21 archivos resueltos por decisión escrita. Queda B4: partir los 4 módulos que mezclan decisión pura e I/O y los importa un 'use client'.",
       "riesgo": "bajo",
-      "quien": "Cline",
+      "quien": "Cline — prompt nuevo (B4)",
       "verificar": "node scripts/test-orden.mjs --detalle",
       "doc": "docs/normativo/PROMPT_E_CAPAS_Y_TAMANO.md",
+      "revisado": "2026-09-16",
+      "estado": "abierto"
+    },
+    {
+      "id": "deshacer-paso-datos-reales",
+      "titulo": "PROMPT-4/T4 sin estrenar sobre datos reales",
+      "detalle": "Deshacer un paso de ciclo sobre datos REALES de un BORRADOR nunca se ha ejecutado: hágalo con la previsualización del panel delante, nunca a mano. Viene del §6 de ESTADO-ACTUAL.md (trasladado a la BITACORA en el PROMPT F).",
+      "riesgo": "medio",
+      "quien": "persona — operación con previsualización",
+      "verificar": null,
+      "doc": "docs/historial/BITACORA-2026-09.md",
       "revisado": "2026-09-16",
       "estado": "abierto"
     }

@@ -27,10 +27,13 @@ jobs:
       - name: Tipos (npx tsc --noEmit)
         run: npx tsc --noEmit
 
+      - name: Lint (npm run lint · puerta del PROMPT F)
+        run: npm run lint
+
       - name: Compilar suites puras (test:compilar)
         run: npm run test:compilar
 
-      - name: 34 suites (test:suites)
+      - name: 37 suites (test:suites)
         run: npm run test:suites
 
       - name: Permisos código ⇄ §4 (test-permisos + auditoría)

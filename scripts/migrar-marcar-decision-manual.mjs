@@ -85,16 +85,6 @@ for (const f of delOperativo) {
   porCurp.set(f.curp, lista);
 }
 
-function elegidaSegunSync(lista) {
-  const ordenadas = [...lista].sort((a, b) => {
-    const ca = String(a.created_at ?? "");
-    const cb = String(b.created_at ?? "");
-    if (ca !== cb) return ca < cb ? 1 : -1;
-    return String(a.id) < String(b.id) ? 1 : -1;
-  });
-  return ordenadas[0];
-}
-
 // 4) Filas a marcar. Regla PROMPT-4/T1 (opción A): la sincronización elige por
 //    CURP la fila más reciente (created_at desc, id desc) ENTRE LAS NO MARCADAS.
 //    Para congelar el estado actual hay que marcar TODA fila inactiva que quede

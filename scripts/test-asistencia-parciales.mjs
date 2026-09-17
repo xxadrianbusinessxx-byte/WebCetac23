@@ -75,12 +75,6 @@ console.log("2) Fecha sin parcial: etiqueta null, nunca se asigna");
 {
   const etiqueta = M.etiquetarFechaConParcial([P1, P2, P3], "2026-08-15");
   ok("fecha fuera de todo parcial: sin_parcial", etiqueta.caso === "sin_parcial", JSON.stringify(etiqueta));
-  const conDias = M.etiquetarDiasConParcial(
-    [{ fecha: "2026-08-15" }, { fecha: "2026-09-10" }, { fecha: "2026-12-20" }],
-    [P1, P2, P3],
-  );
-  const asignados = conDias.filter((d) => d.etiqueta.caso === "en_parcial");
-  const sin = conDias.filter((d) => d.etiqueta.caso === "sin_parcial");
 
 }
 

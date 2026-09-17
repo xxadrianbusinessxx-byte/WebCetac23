@@ -131,8 +131,7 @@ function campoVacio(valor: string | null | undefined): boolean {
 }
 
 /** Columnas descriptivas del roster que pueden completarse (nunca CURP/CLAVE). */
-const CAMPOS_COMPLETABLES = ["NOMBRE", "P_APELLIDO", "S_APELLIDO"] as const;
-type CampoCompletable = (typeof CAMPOS_COMPLETABLES)[number];
+type CampoCompletable = "NOMBRE" | "P_APELLIDO" | "S_APELLIDO";
 
 /** Etiqueta legible de un campo para el detalle de completados. */
 const ETIQUETA_CAMPO: Record<CampoCompletable, string> = {
@@ -155,7 +154,6 @@ export async function traerAlumnosExistentes(
 
   const todos: AlumnoRow[] = [];
   let desde = 0;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const { data, error } = await supabase
       .from(TABLA_ALUMNOS)

@@ -16,7 +16,7 @@ const MARCAS_HOJA = new Set(["__HOJA__", "__ENCABEZADOS__"]);
 const PATRON_ENCABEZADO =
   /^(NOMBRE|NO\.?\s*CONTROL|PARCIAL|PROMEDIO|CLAVE|MATERIA|CALIFIC)/i;
 
-function etiquetaColumna(nombre: string, indice: number): string {
+function etiquetaColumna(nombre: string): string {
   const t = nombre.trim();
   if (!t || t.toLowerCase() === "alumno_nombre") return "Alumno";
   return t;
@@ -147,7 +147,7 @@ function encabezadosDesdeFilaExcel(
   return fila.map((c, j) => {
     const t = c.trim();
     if (t) return t;
-    return etiquetaColumna(colsDatos[j] ?? "", j);
+    return etiquetaColumna(colsDatos[j] ?? "");
   });
 }
 
@@ -208,7 +208,7 @@ export async function leerVistaMateriaAlumno(
 
   const encabezados = filaEncabezadosExcel
     ? encabezadosDesdeFilaExcel(filaEncabezadosExcel, colsDatos)
-    : colsDatos.map((c, j) => etiquetaColumna(c, j));
+    : colsDatos.map((c) => etiquetaColumna(c));
 
   const idxPrimero = buscarIndiceFilaAlumno(todas, colsDatos, criterio);
   let idx = idxPrimero;

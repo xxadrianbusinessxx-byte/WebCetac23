@@ -26,7 +26,6 @@ import { resolverEstadoPeriodo } from "./ciclo-estado-puro";
 import {
   calcularBloqueosPaso,
   PASOS_CONFIGURADOR,
-  type ContextoBloqueoPaso,
   type PasoConfigurador,
 } from "./borrar-paso-puro";
 import {

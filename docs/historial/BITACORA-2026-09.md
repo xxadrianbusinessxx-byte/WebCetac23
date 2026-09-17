@@ -296,3 +296,128 @@ La UI gobierna con `puede()` (barra, layout, páginas y paneles). Validación:
   `gen:matriz --check` «Al día» · `test-rediseno-oceano` **180/180** · `test:suites` **36/36** ·
   `next build` = 0 · diag **idéntico** (772 claro / 392 oscuro: la fase no toca interfaz).
 
+
+---
+
+## Traslado desde ESTADO-ACTUAL.md (PROMPT F · 2026-09-16)
+
+Estas cuatro secciones eran narración —«cómo se llegó aquí», decisiones ya
+tomadas— y vivían en `ESTADO-ACTUAL.md`, que dice qué es verdad HOY. Se mueven
+enteras y sin borrar nada (R8): el estado las cita por su nombre, el porqué
+vive aquí.
+
+### 4 · Rediseño Océano · Fase 0 (2026-09-10) — regla estructural
+
+
+- **Rediseño Océano · Fase 0 (2026-09-10) — regla estructural.** El conjunto
+  `directivo` de `lib/auth/permisos.ts` **ganó tres capacidades** del conjunto de
+  `maestro`, por **decisión explícita del responsable** (2026-09-10), para sostener un
+  rol de supervisión global que pueda operar sin depender de asignaciones (R-4). No es
+  la reparación de un descuido: antes del cambio la §4 decía `X` en las tres filas, y la
+  §4 es un espejo generado de `permisos.ts`. Hasta hoy estas actions respondían
+  «no tienes permiso» al directivo:
+  - `asistencia.subir` → `actionDescargarPlantillaAsistencia`,
+    `actionPrevisualizarAsistencias`, `actionConfirmarAsistencias` (`asistencias.ts`).
+  - `ciclo.ver` → `actionListarCiclosEscolares` (`calendario.ts`).
+  - `justificacion.solicitar` → `actionSolicitarJustificacionAsistencia`,
+    `actionSolicitarJustificacionConArchivo`, `actionObtenerMateriasJustificables`.
+  Ninguna otra capacidad y ningún otro rol se tocó: **solo se editó la matriz**, ninguna
+  action cambió su `exigir()` ni `capacidades.ts`. Es un cambio **puramente aditivo**
+  (ningún rol pierde nada). §4 regenerada con `scripts/gen-seccion4.mjs`; la §5 no se
+  movió (`npm run gen:matriz -- --check` = 0). Validado con `tsc --noEmit`,
+  `test-permisos.mjs`, `test-auditoria-permisos.mjs` y `next build`.
+  **Consecuencia anotada (no descubrirla después):** directivo ya tenía
+  `justificacion.resolver`; con `justificacion.solicitar` puede **solicitar y aprobar la
+  misma justificación**. Es intencionado (supervisión global sin depender de
+  asignaciones), no un efecto colateral.
+
+### 5b · Inscripciones — decisión humana congelada (PROMPT-4/T1, 2026-09-06)
+
+
+
+**Resuelto.** La reactivación del ciclo YA NO invierte decisiones humanas. Antes,
+`inscripciones_alumno.activo` significaba «pertenece al ciclo operativo» y
+`sincronizarInscripcionesOperativo()` recalculaba ese estado en cada activación
+eligiendo la fila más reciente por `created_at` — pisando la deduplicación por
+roster del PROMPT-1/T3 (dos autoridades sobre el mismo dato; ganaba la última).
+
+Opción A aplicada (columna aditiva `decision_manual` + `motivo` en
+`inscripciones_alumno`; `.sql`: `supabase/agregar-decision-manual-inscripciones.sql`).
+La sincronización ahora **no toca** las filas marcadas con `decision_manual=true`
+y elige por fecha solo entre las no marcadas.
+
+- Filas marcadas: **58** (57 CURPs con la más reciente inactiva + 1 fila extra en
+  cascada de la CURP `AAGC080710HVZLRRA6`, que tiene 3 filas con el mismo
+  `created_at` y necesitaba marcar dos inactivas).
+- Riesgo de inversión al reactivar: **57 → 0** (`diag-inscripciones-reactivacion.mjs`).
+- Suite nueva: `scripts/test-reactivacion-inscripciones.mjs` (16 checks, pura).
+- Medición: 92 CURPs con más de una fila en el operativo; 0 con la más reciente
+  (sin marca) inactiva.
+
+
+### 5c · Credenciales — resuelto en A1 (PROMPT-5, 2026-09-07)
+
+
+
+| Población | Antes (medición §3) | Después |
+|---|---|---|
+| `PROFESORES` | 21 cuentas, 4 claves distintas (16 + 3 compartiendo) | **19 de 21 con `debe_cambiar_credenciales=true`**; los 2 restantes (técnico ID 21 y 1 cuenta más) tienen clave única |
+| `ALUMNOS` | 472 · 10 claves duplicadas (pares) · 0 CURPs duplicados | 472 · 10 pares siguen (decisión aparte, no entra en PROMPT-5) · **0 pares comparten nombre+clave** (no hay agujero real) |
+| tutores | — | **0 duplicados** de usuario/clave_tutor |
+
+**A1 aplicado:** `diag-credenciales-duplicadas.mjs` (LEE) midió las tres
+poblaciones; `migrar-marcar-claves-compartidas-profesores.mjs --apply`
+(autorizado) marcó a los 19 profesores con clave compartida (16 `4321` + 3
+`8080`); el técnico ID 21 tiene clave única y no se tocó. No se inventó ninguna
+clave: cada profesor la define al entrar (A4). **B1 tapó el hueco de la puerta**
+(el layout raíz bloquea las 6 rutas, no solo 3).
+
+Las 10 claves duplicadas de alumno **no son un agujero de autenticación**:
+`validarAccesoPortal()` exige nombre + clave, no clave sola (0 pares
+nombre+clave). Pero la clave son los últimos 6 caracteres del CURP; cambiar el
+esquema de clave de 472 alumnos es decisión aparte y no entra en este prompt.
+
+
+### 6 · Pendiente humano — texto original del 2026-09-16
+
+La fuente VIVA de los pendientes es `docs/sistema/pendientes.json` (la que el
+panel lee y renderiza). Lo de abajo es el texto que estaba en ESTADO-ACTUAL.md
+antes del recorte del PROMPT F: se conserva como registro, no como estado.
+
+
+> Reconciliado contra la base el **2026-09-16** con `scripts/diag-sql-aplicado.mjs`.
+> Se retiraron 4 pendientes que ya estaban resueltos (el SQL de
+> `grupo_materia_id`, las 9 FK, la atribución de profesor y «commitear»).
+> De los 44 `.sql` del repo **solo 1 sigue sin aplicar**, y es un concepto
+> abandonado: `agregar-periodo-vigente.sql` (`periodos.vigente`, sin uso en código).
+
+1. **Ejecutar en el SQL Editor** (preparados, idempotentes, en este orden):
+   - `supabase/crear-rpc-obtener-perfil-alumno.sql` — reemplaza la RPC con el
+     filtro O-1 (`AND gm.grupo_id = v_grupo_id`). Sin él, cada materia del
+     alumno devuelve una fila por ciclo y gana una al azar. Hoy no se nota
+     (un solo ciclo); reaparece al crear 2027-2028.
+   - `supabase/agregar-fk-calendario-periodo.sql` — última FK que faltaba
+     (R5). La columna ya está poblada 77/77; el script reporta y aborta si
+     encontrara huérfanos, nunca borra.
+   - `supabase/agregar-indices-asistencia.sql` — único cuya aplicación no se
+     puede verificar por PostgREST (los índices no salen en el spec). Con
+     3 863 filas en `asistencia_alumnos` conviene confirmarlo a mano.
+2. **Corregir las CLAVE duplicadas de `PROFESORES`.** La marca
+   `debe_cambiar_credenciales=true` está puesta en 19 cuentas (PROMPT-5/A1);
+   cada profesor la cambia al entrar (flujo A4). Medición 2026-09-16:
+   **15 de 21 aún comparten clave**.
+3. Rotar la contraseña de Supabase y eliminar cualquier copia en texto plano
+   fuera del repo.
+4. Decidir qué hacer con las **68 filas** de `asistencia_alumnos` sin
+   `periodo_id` (de 3 863; fechas fuera del rango del operativo). Son
+   históricas del clon; se conservan sin atribuir.
+5. **Estrenar el traspaso de materia**: `asignaciones_profesor` sigue en **0
+   filas**. La consola del técnico está lista y el Prompt D tiene 26 casos
+   puros, pero nadie ha subido una plantilla todavía. Es el código sin
+   estrenar de mayor riesgo del sistema.
+6. PROMPT-4/T4: si el técnico deshace un paso sobre datos reales de un ciclo
+   BORRADOR, hacerlo con la previsualización del panel.
+
+Las 81 filas históricas de `clases_impartidas` con clave `4321` tienen **autoría
+irrecuperable**: no se backfillea `profesor_id`, inventar la atribución sería peor.
+

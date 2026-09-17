@@ -32,13 +32,22 @@ export function MensajesTutorPanel() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const cargar = useCallback(async () => {
-    setCargando(true);
-    setError(null);
-    const res = await actionListarMensajesDelTutor();
-    setCargando(false);
-    if (res.ok) setMensajes(res.mensajes);
-    else setError(res.error);
+  const cargar = useCallback(() => {
+    // Los `setState` van dentro de los callbacks de la promesa, nunca en la fase
+    // síncrona del efecto: ahí fuerzan un render en cascada antes del dato
+    // (regla `react-hooks/set-state-in-effect`). Mismo patrón que
+    // `buscador-alumno-profesor.tsx` y `horario-escolar-panel.tsx`.
+    return Promise.resolve()
+      .then(() => {
+        setCargando(true);
+        setError(null);
+      })
+      .then(() => actionListarMensajesDelTutor())
+      .then((res) => {
+        setCargando(false);
+        if (res.ok) setMensajes(res.mensajes);
+        else setError(res.error);
+      });
   }, []);
 
   useEffect(() => {

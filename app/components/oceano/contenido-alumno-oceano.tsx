@@ -286,7 +286,7 @@ export function ContenidoAlumnoOceano({
     return () => {
       activo = false;
     };
-  }, [pieza, materiaSeleccionada]);
+  }, [pieza, materiaSeleccionada, curp]);
 
   const nombreVisibleSeleccionada =
     materias.find((m) => m.idInterno === materiaSeleccionada)?.nombreVisible ??
