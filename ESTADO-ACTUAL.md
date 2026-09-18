@@ -110,10 +110,10 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **37 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **38 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
-**Una de las 37 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
+**Una de las 38 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
 mitad mecánica de `ORDEN.md` —capas, nombres, scripts y raíz— y existe porque esas
 reglas eran prosa en un repo que tocan dos agentes de IA. Correrlo dice en qué estado
 está cada regla; el histórico de lo que cerró, en `MAPA-DEL-SISTEMA.md` §2b.

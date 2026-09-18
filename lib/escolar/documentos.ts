@@ -8,13 +8,28 @@ import {
 } from "./tables";
 import { normalizarNombre } from "./nombres";
 
-export type CarpetaRow = {
-  id: string;
-  nombre: string;
-  parent_id: string | null;
-  creado_por: string | null;
-  created_at: string | null;
-};
+// FACHADA (PROMPT B4, 2026-09-17). Las decisiones puras —los tres predicados de
+// nivel, la jerarquía y las migas— se mudaron a `documentos-permisos-puro.ts`
+// para poder probarlas sin base de datos: aquí vivían entre 14 funciones con
+// I/O y por eso no tenían suite. Se re-exportan para que ningún import
+// existente cambie de ruta (mismo criterio que el PROMPT E).
+export {
+  nivelMayor,
+  puedeSubir,
+  puedeEliminar,
+  puedeVer,
+  rutaCarpeta,
+} from "./documentos-permisos-puro";
+export type { CarpetaRow, NivelAcceso } from "./documentos-permisos-puro";
+
+// Un `export ... from` re-exporta pero NO trae los nombres al ámbito local:
+// lo que este archivo sigue usando por dentro hay que importarlo aparte.
+import {
+  nivelMayor,
+  rutaCarpeta,
+  type CarpetaRow,
+  type NivelAcceso,
+} from "./documentos-permisos-puro";
 
 export type DocumentoRow = {
   id: string;
@@ -37,40 +52,11 @@ export type PermisoCarpetaRow = {
   created_at: string | null;
 };
 
-/** Nivel efectivo de acceso de un profesor a una carpeta (o null si no tiene). */
-export type NivelAcceso = NivelPermiso | null;
-
 const SELECT_CARPETA = "id, nombre, parent_id, creado_por, created_at";
 const SELECT_DOCUMENTO =
   "id, carpeta_id, nombre_original, ruta_storage, tipo, tamano_bytes, curp_vinculado, subido_por, created_at";
 const SELECT_PERMISO =
   "id, profesor, carpeta_id, nivel, autorizado_por, created_at";
-
-/** Orden de niveles: eliminar > subir > ver. */
-const ORDEN_NIVEL: Record<NivelPermiso, number> = {
-  ver: 1,
-  subir: 2,
-  eliminar: 3,
-};
-
-export function nivelMayor(a: NivelPermiso, b: NivelPermiso): NivelPermiso {
-  return ORDEN_NIVEL[a] >= ORDEN_NIVEL[b] ? a : b;
-}
-
-/** ¿El nivel permite subir archivos? (subir o eliminar). */
-export function puedeSubir(nivel: NivelPermiso | null): boolean {
-  return nivel === "subir" || nivel === "eliminar";
-}
-
-/** ¿El nivel permite eliminar? (solo eliminar). */
-export function puedeEliminar(nivel: NivelPermiso | null): boolean {
-  return nivel === "eliminar";
-}
-
-/** ¿El nivel permite al menos ver? */
-export function puedeVer(nivel: NivelPermiso | null): boolean {
-  return nivel !== null;
-}
 
 export async function listarCarpetas(
   supabase: SupabaseClient,
@@ -254,21 +240,6 @@ export async function nivelAccesoProfesor(
 }
 
 /** Ruta de nombres de una carpeta hacia la raíz (para breadcrumb). */
-export function rutaCarpeta(
-  carpetas: CarpetaRow[],
-  carpetaId: string | null,
-): CarpetaRow[] {
-  const mapa = new Map(carpetas.map((c) => [c.id, c]));
-  const ruta: CarpetaRow[] = [];
-  let actual = carpetaId;
-  while (actual) {
-    const c = mapa.get(actual);
-    if (!c) break;
-    ruta.unshift(c);
-    actual = c.parent_id;
-  }
-  return ruta;
-}
 
 /**
  * Sanitiza el nombre de un archivo o carpeta para usarlo como key/ruta en
