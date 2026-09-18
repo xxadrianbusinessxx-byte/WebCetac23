@@ -20,6 +20,7 @@ import { BajaRosterPanel } from "@/app/components/baja-roster-panel";
 import { CalendarioEscolarPanel } from "@/app/components/calendario-escolar-panel";
 import { CicloConfigurador } from "@/app/components/ciclo-configurador";
 import { DeshacerPasoPanel } from "@/app/components/deshacer-paso-panel";
+import { DocumentosPanel } from "@/app/components/documentos-panel";
 import { HorarioEscolarPanel } from "@/app/components/horario-escolar-panel";
 import { ImportarEtiquetasPanel } from "@/app/components/importar-etiquetas-panel";
 import { RosterAlumnosPanel } from "@/app/components/roster-alumnos-panel";
@@ -49,6 +50,13 @@ export function ContenidoTecnicoOceano({
   periodos: string[];
 }) {
   switch (pieza) {
+    // Contenido › Documentos. El panel no recibe props: resuelve su propio
+    // estado con `actionObtenerEstadoDocumentos`, que ya exige `documento.ver`
+    // y devuelve el nivel de permiso del usuario. La UI no decide el acceso,
+    // lo recibe resuelto del servidor.
+    case "documentos":
+      return <DocumentosPanel />;
+
     case "ciclo-configurador":
       // Sus 7 pasos YA eran un conmutador interno; ahora el nivel 3 del shell
       // hace ese papel. El componente no se reescribe: el usuario elige el

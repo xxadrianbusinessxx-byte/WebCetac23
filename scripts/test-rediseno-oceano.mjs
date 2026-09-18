@@ -397,7 +397,11 @@ ok(
   nav.TEXTO_APAGADO["sin-datos"] !== nav.TEXTO_APAGADO.decision,
   "dependencia de datos y decisión se explican distinto",
 );
-eq(nav.apartado("tecnico", "contenido", "documentos").razon, "decision", "Documentos está apagado por decisión");
+// 2026-09-17: Documentos se ENCENDIÓ. El INVARIANTE cambió por decisión, no la
+// ruta — así que esta aserción se reescribe declarándolo, no se borra. El
+// backend nunca estuvo apagado: lo que faltaba era montarlo en el shell.
+eq(nav.apartado("tecnico", "contenido", "documentos").estado, "activo", "Documentos ya está activo");
+ok(cTec.piezaDe("contenido", "documentos") !== null, "…y tiene pieza que lo pinta");
 // ── Maquetas: se enseñan porque el diseño las dibujó ───────────────────────
 // El criterio NO es «¿tiene backend?» sino «¿existe el frame en Figma?».
 // Actividades tiene sus dos pantallas dibujadas; Recursos y Chat no tienen
@@ -482,8 +486,8 @@ eq(nav.apartado("directivo", "administracion", "citas").modos.length, 3, "Citas 
 // «uno» y la suite la cazó al cambiar el mapa: el número es la comprobación.
 eq(
   nav.apartadosApagados("tecnico").map((x) => x.apartado.id).sort(),
-  ["documentos", "noticias"],
-  "el técnico tiene dos apartados apagados, y ambos en «Contenido»",
+  ["noticias"],
+  "al técnico le queda UN apartado apagado: Noticias (Cloudinary desactivado)",
 );
 ok(nav.apartadosApagados("maestro").length === 1, "el profesor solo tiene Recursos apagado");
 
@@ -704,11 +708,12 @@ for (const clave of cTec.huecosConPieza()) {
   );
 }
 
-// Contenido del tecnico: la unica pestaña sin ningun apartado activo.
+// Contenido del tecnico: ya NO es la pestaña sin nada activo. Documentos se
+// encendió el 2026-09-17; Noticias sigue apagada porque Cloudinary lo está.
 const contenido = nav.pestana("tecnico", "contenido");
 ok(
-  contenido.apartados.every((a) => a.estado === "apagado"),
-  "«Contenido» del tecnico no tiene ningun apartado activo (Documentos y Noticias apagados)",
+  contenido.apartados.some((a) => a.estado === "activo"),
+  "«Contenido» del tecnico ya tiene un apartado activo (Documentos)",
 );
 eq(
   nav.apartado("tecnico", "contenido", "noticias").razon,

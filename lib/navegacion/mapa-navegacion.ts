@@ -277,10 +277,14 @@ const CONTENIDO: Pestana = {
   id: "contenido",
   label: "Contenido",
   apartados: [
-    // El código de documentos existe y funciona (documentos-panel.tsx,
-    // actions/documentos.ts, cinco capacidades concedidas). Apagarlo es una
-    // decisión de interfaz, reversible. NO se borra ni se desconecta.
-    off("documentos", "Documentos", "decision"),
+    // ENCENDIDO (2026-09-17). Estuvo apagado por decisión de interfaz mientras
+    // el shell no lo montaba. El backend nunca se tocó: `CARPETAS`,
+    // `DOCUMENTOS` y `PERMISOS CARPETAS` existen, `lib/escolar/documentos.ts`
+    // funciona y desde el PROMPT B4 sus decisiones de permiso tienen suite.
+    // Lo único que faltaba era la superficie: `/documentos` seguía viva pero
+    // HUÉRFANA —desde `/oceano` no había ningún enlace— y solo se alcanzaba
+    // escribiendo la URL.
+    act("documentos", "Documentos"),
     // El sistema de noticias (Cloudinary) esta DESACTIVADO: `eventos-inicio.tsx`
     // lo declara y `actionPublicarNoticiaInicio` no la llama ningun componente.
     // La capacidad `noticia.publicar` sigue concedida, pero no hay superficie
