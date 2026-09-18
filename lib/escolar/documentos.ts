@@ -52,19 +52,28 @@ export type PermisoCarpetaRow = {
   created_at: string | null;
 };
 
-const SELECT_CARPETA = "id, nombre, parent_id, creado_por, created_at";
+const SELECT_CARPETA = "id, nombre, parent_id, creado_por, created_at, materia_interna";
 const SELECT_DOCUMENTO =
   "id, carpeta_id, nombre_original, ruta_storage, tipo, tamano_bytes, curp_vinculado, subido_por, created_at";
 const SELECT_PERMISO =
   "id, profesor, carpeta_id, nivel, autorizado_por, created_at";
 
+/**
+ * Carpetas. El ÁMBITO decide cuáles:
+ *   · `undefined` → las institucionales (`materia_interna is null`), que es lo
+ *     que enseña «Contenido › Documentos» y lo que eran TODAS hasta hoy;
+ *   · una cadena  → las de esa materia, para «Materias › Recursos».
+ *
+ * Es una columna sobre el mismo sistema de documentos, no un repositorio
+ * aparte: crear uno habría sido un camino paralelo a estas mismas tablas (R6).
+ */
 export async function listarCarpetas(
   supabase: SupabaseClient,
+  materiaInterna?: string,
 ): Promise<CarpetaRow[]> {
-  const { data, error } = await supabase
-    .from(TABLA_CARPETAS)
-    .select(SELECT_CARPETA)
-    .order("nombre", { ascending: true });
+  let q = supabase.from(TABLA_CARPETAS).select(SELECT_CARPETA);
+  q = materiaInterna ? q.eq("materia_interna", materiaInterna) : q.is("materia_interna", null);
+  const { data, error } = await q.order("nombre", { ascending: true });
   if (error || !data) return [];
   return data as CarpetaRow[];
 }

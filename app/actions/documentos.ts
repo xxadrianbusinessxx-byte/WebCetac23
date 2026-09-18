@@ -71,6 +71,10 @@ export type EstadoDocumentos = {
 
 export async function actionObtenerEstadoDocumentos(
   carpetaId: string | null,
+  /** `undefined` = institucional (Contenido › Documentos). Con valor, los
+   *  recursos de esa materia (Materias › Recursos). Mismo sistema, mismo
+   *  permiso: solo cambia el ámbito de las carpetas. */
+  materiaInterna?: string,
 ): Promise<EstadoDocumentos | null> {
   const g = await exigir("documento.ver");
   if (!g.ok) return null;
@@ -80,7 +84,7 @@ export async function actionObtenerEstadoDocumentos(
   const lectura = await clienteLecturaEscolar(supabase);
 
   const [carpetas, permisos, profesoresRows] = await Promise.all([
-    listarCarpetas(lectura),
+    listarCarpetas(lectura, materiaInterna),
     listarPermisos(lectura),
     listarProfesores(lectura),
   ]);

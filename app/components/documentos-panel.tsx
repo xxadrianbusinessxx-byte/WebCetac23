@@ -88,7 +88,15 @@ const ETIQUETA_NIVEL: Record<NivelPermiso, string> = {
   eliminar: "Eliminar",
 };
 
-export function DocumentosPanel() {
+/**
+ * `materiaInterna` decide el ÁMBITO de las carpetas:
+ *   · sin valor → institucionales, que es «Contenido › Documentos»;
+ *   · con valor → los recursos de esa materia, que es «Materias › Recursos».
+ *
+ * Es el MISMO panel y el mismo permiso (`documento.ver`): duplicarlo para los
+ * recursos habría sido un camino paralelo (R6).
+ */
+export function DocumentosPanel({ materiaInterna }: { materiaInterna?: string } = {}) {
   const [estado, setEstado] = useState<EstadoDocumentos | null>(null);
   const [carpetaActualId, setCarpetaActualId] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -119,11 +127,11 @@ export function DocumentosPanel() {
     // cascada antes de que llegue el dato (regla
     // `react-hooks/set-state-in-effect`). Mismo patrón que
     // `buscador-alumno-profesor.tsx` y `horario-escolar-panel.tsx`.
-    return actionObtenerEstadoDocumentos(carpetaId).then((res) => {
+    return actionObtenerEstadoDocumentos(carpetaId, materiaInterna).then((res) => {
       setEstado(res);
       setCarpetaActualId(carpetaId);
     });
-  }, []);
+  }, [materiaInterna]);
 
   useEffect(() => {
     void cargar(null);

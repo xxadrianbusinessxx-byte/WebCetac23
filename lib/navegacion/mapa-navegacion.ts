@@ -160,7 +160,11 @@ const MATERIAS_ALUMNO: Pestana = {
     act("calificacion", "Calificación"),
     // Recursos aparece en el sidebar de los tres roles y NINGÚN frame dibuja su
     // contenido. No hay maqueta posible sin inventarla.
-    off("recursos", "Recursos", "sin-datos"),
+    // ENCENDIDO (2026-09-17). No hizo falta un sistema nuevo: «Recursos» es
+    // literalmente Documentos con otro ámbito —archivos, en carpetas, con
+    // permisos— así que se reusa con una columna `materia_interna` en CARPETAS
+    // en vez de abrir un camino paralelo a esas mismas tablas (R6).
+    act("recursos", "Recursos"),
   ],
 };
 
@@ -193,7 +197,11 @@ const MATERIAS_DOCENTE: Pestana = {
   apartados: [
     act("calificaciones", "Calificaciones", ["Avance", "Configuración de columnas"]),
     act("asistencia", "Asistencia", ["Descargar plantilla", "Previsualizar cambios"]),
-    off("recursos", "Recursos", "sin-datos"),
+    // ENCENDIDO (2026-09-17). No hizo falta un sistema nuevo: «Recursos» es
+    // literalmente Documentos con otro ámbito —archivos, en carpetas, con
+    // permisos— así que se reusa con una columna `materia_interna` en CARPETAS
+    // en vez de abrir un camino paralelo a esas mismas tablas (R6).
+    act("recursos", "Recursos"),
   ],
 };
 

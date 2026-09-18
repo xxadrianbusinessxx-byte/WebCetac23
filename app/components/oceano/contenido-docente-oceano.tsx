@@ -15,6 +15,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { actionObtenerVistaMateria } from "@/app/actions/escolar";
+import { DocumentosPanel } from "@/app/components/documentos-panel";
 import { MensajesInternosPanel } from "@/app/components/mensajes-internos-panel";
 import { AsistenciasPanel } from "@/app/components/asistencias-panel";
 import { BuscadorAlumnoProfesor } from "@/app/components/buscador-alumno-profesor";
@@ -114,6 +115,11 @@ export function ContenidoDocenteOceano({
 
   if (pieza === "materia-asistencia") {
     return <AsistenciasPanel nombreProfesor={datos.nombreProfesor} />;
+  }
+
+  if (pieza === "materia-recursos") {
+    // Mismo panel que Contenido › Documentos; cambia el ámbito, no el permiso.
+    return <DocumentosPanel materiaInterna={seleccionada || undefined} />;
   }
 
   if (pieza === "mensajes-internos") {

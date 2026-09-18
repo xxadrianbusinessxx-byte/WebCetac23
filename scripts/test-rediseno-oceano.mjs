@@ -417,7 +417,11 @@ ok(cTec.piezaDe("contenido", "documentos") !== null, "…y tiene pieza que lo pi
 // cambió por trabajo hecho, no porque la aserción estorbara.
 eq(nav.apartado("alumno", "materias", "actividades").estado, "activo", "Actividades ya opera");
 ok(cAl.piezaDe("materias", "actividades") !== null, "…y tiene pieza");
-eq(nav.apartado("alumno", "materias", "recursos").estado, "apagado", "Recursos no: ningún frame dibuja su contenido");
+// 2026-09-17: Recursos se ENCENDIÓ. No hizo falta inventar el frame que no
+// existía: resultó ser Documentos con otro ámbito, y se reusa ese sistema con
+// una columna `materia_interna` en CARPETAS en vez de abrir un camino paralelo.
+eq(nav.apartado("alumno", "materias", "recursos").estado, "activo", "Recursos ya opera, reusando Documentos");
+ok(cAl.piezaDe("materias", "recursos") !== null, "…y tiene pieza");
 eq(nav.apartado("alumno", "chat", "chat").estado, "apagado", "Chat tampoco");
 
 for (const id of ["citas", "reportes", "recursos-administrativos", "buzon"]) {
@@ -429,7 +433,9 @@ for (const id of ["citas", "reportes", "recursos-administrativos", "buzon"]) {
 // Una maqueta SE NAVEGA. Si no, no sirve para nada.
 ok(nav.esNavegable(nav.apartado("directivo", "administracion", "citas")), "una maqueta es navegable");
 ok(nav.esNavegable(nav.apartado("alumno", "materias", "calificacion")), "un activo es navegable");
-ok(!nav.esNavegable(nav.apartado("alumno", "materias", "recursos")), "un apagado NO es navegable");
+// El apagado que queda para comprobar la regla es Chat, descartado por decisión
+// del responsable.
+ok(!nav.esNavegable(nav.apartado("alumno", "chat", "chat")), "un apagado NO es navegable");
 ok(!nav.esNavegable(null), "sin apartado no se navega");
 
 // Y lleva su aviso: quien la usa tiene que saber que no guarda.
@@ -525,7 +531,9 @@ eq(
   ["noticias"],
   "al técnico le queda UN apartado apagado: Noticias (Cloudinary desactivado)",
 );
-ok(nav.apartadosApagados("maestro").length === 1, "el profesor solo tiene Recursos apagado");
+// Al profesor ya no le queda NINGÚN apagado: Recursos se encendió el
+// 2026-09-17 reusando el sistema de documentos.
+eq(nav.apartadosApagados("maestro").length, 0, "el profesor ya no tiene apartados apagados");
 
 // ── 7) notificaciones-alumno ───────────────────────────────────────────────
 console.log("\nnotificaciones-alumno");

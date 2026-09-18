@@ -35,6 +35,7 @@ import { informacionPersonalDesdeEtiquetas } from "@/lib/escolar/alumno/informac
 import type { PiezaAlumno } from "@/lib/navegacion/contenido-alumno";
 import type { AlumnoEtiquetaRow } from "@/lib/escolar/alumno/etiquetas-dinamicas";
 import type { VistaRegistroAlumno } from "@/lib/escolar/alumno/registro-alumno";
+import { DocumentosPanel } from "@/app/components/documentos-panel";
 import { ActividadesPanel } from "@/app/components/actividades-panel";
 import { SesionesProgramadasPanel } from "@/app/components/sesiones-programadas-panel";
 import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
@@ -315,6 +316,10 @@ export function ContenidoAlumnoOceano({
         puedeEntregar={datos.puedeEntregarActividades}
       />
     );
+  }
+
+  if (pieza === "materias-recursos") {
+    return <DocumentosPanel materiaInterna={datos.materiaSeleccionada ?? undefined} />;
   }
 
   if (pieza === "perfil-sesiones-programadas") {

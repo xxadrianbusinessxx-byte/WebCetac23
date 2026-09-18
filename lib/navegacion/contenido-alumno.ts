@@ -21,6 +21,7 @@
 /** Piezas reales que ya existen como componente y se reubican en el shell. */
 export type PiezaAlumno =
   | "materias-actividades"
+  | "materias-recursos"
   | "perfil-sesiones-programadas"
   | "materias-calificacion"
   | "calendario-horario"
@@ -42,6 +43,7 @@ const HUECOS: Readonly<Record<string, PiezaAlumno>> = {
   // Encendidas el 2026-09-17. «Sesiones programadas» lee la MISMA tabla que
   // «Citas» del directivo: una entidad, dos vistas (R6).
   "materias/actividades": "materias-actividades",
+  "materias/recursos": "materias-recursos",
   "perfil/sesiones-programadas": "perfil-sesiones-programadas",
   "materias/calificacion": "materias-calificacion",
   "calendario/horario-escolar": "calendario-horario",

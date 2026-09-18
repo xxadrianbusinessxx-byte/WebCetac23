@@ -30,7 +30,8 @@ export type PiezaDocente =
   | "materia-asistencia"
   | "asistencia-alumnos"
   | "calendario-escolar"
-  | "mensajes-internos";
+  | "mensajes-internos"
+  | "materia-recursos";
 
 /** Clave = `idPestana/idApartado`, tal cual los devuelve el mapa. */
 const HUECOS: Readonly<Record<string, PiezaDocente>> = {
@@ -38,6 +39,9 @@ const HUECOS: Readonly<Record<string, PiezaDocente>> = {
   // apartados aparecen al seleccionar una materia.
   "materias/calificaciones": "materia-avance",
   "materias/asistencia": "materia-asistencia",
+  // Recursos de la materia: el MISMO panel de documentos, acotado por
+  // `materia_interna`. No es un repositorio aparte.
+  "materias/recursos": "materia-recursos",
 
   // Calendario/Asistencias
   "calendario-asistencias/asistencias": "asistencia-alumnos",
