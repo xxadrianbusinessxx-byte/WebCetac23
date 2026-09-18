@@ -39,7 +39,6 @@ import {
   textoMaqueta,
   type Apartado,
 } from "@/lib/navegacion/mapa-navegacion";
-import { hayMaqueta, MaquetaOceano } from "./maquetas-oceano";
 import { BarraModoOceano } from "./barra-modo-oceano";
 import {
   ContenidoAlumnoOceano,
@@ -181,20 +180,21 @@ export function ShellOceano({
           {/* Fase 2 — si el hueco activo tiene pieza real Y hay datos, se monta
               el componente; si no, el marcador de la Fase 1. La decisión
               hueco→pieza vive en `lib/navegacion/contenido-alumno.ts`. */}
-          {/* El aviso de maqueta va ARRIBA y no se oculta: quien entra tiene
-              que saber, antes de pulsar nada, que esto no guarda. */}
+          {/* El aviso de maqueta SE CONSERVA aunque hoy no haya ninguna: el
+              mecanismo tiene que seguir en pie para el día que se dibuje un
+              frame antes de tener su backend. Con cero maquetas en el mapa,
+              `textoMaqueta` devuelve null y esto no pinta nada. */}
           {activo && textoMaqueta(activo) ? (
             <p className="mb-4 rounded-lg border border-[var(--oc-border-active)] bg-[var(--oc-input)] px-4 py-3 text-xs font-semibold text-[var(--oc-muted)]">
               {textoMaqueta(activo)}
             </p>
           ) : null}
 
-          {/* Orden de precedencia: pieza real del alumno → pieza del docente →
-              maqueta del diseño → marcador. Una maqueta nunca tapa una pieza
-              que funciona. */}
-          {activa && activo && activo.estado === "maqueta" && hayMaqueta(activa.id, activo.id) ? (
-            <MaquetaOceano idPestana={activa.id} idApartado={activo.id} modo={sel.modo} />
-          ) : activa && activo && piezaDe(activa.id, activo.id) && datosAlumno ? (
+          {/* Orden de precedencia: pieza del alumno → técnico → directivo →
+              docente → marcador. Ya no hay rama de maqueta: las cinco pantallas
+              que se dibujaban sin datos pasaron a operar el 2026-09-17, y
+              `maquetas-oceano.tsx` se retiró por quedarse sin uso. */}
+          {activa && activo && piezaDe(activa.id, activo.id) && datosAlumno ? (
             <ContenidoAlumnoOceano
               pieza={piezaDe(activa.id, activo.id)!}
               modo={sel.modo}
@@ -217,6 +217,7 @@ export function ShellOceano({
                así el orden refleja de lo más específico a lo más compartido. */
             <ContenidoDirectivoOceano
               pieza={piezaDirectivoDe(activa.id, activo.id)!}
+              modo={sel.modo}
               datos={datosDirectivo}
             />
           ) : activa && activo && piezaDocenteDe(activa.id, activo.id) && datosDocente ? (

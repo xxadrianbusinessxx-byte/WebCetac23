@@ -95,8 +95,15 @@ const off = (
   modos: string[] = [],
 ): Apartado => ({ id, label, estado: "apagado", razon, modos });
 
-/** Maqueta: hay frame en Figma, así que se enseña. Navega y no opera. */
-const maq = (id: string, label: string, modos: string[] = []): Apartado => ({
+/**
+ * Maqueta: hay frame en Figma, así que se enseña. Navega y no opera.
+ *
+ * Hoy el mapa NO declara ninguna —las cinco que había pasaron a funcionar el
+ * 2026-09-17— y por eso se EXPORTA: el mecanismo se conserva para el día que
+ * vuelva a dibujarse una pantalla antes de tener su backend. Borrarlo obligaría
+ * a reinventarlo y dejaría `TEXTO_MAQUETA` huérfano.
+ */
+export const maq = (id: string, label: string, modos: string[] = []): Apartado => ({
   id,
   label,
   estado: "maqueta",
@@ -128,7 +135,9 @@ const PERFIL_ALUMNO: Pestana = {
     act("seguimiento-semestral", "Seguimiento semestral"),
     act("estatus-academico", "Estatus académico"),
     act("seguimiento-medico", "Seguimiento médico"),
-    off("sesiones-programadas", "Sesiones programadas", "sin-datos"),
+    // ENCENDIDO (2026-09-17): ya hay datos. Lee la MISMA tabla `citas` que
+    // «Administración escolar › Citas» del directivo — una entidad, dos vistas.
+    act("sesiones-programadas", "Sesiones programadas"),
   ],
 };
 
@@ -147,7 +156,7 @@ const MATERIAS_ALUMNO: Pestana = {
     // MAQUETA: el diseño dibuja las dos pantallas —la lista con sus tarjetas
     // VENCIDA/ACTIVA y el detalle con descripción, dropzone y «Subir actividad»
     // más el peso (20 %)—. Se enseñan; subir no hace nada todavía.
-    maq("actividades", "Actividades y tareas", ["Lista", "Detalle"]),
+    act("actividades", "Actividades y tareas", ["Lista", "Detalle"]),
     act("calificacion", "Calificación"),
     // Recursos aparece en el sidebar de los tres roles y NINGÚN frame dibuja su
     // contenido. No hay maqueta posible sin inventarla.
@@ -215,15 +224,15 @@ const ADMINISTRACION: Pestana = {
     // frames de Administración escolar— con sus tarjetas, sus botones y sus
     // barras de modo. Se enseñan tal cual; Aceptar, Rechazar y Guardar no
     // hacen nada porque las cuatro entidades no existen en Supabase.
-    maq("citas", "Citas", ["Configurar citas", "Citas pendientes", "Citas programadas"]),
-    maq("reportes", "Reportes", ["Crea un reporte", "Reportes"]),
-    maq("recursos-administrativos", "Recursos administrativos", [
+    act("citas", "Citas", ["Configurar citas", "Citas pendientes", "Citas programadas"]),
+    act("reportes", "Reportes", ["Crea un reporte", "Reportes"]),
+    act("recursos-administrativos", "Recursos administrativos", [
       "Constancias",
       "Constancias programadas",
       "Configurar cita de constancia",
     ]),
     act("alumnos-tutores", "Alumnos / Tutores"),
-    maq("buzon", "Buzón", ["Buzón de quejas", "Buzón (comentarios)"]),
+    act("buzon", "Buzón", ["Buzón de quejas", "Buzón (comentarios)"]),
   ],
 };
 
@@ -273,6 +282,15 @@ const PERSONAS: Pestana = {
   ],
 };
 
+/** Mensajería privada entre personal. Pedido explícito del responsable
+ *  (2026-09-17). NO es el chat global retirado: aquel era alumno↔profesor y
+ *  quedó descartado; este alcance es solo directivo, técnico y profesor. */
+const MENSAJES_PERSONAL: Pestana = {
+  id: "mensajes",
+  label: "Mensajes",
+  apartados: [act("bandeja", "Bandeja")],
+};
+
 const CONTENIDO: Pestana = {
   id: "contenido",
   label: "Contenido",
@@ -297,9 +315,11 @@ const CONTENIDO: Pestana = {
 const MAPA: Record<PortalRole, Pestana[]> = {
   alumno: [PERFIL_ALUMNO, MATERIAS_ALUMNO, CALENDARIO_ALUMNO, CHAT],
   tutor: [PERFIL_TUTOR, MATERIAS_ALUMNO, CALENDARIO_ALUMNO, CHAT],
-  maestro: [MATERIAS_DOCENTE, CALENDARIO_DOCENTE],
-  directivo: [MATERIAS_DOCENTE, GRUPOS_BOLETA, CALENDARIO_DOCENTE, ADMINISTRACION],
-  tecnico: [CICLO_ESCOLAR, CATALOGO, PERSONAS, CONTENIDO],
+  // Mensajes va al final en los tres: es transversal, no el trabajo principal
+  // de ninguno. Alumno y tutor NO la tienen — su chat quedó descartado.
+  maestro: [MATERIAS_DOCENTE, CALENDARIO_DOCENTE, MENSAJES_PERSONAL],
+  directivo: [MATERIAS_DOCENTE, GRUPOS_BOLETA, CALENDARIO_DOCENTE, ADMINISTRACION, MENSAJES_PERSONAL],
+  tecnico: [CICLO_ESCOLAR, CATALOGO, PERSONAS, CONTENIDO, MENSAJES_PERSONAL],
 };
 
 /** Pestañas visibles para un rol. Sin sesión, ninguna. */

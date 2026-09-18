@@ -86,6 +86,31 @@ export const CAPACIDADES = [
   "materia.mapear_columnas",
   "materia.descargar_plantilla",
   // Noticias / portada
+  // ── UIs pendientes (2026-09-17) ──────────────────────────────────────────
+  // Capacidades de las pantallas que el diseño dibujaba y el sistema no
+  // soportaba. Se añaden juntas porque son un solo cambio de alcance.
+  //
+  // Actividades — tareas por materia, con entrega del alumno.
+  "actividad.ver",
+  "actividad.editar",
+  "actividad.entregar",
+  // Reportes disciplinarios. `anular` va aparte de `crear` porque anular toca
+  // el historial de un alumno y no es lo mismo que levantar un reporte.
+  "reporte.ver",
+  "reporte.crear",
+  "reporte.anular",
+  // Citas. Una entidad, dos lados: quien la pide y quien la resuelve.
+  "cita.ver_propias",
+  "cita.solicitar",
+  "cita.gestionar",
+  // Constancias (Recursos administrativos).
+  "constancia.solicitar",
+  "constancia.gestionar",
+  // Buzón: alumnos y tutores escriben, la dirección lee.
+  "buzon.enviar",
+  "buzon.ver",
+  // Mensajes internos entre personal. NO es el chat global retirado.
+  "mensaje_interno.usar",
   "noticia.publicar",
   "portada.ver",
   // Profesores

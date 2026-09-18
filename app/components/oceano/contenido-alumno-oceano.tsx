@@ -35,6 +35,8 @@ import { informacionPersonalDesdeEtiquetas } from "@/lib/escolar/alumno/informac
 import type { PiezaAlumno } from "@/lib/navegacion/contenido-alumno";
 import type { AlumnoEtiquetaRow } from "@/lib/escolar/alumno/etiquetas-dinamicas";
 import type { VistaRegistroAlumno } from "@/lib/escolar/alumno/registro-alumno";
+import { ActividadesPanel } from "@/app/components/actividades-panel";
+import { SesionesProgramadasPanel } from "@/app/components/sesiones-programadas-panel";
 import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
 import type { ComentarioRow, EtiquetasPersonalesRow, MateriaTablaVista } from "@/lib/escolar/types";
 
@@ -63,6 +65,14 @@ export type DatosAlumnoOceano = {
   /** Fase 4 — el TUTOR puede editar los campos personales; el alumno no. El
    *  flag lo resuelve la action (`resolverAccesoAlumno`), no la UI. */
   puedeEditarDatosPersonales: boolean;
+  /** UIs pendientes (2026-09-17) — Materias › Actividades.
+   *  Los dos flags los resuelve el SERVIDOR con `puede()`; el componente no
+   *  pregunta por el rol. Y la materia elegida viaja aquí porque el apartado
+   *  «Actividades» cuelga de la materia que el alumno tenga abierta. */
+  materiaSeleccionada?: string | null;
+  materiaSeleccionadaNombre?: string | null;
+  puedeEditarActividades: boolean;
+  puedeEntregarActividades: boolean;
 };
 
 /**
@@ -291,6 +301,25 @@ export function ContenidoAlumnoOceano({
   const nombreVisibleSeleccionada =
     materias.find((m) => m.idInterno === materiaSeleccionada)?.nombreVisible ??
     materiaSeleccionada;
+
+  // ENCENDIDAS el 2026-09-17. Antes eran maqueta (actividades) y apagado
+  // (sesiones programadas).
+  if (pieza === "materias-actividades") {
+    // `puedeEditar` y `puedeEntregar` llegan RESUELTOS del servidor con la
+    // misma `puede()` de la matriz: este componente no pregunta por el rol.
+    return (
+      <ActividadesPanel
+        materiaInterna={datos.materiaSeleccionada ?? ""}
+        nombreVisible={datos.materiaSeleccionadaNombre ?? "Actividades"}
+        puedeEditar={datos.puedeEditarActividades}
+        puedeEntregar={datos.puedeEntregarActividades}
+      />
+    );
+  }
+
+  if (pieza === "perfil-sesiones-programadas") {
+    return <SesionesProgramadasPanel curpAlumno={curp} />;
+  }
 
   if (pieza === "materias-calificacion") {
     if (materias.length === 0) {

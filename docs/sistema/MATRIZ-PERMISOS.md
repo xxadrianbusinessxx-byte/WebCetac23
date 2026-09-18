@@ -166,6 +166,20 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `calificacion.eliminar` | Eliminar calificaciones de una materia | ✅ | ✅ | X | X | X |
 | `noticia.publicar` | Publicar noticia de portada | ✅ | X | ✅ | X | X |
 | `portada.ver` | Alumnos estrella y noticias de inicio | público | público | público | público | público |
+| `actividad.ver` | Ver las actividades (tareas) de una materia y su estado. El alcance —qué materias— lo resuelve la action, no la capacidad. | ✅ | ✅ | X | ✅ | ✅ |
+| `actividad.editar` | Crear, editar y calificar actividades de una materia. | ✅ | ✅ | X | X | X |
+| `actividad.entregar` | Que el ALUMNO suba su entrega. Separada de `editar` a propósito: entregar no es gestionar. | X | X | X | X | ✅ |
+| `reporte.ver` | Ver los reportes disciplinarios de un grupo. | ✅ | X | X | X | X |
+| `reporte.crear` | Levantar un reporte disciplinario sobre un alumno. | ✅ | X | X | X | X |
+| `reporte.anular` | Anular un reporte ya levantado. Va aparte de `crear` porque toca el historial de un alumno. | ✅ | X | X | X | X |
+| `cita.ver_propias` | Ver las citas propias (alumno) o las del vinculado (tutor). | X | X | X | ✅ | ✅ |
+| `cita.solicitar` | Pedir una cita. | X | X | X | ✅ | ✅ |
+| `cita.gestionar` | Aceptar, rechazar y cerrar citas. | ✅ | X | X | X | X |
+| `constancia.solicitar` | Pedir una constancia. | X | X | X | ✅ | ✅ |
+| `constancia.gestionar` | Resolver solicitudes de constancia y adjuntar el documento emitido. | ✅ | X | X | X | X |
+| `buzon.enviar` | Escribir una queja o comentario a la dirección. | X | X | X | ✅ | ✅ |
+| `buzon.ver` | Leer el buzón y marcar atendido. | ✅ | X | X | X | X |
+| `mensaje_interno.usar` | Mensajería privada entre personal (directivo, técnico, profesor). NO es el chat global retirado, que era alumno↔profesor. | ✅ | ✅ | ✅ | X | X |
 
 ### Capacidades que aún no existen y las añade el nuevo diseño
 
@@ -179,7 +193,36 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 147 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 170 Server Actions.
+
+### `actividades.ts`
+
+| Action | Guardia hoy | Capacidad |
+|---|---|---|
+| `actionVistaActividades` | exigir: actividad.ver | `actividad.ver` |
+| `actionCrearActividad` | exigir: actividad.editar | `actividad.editar` |
+| `actionEliminarActividad` | exigir: actividad.editar | `actividad.editar` |
+| `actionEntregarActividad` | exigir: actividad.entregar | `actividad.entregar` |
+| `actionEntregasDeActividad` | exigir: actividad.editar | `actividad.editar` |
+| `actionCalificarEntrega` | exigir: actividad.editar | `actividad.editar` |
+
+### `administracion.ts`
+
+| Action | Guardia hoy | Capacidad |
+|---|---|---|
+| `actionListarReportes` | exigir: reporte.ver | `reporte.ver` |
+| `actionCrearReporte` | exigir: reporte.crear | `reporte.crear` |
+| `actionAnularReporte` | exigir: reporte.anular | `reporte.anular` |
+| `actionListarCitas` | exigir: cita.gestionar | `cita.gestionar` |
+| `actionListarCitasPropias` | exigir: cita.ver_propias | `cita.ver_propias` |
+| `actionSolicitarCita` | exigir: cita.solicitar | `cita.solicitar` |
+| `actionCambiarEstadoCita` | exigir: cita.gestionar | `cita.gestionar` |
+| `actionListarConstancias` | exigir: constancia.gestionar | `constancia.gestionar` |
+| `actionSolicitarConstancia` | exigir: constancia.solicitar | `constancia.solicitar` |
+| `actionCambiarEstadoConstancia` | exigir: constancia.gestionar | `constancia.gestionar` |
+| `actionListarBuzon` | exigir: buzon.ver | `buzon.ver` |
+| `actionEnviarAlBuzon` | exigir: buzon.enviar | `buzon.enviar` |
+| `actionMarcarBuzonLeido` | exigir: buzon.ver | `buzon.ver` |
 
 ### `asignaciones-profesor.ts`
 
@@ -395,6 +438,15 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 147 Server Actions.
 | `actionDescargarPlantillaMateria` | exigir: materia.descargar_plantilla | `materia.descargar_plantilla` |
 | `actionListarMateriasConfiguracion` | exigir: materia.ver_catalogo | `materia.ver_catalogo` |
 | `actionCambiarVisibilidadMateria` | exigir: materia.activar_desactivar | `materia.activar_desactivar` |
+
+### `mensajes-internos.ts`
+
+| Action | Guardia hoy | Capacidad |
+|---|---|---|
+| `actionDestinatariosInternos` | exigir: mensaje_interno.usar | `mensaje_interno.usar` |
+| `actionBandejaInterna` | exigir: mensaje_interno.usar | `mensaje_interno.usar` |
+| `actionHiloInterno` | exigir: mensaje_interno.usar | `mensaje_interno.usar` |
+| `actionEnviarMensajeInterno` | exigir: mensaje_interno.usar | `mensaje_interno.usar` |
 
 ### `noticias.ts`
 

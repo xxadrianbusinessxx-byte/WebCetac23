@@ -15,6 +15,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { actionObtenerVistaMateria } from "@/app/actions/escolar";
+import { MensajesInternosPanel } from "@/app/components/mensajes-internos-panel";
 import { AsistenciasPanel } from "@/app/components/asistencias-panel";
 import { BuscadorAlumnoProfesor } from "@/app/components/buscador-alumno-profesor";
 import { CalendarioEscolarPanel } from "@/app/components/calendario-escolar-panel";
@@ -113,6 +114,10 @@ export function ContenidoDocenteOceano({
 
   if (pieza === "materia-asistencia") {
     return <AsistenciasPanel nombreProfesor={datos.nombreProfesor} />;
+  }
+
+  if (pieza === "mensajes-internos") {
+    return <MensajesInternosPanel />;
   }
 
   if (pieza === "calendario-escolar") {

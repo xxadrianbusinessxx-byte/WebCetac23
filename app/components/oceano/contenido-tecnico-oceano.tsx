@@ -21,6 +21,7 @@ import { CalendarioEscolarPanel } from "@/app/components/calendario-escolar-pane
 import { CicloConfigurador } from "@/app/components/ciclo-configurador";
 import { DeshacerPasoPanel } from "@/app/components/deshacer-paso-panel";
 import { DocumentosPanel } from "@/app/components/documentos-panel";
+import { MensajesInternosPanel } from "@/app/components/mensajes-internos-panel";
 import { HorarioEscolarPanel } from "@/app/components/horario-escolar-panel";
 import { ImportarEtiquetasPanel } from "@/app/components/importar-etiquetas-panel";
 import { RosterAlumnosPanel } from "@/app/components/roster-alumnos-panel";
@@ -54,6 +55,9 @@ export function ContenidoTecnicoOceano({
     // estado con `actionObtenerEstadoDocumentos`, que ya exige `documento.ver`
     // y devuelve el nivel de permiso del usuario. La UI no decide el acceso,
     // lo recibe resuelto del servidor.
+    case "mensajes-internos":
+      return <MensajesInternosPanel />;
+
     case "documentos":
       return <DocumentosPanel />;
 

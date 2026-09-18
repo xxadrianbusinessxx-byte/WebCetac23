@@ -47,6 +47,10 @@ const archivos = [
   // y su sitio natural es junto a los demás módulos de navegación/contenido.
   ["lib/navegacion/notificaciones-alumno.ts", "navegacion/notificaciones-alumno.js"],
   // Fases 6 y 7 — emparejamiento hueco→pieza de directivo y tecnico.
+  // contenido-alumno entra el 2026-09-17: al encenderse Actividades y Sesiones
+  // programadas, su mapa hueco→pieza pasa a merecer la misma verificación que
+  // ya tenían docente, directivo y técnico.
+  ["lib/navegacion/contenido-alumno.ts", "navegacion/contenido-alumno.js"],
   ["lib/navegacion/contenido-docente.ts", "navegacion/contenido-docente.js"],
   ["lib/navegacion/contenido-directivo.ts", "navegacion/contenido-directivo.js"],
   ["lib/navegacion/contenido-tecnico.ts", "navegacion/contenido-tecnico.js"],
@@ -73,6 +77,7 @@ const tabular = require(path.join(tmp, "asistencia/asistencia-tabular.js"));
 const nav = require(path.join(tmp, "navegacion/mapa-navegacion.js"));
 const enFilas = require(path.join(tmp, "buscar-en-filas.js"));
 const notif = require(path.join(tmp, "navegacion/notificaciones-alumno.js"));
+const cAl = require(path.join(tmp, "navegacion/contenido-alumno.js"));
 const cDoc = require(path.join(tmp, "navegacion/contenido-docente.js"));
 const cDir = require(path.join(tmp, "navegacion/contenido-directivo.js"));
 const cTec = require(path.join(tmp, "navegacion/contenido-tecnico.js"));
@@ -326,13 +331,17 @@ for (const rol of ROLES) {
 eq(nav.pestanasDe(null), [], "sin sesión no hay navegación");
 
 eq(nav.pestanasDe("alumno").map((p) => p.id), ["perfil", "materias", "calendario", "chat"], "pestañas del alumno");
-eq(nav.pestanasDe("maestro").map((p) => p.id), ["materias", "calendario-asistencias"], "pestañas del profesor");
+ok(!nav.pestanasDe("alumno").some((p) => p.id === "mensajes"), "el alumno NO entra en la mensajería del personal");
+// 2026-09-17: el personal gana «Mensajes» (mensajería privada entre directivo,
+// técnico y profesor, pedida por el responsable). Alumno y tutor NO la tienen:
+// su chat quedó descartado.
+eq(nav.pestanasDe("maestro").map((p) => p.id), ["materias", "calendario-asistencias", "mensajes"], "pestañas del profesor");
 eq(
   nav.pestanasDe("directivo").map((p) => p.id),
-  ["materias", "grupos-boleta", "calendario-asistencias", "administracion"],
+  ["materias", "grupos-boleta", "calendario-asistencias", "administracion", "mensajes"],
   "pestañas del directivo",
 );
-eq(nav.pestanasDe("tecnico").map((p) => p.id), ["ciclo-escolar", "catalogo", "personas", "contenido"], "pestañas del técnico");
+eq(nav.pestanasDe("tecnico").map((p) => p.id), ["ciclo-escolar", "catalogo", "personas", "contenido", "mensajes"], "pestañas del técnico");
 
 // El directivo es el profesor MÁS dos pestañas: las compartidas deben ser la
 // misma referencia, no una copia que pueda divergir.
@@ -402,16 +411,18 @@ ok(
 // backend nunca estuvo apagado: lo que faltaba era montarlo en el shell.
 eq(nav.apartado("tecnico", "contenido", "documentos").estado, "activo", "Documentos ya está activo");
 ok(cTec.piezaDe("contenido", "documentos") !== null, "…y tiene pieza que lo pinta");
-// ── Maquetas: se enseñan porque el diseño las dibujó ───────────────────────
-// El criterio NO es «¿tiene backend?» sino «¿existe el frame en Figma?».
-// Actividades tiene sus dos pantallas dibujadas; Recursos y Chat no tienen
-// ninguna, así que no hay maqueta posible sin inventarla.
-eq(nav.apartado("alumno", "materias", "actividades").estado, "maqueta", "Actividades se enseña: el diseño la dibuja");
+// ── Lo que era maqueta, el 2026-09-17 pasó a operar ────────────────────────
+// Durante el rediseño estas pantallas se DIBUJABAN sin datos, porque el frame
+// existía y el backend no. Ahora tienen tablas, actions y panel: el INVARIANTE
+// cambió por trabajo hecho, no porque la aserción estorbara.
+eq(nav.apartado("alumno", "materias", "actividades").estado, "activo", "Actividades ya opera");
+ok(cAl.piezaDe("materias", "actividades") !== null, "…y tiene pieza");
 eq(nav.apartado("alumno", "materias", "recursos").estado, "apagado", "Recursos no: ningún frame dibuja su contenido");
 eq(nav.apartado("alumno", "chat", "chat").estado, "apagado", "Chat tampoco");
 
 for (const id of ["citas", "reportes", "recursos-administrativos", "buzon"]) {
-  eq(nav.apartado("directivo", "administracion", id).estado, "maqueta", `${id} se enseña (once frames lo dibujan)`);
+  eq(nav.apartado("directivo", "administracion", id).estado, "activo", `${id} ya opera`);
+  ok(cDir.piezaDe("administracion", id) !== null, `${id} tiene pieza que lo pinta`);
   ok(nav.apartado("directivo", "administracion", id).modos.length > 0, `${id} conserva su barra de modo`);
 }
 
@@ -422,40 +433,65 @@ ok(!nav.esNavegable(nav.apartado("alumno", "materias", "recursos")), "un apagado
 ok(!nav.esNavegable(null), "sin apartado no se navega");
 
 // Y lleva su aviso: quien la usa tiene que saber que no guarda.
-ok(nav.textoMaqueta(nav.apartado("directivo", "administracion", "buzon")), "la maqueta lleva aviso");
+// Ya no queda NINGUNA maqueta en el mapa. Lo que se comprueba ahora es que el
+// mecanismo sigue existiendo —si mañana se dibuja un frame nuevo antes de tener
+// backend, el aviso tiene que aparecer— y que un activo nunca lo lleva.
+eq(nav.apartadosMaqueta("directivo").length, 0, "el directivo ya no tiene maquetas");
+eq(nav.apartadosMaqueta("alumno").length, 0, "el alumno tampoco");
+ok(typeof nav.TEXTO_MAQUETA === "string" && nav.TEXTO_MAQUETA.length > 0, "el aviso de maqueta sigue definido para cuando haga falta");
 ok(nav.textoMaqueta(nav.apartado("alumno", "materias", "calificacion")) === null, "un activo no lleva aviso de maqueta");
-ok(nav.textoApagado(nav.apartado("directivo", "administracion", "buzon")) === null, "una maqueta no es un apagado");
+ok(nav.textoApagado(nav.apartado("directivo", "administracion", "buzon")) === null, "un activo no es un apagado");
 
 // apartadoInicial prefiere lo que FUNCIONA sobre lo que solo se enseña.
-eq(nav.apartadoInicial("directivo", "administracion").id, "alumnos-tutores", "entra al activo, no a la primera maqueta");
-eq(nav.apartadoInicial("alumno", "materias").id, "calificacion", "igual en Materias del alumno");
+// Ya no hay maqueta que saltar: el primero de la lista opera, así que entra ahí.
+eq(nav.apartadoInicial("directivo", "administracion").id, "citas", "entra al primer apartado, que ya opera");
+eq(nav.apartadoInicial("alumno", "materias").id, "actividades", "igual en Materias del alumno");
 
-// TODA maqueta del mapa tiene pantalla dibujada, y viceversa. Un apartado en
-// estado `maqueta` sin pantalla seria un hueco mudo: se entra y no hay nada.
-// Se comprueba leyendo el fichero de maquetas, no importandolo (es JSX).
+// El archivo de maquetas SE RETIRÓ el 2026-09-17 al quedarse sin uso: sus cinco
+// pantallas —Citas, Reportes, Recursos administrativos, Buzón y Actividades—
+// pasaron a operar con tablas y actions propias, así que dibujarlas sin datos
+// dejó de tener sentido.
+//
+// Lo que se comprueba ahora es la coherencia inversa: si el mapa NO tiene
+// maquetas, el archivo que las dibujaba no debe existir. Si algún día vuelve a
+// hacer falta una maqueta, esta aserción obliga a reponer el archivo con ella.
 {
-  const fuente = fs.readFileSync(path.join(root, "app/components/oceano/maquetas-oceano.tsx"), "utf8");
-  const dibujadas = new Set(
-    [...fuente.matchAll(/"([a-z-]+\/[a-z-]+)":\s*[A-Z]/g)].map((m) => m[1]),
-  );
+  const rutaMaquetas = path.join(root, "app/components/oceano/maquetas-oceano.tsx");
   const enElMapa = new Set();
   for (const rol of ROLES) {
     for (const { pestana: p, apartado: a } of nav.apartadosMaqueta(rol)) {
       enElMapa.add(`${p}/${a.id}`);
     }
   }
-  for (const clave of enElMapa) {
-    ok(dibujadas.has(clave), `la maqueta ${clave} tiene pantalla dibujada`);
-  }
-  for (const clave of dibujadas) {
-    ok(enElMapa.has(clave), `la pantalla ${clave} corresponde a una maqueta del mapa`);
-  }
-  eq(dibujadas.size, enElMapa.size, "no sobra ni falta ninguna pantalla de maqueta");
+  const existe = fs.existsSync(rutaMaquetas);
+  eq(enElMapa.size, 0, "el mapa no declara ninguna maqueta");
+  ok(!existe, "y el archivo que las dibujaba ya no está");
+  ok(
+    enElMapa.size === 0 || existe,
+    "si hubiera maquetas en el mapa, tendría que existir el archivo que las dibuja",
+  );
 }
 
-// apartadoInicial salta los apagados.
-eq(nav.apartadoInicial("alumno", "materias").id, "calificacion", "entra al primer apartado ACTIVO, no al primero");
-eq(nav.apartadoInicial("directivo", "administracion").id, "alumnos-tutores", "en Administración entra al único activo");
+
+// apartadoInicial salta los apagados. Las dos comprobaciones cambian de sujeto
+// el 2026-09-17: ahora el PRIMERO de cada lista ya está activo, así que lo que
+// se verifica es que sigue eligiendo un activo y nunca un apagado.
+eq(nav.apartadoInicial("alumno", "materias").id, "actividades", "entra al primer apartado, que ya está activo");
+ok(nav.apartadoInicial("alumno", "materias").estado === "activo", "y es un activo, no un apagado");
+eq(nav.apartadoInicial("directivo", "administracion").id, "citas", "en Administración entra al primero, ya activo");
+// La que de verdad protege la regla: en una pestaña cuyo primer apartado está
+// APAGADO, el inicial tiene que saltarlo.
+{
+  const conApagadoDelante = nav.pestanasDe("alumno").find((p) =>
+    p.apartados.length > 1 && p.apartados[0].estado === "apagado",
+  );
+  if (conApagadoDelante) {
+    ok(
+      nav.apartadoInicial("alumno", conApagadoDelante.id).estado !== "apagado",
+      `en «${conApagadoDelante.id}» el inicial salta el apagado de cabeza`,
+    );
+  }
+}
 eq(nav.apartadoInicial("alumno", "chat"), null, "una pestaña sin activos no tiene apartado inicial");
 
 // ordenSidebar: el activo sube a la primera posición.

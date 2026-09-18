@@ -32,7 +32,8 @@ export type PiezaTecnico =
   | "roster-alumnos"
   | "tutores"
   | "profesores-credenciales"
-  | "documentos";
+  | "documentos"
+  | "mensajes-internos";
 
 /** Clave = `idPestana/idApartado`, tal cual los devuelve el mapa. */
 const HUECOS: Readonly<Record<string, PiezaTecnico>> = {
@@ -58,6 +59,10 @@ const HUECOS: Readonly<Record<string, PiezaTecnico>> = {
   // sigue sin entrada: el sistema Cloudinary está desactivado y ningún
   // componente llama a `actionPublicarNoticiaInicio`.
   "contenido/documentos": "documentos",
+
+  // Mensajería interna, el único sitio donde el técnico coincide con el resto
+  // del personal.
+  "mensajes/bandeja": "mensajes-internos",
 };
 
 /** Pieza que corresponde a un hueco, o `null` si ese hueco no tiene pieza. */
