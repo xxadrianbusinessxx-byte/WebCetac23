@@ -6,8 +6,8 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-17 (PROMPT F cerrado; MAPA-DEL-SISTEMA §2 registra las deudas cerradas)
-- **HEAD:** `4eb3f53` (2026-09-17) · árbol limpio
+- **Última revisión:** 2026-09-17 (UIs pendientes: 56 apartados activos, 0 maquetas)
+- **HEAD:** `ec2579d` (2026-09-17) · árbol limpio
 
 ---
 
@@ -110,10 +110,10 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **38 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **39 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
-**Una de las 38 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
+**Una de las 39 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
 mitad mecánica de `ORDEN.md` —capas, nombres, scripts y raíz— y existe porque esas
 reglas eran prosa en un repo que tocan dos agentes de IA. Correrlo dice en qué estado
 está cada regla; el histórico de lo que cerró, en `MAPA-DEL-SISTEMA.md` §2b.
