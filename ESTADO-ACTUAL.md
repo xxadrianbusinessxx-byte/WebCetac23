@@ -42,17 +42,17 @@ Fuentes únicas que **no** se duplican (regla R6):
 
 ## 3. Deudas estructurales vivas
 
-Las tres, con su manifestación y ubicación, están en
-`docs/sistema/MAPA-DEL-SISTEMA.md` §2. En resumen:
+Son **tres**, y casi todo bug «nuevo» resulta ser una de ellas:
 
-1. **Calendario con dos identidades** — tras PROMPT-1/T2 el calendario del
-   operativo cuelga de `periodo_id` (bucket canónico `SEMESTRE AGO26-ENE27`,
-   77 filas, ligadas a `7cf5cca7`). La columna texto `ciclo_escolar`
-   (`@deprecated`) se conserva como legado (R8) y ya no se escribe por ella.
-2. **Identidad del profesor** — varios comparten la CLAVE `4321`; `profesor_clave` queda como columna legacy. Cifra y verificación: `pendientes.json` → `claves-compartidas-profesores` (aquí decía «16 de 20» y la §5 «15 de 21»: dos cifras del mismo dato en el mismo archivo).
-3. **Una tabla física por materia** — nombres en texto, columnas creadas en caliente por RPC.
+1. **Calendario con dos identidades** — `periodo_id` (correcta) conviviendo con la
+   columna texto `ciclo_escolar`, conservada como legado (R8).
+2. **Identidad del profesor** — varios comparten la CLAVE `4321`; `profesor_clave`
+   queda como columna legacy.
+3. **Una tabla física por materia** — nombres en texto, columnas creadas por RPC.
 
-Ninguna se cierra «de paso»: cada una necesita su propia migración verificada (R8).
+Manifestación, ubicación y cifras: `docs/sistema/MAPA-DEL-SISTEMA.md` §2a — que es
+donde se mantienen, no aquí. Ninguna se cierra «de paso»: cada una necesita su
+propia migración verificada (R8).
 
 ## 4. Seguridad — cómo está realmente
 
@@ -64,32 +64,27 @@ Ninguna se cierra «de paso»: cada una necesita su propia migración verificada
   las decisiones de alcance «sobre quién» se conservan ortogonales
   (`resolverAccesoAlumno`, `nivelAccesoProfesor`). Es una decisión consciente, pero
   significa que **un bug de autorización en TS es un bug de seguridad sin red debajo**.
-- **Rediseño Océano · Fase 0 (2026-09-10) — decisión viva, no narración.** El conjunto
-  `directivo` ganó tres capacidades del de `maestro` (`asistencia.subir`, `ciclo.ver`,
-  `justificacion.solicitar`) para sostener un rol de supervisión global sin asignaciones
-  (R-4). Es aditivo: ningún rol perdió nada. Consecuencia intencionada y anotada:
-  directivo puede **solicitar y aprobar** la misma justificación. El relato del cambio y
-  las tres filas anteriores → `docs/historial/BITACORA-2026-09.md`.
+- **`directivo` es un supervisor global**: tiene `asistencia.subir`, `ciclo.ver` y
+  `justificacion.solicitar` para operar sin depender de asignaciones (R-4). Consecuencia
+  intencionada: puede **solicitar y aprobar** la misma justificación.
 - Todo `scripts/` corre con `service_role` y salta RLS. No hay entorno de staging.
 
 ## 5. Estado de datos — última medición conocida
 
-> Cifras medidas el **2026-09-06**; antes de apoyarse en cualquiera, volver a correr el script que las produjo.
+> Cifras del **2026-09-06**. Antes de apoyarse en cualquiera, volver a correr el script
+> que las produjo: son una foto, no un invariante.
 
 - **Un solo periodo**: `2026-2027` (`7cf5cca7`), operativo.
 - Grupos / materias activas / inscripciones activas / bloques de horario:
   **24 / 241 / 357 / 168**. **0 CURPs con más de una inscripción activa.**
-- Calendario del operativo: **77 filas** ligadas por `periodo_id` (73 clase,
-  3 descanso, 1 festivo).
-- `asistencia_alumnos`: **3 863 filas** → **3 795 con `periodo_id`**; 68 históricas
-  fuera del rango quedan NULL (se reportan, no se inventó). 0 huérfanos en las 9 FK.
+- Calendario del operativo: **77 filas** por `periodo_id` (73 clase, 3 descanso, 1 festivo).
+- `asistencia_alumnos`: **3 863 filas**, 0 huérfanos en las 9 FK.
 - `clases_impartidas`: 81 filas históricas **intactas** (autoría irrecuperable, T4).
-- `justificaciones_asistencia`: falta aplicar `agregar-grupo-materia-justificaciones.sql`
-  para la justificación por clase con `grupo_materia_id`.
-- **PROFESORES**: 21 filas; la 21 es el rol **técnico** (`Permisos='Tecnico'`, clave
-  inicial `TECNICO26`). 15 de 21 siguen compartiendo clave ⇒ pendiente humano.
-- `asignaciones_profesor`: **0 filas** (el DDL C4.11 está aplicado): estrenar el
-  traspaso es tarea operativa del técnico desde la web.
+- **PROFESORES**: 21 filas; la 21 es el rol **técnico** (`Permisos='Tecnico'`).
+
+Lo que de aquí es un **pendiente** —68 filas sin `periodo_id`, claves compartidas,
+`asignaciones_profesor` en 0, el SQL de justificación por clase— vive **solo** en
+`docs/sistema/pendientes.json`, con su comando de verificación.
 
 ## 5b. Inscripciones y credenciales — decisiones cerradas
 
@@ -106,36 +101,25 @@ en `docs/historial/BITACORA-2026-09.md`. Antes de apoyarse en un pendiente, corr
 su `verificar`.
 ## 7. Estructura del repositorio
 
-Reorganizado el 2026-09-06. Dónde va cada cosa: `docs/normativo/ORDEN.md`.
+Dónde va cada cosa: `docs/normativo/ORDEN.md`.
 
 ```
 app/      actions/ · components/ (paneles) · components/ui/ (primitivas) · components/oceano/ (shell)
-app/oceano/  previsualización del shell Océano (no sustituye a ninguna ruta viva)
 lib/      escolar/<7 familias> + transversales en la raíz · auth/ · supabase/
 scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
-**Las carpetas `_borrador/` ya no existen** (PROMPT F, 2026-09-16): sus 21 archivos se
-resolvieron uno por uno, con la decisión escrita en `scripts/_archivo/borrador/README.md`.
 
-Red de pruebas: **37 suites**, 0 fallos; `npx tsc --noEmit` en 0 errores;
-`next build` completa con **9 rutas**.
-`test-permisos.mjs` compara el código contra la §4 de
-`docs/sistema/MATRIZ-PERMISOS.md` con los **5 roles** (475 checks).
-Desde PROMPT-5/B6 hay un runner único (`npm run test:suites` →
-`scripts/correr-todas-las-suites.mjs`) y un workflow de CI
-(`.github/workflows/verificacion.yml`: tsc · compilar · suites ·
-permisos · gen:matriz --check · verificar:estado · build).
-**La 37.ª no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
-mitad mecánica de `docs/normativo/ORDEN.md`: capas, nombres, scripts y raíz, sobre
-el archivo con comentarios y literales neutralizados. Existe porque las reglas de
-capas eran prosa y este repo lo tocan dos agentes de IA. Diez reglas: siete DURAS
-(C1–C7) y **C8 y C9, que pasaron a duras al ejecutarse el PROMPT E** — ninguna
-action habla con Supabase y ningún archivo pasa de 1 000 líneas (informe:
-`docs/historial/informes/INFORME-PROMPT-E-CAPAS-Y-TAMANO.md`). C10 sigue de
-trinquete (35 scripts sin fila en `scripts/README.md`).
+Red de pruebas: **37 suites** y un workflow de CI que las corre junto a tipos, lint,
+permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
+
+**Una de las 37 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
+mitad mecánica de `ORDEN.md` —capas, nombres, scripts y raíz— y existe porque esas
+reglas eran prosa en un repo que tocan dos agentes de IA. Correrlo dice en qué estado
+está cada regla; el histórico de lo que cerró, en `MAPA-DEL-SISTEMA.md` §2b.
 
 **Cómo se llegó hasta aquí → `docs/historial/BITACORA-2026-09.md`.**
+
 ## 8. Cómo se valida un cambio
 
 ```bash

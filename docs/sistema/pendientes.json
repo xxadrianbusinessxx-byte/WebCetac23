@@ -136,6 +136,17 @@
       "doc": "docs/historial/BITACORA-2026-09.md",
       "revisado": "2026-09-16",
       "estado": "abierto"
+    },
+    {
+      "id": "sql-justificaciones-por-clase",
+      "titulo": "agregar-grupo-materia-justificaciones.sql sin aplicar",
+      "detalle": "Vivía SOLO en ESTADO-ACTUAL §5 y no aquí, que es la fuente declarada desde el PROMPT F. Se movió al recortar ese archivo para no perderlo. El SQL da a justificaciones_asistencia la columna grupo_materia_id que necesita la justificacion POR CLASE; sin el, esa justificacion no puede acotarse a una materia. ESTADO puede estar desactualizado: correr el verificar antes de fiarse.",
+      "riesgo": "medio",
+      "quien": "persona — una sentencia en el SQL Editor",
+      "verificar": "node scripts/diag-sql-aplicado.mjs",
+      "doc": "supabase/agregar-grupo-materia-justificaciones.sql",
+      "revisado": "2026-09-17",
+      "estado": "abierto"
     }
   ]
 }
