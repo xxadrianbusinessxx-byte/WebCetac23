@@ -1,14 +1,27 @@
 name: Verificación (PROMPT-5/B6)
 
-# Corren en cada push/PR a main y en demanda manual. TODO es de solo lectura:
+# Corren en CADA push, en cada PR y en demanda manual. TODO es de solo lectura:
 # suites puras + compilación + tipos + build. NADA que toque Supabase entra
 # aquí (los diag-*/probe-* necesitan credenciales y viven fuera del CI).
+#
+# 2026-09-20 — antes era `push: branches: [main]`, y eso dejaba la verificación
+# sin ejecutar justo donde se trabaja: el repo lleva 128 commits en 30 días,
+# casi todos en ramas de feature, y ninguno pasaba por aquí. El trabajo se
+# validaba al fusionar, que es el momento más caro para descubrir que algo está
+# roto. Ahora corre en la rama, que es donde todavía es barato arreglarlo.
 
 on:
   push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
+
+# Con 21 commits en 7 días, correr en cada push encola verificaciones de
+# commits que ya nadie va a mirar. Solo interesa la última de cada rama: las
+# anteriores se cancelan. Va junto al cambio de arriba porque es su consecuencia
+# directa — sin esto, activar el CI por rama gasta minutos en resultados muertos.
+concurrency:
+  group: verificacion-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verificar:
