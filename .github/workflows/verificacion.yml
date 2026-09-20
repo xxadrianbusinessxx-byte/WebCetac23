@@ -15,6 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # verificar-estado-actual.mjs resuelve `git merge-base --is-ancestor`
+          # contra el sha que declara la cabecera. Con el clon superficial por
+          # defecto ese sha no existe en el CI y el check falla siempre.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -33,7 +38,7 @@ jobs:
       - name: Compilar suites puras (test:compilar)
         run: npm run test:compilar
 
-      - name: 37 suites (test:suites)
+      - name: Suites puras (test:suites)
         run: npm run test:suites
 
       - name: Permisos código ⇄ §4 (test-permisos + auditoría)
@@ -42,7 +47,17 @@ jobs:
       - name: Matriz al día (gen:matriz --check)
         run: node scripts/gen-matriz-permisos.mjs --check
 
+      - name: Invariantes al día (gen:invariantes --check)
+        run: node scripts/gen-invariantes.mjs --check
+
+      - name: RUMBO al día (gen:rumbo --check)
+        run: node scripts/gen-rumbo.mjs --check
+
       - name: ESTADO-ACTUAL.md al dia (HEAD + nº de suites)
         run: npm run verificar:estado
+
+      - name: Documentación sana (rutas vivas + techo de arranque)
+        run: npm run verificar:docs
+
       - name: Build (9 rutas)
         run: npm run build

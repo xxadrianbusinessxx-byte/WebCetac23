@@ -147,6 +147,17 @@
       "doc": "supabase/agregar-grupo-materia-justificaciones.sql",
       "revisado": "2026-09-17",
       "estado": "abierto"
+    },
+    {
+      "id": "matriz-ux-anterior-al-shell",
+      "titulo": "MATRIZ-UX §§2, 3, 5 y 6 describen la UI retirada en 8d17188",
+      "detalle": "El shell Oceano sustituyo la navegacion por rutas (pills) por pestanas desde lib/navegacion/mapa-navegacion.ts, y retiro ui/barra-navegacion.tsx y ui/glossy-nav-pill.tsx. Las referencias muertas ya se corrigieron una a una, pero el mapa de rutas (§3), el catalogo de piezas (§5) y la matriz de cambio (§6) siguen midiendo 53 archivos del 2026-09-08. Hasta reauditarlos, un cambio visual pedido desde este documento puede tocar un archivo que ya no se monta.",
+      "riesgo": "medio",
+      "quien": "agente — es medicion sobre el codigo, la hace un prompt",
+      "verificar": "node scripts/verificar-docs.mjs",
+      "doc": "docs/sistema/MATRIZ-UX.md",
+      "revisado": "2026-09-19",
+      "estado": "abierto"
     }
   ]
 }

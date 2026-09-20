@@ -56,7 +56,8 @@ duplicados de `numero` y `nombre` por ciclo, y NO solapamiento de rangos
 
 ## UI del directivo
 
-`app/components/ciclo-evaluaciones-admin.tsx` (en `/configuracion`):
+`app/components/ciclo-configurador/paso-evaluacion.tsx` (paso 6 del
+configurador, en `/configuracion`):
 
 - Crear ciclo (nombre + rango opcional).
 - Activar/desactivar ciclo (históricos conservados).
@@ -95,7 +96,7 @@ manda el ciclo seleccionado por el directivo (nada de constantes hardcodeadas).
 | `lib/escolar/tables.ts` / `tablas-supabase.ts` | Constante + exclusión de descubrimiento |
 | `lib/escolar/ciclo/evaluaciones.ts` | Tipos, validación, resolución pura y repositorio |
 | `app/actions/evaluaciones.ts` | Server Actions (solo directivo) |
-| `app/components/ciclo-evaluaciones-admin.tsx` | Panel directivo |
+| `app/components/ciclo-configurador/paso-evaluacion.tsx` | Paso 6 del configurador |
 | `lib/escolar/horario/horario-importar.ts` | Detección/validación del ciclo del archivo |
 
 | `scripts/test-evaluaciones.mjs` | Pruebas puras (30 casos) |
@@ -118,8 +119,9 @@ es estructural y se resolvió de forma GENERAL.
   - `clonarContextoAcademico` → crea en el DESTINO los grupos faltantes y
     vincula las materias del ORIGEN por `materia_id` (nunca copia carreras ni
     materias; nunca borra históricos; re-ejecutar no duplica).
-- Actions `app/actions/contexto-ciclo.ts` (solo directivo) y panel
-  `app/components/contexto-academico-panel.tsx` en `/configuracion`.
+- Actions `app/actions/contexto-ciclo.ts` (solo directivo) y paso 2 del
+  configurador, `app/components/ciclo-configurador/paso-academico.tsx`,
+  en `/configuracion`.
 
 **Flujo resultante:** crear/configurar ciclo → copiar grupos+materias desde un
 ciclo existente → importar horario validando contra ese contexto.

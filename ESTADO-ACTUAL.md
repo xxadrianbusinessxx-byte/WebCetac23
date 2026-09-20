@@ -118,6 +118,11 @@ mitad mecánica de `ORDEN.md` —capas, nombres, scripts y raíz— y existe por
 reglas eran prosa en un repo que tocan dos agentes de IA. Correrlo dice en qué estado
 está cada regla; el histórico de lo que cerró, en `MAPA-DEL-SISTEMA.md` §2b.
 
+Desde el 2026-09-19 el CI también vigila **la documentación**, no solo el código:
+`scripts/verificar-docs.mjs` falla si un documento del presente cita un archivo
+retirado o si la lectura de arranque pasa de su techo de tokens. Misma razón que
+las otras dos verificaciones: una regla que nada comprueba se degrada sola.
+
 **Cómo se llegó hasta aquí → `docs/historial/BITACORA-2026-09.md`.**
 
 ## 8. Cómo se valida un cambio

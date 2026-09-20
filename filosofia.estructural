@@ -5,12 +5,20 @@
              modificarse el proyecto. Referencia de diseño para cualquier
              cambio futuro, sin importar el módulo.
   Relación con otros documentos (cada uno tiene una función distinta):
-    · contexto.feliz            → contexto FUNCIONAL actual (qué está hecho).
-    · docs/OPTIMIZACION_*.md    → decisiones, optimizaciones, historial técnico
-                                  y criterios de rendimiento.
+    · AGENTS.md                 → punto de entrada y orden de autoridad. Coloca
+                                  ESTE archivo en la autoridad #2.
+    · ESTADO-ACTUAL.md          → contexto FUNCIONAL actual (qué es verdad hoy).
+    · docs/00-INDICE.md         → qué leer y qué NO leer, según la tarea.
+    · docs/normativo/ORDEN.md   → DÓNDE va cada cosa (rutas, capas, nombres).
+    · docs/normativo/
+        REGLAS_NO_HACER.md      → R1-R8: lo que ya rompió el sistema.
     · filosofia.estructural     → CÓMO debe construirse/modificarse (este archivo).
     · criterios.prompts         → CÓMO deben diseñarse los prompts de
                                   implementación (agrupación y contratos).
+    · docs/historial/           → el pasado. Incluye `contexto.feliz.md` y
+                                  `OPTIMIZACION_RENDIMIENTO_400_500.md`, que
+                                  fueron ciertos el día que se escribieron y NO
+                                  describen el presente.
 
   Este documento NO describe una funcionalidad concreta: describe las reglas de
   construcción que deben respetarse en TODOS los módulos. Si un cambio entra en
@@ -21,6 +29,7 @@
 ================================================================================
 1. PRINCIPIO CENTRAL — ARQUITECTURA MODULAR
 ================================================================================
+INVARIANTE: Un bloque se reemplaza, desactiva o evoluciona sin obligar a tocar código no relacionado.
 
 WebCetac23 utiliza una arquitectura MODULAR y de MÓDULOS REEMPLAZABLES.
 
@@ -57,6 +66,7 @@ dogmática que justifique sobreingeniería.
 ================================================================================
 2. MODULARIDAD
 ================================================================================
+INVARIANTE: Un módulo tiene fuente de datos propia, dependencias explícitas y contrato de salida estable.
 
 Cada funcionalidad importante debe tener límites claros y una responsabilidad
 definida. Un módulo debería poder:
@@ -83,6 +93,7 @@ tutores, asistencias, justificaciones, documentos, chat/comentarios, foto.
 ================================================================================
 3. BAJO ACOPLAMIENTO
 ================================================================================
+INVARIANTE: Un módulo no lee datos de otro para adivinar información que ya tiene una fuente oficial.
 
 Evitar dependencias cruzadas innecesarias entre módulos.
 
@@ -122,6 +133,7 @@ Reglas prácticas de acoplamiento:
 ================================================================================
 4. FUENTE ÚNICA DE VERDAD
 ================================================================================
+INVARIANTE: Ningún módulo crea una segunda fuente «porque es más fácil» ni inventa datos de otro módulo.
 
 Cada tipo de información debe tener UNA fuente oficial. Un módulo no debe
 crear una segunda fuente de verdad "porque es más fácil", ni inventar datos
@@ -159,6 +171,7 @@ Consecuencias:
 ================================================================================
 5. SEPARACIÓN ENTRE DATOS ACADÉMICOS Y DATOS PERSONALES
 ================================================================================
+INVARIANTE: La identidad académica se obtiene exclusivamente del catálogo: nunca de ETIQUETAS PERSONALES.
 
 Esta regla es especialmente importante en WebCetac23.
 
@@ -198,6 +211,7 @@ consumidores.
 ================================================================================
 6. SEPARACIÓN ENTRE CAMPOS DEFINIDOS Y ETIQUETAS DINÁMICAS
 ================================================================================
+INVARIANTE: Un campo con significado fijo vive en los datos personales, nunca como etiqueta.
 
 Los campos estructurados del alumno son DIFERENTES de las etiquetas
 personalizables. NO deben mezclarse los dos modelos para evitar crear una
@@ -230,6 +244,7 @@ Reglas:
 ================================================================================
 7. SEGURIDAD POR SERVIDOR
 ================================================================================
+INVARIANTE: Ocultar un botón no es autorización: toda escritura valida sesión, rol y alumno en el servidor.
 
 Ocultar un botón NO es autorización. La UI solamente REPRESENTA los permisos;
 la seguridad se valida SIEMPRE en el servidor.
@@ -260,6 +275,7 @@ escritura.
 ================================================================================
 8. CONTRATOS ENTRE MÓDULOS
 ================================================================================
+INVARIANTE: La UI no accede a detalles internos de otro módulo: llama Server Actions, dominio o RPC.
 
 Los módulos se comunican mediante funciones/servicios claramente definidos
 (Server Actions, funciones de dominio en lib/, RPC), NO accediendo la UI a los
@@ -278,6 +294,7 @@ Reglas:
 ================================================================================
 9. MIGRACIONES SEGURAS
 ================================================================================
+INVARIANTE: Toda migración es idempotente y no borra el legacy en el mismo paso: primero se verifica.
 
 No eliminar estructuras legacy inmediatamente. Proceso obligatorio:
 
@@ -307,6 +324,7 @@ Reglas:
 ================================================================================
 10. COMPATIBILIDAD (CAMBIOS ADITIVOS)
 ================================================================================
+INVARIANTE: Se añaden claves antes que renombrarlas; si un contrato cambia, migran sus consumidores.
 
 Cuando sea posible, los cambios deben ser ADITIVOS: no romper contratos
 existentes sin necesidad.
@@ -331,6 +349,7 @@ Reglas:
 ================================================================================
 11. RENDIMIENTO
 ================================================================================
+INVARIANTE: Antes de crear una consulta se revisa la existente, y se agrupa en lote, nunca en bucles 1×N.
 
 La modularidad no debe generar N+1 queries ni duplicar consultas existentes.
 
@@ -349,6 +368,7 @@ Reglas:
 ================================================================================
 12. IMPORTACIONES
 ================================================================================
+INVARIANTE: La importación reutiliza lectura y mapeo, y valida todo antes de escribir.
 
 Los importadores de archivos (CSV/Excel) deben separar las fases:
 
@@ -380,6 +400,7 @@ Reglas:
 ================================================================================
 13. DESACTIVACIÓN DE MÓDULOS
 ================================================================================
+INVARIANTE: Un flag de desactivación no reemplaza la autorización: si el módulo escribe, la action valida.
 
 Siempre que sea razonable, un módulo debe poder desactivarse mediante
 configuración / feature flag SIN eliminar físicamente todo su código.
@@ -402,6 +423,7 @@ escribe, las Server Actions siguen validando sesión/rol/relación.
 ================================================================================
 14. LEGACY
 ================================================================================
+INVARIANTE: El código viejo se marca @deprecated con su alternativa; un fallback de identidad no se amplía.
 
 El código legacy no debe seguir siendo una dependencia silenciosa.
 
@@ -419,6 +441,7 @@ Reglas:
 ================================================================================
 15. NOTAS DE APLICACIÓN
 ================================================================================
+INVARIANTE: Los documentos no se duplican entre sí: el estado lo dice ESTADO-ACTUAL.md, no este archivo.
 
     - Este documento es la referencia para revisar diseños nuevos: antes de
       implementar, verificar contra §2 (modularidad), §3 (acoplamiento),
@@ -426,16 +449,17 @@ Reglas:
     - La FORMA de trabajo (cómo agrupar y redactar prompts, análisis previo,
       validación final) se define en criterios.prompts; este documento define
       las REGLAS arquitectónicas.
-    - Los documentos no se duplican entre sí: contexto.feliz describe el
-      estado, OPTIMIZACION describe decisiones de rendimiento, este archivo
-      define las reglas permanentes, y criterios.prompts define la forma de
-      trabajo. Si una decisión cambia de estado, se actualiza contexto.feliz;
-      si cambia una regla permanente, se actualiza este documento con
-      justificación.
+    - Los documentos no se duplican entre sí: ESTADO-ACTUAL.md describe el
+      estado, este archivo define las reglas permanentes, y criterios.prompts
+      define la forma de trabajo. Si una decisión cambia de estado, se
+      actualiza ESTADO-ACTUAL.md; si cambia una regla permanente, se actualiza
+      este documento con justificación.
 
 ===============================================================================
 16. OPTIMIZACIÓN POR CAPAS
 ===============================================================================
+INVARIANTE: No se optimiza una capa si el costo es de otra: primero se mide la capa responsable.
+
 
 > No optimizar una capa si el costo del problema pertenece a otra capa.
 

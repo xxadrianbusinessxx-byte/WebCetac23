@@ -238,7 +238,7 @@ comprobar("C9", `ningún archivo de app/ o lib/ supera ${LIMITE_LINEAS} líneas`
 // ORDEN.md §4: «Todo script nuevo: … y una fila en scripts/README.md. Sin eso,
 // no está terminado». TRINQUETE: hoy faltan 35, casi todos anteriores a la
 // regla. Lo que importa es que no crezca.
-comprobar("C10", "todo scripts/*.mjs tiene fila en scripts/README.md", 35, () => {
+comprobar("C10", "todo scripts/*.mjs tiene fila en scripts/README.md", 34, () => {
   const readme = fs.existsSync(path.join(root, "scripts/README.md")) ? leer("scripts/README.md") : "";
   return listar("scripts", (f) => /^scripts\/[^/]+\.mjs$/.test(f))
     .map((f) => path.basename(f))

@@ -15,12 +15,16 @@
     "gen:tablas": "node scripts/gen-tablas-desde-supabase.mjs",
     "test:compilar": "node scripts/compilar-suites.mjs",
     "gen:matriz": "node scripts/gen-matriz-permisos.mjs",
+    "gen:invariantes": "node scripts/gen-invariantes.mjs",
+    "gen:rumbo": "node scripts/gen-rumbo.mjs",
     "test:suites": "node scripts/correr-todas-las-suites.mjs",
     "test:permisos": "node scripts/test-permisos.mjs && node scripts/test-auditoria-permisos.mjs",
-    "test:ci": "node scripts/correr-todas-las-suites.mjs && npm run verificar:estado",
+    "test:ci": "node scripts/correr-todas-las-suites.mjs && node scripts/gen-invariantes.mjs --check && node scripts/gen-rumbo.mjs --check && npm run verificar:estado && npm run verificar:docs",
     "verificar:estado": "node scripts/verificar-estado-actual.mjs",
+    "verificar:docs": "node scripts/verificar-docs.mjs",
     "panel": "node scripts/gen-estado.mjs && node scripts/gen-panel.mjs",
-    "panel:json": "node scripts/gen-estado.mjs --sin-historico --salida=.panel/estado.json"
+    "panel:json": "node scripts/gen-estado.mjs --sin-historico --salida=.panel/estado.json",
+    "informe": "node scripts/gen-informe.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
