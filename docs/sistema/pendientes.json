@@ -158,6 +158,17 @@
       "doc": "docs/sistema/MATRIZ-UX.md",
       "revisado": "2026-09-19",
       "estado": "abierto"
+    },
+    {
+      "id": "tipos-db-sin-generar",
+      "titulo": "database.types.ts no se ha podido generar: falta Docker o un token de la CLI",
+      "detalle": "El PROMPT J dejó el generador (scripts/gen-tipos-db.mjs, con --check y la versión de la CLI clavada) pero NO el archivo. `supabase gen types --db-url` exige Docker en las tres versiones probadas (2.117.0, 2.39.2, 1.207.9: arranca la imagen postgres-meta) y esta máquina no tiene demonio de Docker; `--project-id` y `--linked` exigen una sesión de la CLI (access token) que tampoco existe. Es una decisión de una persona: instalar Docker Desktop, o emitir un token y exportar SUPABASE_ACCESS_TOKEN. Después: correr el generador y, ANTES de enchufar el genérico al cliente, comprobar `npx tsc --noEmit` y el tamaño del archivo (C9: ningún archivo de app/ o lib/ pasa de 1000 líneas, y un database.types.ts real lo supera, así que necesita su excepción decidida). NO se generó desde el OpenAPI de PostgREST a propósito: es una fuente derivada y con pérdida (no distingue uuid de text, aproxima la nulabilidad) y habría producido una lista de errores de tsc en parte ficticia, que es justo el artefacto que ese prompt venía a medir.",
+      "riesgo": "medio",
+      "quien": "persona — instalar Docker o emitir un token; el resto lo hace un agente",
+      "verificar": "node scripts/gen-tipos-db.mjs --check",
+      "doc": "docs/historial/informes/INFORME-PROMPT-J-TIPOS-DESDE-LA-BASE.md",
+      "revisado": "2026-09-20",
+      "estado": "abierto"
     }
   ]
 }

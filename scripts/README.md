@@ -33,12 +33,27 @@ suite falla con `Cannot find module`.
 La salida compilada **espeja la estructura de `lib/escolar/`** (`.tmp-x/ciclo/…`), porque
 los imports internos de esos módulos son relativos.
 
+**Una suite ya no necesita este paso:** `test-fechas.mjs` importa
+`../lib/escolar/fechas.ts` y Node lo ejecuta solo (type stripping, Node ≥ 22.6). Es el
+piloto del PROMPT H, y es la única que puede hoy: su módulo no tiene imports relativos.
+Las otras 38 lo intentaron y no: el resolver ESM de Node exige la **extensión exacta**
+(`.ts`) en cada import relativo, y `lib/escolar/` escribe 142 imports sin extensión en 59
+archivos. Medición completa y las dos salidas posibles, en
+`docs/historial/informes/INFORME-PROMPT-H-TS-NATIVO.md`.
+
+**Ojo con correr dos tandas de suites a la vez.** Cuatro suites que se transpilan solas
+(`test-materia-identidad`, `test-materia-avance`, `test-columnas-calificaciones`,
+`test-mapeo-columnas-materia`) comparten la MISMA carpeta `scripts/.tmp-tests/`: cada una
+la vacía al arrancar. Dos procesos en paralelo se pisan y dan fallos falsos y distintos en
+cada corrida. En serie, 39/39.
+
 ## Clasificación
 
 | Etiqueta | Significado |
 |---|---|
 | `LEE` | Solo `GET`. Ejecutable sin autorización. |
 | `LEE(fs)` | Solo lee archivos del repo. No toca la base. Ejecutable sin autorización. |
+| `LEE(red)` | Solo lee, pero **por la red**: necesita credenciales de `.env.local`. No escribe en la base ni en el repo salvo su archivo de salida. **No es `LEE(fs)`** aunque empiece por `gen-`: sin red no corre. |
 | `ESCRIBE --apply` | Por defecto hace DRY-RUN e imprime el plan. Solo escribe con `--apply`. Requiere autorización antes del `--apply`. |
 | `ESCRIBE` | Escribe en cuanto arranca, sin guarda. |
 | `DESTRUCTIVO` | Borra filas. |
@@ -67,6 +82,7 @@ Correr las que apliquen **antes y después** de cualquier cambio de dominio.
 | `test-traspaso-materia.mjs` | `lib/escolar/materia/traspaso-materia.ts` |
 | `test-materia-identidad.mjs` · `test-materia-avance.mjs` · `test-columnas-calificaciones.mjs` | identidad y columnas de materia |
 | `test-importar-etiquetas.mjs` · `test-inscripciones-f3.mjs` · `test-ciclo-f3-pipeline.mjs` | importación y pipeline de ciclo |
+| `test-validacion.mjs` | `lib/validacion/esquemas-puro.ts` y `leer-form-data.ts` (PROMPT K): 70 comprobaciones de que la entrada se acepta o se rechaza con el mensaje de siempre, y de que el helper devuelve la MISMA forma que las actions (`{ok, datos}` / `{ok, error}`). Importa el FUENTE `.ts` directo: son módulos puros que solo importan `valibot` |
 | `test-auditoria-ciclo-f0..f8.mjs` | detectores de regresión por fase (lectura de código estático) |
 | `test-auditoria-permisos.mjs` | (PROMPT-2/T5) detector de regresión de la centralización: ninguna Server Action pregunta por rol, toda action llama a `exigir()` (salvo las públicas de `portada.ver` y la delegación verificada de etiquetas), capacidades ⇄ §5, y el rol nunca se lee de FormData/parámetros |
 | `test-rediseno-oceano.mjs` | (rediseño Océano) los módulos puros que preparan las fases 1-7: `materia/facetas-materia` (selector de ámbito + buscador), `alumno/grupos-campos-personales` (reparto personal/médico, verifica que ningún campo de `CAMPOS_PERSONALES_PRIMARIOS` quede sin apartado), `asistencia/asistencia-tabular` (resumen por parcial → forma de boleta), `navegacion/mapa-navegacion` (tres niveles × cinco roles, incluido que el técnico no vea contenido académico ni apagado), `navegacion/notificaciones-alumno` (comentarios + justificaciones en una lista ordenada) y `buscar-en-filas` (qué fila es de qué alumno: el alcance del tutor). **180 verificaciones**. Transpila en `.tmp-oceano`; no toca la base |
@@ -76,7 +92,7 @@ Correr las que apliquen **antes y después** de cualquier cambio de dominio.
 | `gen-contexto.mjs` | (`LEE(fs)`, aunque es `gen-`) arma el **contexto acotado** de un trabajo: se le pasan los archivos que se van a tocar y devuelve la capa de cada uno y qué exige, las suites que lo cubren y los términos del `GLOSARIO.md` que de verdad aparecen. **Nada se reescribe dentro del script** — todo se lee de su fuente, porque copiarlo crearía la segunda fuente que R6 prohíbe. Emite un documento distinto por agente, como manda `AGENTS.md` §Reparto: `--agente=cline` (por defecto) un **paquete de instrucciones** —presupuesto cerrado de `docs/00-INDICE.md`, qué no tocar y el CONTRATO §1—, y `--agente=claude` un **brief de diagnóstico** —qué está ya medido y por qué script, qué es deuda declarada y no un bug, qué pendientes tocan esos archivos, qué queda fuera de la campaña de `RUMBO.md` y, al final, los puntos ciegos: dónde no hay instrumento—. `--tareas` lista las tareas; `--salida=X.md` escribe a archivo |
 | `test-documentos-permisos.mjs` | `lib/escolar/documentos-permisos-puro.ts` — los tres predicados de nivel (`puedeVer`/`puedeSubir`/`puedeEliminar`) con la tabla COMPLETA incluido `null`, la jerarquía `eliminar ⊃ subir ⊃ ver` por sus dos caminos (predicados y `nivelMayor`), y `rutaCarpeta`. Creada en el PROMPT B4: esas tres funciones deciden qué botones ve el usuario en Documentos y **no las cubría ningún test**, porque vivían dentro de un módulo con 14 funciones de I/O. Lleva documentado un hallazgo que NO se arregló ahí: `rutaCarpeta` entra en bucle infinito con un ciclo en `parent_id` |
 | `test-uis-pendientes.mjs` | los módulos puros de las UIs pendientes (2026-09-17): `administracion/flujos-puro` —máquinas de estado de citas y constancias, gravedades y `sanearTexto`—, `materia/actividades-puro` —el estado ACTIVA/VENCIDA **derivado** de la fecha límite, no guardado, más el reparto de pesos y el orden de presentación— y el agrupado en hilos de `mensajes-internos`. **62 verificaciones.** Las que más valen son las que prohíben un salto: una cita `pendiente` no puede pasar a `finalizada` sin aceptarse, y una constancia no se entrega sin aprobarse |
-| `test-orden.mjs` | **no prueba un módulo: prueba el REPO.** La mitad mecánica de `docs/normativo/ORDEN.md` — capas (`lib/escolar` sin alias `@/`, `lib/` sin importar `app/`, cliente sin `lib/supabase`, action sin llamar a otra action, `-puro` sin I/O), scripts (`test-`/`diag-`/`probe-` que no escriben) y raíz cerrada. Diez reglas: siete **duras** (umbral 0, se cumplen hoy) y tres **trinquete** (deuda declarada con prompt asignado; fallan solo si el número sube). Neutraliza comentarios y literales de cadena antes de medir, porque el grep ingenuo daba falsos positivos reales. `--detalle` lista cada archivo |
+| `test-orden.mjs` | **no prueba un módulo: prueba el REPO.** La mitad mecánica de `docs/normativo/ORDEN.md` — capas (`lib/escolar` sin alias `@/`, `lib/` sin importar `app/`, cliente sin `lib/supabase`, action sin llamar a otra action, `-puro` sin I/O), scripts (`test-`/`diag-`/`probe-` que no escriben), raíz cerrada, tamaño de archivo, **composición de UI** (C11: ninguna pieza de presentación definida a mano en dos archivos — hoy 21 copias sobrantes, el plan que las baja es `MATRIZ-UX` §7 F-UX1) y **entrada validada** (C12: ninguna action lee `formData` a mano). Doce reglas: diez **duras** (umbral 0, se cumplen hoy) y dos **trinquete** (deuda declarada con prompt asignado; fallan solo si el número sube). Neutraliza comentarios y literales de cadena antes de medir, porque el grep ingenuo daba falsos positivos reales. `--detalle` lista cada archivo |
 | `test-permisos.mjs` | (PROMPT-2/T1/T2 + PROMPT-3 + PROMPT-4) pruebas puras de `lib/auth/permisos.ts`: transpila los módulos puros de `lib/auth`, valida `puede()` con los **5 roles** y compara el código contra la §4 completa del MATRIZ («Código ⇄ §4 (los 5 roles)», regla: la matriz implementada coincide con el documento) |
 | `test-reactivacion-inscripciones.mjs` | (PROMPT-4/T1) suite pura (16 checks) que transpila `ciclo-estado-puro.ts`: la fila marcada con `decision_manual` jamás se reactiva/desactiva; sin marcas se conserva el comportamiento previo |
 | `test-borrar-paso.mjs` | (PROMPT-4/T4) suite pura (10 checks) que transpila `borrar-paso-puro.ts` (`calcularBloqueosPaso`): académico con inscripciones bloquea, horario con actividad bloquea, roster del OPERATIVO bloquea, BORRADOR permite, evaluaciones nunca bloquea |
@@ -121,6 +137,7 @@ medición en vez de recalcularla.
 | `gen-invariantes.mjs` | `LEE(fs)`. Escribe `docs/normativo/INVARIANTES.md` con las 16 líneas `INVARIANTE:` del ensayo (`filosofia.estructural`), que sigue siendo la fuente. `npm run gen:invariantes`; con `--check` no escribe y sale 1 si hay desfase. Si una sección no declara invariante, para y lo reporta sin escribir. |
 | `gen-rumbo.mjs` | `LEE(fs)`. Reescribe **solo** el bloque GENERADO de `RUMBO.md`: últimos 10 commits (`git log`), pendientes abiertos de riesgo alto (`docs/sistema/pendientes.json`) y reglas de `test-orden --json` que no están en 0. `npm run gen:rumbo`; con `--check` no escribe y sale 1 si hay desfase. La cabecera y «Fuera de alcance ahora» se editan a mano. |
 | `gen-seccion4.mjs` | (PROMPT-3) Regenera la **tabla §4** de `docs/sistema/MATRIZ-PERMISOS.md` desde `lib/auth/permisos.ts` (la matriz implementada), para que documento y código no diverjan. `node scripts/gen-seccion4.mjs`; no lleva `--check`. |
+| `gen-tipos-db.mjs` | (**PROMPT J**) `LEE(red)` — el único generador que **no** es `LEE(fs)`: lee el esquema REAL por la red y escribe `lib/supabase/database.types.ts`, con la cabecera «no editar a mano» dentro. `node scripts/gen-tipos-db.mjs` lo regenera; `--check` no escribe y sale 1 si el archivo del repo dejó de coincidir con la base — mismo contrato que `gen-matriz-permisos --check`. La versión de la CLI va **clavada** en el script porque `--check` compara su salida. **Hoy no se puede ejecutar en esta máquina**: `supabase gen types --db-url` exige Docker (arranca `postgres-meta`) y `--project-id` exige una sesión de la CLI. Ver `docs/historial/informes/INFORME-PROMPT-J-TIPOS-DESDE-LA-BASE.md`. |
 | `migrar-crear-tecnico.mjs` | `ESCRIBE --apply` (PROMPT-3/T1). Crea la fila del rol **técnico** en `PROFESORES` (`Permisos='Tecnico'`, `debe_cambiar_credenciales=true`). Idempotente: si ya existe, no duplica. Dry-run por defecto. Autorizado 2026-09-06. |
 | `probe-login-tecnico.mjs` | (PROMPT-3) Verifica el login del rol técnico contra la BD (rol, `profesorId`, flag de cambio forzado). |
 | `diag-asignaciones-profesor.mjs` | (PROMPT-3/T3·A2) Estado de `asignaciones_profesor`: DDL C4.11 aplicado, filas totales y activas. Es el «¿ya se pobló la atribución?». |

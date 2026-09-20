@@ -9,15 +9,15 @@
  *   node scripts/test-fechas.mjs
  */
 
-// Importa el módulo compilado a JS (ver PASO de compilación en el README del
-// script). Para recompilar tras cambios en lib/escolar/fechas.ts:
-//   npx tsc lib/escolar/fechas.ts --outDir scripts/.tmp-fechas \
-//     --module esnext --target es2020 --moduleResolution bundler --skipLibCheck
+// PROMPT H (2026-09-20): Node ejecuta TypeScript nativamente (type stripping),
+// así que la suite importa el FUENTE, no una copia compilada en `scripts/.tmp-*`.
+// Se acabó el "recompila antes de probar o el resultado miente": lo que se prueba
+// es el archivo que se edita. Requiere Node >= 22.6 (el CI fija la versión).
 const {
   normalizarFechaEscolar,
   detectarColumnasFechaAsistencia,
   serialExcelAFechaISO,
-} = await import("./.tmp-fechas/fechas.js");
+} = await import("../lib/escolar/fechas.ts");
 
 
 

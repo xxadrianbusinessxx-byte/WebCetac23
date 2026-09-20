@@ -39,6 +39,8 @@ import {
   rolDesdePermisos,
 } from "@/lib/escolar/catalogo/profesores";
 import { normalizarNombre } from "@/lib/escolar/nombres";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
+import { esquemaSubirDocumento } from "@/lib/validacion/esquemas-puro";
 
 
 
@@ -213,13 +215,9 @@ export async function actionSubirDocumento(
   }
   const sesion = g.sesion;
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona un archivo válido." };
-  }
-  if (archivo.size > DOCUMENTO_MAX_BYTES) {
-    return { ok: false, error: "El archivo supera el límite de 20MB." };
-  }
+  const entrada = leerFormData(esquemaSubirDocumento(DOCUMENTO_MAX_BYTES), formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
+  const archivo = entrada.datos.archivo;
 
   const supabase = await createClient();
   const lectura = await clienteLecturaEscolar(supabase);

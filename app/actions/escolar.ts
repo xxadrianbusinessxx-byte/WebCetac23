@@ -82,6 +82,12 @@ import {
   subirFotoPerfilAlumno,
 } from "@/lib/escolar/alumno/foto-perfil";
 import { createClient } from "@/lib/supabase/server";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
+import {
+  esquemaArchivoMateria,
+  esquemaFotoPerfil,
+  esquemaRoster,
+} from "@/lib/validacion/esquemas-puro";
 import { clienteLecturaEscolar } from "@/lib/supabase/service";
 import {
   resolverAccesoAlumno,
@@ -465,10 +471,8 @@ export async function actionSubirMateriaExcel(
     return { ok: false, error: "Selecciona una materia en la lista." };
   }
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona un archivo válido." };
-  }
+  const entrada = leerFormData(esquemaArchivoMateria, formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
 
   const supabase = await createClient();
   // C4.18 — no se permite subir calificaciones de materias desactivadas o de
@@ -477,7 +481,7 @@ export async function actionSubirMateriaExcel(
   if (motivo) {
     return { ok: false, error: `No se puede subir: ${motivo}.` };
   }
-  return reemplazarContenidoMateriaDesdeArchivo(supabase, nombreMateria, archivo);
+  return reemplazarContenidoMateriaDesdeArchivo(supabase, nombreMateria, entrada.datos.archivo);
 }
 
 /**
@@ -513,10 +517,8 @@ export async function actionActualizarMateriaExcel(
     return { ok: false, error: "Selecciona una materia en la lista." };
   }
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona un archivo válido." };
-  }
+  const entrada = leerFormData(esquemaArchivoMateria, formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
 
   const supabase = await createClient();
   // C4.18 — tampoco se permite «actualizar/agregar avance» en materias
@@ -525,7 +527,7 @@ export async function actionActualizarMateriaExcel(
   if (motivo) {
     return { ok: false, error: `No se puede actualizar: ${motivo}.` };
   }
-  return actualizarMateriaDesdeArchivo(supabase, nombreMateria, archivo);
+  return actualizarMateriaDesdeArchivo(supabase, nombreMateria, entrada.datos.archivo);
 }
 
 export async function actionSubirRegistroExcel(
@@ -544,13 +546,11 @@ export async function actionSubirRegistroExcel(
     return { ok: false, error: "Selecciona un registro de grupo en la lista." };
   }
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona un archivo válido." };
-  }
+  const entrada = leerFormData(esquemaArchivoMateria, formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
 
   const supabase = await createClient();
-  return reemplazarContenidoMateriaDesdeArchivo(supabase, nombreRegistro, archivo);
+  return reemplazarContenidoMateriaDesdeArchivo(supabase, nombreRegistro, entrada.datos.archivo);
 }
 
 export async function actionObtenerVistaRegistro(
@@ -769,13 +769,9 @@ export async function actionSubirFotoPerfil(
   const sesion = g.sesion;
   const supabase = await createClient();
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona una imagen." };
-  }
-  if (!archivo.type.startsWith("image/")) {
-    return { ok: false, error: "Solo se permiten imágenes." };
-  }
+  const entrada = leerFormData(esquemaFotoPerfil, formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
+  const archivo = entrada.datos.archivo;
 
   // FASE 2 — autorización de ALCANCE (filosofia.estructural §7). La foto es
   // un dato personal: solo el TUTOR (con relación) o el DIRECTIVO pueden
@@ -816,13 +812,11 @@ export async function actionSubirEtiquetasStatus(
     };
   }
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona un archivo válido." };
-  }
+  const entrada = leerFormData(esquemaArchivoMateria, formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
 
   const supabase = await createClient();
-  return reemplazarContenidoStatusDesdeArchivo(supabase, archivo);
+  return reemplazarContenidoStatusDesdeArchivo(supabase, entrada.datos.archivo);
 }
 
 /**
@@ -854,18 +848,18 @@ export async function actionSincronizarAlumnosDesdeArchivo(
     };
   }
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona un archivo válido." };
-  }
+  // El archivo y el `mapeo` se leen por el esquema; el CONTENIDO del mapeo lo sigue
+  // validando `mapeoRosterValido`, que es la fuente de esa regla.
+  const entrada = leerFormData(esquemaRoster, formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
 
   // Mapeo de columnas (etapa visual). Si el usuario envió un mapeo explícito,
   // debe ser válido; si es inválido se devuelve error (NO se sustituye
   // silenciosamente por detección automática). Solo se usa detección
   // automática cuando el mapeo NO fue enviado.
   let mapeo: MapeoRoster | undefined;
-  const mapeoRaw = formData.get("mapeo");
-  if (typeof mapeoRaw === "string" && mapeoRaw.trim()) {
+  const mapeoRaw = entrada.datos.mapeo;
+  if (mapeoRaw.trim()) {
     let parsed: unknown;
     try {
       parsed = JSON.parse(mapeoRaw);
@@ -885,7 +879,7 @@ export async function actionSincronizarAlumnosDesdeArchivo(
   }
 
   const supabase = await createClient();
-  return sincronizarAlumnosDesdeArchivo(supabase, archivo, mapeo);
+  return sincronizarAlumnosDesdeArchivo(supabase, entrada.datos.archivo, mapeo);
 }
 
 /**
@@ -916,15 +910,13 @@ export async function actionPrevisualizarSincronizacionAlumnos(
     };
   }
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona un archivo válido." };
-  }
+  const entrada = leerFormData(esquemaRoster, formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
 
   // Mapeo de columnas (etapa visual). Si se envía explícito debe ser válido.
   let mapeo: MapeoRoster | undefined;
-  const mapeoRaw = formData.get("mapeo");
-  if (typeof mapeoRaw === "string" && mapeoRaw.trim()) {
+  const mapeoRaw = entrada.datos.mapeo;
+  if (mapeoRaw.trim()) {
     let parsed: unknown;
     try {
       parsed = JSON.parse(mapeoRaw);
@@ -944,7 +936,7 @@ export async function actionPrevisualizarSincronizacionAlumnos(
   }
 
   const supabase = await createClient();
-  return previsualizarSincronizacionAlumnos(supabase, archivo, mapeo);
+  return previsualizarSincronizacionAlumnos(supabase, entrada.datos.archivo, mapeo);
 }
 
 /* ===========================================================================

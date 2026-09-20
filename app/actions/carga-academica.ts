@@ -25,6 +25,8 @@ import {
   type ResultadoAplicarCarga,
 } from "@/lib/escolar/catalogo/carga-academica";
 import { mapeoRosterValido, type MapeoRoster } from "@/lib/escolar/materia/mapeo-columnas";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
+import { esquemaCargaAcademica } from "@/lib/validacion/esquemas-puro";
 
 /**
  * Los tipos del catálogo de reconocimiento viven en la capa de dominio
@@ -33,14 +35,11 @@ import { mapeoRosterValido, type MapeoRoster } from "@/lib/escolar/materia/mapeo
  */
 export type { CatalogoReconocimiento, GrupoReconocimiento };
 
-function extraerMapeoOError(
-  formData: FormData,
-): { mapeo?: MapeoRoster; error?: string } {
-  const raw = formData.get("mapeo");
-  if (typeof raw !== "string" || !raw.trim()) return {};
+function extraerMapeoOError(mapeoRaw: string): { mapeo?: MapeoRoster; error?: string } {
+  if (!mapeoRaw.trim()) return {};
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(mapeoRaw);
   } catch {
     return { error: "El mapeo de columnas enviado no es válido." };
   }
@@ -50,22 +49,19 @@ function extraerMapeoOError(
   return { mapeo: parsed as MapeoRoster };
 }
 
-function extraerContexto(formData: FormData): ContextoAcademico | undefined {
-  const periodoId = String(formData.get("periodoId") ?? "").trim();
-  const periodoNombre = String(formData.get("periodoNombre") ?? "").trim();
-  const grado = String(formData.get("grado") ?? "").trim();
-  const grupo = String(formData.get("grupo") ?? "").trim();
-  const carrera = String(formData.get("carrera") ?? "").trim();
+function contextoDe(datos: {
+  periodoId: string;
+  periodoNombre: string;
+  grado: string;
+  grupo: string;
+  carrera: string;
+}): ContextoAcademico | undefined {
+  const { periodoId, periodoNombre, grado, grupo, carrera } = datos;
   // F3: `periodoId` presente → flujo nuevo (destino por id). `periodoId`
   // ausente → flujo legacy (destino por periodoNombre/ciclo operativo).
   // NO se convierte `periodoId → periodoNombre → ciclo operativo`.
   if (!periodoId && !periodoNombre) return undefined;
   return { periodoNombre, periodoId: periodoId || undefined, grado, grupo, carrera };
-}
-
-function archivoDeFormData(formData: FormData): File | null {
-  const archivo = formData.get("archivo");
-  return archivo instanceof File && archivo.size > 0 ? archivo : null;
 }
 
 function previewError(error: string): PreviewCargaAcademica {
@@ -115,15 +111,13 @@ export async function actionPrevisualizarCargaAcademica(
   if (!g.ok) {
     return previewError("Solo directivos pueden previsualizar la carga académica.");
   }
-  const archivo = archivoDeFormData(formData);
-  if (!archivo) {
-    return previewError("Selecciona un archivo válido.");
-  }
-  const { mapeo, error } = extraerMapeoOError(formData);
+  const entrada = leerFormData(esquemaCargaAcademica, formData);
+  if (!entrada.ok) return previewError(entrada.error);
+  const { mapeo, error } = extraerMapeoOError(entrada.datos.mapeo);
   if (error) return previewError(error);
-  const contexto = extraerContexto(formData);
+  const contexto = contextoDe(entrada.datos);
   const supabase = await createClient();
-  return previsualizarCargaAcademica(supabase, archivo, { mapeo, contexto });
+  return previsualizarCargaAcademica(supabase, entrada.datos.archivo, { mapeo, contexto });
 }
 
 /** Aplica la carga (requiere confirmación implícita por rol y preview limpia). Rol: directivo. */
@@ -134,15 +128,13 @@ export async function actionAplicarCargaAcademica(
   if (!g.ok) {
     return applyError("Solo directivos pueden aplicar la carga académica.");
   }
-  const archivo = archivoDeFormData(formData);
-  if (!archivo) {
-    return applyError("Selecciona un archivo válido.");
-  }
-  const { mapeo, error } = extraerMapeoOError(formData);
+  const entrada = leerFormData(esquemaCargaAcademica, formData);
+  if (!entrada.ok) return applyError(entrada.error);
+  const { mapeo, error } = extraerMapeoOError(entrada.datos.mapeo);
   if (error) return applyError(error);
-  const contexto = extraerContexto(formData);
+  const contexto = contextoDe(entrada.datos);
   const supabase = await createClient();
-  return aplicarCargaAcademica(supabase, archivo, { mapeo, contexto });
+  return aplicarCargaAcademica(supabase, entrada.datos.archivo, { mapeo, contexto });
 }
 
 /**

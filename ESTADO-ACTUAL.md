@@ -110,13 +110,14 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **39 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **40 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
-**Una de las 39 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
-mitad mecánica de `ORDEN.md` —capas, nombres, scripts y raíz— y existe porque esas
-reglas eran prosa en un repo que tocan dos agentes de IA. Correrlo dice en qué estado
-está cada regla; el histórico de lo que cerró, en `MAPA-DEL-SISTEMA.md` §2b.
+**Una de las 40 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
+mitad mecánica de `ORDEN.md` —capas, scripts, raíz, tamaño de archivo, composición de
+UI y entrada validada— y existe porque esas reglas eran prosa en un repo que tocan dos
+agentes de IA. Correrlo dice en qué estado está cada regla; el histórico de lo que
+cerró, en `MAPA-DEL-SISTEMA.md` §2b.
 
 Desde el 2026-09-19 el CI también vigila **la documentación**, no solo el código:
 `scripts/verificar-docs.mjs` falla si un documento del presente cita un archivo

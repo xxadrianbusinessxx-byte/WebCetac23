@@ -40,8 +40,12 @@ ok("consumidores externos al wizard existen", recon.includes("actionPrevisualiza
 ok("parser CSV existente reutilizado", /archivoCsvAFilas/.test(recon));
 
 // Identidad actual de la carga (GAP documentado).
+// 2026-09-20 (PROMPT K): la comprobación era `/extraerContexto/` porque esa función
+// leía el FormData a mano. Ahora la entrada se valida con un esquema declarado y la
+// función se llama `contextoDe(datos)` — la RUTA cambia, el invariante no: la carga
+// sigue resolviendo su contexto por `periodoNombre`.
 ok("GAP: la carga resuelve contexto por periodoNombre (no periodoId destino)",
-  /extraerContexto/.test(actCarga) && /periodoNombre/.test(actCarga));
+  /contextoDe|extraerContexto/.test(actCarga) && /periodoNombre/.test(actCarga));
 ok("GAP: wizard PasoAcademico solo clona (no importa Excel)", !/archivo|Excel|FormData/.test(paso) && paso.includes("actionClonarContextoAcademico"));
 ok("PasoAcademico recibe periodoId", /periodoId/.test(paso));
 

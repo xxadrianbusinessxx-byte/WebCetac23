@@ -47,7 +47,7 @@ import path from "node:path";
 const root = path.join(import.meta.dirname, "..");
 const DETALLE = process.argv.includes("--detalle");
 // `--json` existe para que otra herramienta lea el resultado sin re-implementar
-// las diez reglas. Lo consume `gen-panel-repo.mjs`: si el panel las midiera por
+// las once reglas. Lo consume `gen-estado.mjs`: si el panel las midiera por
 // su cuenta habría dos fuentes para la misma verdad (R6), y divergirían.
 const JSON_OUT = process.argv.includes("--json");
 
@@ -245,6 +245,73 @@ comprobar("C10", "todo scripts/*.mjs tiene fila en scripts/README.md", 34, () =>
     .filter((b) => !readme.includes(b))
     .map((b) => ({ archivo: `scripts/${b}`, detalle: "sin fila en README" }));
 }, "deuda histórica: la regla es posterior a casi todos");
+
+// ── C11 · una pieza de presentación se define UNA vez ──────────────────────
+// ORDEN.md §1: un componente visual sin dominio vive en `app/components/ui/` y
+// se IMPORTA; no se vuelve a escribir. Las diez reglas anteriores miden módulos
+// TypeScript; ninguna hablaba de composición de UI, y por eso una píldora
+// idéntica podía estar copiada en siete paneles sin que nada lo dijera.
+//
+// TRINQUETE: hoy hay copias de sobra, y bajarlas es F-UX1 (`MATRIZ-UX` §7). Se
+// cuenta lo que SOBRA —copias menos una por nombre— y no «nombres duplicados»:
+// con nombres, retirar seis de las siete copias de `GreyActionPill` no movería
+// el marcador, y el trabajo real no se vería.
+//
+// Qué es «la misma pieza»: una declaración, exportada o no, cuyo nombre empieza
+// por mayúscula. No es un parser: cubre `function X(`, `const X = (` y
+// `const X: FC... = (`, que es lo que hay en este repo. `app/components/ui/` es
+// el destino, no el problema, y queda fuera; también la cuarentena `_borrador/`.
+// Todo se mide sobre `codigoDesnudo()`: mencionar un nombre en un comentario o
+// en una cadena NO es definir un componente.
+const PIEZA_UI = (f) => /\.tsx$/.test(f) && !f.startsWith("app/components/ui/") && !f.startsWith("app/_borrador/");
+comprobar(
+  "C11",
+  "ningún componente de app/ se define a mano en más de un archivo",
+  21,
+  () => {
+    const porNombre = new Map();
+    for (const f of listar("app", PIEZA_UI)) {
+      const cuerpo = codigoDesnudo(leer(f));
+      const nombres = new Set();
+      for (const m of cuerpo.matchAll(/(?:^|\n)\s*(?:export\s+)?(?:default\s+)?function\s+([A-Z][A-Za-z0-9_]*)\s*[<(]/g)) nombres.add(m[1]);
+      for (const m of cuerpo.matchAll(/(?:^|\n)\s*(?:export\s+)?const\s+([A-Z][A-Za-z0-9_]*)\s*(?::[^=\n]+)?=\s*(?:async\s*)?\(/g)) nombres.add(m[1]);
+      for (const n of nombres) {
+        if (!porNombre.has(n)) porNombre.set(n, []);
+        porNombre.get(n).push(f);
+      }
+    }
+    const sobrantes = [];
+    for (const [nombre, archivos] of [...porNombre].sort()) {
+      if (archivos.length < 2) continue;
+      for (const f of archivos.slice(1)) {
+        sobrantes.push({ archivo: f, detalle: `definición sobrante de ${nombre} (${archivos.length} copias)` });
+      }
+    }
+    return sobrantes;
+  },
+  "docs/sistema/MATRIZ-UX.md §7 (F-UX1) es el plan que las unifica en app/components/ui/",
+);
+
+// ── C12 · la entrada de una action se valida contra un esquema ─────────────
+// ORDEN.md §2: la action empieza por `exigir()` —eso responde «este rol puede hacer
+// esto»— y luego LEE LA ENTRADA. `exigir()` nunca dijo «lo que ha llegado es lo que
+// dice ser»: eso lo declara un esquema de `lib/validacion/`, y hasta el PROMPT K cada
+// action lo hacía a mano o no lo hacía (34 `formData.get()` en 11 archivos, cada uno
+// con su criterio). Y pesa más aquí que en otros repos: las policies de RLS son
+// `USING (true)`, así que no hay una segunda red debajo.
+//
+// DURA, umbral 0: las once actions que leen `FormData` ya pasan por su esquema. Una
+// action nueva que lea el formulario a mano vuelve a fallar aquí, que es exactamente
+// lo que hace falta para que la duodécima no se olvide. Se mide sobre
+// `codigoDesnudo()`: un `formData.get` citado en un comentario no es una lectura.
+comprobar("C12", "ninguna action lee formData a mano: valida contra lib/validacion/", 0, () =>
+  listar("app/actions", ES_TS).flatMap((f) =>
+    [...codigoDesnudo(leer(f)).matchAll(/\bformData\s*\.\s*(get|getAll|entries|has|keys|values)\s*\(/g)].map((m) => ({
+      archivo: f,
+      detalle: `formData.${m[1]}(`,
+    })),
+  ),
+);
 
 // ── Informe ────────────────────────────────────────────────────────────────
 

@@ -15,6 +15,8 @@ import type {
   CalificacionesUploaderRole,
 } from "@/lib/calificaciones/types";
 import { createClient } from "@/lib/supabase/server";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
+import { esquemaSubirCalificaciones } from "@/lib/validacion/esquemas-puro";
 
 /**
  * T4 (PROMPT-2) — CERRADO el agujero de autorización: estas 5 actions ya NO leen
@@ -40,15 +42,12 @@ export async function actionSubirCalificacionesMateria(formData: FormData): Prom
   }
 
   const matricula = String(sesion.matricula ?? "");
-  const materiaId = String(formData.get("materiaId") ?? "");
-  const archivo = formData.get("archivo");
-
-  if (!matricula || !materiaId) {
-    return { ok: false, error: "Faltan datos de sesión o materia." };
-  }
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona un archivo válido." };
-  }
+  // `materiaId` y `archivo` en un solo esquema, con el orden de comprobación de antes: si
+  // falta la materia el mensaje es el de siempre, y si falta el archivo también.
+  if (!matricula) return { ok: false, error: "Faltan datos de sesión o materia." };
+  const entrada = leerFormData(esquemaSubirCalificaciones, formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
+  const { materiaId, archivo } = entrada.datos;
 
   const supabase = await createClient();
   return subirCalificacionesMateria(supabase, {

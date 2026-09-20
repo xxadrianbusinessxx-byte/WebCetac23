@@ -76,6 +76,11 @@ sin romper el build. Desde `app/` sí se usa `@/lib/escolar/<familia>/<x>`.
   rutas, sube a `app/components/`. Si vive bajo una ruta y lo importa otra, está mal
   colocado.
 - **Nunca `public/` a mano** para decoraciones: es salida generada.
+- **Una pieza de presentación se define una vez.** Un componente visual sin dominio
+  (píldora, pestaña, aviso, campo) vive en `app/components/ui/` y se **importa**; si el
+  mismo nombre se declara en dos archivos de `app/`, está mal, aunque los dos «se vean
+  bien». Lo vigila la regla **C11** de `test-orden.mjs` (trinquete en 21 copias sobrantes),
+  y el plan que las unifica es `docs/sistema/MATRIZ-UX.md` §7 (F-UX1).
 - Nada nuevo en la raíz del repo. La raíz ya está cerrada: configuración, los cuatro
   documentos de arranque y `Name_of_archives_excels_CSVs`.
 
@@ -104,6 +109,7 @@ supabase/*.sql           esquema, RPC, triggers
 | `page.tsx` | actions, components, `lib/auth` | otra `page.tsx` |
 | `*-client.tsx` | actions, components, tipos de `lib/` | `lib/supabase/*`, nada con `server-only` |
 | `app/actions/` | todo `lib/` | otro `app/actions/` |
+| `lib/validacion/` (esquemas de entrada) | `valibot` y nada más: es un módulo puro | Supabase, `app/`, I/O de cualquier tipo |
 | `lib/auth/` (permisos, exigir, capacidades) | `lib/auth/types` y nada de Supabase en el módulo puro | decidir permisos desde la action |
 
 > **PROMPT-2 (centralización de permisos):** toda Server Action empieza por
@@ -119,6 +125,14 @@ supabase/*.sql           esquema, RPC, triggers
 > visible que el servidor rechaza es un bug). El recorte a directivo de la §4
 > (configuración → técnico; lectura conservada) ya está aplicado en
 > `lib/auth/permisos.ts` y verificado por `scripts/test-permisos.mjs`.
+>
+> **PROMPT-K (entrada validada, ejecutado 2026-09-20):** `exigir()` responde «este rol
+> puede hacer esto», **no** «esto que ha llegado es lo que dice ser». El orden es
+> **autorizar → validar → delegar**: ninguna action lee el `FormData` a mano —lo lee
+> `leerFormData(esquema, formData)` de `lib/validacion/`, contra un esquema declarado— y
+> los mensajes de error siguen siendo los de siempre, en castellano y para el usuario.
+> Lo vigila la regla **C12** de `test-orden.mjs` (umbral 0). Pesaba más aquí que en otros
+> repos: las policies de RLS son `USING (true)`, así que no hay una segunda red debajo.
 | `lib/escolar/` | otros `lib/`, por ruta **relativa** | cualquier cosa de `app/`; el alias `@/` |
 | `lib/*-puro.ts` | solo tipos | I/O de cualquier tipo |
 

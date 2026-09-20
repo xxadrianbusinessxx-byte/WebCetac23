@@ -12,10 +12,13 @@
 - Legacy y fallbacks (R8): no se retiran.
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
-- **Rama y HEAD:** feature/uis-pendientes · d921485
+- **Rama y HEAD:** feature/uis-pendientes · c0705ff
 
 ## Qué cerró (últimos 10 commits)
 
+- c0705ff · Cuatro prompts: TS nativo, guardián de UI, tipos desde la base y validac…
+- 7ee0d60 · El CI corre en la rama, no solo al fusionar
+- eba1eb0 · La documentación estrena guardián, y se parte en dos vías: agentes y per…
 - d921485 · Informe de las UIs pendientes, y ESTADO-ACTUAL al día
 - ec2579d · Recursos por materia: una columna, no un sistema nuevo
 - 8d17188 · UIs pendientes: las seis pantallas del diseño pasan a operar, y la UI an…
@@ -23,9 +26,6 @@
 - 4307186 · B4: los permisos de Documentos salen a un módulo puro, y estrenan suite
 - d2d806a · ESTADO-ACTUAL: de 148 a 132 líneas, quitando repeticiones y no contenido
 - 3620950 · MAPA-DEL-SISTEMA §2: registra las deudas cerradas, y deja de repetir una…
-- 4eb3f53 · B4: la mitad que justificaba el trabajo ya estaba cerrada, y el prompt e…
-- 6d4be33 · PROMPT F: lint en verde con puerta, _borrador resuelto y ESTADO-ACTUAL e…
-- 35359e1 · Prompt F ejecutable, con tres cifras del normativo corregidas
 
 ## Lo que más pesa hoy
 
@@ -33,4 +33,5 @@
 - claves-compartidas-profesores — 15 de 21 profesores comparten contraseña · `node scripts/diag-credenciales-duplicadas.mjs`
 - rotar-password-supabase — Rotar la contraseña de Supabase · sin comando de verificación
 - C10 = 34
+- C11 = 21
 <!-- FIN GENERADO -->

@@ -6,6 +6,8 @@ import {
   publicarNoticiaInicio,
   type NoticiaInicioSlot,
 } from "@/lib/cloudinary/noticias";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
+import { esquemaNoticia } from "@/lib/validacion/esquemas-puro";
 
 /**
  * Pública por diseño: es la portada, se sirve antes del login. Capacidad
@@ -22,13 +24,10 @@ export async function actionPublicarNoticiaInicio(
   const g = await exigir("noticia.publicar");
   if (!g.ok) return { ok: false, error: "Solo directivos pueden publicar noticias." };
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona una imagen." };
-  }
-  if (!archivo.type.startsWith("image/")) {
-    return { ok: false, error: "Solo se permiten imágenes." };
-  }
+  // Autorizar, luego validar, luego delegar: el archivo y su tipo se validan contra el
+  // esquema declarado, con los dos mensajes que ya devolvía esta action.
+  const entrada = leerFormData(esquemaNoticia, formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
 
-  return publicarNoticiaInicio(slot, archivo);
+  return publicarNoticiaInicio(slot, entrada.datos.archivo);
 }

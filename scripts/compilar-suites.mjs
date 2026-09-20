@@ -23,7 +23,11 @@ const raiz = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /** salida → módulos de lib/escolar que hay que compilar ahí */
 const SUITES = {
-  ".tmp-fechas": ["fechas.ts"],
+  // `.tmp-fechas` ya no está: `test-fechas.mjs` importa `lib/escolar/fechas.ts`
+  // directamente y Node lo ejecuta solo (PROMPT H, parte 1). Es la única suite
+  // que puede: su módulo no tiene imports relativos. Las 38 restantes siguen
+  // aquí porque el resolver ESM de Node exige la extensión exacta en cada
+  // import relativo y `lib/` los escribe sin extensión.
   ".tmp-asistencia-parciales": ["asistencia/asistencia-parcial.ts"],
   ".tmp-atribucion-profesor": ["asistencia/atribucion-profesor.ts"],
   ".tmp-evaluaciones": ["ciclo/evaluaciones.ts", "horario/horario-importar.ts", "ciclo/contexto-ciclo.ts"],

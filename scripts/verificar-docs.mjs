@@ -154,6 +154,8 @@ const AUSENTES_A_PROPOSITO = {
   "lib/_borrador/README.md": "ídem",
   "app/components/ui/pill.tsx": "propuesta de MATRIZ-UX §7 (F-UX1), aún NO construida",
   "app/components/ui/tab.tsx": "ídem",
+  "scripts/.tmp-tests/": "carpeta EFÍMERA: la crea y la borra al arrancar cada suite que se transpila sola (test-materia-identidad, test-materia-avance, test-columnas-calificaciones, test-mapeo-columnas-materia). Que no exista ENTRE corridas es el estado normal, y justo por eso scripts/README.md avisa de que dos tandas en paralelo se pisan",
+  "lib/supabase/database.types.ts": "lo ESCRIBE scripts/gen-tipos-db.mjs, y hoy ese script no puede correr en esta máquina: `supabase gen types --db-url` exige Docker. Es un archivo pendiente, no un documento podrido (docs/sistema/pendientes.json · tipos-db-sin-generar)",
   "things/": "material humano (manuales, Figma, capturas): vive fuera del repo, en ../things",
 };
 

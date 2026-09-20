@@ -573,6 +573,18 @@ datos. Ninguna cambia comportamiento: solo dónde vive el CSS.
 | **F-UX3 — Semántica** | Un solo tono de error (`red`, retirar `rose`), una sola receta por tono, un componente `Mensaje({tono})` | `grep -rc "rose-" app` = 0 |
 | **F-UX4 — Jerarquía** | Subir la escala tipográfica (cuerpo mínimo 12 px, títulos reales de panel) y retirar `text-[8px]`/`[9px]` | ninguna clase `text-[8px]`/`text-[9px]`; revisión visual de las 8 rutas |
 
+**Estado (2026-09-20) — F-UX1 ya tiene detector.** El PROMPT I añadió la regla **C11** a
+`scripts/test-orden.mjs`: cuenta las definiciones **sobrantes** de componentes en `app/`
+(copias menos una por nombre, fuera de `app/components/ui/` que es el destino) y hoy marca
+**21**, como **trinquete**: no falla por existir, falla si sube. El reparto medido es
+`GreyActionPill` 7 copias (6 sobran) · `Aviso` 7 (6) · `PanelTab` 6 (5) · `PillButton` 3 (2) ·
+`Boton` 2 (1) · `Campo` 2 (1).
+
+Dos avisos para cuando se ejecute F-UX1: (1) la cifra de §5.2 —«5 nombres, 25 copias»,
+2026-09-08— es anterior a esta medición y **no** la sustituye; el detector es la fuente, y
+además aparece **`Aviso`**, que §5 no lista y es la pieza más copiada; (2) al bajar el número
+hay que **apretar el umbral de C11 en el mismo cambio**, o el guardián queda flojo.
+
 Orden obligatorio: **F-UX1 antes que F-UX2** (no tiene sentido dar nombre a un valor que
 está copiado 25 veces). F-UX3 y F-UX4 son independientes entre sí.
 

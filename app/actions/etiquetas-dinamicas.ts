@@ -36,6 +36,8 @@ import {
   leerEtiquetasDesdeArchivoIndividual,
 } from "@/lib/escolar/alumno/importar-etiquetas";
 import { createClient } from "@/lib/supabase/server";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
+import { esquemaArchivoEtiquetas } from "@/lib/validacion/esquemas-puro";
 
 /** Error estructurado (mismo patrón { ok, error } del proyecto). */
 type Err = { ok: false; error: string };
@@ -113,12 +115,10 @@ export async function actionImportarEtiquetasIndividual(
   const permiso = await autorizarEscrituraEtiquetas(curp);
   if (!permiso.ok) return permiso;
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return noAutorizado("Selecciona un archivo Excel válido.");
-  }
+  const entrada = leerFormData(esquemaArchivoEtiquetas, formData);
+  if (!entrada.ok) return noAutorizado(entrada.error);
 
-  const parse = await leerEtiquetasDesdeArchivoIndividual(archivo);
+  const parse = await leerEtiquetasDesdeArchivoIndividual(entrada.datos.archivo);
   if (!parse.ok) return { ok: false, error: parse.error };
 
   const supabase = await createClient();
@@ -169,12 +169,10 @@ export async function actionImportarEtiquetasGlobal(
   const g = await exigir("alumno.importar_estatus");
   if (!g.ok) return noAutorizado("Solo directivos.");
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return noAutorizado("Selecciona un archivo Excel válido.");
-  }
+  const entrada = leerFormData(esquemaArchivoEtiquetas, formData);
+  if (!entrada.ok) return noAutorizado(entrada.error);
 
-  const parse = await leerEtiquetasDesdeArchivoGlobal(archivo);
+  const parse = await leerEtiquetasDesdeArchivoGlobal(entrada.datos.archivo);
   if (!parse.ok) return { ok: false, error: parse.error };
 
   const supabase = await createClient();

@@ -5,6 +5,8 @@ import { validarAccesoPortal } from "@/lib/auth/portal-login";
 import { limpiarPortalSessionCookie, setPortalSessionCookie } from "@/lib/auth/session";
 import type { PortalRole } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
+import { esquemaLogin } from "@/lib/validacion/esquemas-puro";
 
 export type LoginFormState = {
   error?: string;
@@ -33,12 +35,12 @@ export async function loginWithNombreCompleto(
   _prev: LoginFormState,
   formData: FormData,
 ): Promise<LoginFormState> {
-  const identificador = String(formData.get("identificador") ?? "").trim();
-  const clave = String(formData.get("clave") ?? "");
-
-  if (!identificador || !clave) {
-    return { error: "Indica identificador y clave." };
-  }
+  // La puerta de entrada: aquí no hay `exigir()` que valga —todavía no hay sesión— así
+  // que la entrada se valida contra un esquema declarado antes de tocar Supabase. El
+  // mensaje y el recorte de `identificador` son los mismos de antes.
+  const entrada = leerFormData(esquemaLogin, formData);
+  if (!entrada.ok) return { error: entrada.error };
+  const { identificador, clave } = entrada.datos;
 
   const supabase = await createClient();
   const user = await validarAccesoPortal(supabase, identificador, clave);
