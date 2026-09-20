@@ -169,6 +169,17 @@
       "doc": "docs/historial/informes/INFORME-PROMPT-J-TIPOS-DESDE-LA-BASE.md",
       "revisado": "2026-09-20",
       "estado": "abierto"
+    },
+    {
+      "id": "tabla-calificaciones-inexistente",
+      "titulo": "archivos_calificaciones: una action viva apunta a una tabla que no esta en public",
+      "detalle": "Medido en el PROMPT J: GET /rest/v1/archivos_calificaciones devuelve HTTP 404 PGRST205. El nombre vive en lib/calificaciones/constants.ts (CALIFICACIONES_TABLE) y lo usan TRES llamadas .from() de lib/calificaciones/storage.ts, que importa app/actions/calificaciones.ts: es codigo alcanzable, no una constante huerfana. Ninguno de los 47 .sql la crea; solo aparece en dos comentarios de crear-tablas-asistencias.sql. Caben dos explicaciones y hay que saber cual: (a) la tabla existe en un esquema que PostgREST no expone, y entonces no pasa nada pero hay que documentarlo; (b) no existe, y entonces subir o leer archivos de calificaciones esta roto en produccion y nadie lo ha notado, lo que a su vez diria que la funcion no la usa nadie. Riesgo alto hasta que se decida cual de las dos: se resuelve en un minuto desde el SQL Editor.",
+      "riesgo": "alto",
+      "quien": "persona - una consulta en el SQL Editor de Supabase",
+      "verificar": "node scripts/check-supabase-public.mjs",
+      "doc": "docs/historial/informes/INFORME-PROMPT-J-TIPOS-DESDE-LA-BASE.md",
+      "revisado": "2026-09-20",
+      "estado": "abierto"
     }
   ]
 }
