@@ -22,36 +22,15 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
 
-const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
 // ---------------------------------------------------------------------------
-// 1) Transpilar capacidades para leer la lista cerrada
+// 1) La lista cerrada de capacidades: Node carga el `.ts` directamente (PROMPT H-bis)
 // ---------------------------------------------------------------------------
-const tmp = path.join(__dirname, ".tmp-auditoria-permisos");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
-for (const [src, out] of [
-  ["lib/auth/types.ts", "types.js"],
-  ["lib/auth/capacidades.ts", "capacidades.js"],
-]) {
-  const codigo = fs.readFileSync(path.join(root, src), "utf8");
-  const { outputText } = ts.transpileModule(codigo, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-      esModuleInterop: true,
-    },
-    fileName: src,
-  });
-  fs.writeFileSync(path.join(tmp, out), outputText);
-}
-const { CAPACIDADES } = require(path.join(tmp, "capacidades.js"));
+const { CAPACIDADES } = await import("../lib/auth/capacidades.ts");
 
 // ---------------------------------------------------------------------------
 // 2) Harness

@@ -5,7 +5,7 @@
  * QUÉ MIDE: `administracion/flujos-puro` (máquinas de estado de citas,
  *           constancias, reportes y buzón), `materia/actividades-puro` (estado
  *           derivado y pesos) y el agrupado en hilos de `mensajes-internos`.
- * QUÉ ESCRIBE: nada. Transpila a `.tmp-uis/`. No toca la base.
+ * QUÉ ESCRIBE: nada. Carga los `.ts` directamente. No toca la base.
  * CÓMO SE EJECUTA: node scripts/test-uis-pendientes.mjs
  *
  * ── Por qué estas tres y no las otras ──────────────────────────────────────
@@ -13,38 +13,13 @@
  * ORDEN.md §3 exige que viva en un módulo puro. Lo que hay alrededor —insertar
  * una fila, leerla— no se prueba aquí: eso necesita Supabase y no hay staging.
  */
-import fs from "node:fs";
-import path from "node:path";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-
-const require = createRequire(import.meta.url);
-const ts = require("typescript");
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.join(__dirname, "..");
-
-const tmp = path.join(__dirname, ".tmp-uis");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
-
-for (const [src, out] of [
-  ["lib/escolar/administracion/flujos-puro.ts", "flujos-puro.js"],
-  ["lib/escolar/materia/actividades-puro.ts", "actividades-puro.js"],
-  ["lib/escolar/mensajes-internos.ts", "mensajes-internos.js"],
-]) {
-  const { outputText } = ts.transpileModule(fs.readFileSync(path.join(root, src), "utf8"), {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-      esModuleInterop: true,
-    },
-  });
-  fs.writeFileSync(path.join(tmp, out), outputText, "utf8");
-}
-
-const F = require(path.join(tmp, "flujos-puro.js"));
-const A = require(path.join(tmp, "actividades-puro.js"));
-const M = require(path.join(tmp, "mensajes-internos.js"));
+// Node carga los `.ts` de lib/ directamente (PROMPT H-bis): sin transpilar a CommonJS.
+// `mensajes-internos.ts` no es `-puro`, pero su único import es de tipos
+// (`SupabaseClient`), que Node borra al cargar: sus funciones de agrupado se
+// prueban sin tocar la base.
+const F = await import("../lib/escolar/administracion/flujos-puro.ts");
+const A = await import("../lib/escolar/materia/actividades-puro.ts");
+const M = await import("../lib/escolar/mensajes-internos.ts");
 
 let pasadas = 0;
 let fallos = 0;

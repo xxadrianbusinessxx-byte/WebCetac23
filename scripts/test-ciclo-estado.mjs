@@ -2,18 +2,11 @@
 // integridad). Usa un cliente Supabase MÍNIMO simulado (solo `periodos`) y el
 // dominio puro. No toca datos reales ni requiere DDL.
 //
-// Compilar primero:
-//   npx tsc lib/escolar/ciclo/ciclo-estado.ts --outDir scripts/.tmp-ciclo-estado ^
-//     --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
+// Ejecutar (Node carga los .ts de lib/ directamente; no hay paso de compilar):
 //   node scripts/test-ciclo-estado.mjs
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
-const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), ".tmp-ciclo-estado");
-const M = require(path.join(dir, "ciclo/ciclo-estado.js"));
-const P = require(path.join(dir, "ciclo/ciclo-estado-puro.js"));
+const M = await import("../lib/escolar/ciclo/ciclo-estado.ts");
+const P = await import("../lib/escolar/ciclo/ciclo-estado-puro.ts");
 
 let pasadas = 0;
 let fallidas = 0;
@@ -202,7 +195,7 @@ function datosValidos(overrides = {}) {
 {
   const periodos = [];
   const sb = clientePeriodos(periodos, true);
-  const ORQ = require(path.join(dir, "ciclo/orquestador-ciclo.js"));
+  const ORQ = await import("../lib/escolar/ciclo/orquestador-ciclo.ts");
   const r = await ORQ.crearCicloConContexto(sb, { nombre: "F4-ORQ", fechaInicio: "2028-08-30", fechaFin: "2029-06-30" });
   ok("F4: orquestador crea ok", r.ok, JSON.stringify(r));
   const fila = periodos.find((p) => p.nombre === "F4-ORQ");

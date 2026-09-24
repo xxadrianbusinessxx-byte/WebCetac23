@@ -11,8 +11,8 @@
  * NO decide la seguridad: el RPC es la autoridad final.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { consultarPeriodo } from "./ciclo-estado";
-import { ESTADO_OPERATIVO, resolverEstadoPeriodo } from "./ciclo-estado-puro";
+import { consultarPeriodo } from "./ciclo-estado.ts";
+import { ESTADO_OPERATIVO, resolverEstadoPeriodo } from "./ciclo-estado-puro.ts";
 import {
   TABLA_ASIGNACIONES_PROFESOR,
   TABLA_ASISTENCIA_ALUMNOS,
@@ -26,7 +26,7 @@ import {
   TABLA_PERIODOS,
   TABLA_PERIODOS_EVALUACION,
   TABLA_SEMESTRES,
-} from "../tables";
+} from "../tables.ts";
 
 const TABLA_CICLO_TRANSICIONES = "ciclo_transiciones";
 

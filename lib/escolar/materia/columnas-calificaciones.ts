@@ -17,9 +17,9 @@
  *   mayúsculas, tildes y espacios múltiples. No duplica lógica de búsqueda de
  *   alumnos (eso vive en lib/escolar/buscar-en-filas.ts).
  */
-import { normalizarNombre } from "../nombres";
-import type { MapeoColumnasMateria } from "./mapeo-columnas-materia";
-import type { MateriaTablaVista } from "../types";
+import { normalizarNombre } from "../nombres.ts";
+import type { MapeoColumnasMateria } from "./mapeo-columnas-materia.ts";
+import type { MateriaTablaVista } from "../types.ts";
 
 export type CategoriaColumnaCalificaciones =
   | "alumno"

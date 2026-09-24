@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { diaSemanaDesdeFecha, type DiaSemana } from "../ciclo/calendario";
+import { diaSemanaDesdeFecha, type DiaSemana } from "../ciclo/calendario.ts";
 import {
   normalizarCarreraCatalogo,
   normalizarGradoCatalogo,
@@ -9,13 +9,13 @@ import {
   type CarreraRow,
   type GrupoRow,
   type PeriodoRow,
-} from "../catalogo/catalogo-academico";
+} from "../catalogo/catalogo-academico.ts";
 import {
   TABLA_CARRERAS,
   TABLA_GRUPOS,
   TABLA_HORARIO_SEMANAL,
   TABLA_PERIODOS,
-} from "../tables";
+} from "../tables.ts";
 
 /**
  * HORARIO SEMANAL OFICIAL — Módulo de dominio y lectura (FASE HORARIO).
@@ -536,7 +536,7 @@ export async function materiasAsignadasProfesorEnGrupo(
   const clave = input.profesorClave.trim().toUpperCase();
   if (!clave) return null;
 
-  const { resolverAsignacionesProfesor } = await import("../catalogo/catalogo-academico");
+  const { resolverAsignacionesProfesor } = await import("../catalogo/catalogo-academico.ts");
   const asignaciones = await resolverAsignacionesProfesor(supabase, clave);
   if (asignaciones.length === 0) return null;
 

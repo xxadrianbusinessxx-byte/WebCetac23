@@ -4,26 +4,26 @@ import {
   obtenerCalendarioDePeriodo,
   obtenerCalendarioEscolar,
   type DiaCalendarioRow,
-} from "../ciclo/calendario";
+} from "../ciclo/calendario.ts";
 import {
   filtrarDiasDeParcial,
   type ParcialAsistencia,
-} from "./asistencia-parcial";
+} from "./asistencia-parcial.ts";
 import {
   TABLA_ASISTENCIA_ALUMNOS,
   TABLA_CLASES_IMPARTIDAS,
   type TipoDiaCalendario,
-} from "../tables";
+} from "../tables.ts";
 import type {
   DiaEstadoAsistencia,
   EstadoAsistencia,
-} from "./asistencia-plantillas";
+} from "./asistencia-plantillas.ts";
 import {
   norm,
-} from "./asistencia-comun";
+} from "./asistencia-comun.ts";
 import type {
   ContextoAsistencia,
-} from "./asistencia-comun";
+} from "./asistencia-comun.ts";
 /**
  * Deriva el estado de asistencia de un alumno para una fecha concreta.
  * Pura (sin I/O): recibe los datos ya cargados y resuelve el estado.

@@ -53,5 +53,4 @@ docs/historial/
 
 # Salidas de scripts ya consumidas
 scripts/_archivo/
-scripts/.tmp-*/
 *.csv

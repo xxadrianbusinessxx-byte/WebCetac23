@@ -3,9 +3,9 @@ import {
   normalizarCarreraCatalogo,
   normalizarGradoCatalogo,
   normalizarGrupoCatalogo,
-} from "../catalogo/catalogo-academico";
-import { obtenerGruposConCarreraDePeriodo } from "../horario/horario-semanal";
-import { TABLA_GRUPO_MATERIAS, TABLA_GRUPOS, TABLA_PERIODOS } from "../tables";
+} from "../catalogo/catalogo-academico.ts";
+import { obtenerGruposConCarreraDePeriodo } from "../horario/horario-semanal.ts";
+import { TABLA_GRUPO_MATERIAS, TABLA_GRUPOS, TABLA_PERIODOS } from "../tables.ts";
 
 /**
  * CONTEXTO ACADÉMICO DEL CICLO · CLONACIÓN (FASE CONSOLIDACIÓN).

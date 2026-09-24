@@ -1,8 +1,8 @@
 import "server-only";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { TABLA_TUTORES, TABLA_TUTOR_CREDENCIALES_INICIALES } from "../tables";
-import type { TutorRow } from "./tutores-types";
+import { TABLA_TUTORES, TABLA_TUTOR_CREDENCIALES_INICIALES } from "../tables.ts";
+import type { TutorRow } from "./tutores-types.ts";
 
 /**
  * TUTORES · CREDENCIALES (Bloque 6A/6L).

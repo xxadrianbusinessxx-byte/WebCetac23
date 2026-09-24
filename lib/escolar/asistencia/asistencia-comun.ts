@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { type DiaSemana } from "../ciclo/calendario";
-import { type ParcialAsistencia } from "./asistencia-parcial";
+import { type DiaSemana } from "../ciclo/calendario.ts";
+import { type ParcialAsistencia } from "./asistencia-parcial.ts";
 
 /**
  * @deprecated TransiciÃ³n legacy â†’ catÃ¡logo acadÃ©mico.

@@ -3,7 +3,7 @@
  *  (2026-09-06) porque lo usan el icono de persona y los perfiles demo. */
 export type GeneroUsuario = "masculino" | "femenino";
 
-import type { InformacionColumnaCalificacion } from "./materia/columnas-calificaciones";
+import type { InformacionColumnaCalificacion } from "./materia/columnas-calificaciones.ts";
 
 export type AlumnoRow = {
   CURP: string;

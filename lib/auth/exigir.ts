@@ -17,10 +17,10 @@
  * NO contiene lógica de rol ni de capacidad: esa vive en `permisos.ts`.
  */
 
-import type { Capacidad } from "./capacidades";
-import { CAPACIDADES_PUBLICAS, puede } from "./permisos";
-import { obtenerSesionPortal } from "./session-server";
-import type { PortalSessionPayload } from "./types";
+import type { Capacidad } from "./capacidades.ts";
+import { CAPACIDADES_PUBLICAS, puede } from "./permisos.ts";
+import { obtenerSesionPortal } from "./session-server.ts";
+import type { PortalSessionPayload } from "./types.ts";
 
 export const ERROR_NO_AUTORIZADO = "No tienes permiso.";
 

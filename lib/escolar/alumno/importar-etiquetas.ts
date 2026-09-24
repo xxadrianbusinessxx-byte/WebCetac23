@@ -18,16 +18,16 @@
  *
  * SOLO se aceptan archivos Excel (.xlsx / .xls), no Word/PDF/otros.
  */
-import { archivoCsvAFilas } from "../csv";
-import { normalizarCurp } from "../buscar-en-filas";
-import { detectarCampoPorEncabezado } from "../materia/mapeo-columnas";
+import { archivoCsvAFilas } from "../csv.ts";
+import { normalizarCurp } from "../buscar-en-filas.ts";
+import { detectarCampoPorEncabezado } from "../materia/mapeo-columnas.ts";
 import {
   MAX_ETIQUETAS_POR_ALUMNO,
   normalizarTituloEtiqueta,
   normalizarTituloPresentado,
   normalizarValorEtiqueta,
   type EtiquetaAlumno,
-} from "./etiquetas-dinamicas";
+} from "./etiquetas-dinamicas.ts";
 
 /** ¿El archivo es Excel (.xlsx / .xls)? (validación por extensión, en servidor). */
 export function esArchivoExcel(file: File): boolean {

@@ -3,14 +3,14 @@ import {
   CALIFICACIONES_BUCKET,
   CALIFICACIONES_MIME,
   CALIFICACIONES_TABLE,
-} from "./constants";
-import { extensionDesdeNombre, rutaCalificacionesMateria } from "./paths";
+} from "./constants.ts";
+import { extensionDesdeNombre, rutaCalificacionesMateria } from "./paths.ts";
 import type {
   CalificacionesArchivoMeta,
   ObtenerCalificacionesResult,
   SubirCalificacionesInput,
   SubirCalificacionesResult,
-} from "./types";
+} from "./types.ts";
 
 function mimeParaExtension(ext: string): string {
   return (

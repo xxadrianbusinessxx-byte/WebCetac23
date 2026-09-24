@@ -21,13 +21,13 @@
  *     está permitido (no operativo) y es el "deshacer roster preparado".
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { consultarPeriodo } from "./ciclo-estado";
-import { resolverEstadoPeriodo } from "./ciclo-estado-puro";
+import { consultarPeriodo } from "./ciclo-estado.ts";
+import { resolverEstadoPeriodo } from "./ciclo-estado-puro.ts";
 import {
   calcularBloqueosPaso,
   PASOS_CONFIGURADOR,
   type PasoConfigurador,
-} from "./borrar-paso-puro";
+} from "./borrar-paso-puro.ts";
 import {
   TABLA_ASIGNACIONES_PROFESOR,
   TABLA_ASISTENCIA_ALUMNOS,
@@ -40,7 +40,7 @@ import {
   TABLA_JUSTIFICACIONES_ASISTENCIA,
   TABLA_PERIODOS_EVALUACION,
   TABLA_SEMESTRES,
-} from "../tables";
+} from "../tables.ts";
 
 // Re-export del dominio PURO (borrar-paso-puro.ts): la decisión de bloqueo
 // vive allí, sin BD, para poder probarse.
@@ -49,7 +49,7 @@ export {
   PASOS_CONFIGURADOR,
   type ContextoBloqueoPaso,
   type PasoConfigurador,
-} from "./borrar-paso-puro";
+} from "./borrar-paso-puro.ts";
 
 export type ConteosPaso = Record<PasoConfigurador, number> & {
   derivados: {

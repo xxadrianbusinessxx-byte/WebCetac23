@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { subirImagenCloudinary } from "../../cloudinary/upload";
-import { publicIdPerfilUpload, urlFotoPerfilAvatar } from "../../cloudinary/urls";
+import { subirImagenCloudinary } from "../../cloudinary/upload.ts";
+import { publicIdPerfilUpload, urlFotoPerfilAvatar } from "../../cloudinary/urls.ts";
 import {
   invalidarUrlFotoPerfil,
   obtenerUrlFotoPerfilSiExiste,
-} from "../../cloudinary/urls-server";
+} from "../../cloudinary/urls-server.ts";
 
 /** Foto de perfil solo desde Cloudinary (no usa CARRERA de ETIQUETAS PERSONALES). */
 export async function obtenerFotoPerfilAlumno(

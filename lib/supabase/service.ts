@@ -1,6 +1,6 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseUrl } from "./env";
+import { getSupabaseUrl } from "./env.ts";
 
 /** Cliente con service role (solo servidor). Omite RLS en lecturas/escrituras escolares. */
 export function createServiceClient(): SupabaseClient | null {

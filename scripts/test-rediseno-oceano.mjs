@@ -14,73 +14,24 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
 
-const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
 // ── 1) Transpilar los módulos puros a CommonJS temporal ────────────────────
-const tmp = path.join(__dirname, ".tmp-oceano");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
 
-const archivos = [
-  ["lib/escolar/nombres.ts", "nombres.js"],
-  ["lib/escolar/materia/materia-identidad.ts", "materia/materia-identidad.js"],
-  ["lib/escolar/materia/facetas-materia.ts", "materia/facetas-materia.js"],
-  // etiquetas.ts hace I/O, pero de él solo se usa la CONSTANTE
-  // CAMPOS_PERSONALES_PRIMARIOS. Se compila entero con sus dependencias para no
-  // duplicar la constante en un módulo paralelo (R6): la prueba tiene valor
-  // precisamente porque compara contra la fuente real.
-  ["lib/escolar/tables.ts", "tables.js"],
-  ["lib/escolar/alumno/etiquetas-schema.ts", "alumno/etiquetas-schema.js"],
-  ["lib/escolar/alumno/etiquetas.ts", "alumno/etiquetas.js"],
-  ["lib/escolar/alumno/grupos-campos-personales.ts", "alumno/grupos-campos-personales.js"],
-  ["lib/escolar/asistencia/asistencia-tabular.ts", "asistencia/asistencia-tabular.js"],
-  ["lib/escolar/buscar-en-filas.ts", "buscar-en-filas.js"],
-  [ "lib/navegacion/mapa-navegacion.ts", "navegacion/mapa-navegacion.js"],
-  // Fase 3 — la lista de «Perfil › Notificaciones» (comentarios + justificaciones).
-  // Se añadió a esta suite al crearse el módulo: es una decisión pura y sin I/O,
-  // y su sitio natural es junto a los demás módulos de navegación/contenido.
-  ["lib/navegacion/notificaciones-alumno.ts", "navegacion/notificaciones-alumno.js"],
-  // Fases 6 y 7 — emparejamiento hueco→pieza de directivo y tecnico.
-  // contenido-alumno entra el 2026-09-17: al encenderse Actividades y Sesiones
-  // programadas, su mapa hueco→pieza pasa a merecer la misma verificación que
-  // ya tenían docente, directivo y técnico.
-  ["lib/navegacion/contenido-alumno.ts", "navegacion/contenido-alumno.js"],
-  ["lib/navegacion/contenido-docente.ts", "navegacion/contenido-docente.js"],
-  ["lib/navegacion/contenido-directivo.ts", "navegacion/contenido-directivo.js"],
-  ["lib/navegacion/contenido-tecnico.ts", "navegacion/contenido-tecnico.js"],
-];
-
-for (const [src, out] of archivos) {
-  const codigo = fs.readFileSync(path.join(root, src), "utf8");
-  const { outputText } = ts.transpileModule(codigo, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-      esModuleInterop: true,
-    },
-  });
-  const destino = path.join(tmp, out);
-  fs.mkdirSync(path.dirname(destino), { recursive: true });
-  fs.writeFileSync(destino, outputText, "utf8");
-}
-
-const facetas = require(path.join(tmp, "materia/facetas-materia.js"));
-const grupos = require(path.join(tmp, "alumno/grupos-campos-personales.js"));
-const etiquetas = require(path.join(tmp, "alumno/etiquetas.js"));
-const tabular = require(path.join(tmp, "asistencia/asistencia-tabular.js"));
-const nav = require(path.join(tmp, "navegacion/mapa-navegacion.js"));
-const enFilas = require(path.join(tmp, "buscar-en-filas.js"));
-const notif = require(path.join(tmp, "navegacion/notificaciones-alumno.js"));
-const cAl = require(path.join(tmp, "navegacion/contenido-alumno.js"));
-const cDoc = require(path.join(tmp, "navegacion/contenido-docente.js"));
-const cDir = require(path.join(tmp, "navegacion/contenido-directivo.js"));
-const cTec = require(path.join(tmp, "navegacion/contenido-tecnico.js"));
+const facetas = await import("../lib/escolar/materia/facetas-materia.ts");
+const grupos = await import("../lib/escolar/alumno/grupos-campos-personales.ts");
+const etiquetas = await import("../lib/escolar/alumno/etiquetas.ts");
+const tabular = await import("../lib/escolar/asistencia/asistencia-tabular.ts");
+const nav = await import("../lib/navegacion/mapa-navegacion.ts");
+const enFilas = await import("../lib/escolar/buscar-en-filas.ts");
+const notif = await import("../lib/navegacion/notificaciones-alumno.ts");
+const cAl = await import("../lib/navegacion/contenido-alumno.ts");
+const cDoc = await import("../lib/navegacion/contenido-docente.ts");
+const cDir = await import("../lib/navegacion/contenido-directivo.ts");
+const cTec = await import("../lib/navegacion/contenido-tecnico.ts");
 
 // ── 2) Utilidades de prueba ────────────────────────────────────────────────
 let fallos = 0;

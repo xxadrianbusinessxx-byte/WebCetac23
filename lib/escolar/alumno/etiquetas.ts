@@ -3,9 +3,9 @@ import {
   PERSONALES_COL_COMENTARIO,
   PERSONALES_ETIQUETA_TITULO_KEYS,
   PERSONALES_ETIQUETA_VALOR_KEYS,
-} from "./etiquetas-schema";
-import { TABLA_ETIQUETAS_PERSONALES } from "../tables";
-import type { EtiquetasPersonalesRow } from "../types";
+} from "./etiquetas-schema.ts";
+import { TABLA_ETIQUETAS_PERSONALES } from "../tables.ts";
+import type { EtiquetasPersonalesRow } from "../types.ts";
 
 const SELECT_ETIQUETAS_BASE =
   'CURP, GENERO, GRADO, GRUPO, CORREO, CELULAR, "TIPO DE SANGRE", ALERGIAS, LENTES, "ENFERMEDAD CRONICA", "SALUD MENTAL", "NECESIDAD PSICOLOGICA", PESO, TALLA, VACUNACION, CARRERA, EMPTY1, EMPTY2, EMPTY3, EMPTY4, EMPTY5, EMPTY6, "COMENTARIO PERSONAL"';

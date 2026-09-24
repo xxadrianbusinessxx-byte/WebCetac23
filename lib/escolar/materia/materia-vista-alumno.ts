@@ -3,13 +3,13 @@ import {
   filaCoincideAlumno,
   tokenBusquedaNombreEnTabla,
   type CriterioAlumnoEnFila,
-} from "../buscar-en-filas";
-import { nombresMismoAlumno } from "../nombres";
+} from "../buscar-en-filas.ts";
+import { nombresMismoAlumno } from "../nombres.ts";
 import {
   columnasDesdeFilasDb,
   listarColumnasTabla,
-} from "./schema-tabla";
-import type { MateriaTablaVista } from "../types";
+} from "./schema-tabla.ts";
+import type { MateriaTablaVista } from "../types.ts";
 
 const MARCAS_HOJA = new Set(["__HOJA__", "__ENCABEZADOS__"]);
 

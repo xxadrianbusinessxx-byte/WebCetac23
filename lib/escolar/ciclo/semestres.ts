@@ -1,4 +1,4 @@
-import { obtenerCicloOperativoGlobal } from "./ciclo-estado";
+import { obtenerCicloOperativoGlobal } from "./ciclo-estado.ts";
 
 /**
  * C4.14 — CONTROL DE OFERTA ACADÉMICA POR SEMESTRE.
@@ -25,8 +25,8 @@ import {
   TABLA_SEMESTRES,
   TABLA_GRUPOS,
   TABLA_GRUPO_MATERIAS,
-} from "../tables";
-import { configuracionPermitidaEnPeriodo } from "./ciclo-estado";
+} from "../tables.ts";
+import { configuracionPermitidaEnPeriodo } from "./ciclo-estado.ts";
 
 export const ERROR_ESQUEMA_SEMESTRES_PENDIENTE =
   "Esquema C4.14 pendiente: aplicar supabase/crear-tablas-semestres.sql (tabla academico_semestres) antes de administrar semestres.";

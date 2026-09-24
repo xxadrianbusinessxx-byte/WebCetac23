@@ -1,12 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { TABLA_HORARIO_SEMANAL } from "../tables";
-import { analizarImportacionHorario } from "./horario-importar-validacion";
+import { TABLA_HORARIO_SEMANAL } from "../tables.ts";
+import { analizarImportacionHorario } from "./horario-importar-validacion.ts";
 import type {
   AnalisisImportacionHorario,
   ContextoImportacionHorario,
   PreviewImportacionHorario,
   ResultadoAplicarHorario,
-} from "./horario-importar";
+} from "./horario-importar.ts";
 
 /**
  * HORARIO SEMANAL · IMPORTACIÓN · PREVIEW, APLICACIÓN Y PLANTILLA.
@@ -248,7 +248,7 @@ export async function plantillaHorarioParaDescarga(): Promise<{
   ];
   return {
     base64: await (async () => {
-      const { matrizAXlsxBase64: aoa } = await import("../exportar-xlsx");
+      const { matrizAXlsxBase64: aoa } = await import("../exportar-xlsx.ts");
       return aoa(filas, "Horario Completo", [26, 7, 7, 9, 11, 12, 12, 15, 48, 26, 16]);
     })(),
     nombreArchivo: "plantilla_horario_semanal.xlsx",

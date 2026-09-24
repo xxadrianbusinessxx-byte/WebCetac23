@@ -145,6 +145,6 @@ export type FilaHorarioParaEscribir = {
  *   · ./horario-importar-aplicar.ts    — preview, aplicación y plantilla
  * ------------------------------------------------------------------------- */
 
-export * from "./horario-importar-lectura";
-export * from "./horario-importar-validacion";
-export * from "./horario-importar-aplicar";
+export * from "./horario-importar-lectura.ts";
+export * from "./horario-importar-validacion.ts";
+export * from "./horario-importar-aplicar.ts";

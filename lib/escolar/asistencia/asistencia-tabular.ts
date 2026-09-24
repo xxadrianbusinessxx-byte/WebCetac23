@@ -17,7 +17,7 @@
  * — la MISMA action que alimenta el calendario visual. No abrir una segunda vía
  * de lectura de asistencia (R6).
  */
-import type { ResumenPorParcial } from "./asistencia-parcial";
+import type { ResumenPorParcial } from "./asistencia-parcial.ts";
 
 /** Misma forma que `MateriaTablaVista`, sin importar `types.ts` para no arrastrar
  *  dependencias de calificaciones a un módulo de asistencia. */

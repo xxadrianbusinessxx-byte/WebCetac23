@@ -13,34 +13,8 @@
  *      → no bloquea; sin inscripciones → bloquea.
  *   5. evaluaciones → nunca bloquea por sí solo.
  */
-import fs from "node:fs";
-import path from "node:path";
-import ts from "typescript";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-
-const require = createRequire(import.meta.url);
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.join(__dirname, "..");
-const tmp = path.join(__dirname, ".tmp-borrar-paso");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
-
-const codigo = fs.readFileSync(
-  path.join(root, "lib/escolar/ciclo/borrar-paso-puro.ts"),
-  "utf8",
-);
-const { outputText } = ts.transpileModule(codigo, {
-  compilerOptions: {
-    module: ts.ModuleKind.CommonJS,
-    target: ts.ScriptTarget.ES2020,
-    esModuleInterop: true,
-  },
-  fileName: "borrar-paso-puro.ts",
-});
-fs.writeFileSync(path.join(tmp, "borrar-paso-puro.js"), outputText);
-
-const { calcularBloqueosPaso } = require(path.join(tmp, "borrar-paso-puro.js"));
+// Node carga el `.ts` de lib/ directamente (PROMPT H-bis): sin transpilar a CommonJS.
+const { calcularBloqueosPaso } = await import("../lib/escolar/ciclo/borrar-paso-puro.ts");
 
 let pasos = 0;
 let fallos = 0;

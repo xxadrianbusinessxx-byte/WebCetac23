@@ -2,12 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   buscarAlumnoEnMatriz,
   type CriterioAlumnoEnFila,
-} from "../buscar-en-filas";
+} from "../buscar-en-filas.ts";
 import {
   columnasDesdeFilasDb,
   listarColumnasTabla,
-} from "../materia/schema-tabla";
-import type { MateriaTablaVista } from "../types";
+} from "../materia/schema-tabla.ts";
+import type { MateriaTablaVista } from "../types.ts";
 
 const MARCAS_HOJA = new Set(["__HOJA__", "__ENCABEZADOS__"]);
 

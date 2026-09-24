@@ -1,12 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { clonarContextoAcademico } from "./contexto-ciclo";
+import { clonarContextoAcademico } from "./contexto-ciclo.ts";
 import {
   crearCicloBorrador,
   estadoActualCiclo,
   validarIntegridadCiclo,
   type ConteosCiclo,
-} from "./ciclo-estado";
-import type { AsuntoIntegridad, ResultadoIntegridad } from "./ciclo-estado-puro";
+} from "./ciclo-estado.ts";
+import type { AsuntoIntegridad, ResultadoIntegridad } from "./ciclo-estado-puro.ts";
 
 /**
  * F4 — ORQUESTACIÓN DEL CICLO.
@@ -116,7 +116,7 @@ export async function registrarTransicionCiclo(
   }
 }
 
-export type { EstadoCiclo } from "./ciclo-estado-puro";
+export type { EstadoCiclo } from "./ciclo-estado-puro.ts";
 
 /** Utilidad para Server Actions: estado actual simple. */
 export async function estadoCicloParaAction(

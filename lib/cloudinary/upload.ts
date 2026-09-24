@@ -1,6 +1,6 @@
 import "server-only";
 
-import { CLOUDINARY_FOLDER, getCloudinary } from "./config";
+import { CLOUDINARY_FOLDER, getCloudinary } from "./config.ts";
 
 export async function subirImagenCloudinary(
   buffer: Buffer,

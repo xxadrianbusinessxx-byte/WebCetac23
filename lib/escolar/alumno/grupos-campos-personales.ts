@@ -16,7 +16,7 @@
 import {
   CAMPOS_PERSONALES_PRIMARIOS,
   type CampoPersonalPrimario,
-} from "./etiquetas";
+} from "./etiquetas.ts";
 
 /** Identidad y contacto. Lo que el alumno reconoce como «sus datos». */
 export const CAMPOS_INFORMACION_PERSONAL = [

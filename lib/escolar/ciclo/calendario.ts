@@ -3,7 +3,7 @@ import {
   TABLA_CALENDARIO_ESCOLAR,
   TIPOS_DIA_CALENDARIO,
   type TipoDiaCalendario,
-} from "../tables";
+} from "../tables.ts";
 
 /**
  * Dominio del CALENDARIO ESCOLAR (Bloque 5A).

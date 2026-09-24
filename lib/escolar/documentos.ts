@@ -5,8 +5,8 @@ import {
   TABLA_DOCUMENTOS,
   TABLA_PERMISOS_CARPETAS,
   type NivelPermiso,
-} from "./tables";
-import { normalizarNombre } from "./nombres";
+} from "./tables.ts";
+import { normalizarNombre } from "./nombres.ts";
 
 // FACHADA (PROMPT B4, 2026-09-17). Las decisiones puras —los tres predicados de
 // nivel, la jerarquía y las migas— se mudaron a `documentos-permisos-puro.ts`
@@ -19,8 +19,8 @@ export {
   puedeEliminar,
   puedeVer,
   rutaCarpeta,
-} from "./documentos-permisos-puro";
-export type { CarpetaRow, NivelAcceso } from "./documentos-permisos-puro";
+} from "./documentos-permisos-puro.ts";
+export type { CarpetaRow, NivelAcceso } from "./documentos-permisos-puro.ts";
 
 // Un `export ... from` re-exporta pero NO trae los nombres al ámbito local:
 // lo que este archivo sigue usando por dentro hay que importarlo aparte.
@@ -29,7 +29,7 @@ import {
   rutaCarpeta,
   type CarpetaRow,
   type NivelAcceso,
-} from "./documentos-permisos-puro";
+} from "./documentos-permisos-puro.ts";
 
 export type DocumentoRow = {
   id: string;

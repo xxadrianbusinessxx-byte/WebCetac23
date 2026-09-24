@@ -15,9 +15,9 @@
  * (grado/grupo/carrera/materias) NO vive aquí: pertenece al catálogo académico
  * (ver filosofia.estructural §4–§6).
  */
-import { normalizarCurp } from "../buscar-en-filas";
-import { TABLA_ALUMNO_ETIQUETAS } from "../tables";
-import { normalizarNombre } from "../nombres";
+import { normalizarCurp } from "../buscar-en-filas.ts";
+import { TABLA_ALUMNO_ETIQUETAS } from "../tables.ts";
+import { normalizarNombre } from "../nombres.ts";
 
 export { TABLA_ALUMNO_ETIQUETAS };
 

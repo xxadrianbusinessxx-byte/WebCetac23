@@ -1,9 +1,9 @@
-import { normalizarAnchoFilas } from "./matriz-hoja";
+import { normalizarAnchoFilas } from "./matriz-hoja.ts";
 import {
   columnasParaVista,
   listarColumnasTabla,
   sincronizarColumnasTabla,
-} from "./materia/schema-tabla";
+} from "./materia/schema-tabla.ts";
 
 const PISTAS_NOMBRE = [
   "nombre",

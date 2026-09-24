@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PortalRole } from "../../auth/types";
-import { nombresCoinciden, normalizarNombre } from "../nombres";
-import { TABLA_PROFESORES } from "../tables";
+import type { PortalRole } from "../../auth/types.ts";
+import { nombresCoinciden, normalizarNombre } from "../nombres.ts";
+import { TABLA_PROFESORES } from "../tables.ts";
 
 export type ProfesorRow = {
   /** C4.9/C4.10 — Identidad ESTRUCTURAL estable (única, NOT NULL). */

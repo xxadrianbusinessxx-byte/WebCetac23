@@ -23,7 +23,7 @@
  *   «2DO B RH MATEMATICAS»             → grado=2DO, grupo=B, carrera=RH,
  *                                        asignatura=MATEMATICAS
  */
-import { normalizarNombre } from "../nombres";
+import { normalizarNombre } from "../nombres.ts";
 
 export type MateriaIdentidad = {
   idInterno: string;

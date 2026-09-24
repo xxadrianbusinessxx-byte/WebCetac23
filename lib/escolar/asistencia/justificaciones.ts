@@ -8,12 +8,12 @@ import {
   TABLA_JUSTIFICACIONES_ASISTENCIA,
   TABLA_MENSAJES_JUSTIFICACION,
   TABLA_TUTOR_ALUMNOS,
-} from "../tables";
-import { listarNombresCompletosPorCurp } from "../alumno/alumnos";
+} from "../tables.ts";
+import { listarNombresCompletosPorCurp } from "../alumno/alumnos.ts";
 import {
   bloquesDeGrupoEnFecha,
   consultarHorarioAlumno,
-} from "../horario/horario-semanal";
+} from "../horario/horario-semanal.ts";
 
 /**
  * C4.25 — DOMINIO DE JUSTIFICACIONES DE ASISTENCIA (estructura backend).

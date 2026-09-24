@@ -1,12 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CriterioAlumnoEnFila } from "../buscar-en-filas";
-import { nombreTablaRegistroDesdeGrupo } from "../catalogo/grupo-parse";
-import { leerVistaRegistroEstatus } from "./registro-estatus";
+import type { CriterioAlumnoEnFila } from "../buscar-en-filas.ts";
+import { nombreTablaRegistroDesdeGrupo } from "../catalogo/grupo-parse.ts";
+import { leerVistaRegistroEstatus } from "./registro-estatus.ts";
 import {
   TABLA_CARRERAS,
   TABLA_GRUPOS,
   TABLA_INSCRIPCIONES_ALUMNO,
-} from "../tables";
+} from "../tables.ts";
 
 export type VistaRegistroAlumno = {
   encabezados: string[];

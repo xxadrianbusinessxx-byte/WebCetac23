@@ -29,13 +29,13 @@ import {
   TABLA_GRUPO_MATERIAS,
   TABLA_PERIODOS,
   TABLA_PROFESORES,
-} from "../tables";
-import { resolverGrupoMateria, resolverGrupoMateriasBatch } from "./catalogo-academico";
-import { nombreProfesor, type ProfesorRow } from "./profesores";
+} from "../tables.ts";
+import { resolverGrupoMateria, resolverGrupoMateriasBatch } from "./catalogo-academico.ts";
+import { nombreProfesor, type ProfesorRow } from "./profesores.ts";
 import {
   listarNombresVisiblesMaterias,
   nombreVisibleDesdeMapa,
-} from "../materia/nombres-visibles";
+} from "../materia/nombres-visibles.ts";
 
 export const ERROR_DDL_PENDIENTE =
   "Esquema C4.11 pendiente: aplicar supabase/migrar-asignaciones-profesor-id.sql (columna asignaciones_profesor.profesor_id) antes de administrar asignaciones.";

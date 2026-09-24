@@ -10,50 +10,14 @@
  *
  * Uso: node scripts/test-importar-etiquetas.mjs
  */
-import fs from "node:fs";
-import path from "node:path";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-import ts from "typescript";
 import * as XLSX from "xlsx";
 
-const require = createRequire(import.meta.url);
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.join(__dirname, "..");
 
 // ---------------------------------------------------------------------------
-// 1) Transpilar módulos puros a CommonJS temporal
+// 1) Módulos bajo prueba: Node carga los `.ts` de lib/ directamente (PROMPT H-bis)
 // ---------------------------------------------------------------------------
-const tmp = path.join(__dirname, ".tmp-tests-importar-etiquetas");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
 
-const archivos = [
-  ["lib/escolar/nombres.ts", "nombres.js"],
-  ["lib/escolar/tables.ts", "tables.js"],
-  ["lib/escolar/buscar-en-filas.ts", "buscar-en-filas.js"],
-  ["lib/escolar/materia/mapeo-columnas.ts", "materia/mapeo-columnas.js"],
-  ["lib/escolar/csv.ts", "csv.js"],
-  ["lib/escolar/alumno/etiquetas-dinamicas.ts", "alumno/etiquetas-dinamicas.js"],
-  ["lib/escolar/alumno/importar-etiquetas.ts", "alumno/importar-etiquetas.js"],
-];
-
-for (const [src, out] of archivos) {
-  const ruta = path.join(root, src);
-  const codigo = fs.readFileSync(ruta, "utf8");
-  const { outputText } = ts.transpileModule(codigo, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-      esModuleInterop: true,
-    },
-    fileName: src,
-  });
-  fs.mkdirSync(path.dirname(path.join(tmp, out)), { recursive: true });
-  fs.writeFileSync(path.join(tmp, out), outputText);
-}
-
-const imp = require(path.join(tmp, "alumno/importar-etiquetas.js"));
+const imp = await import("../lib/escolar/alumno/importar-etiquetas.ts");
 
 // ---------------------------------------------------------------------------
 // 2) Mini harness de aserciones + helpers de archivos
@@ -197,12 +161,6 @@ console.log(`\n${pasos} verificaciones, ${fallos} fallos`);
 //   · actionImportarEtiquetasGlobal: SOLO directivo; valida existencia de
 //     alumnos (batch) y aplica por alumno acumulando errores.
 
-// Limpieza del directorio temporal de transpilación
-try {
-  fs.rmSync(tmp, { recursive: true, force: true });
-} catch {
-  /* no crítico */
-}
 
 process.exit(fallos ? 1 : 0);
 

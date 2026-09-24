@@ -1,9 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { nombreCompletoAlumno, traerAlumnosExistentes } from "../alumno/alumnos";
-import { matrizAXlsxBase64 } from "../exportar-xlsx";
-import { TABLA_TUTOR_ALUMNOS } from "../tables";
-import { crearTutorConAlumnos } from "./tutores-relacion";
+import { nombreCompletoAlumno, traerAlumnosExistentes } from "../alumno/alumnos.ts";
+import { matrizAXlsxBase64 } from "../exportar-xlsx.ts";
+import { TABLA_TUTOR_ALUMNOS } from "../tables.ts";
+import { crearTutorConAlumnos } from "./tutores-relacion.ts";
 
 /**
  * TUTORES · GENERACIÓN MASIVA (Bloque 6B).

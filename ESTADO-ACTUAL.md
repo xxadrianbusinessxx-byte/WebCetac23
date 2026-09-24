@@ -6,8 +6,8 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-17 (UIs pendientes: 56 apartados activos, 0 maquetas)
-- **HEAD:** `ec2579d` (2026-09-17) · árbol limpio
+- **Última revisión:** 2026-09-23 (H-bis: las suites cargan `lib/` sin compilar)
+- **HEAD:** `f68fad6` (2026-09-20) · árbol limpio
 
 ---
 
@@ -115,7 +115,7 @@ permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
 **Una de las 40 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
 mitad mecánica de `ORDEN.md` —capas, scripts, raíz, tamaño de archivo, composición de
-UI y entrada validada— y existe porque esas reglas eran prosa en un repo que tocan dos
+UI, entrada validada y extensión explícita en `lib/`— y existe porque esas reglas eran prosa en un repo que tocan dos
 agentes de IA. Correrlo dice en qué estado está cada regla; el histórico de lo que
 cerró, en `MAPA-DEL-SISTEMA.md` §2b.
 
@@ -133,6 +133,6 @@ npx tsc --noEmit
 npm run build
 node scripts/<la suite pura del módulo>.mjs   # ver scripts/README.md
 ```
-Si tocaste un módulo puro, antes de la suite: `npm run test:compilar`.
+No hay paso de compilar: las suites cargan los `.ts` de `lib/` directamente (Node ≥ 22.18).
 
 Checklist completo de aceptación: `docs/normativo/CONTRATO-DE-CAMBIO.md`.

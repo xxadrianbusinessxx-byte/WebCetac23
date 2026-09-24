@@ -1,14 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { archivoCsvAFilas } from "../csv";
-import { pareceCurp } from "../buscar-en-filas";
-import { nombresCoinciden, normalizarNombre } from "../nombres";
+import { archivoCsvAFilas } from "../csv.ts";
+import { pareceCurp } from "../buscar-en-filas.ts";
+import { nombresCoinciden, normalizarNombre } from "../nombres.ts";
 import {
   detectarColumnasRoster,
   mapeoRosterValido,
   type MapeoRoster,
-} from "../materia/mapeo-columnas";
-import { TABLA_ALUMNOS } from "../tables";
-import type { AlumnoRow } from "../types";
+} from "../materia/mapeo-columnas.ts";
+import { TABLA_ALUMNOS } from "../tables.ts";
+import type { AlumnoRow } from "../types.ts";
 
 
 export function nombreCompletoAlumno(row: AlumnoRow): string {

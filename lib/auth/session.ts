@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import type { PortalSessionPayload } from "./types";
+import type { PortalSessionPayload } from "./types.ts";
 
 export const PORTAL_SESSION_COOKIE = "aulanube_portal";
 

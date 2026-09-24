@@ -3,8 +3,8 @@ import {
   COMENTARIO_MAX_LENGTH,
   TABLA_COMENTARIOS,
   TABLA_COMENTARIOS_PROFESORES,
-} from "./tables";
-import type { ComentarioProfesorRow, ComentarioRow } from "./types";
+} from "./tables.ts";
+import type { ComentarioProfesorRow, ComentarioRow } from "./types.ts";
 
 export function recortarComentario(texto: string): string {
   return texto.trim().slice(0, COMENTARIO_MAX_LENGTH);

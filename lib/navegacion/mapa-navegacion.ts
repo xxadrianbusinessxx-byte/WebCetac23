@@ -27,7 +27,7 @@
  * la action dice qué se PUEDE. Si divergen, manda la action y es un bug del
  * mapa (regla 4 del PROMPT-3: un botón visible que el servidor rechaza).
  */
-import type { PortalRole } from "../auth/types";
+import type { PortalRole } from "../auth/types.ts";
 
 /**
  * TRES estados, no dos. La distinción entre los dos últimos es la que pidió el

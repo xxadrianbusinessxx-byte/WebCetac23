@@ -1,9 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
-import { obtenerAlumnosDelGrupo } from "../asistencia/asistencias";
-import { archivoCsvAFilas } from "../csv";
-import { leerHojaDesdeTabla, reemplazarHojaEnTabla } from "./hoja-tabla";
-import type { MateriaTablaVista } from "../types";
+import { obtenerAlumnosDelGrupo } from "../asistencia/asistencias.ts";
+import { archivoCsvAFilas } from "../csv.ts";
+import { leerHojaDesdeTabla, reemplazarHojaEnTabla } from "./hoja-tabla.ts";
+import type { MateriaTablaVista } from "../types.ts";
 
 /**
  * Cada tabla en Supabase (ej. «1RO A CIENCIAS SOCIALES») es el archivo de esa materia.

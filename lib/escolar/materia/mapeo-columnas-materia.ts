@@ -26,9 +26,9 @@ import {
   identificarColumnasCalificaciones,
   vistaConColumnasIdentificadas,
   type RolVistaCalificaciones,
-} from "./columnas-calificaciones";
-import { normalizarNombre } from "../nombres";
-import type { MateriaTablaVista } from "../types";
+} from "./columnas-calificaciones.ts";
+import { normalizarNombre } from "../nombres.ts";
+import type { MateriaTablaVista } from "../types.ts";
 
 export type MapeoColumnasMateria = {
   /** Una o más columnas que forman el nombre del alumno (en orden). */

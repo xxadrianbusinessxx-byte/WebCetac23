@@ -1,8 +1,8 @@
 import {
   CAMPOS_PERSONALES_PRIMARIOS,
   type CampoPersonalPrimario,
-} from "./etiquetas";
-import type { EtiquetasPersonalesRow } from "../types";
+} from "./etiquetas.ts";
+import type { EtiquetasPersonalesRow } from "../types.ts";
 
 const FOTO_PREFIX = "__FOTO__";
 

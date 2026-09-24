@@ -109,8 +109,18 @@ function codigoDesnudo(src) {
  *  una cadena, así que desnudarla la borraría. */
 function importsDe(src) {
   const fuera = [];
-  for (const m of src.matchAll(/(?:^|\n)\s*(?:import|export)[^;\n]*?from\s+["']([^"']+)["']/g)) fuera.push(m[1]);
+  // `[^;]*?` y no `[^;\n]*?`: una sentencia de import acaba en `;`, no en el salto
+  // de línea. La versión anterior cortaba en `\n` y NO VEÍA NINGÚN IMPORT
+  // MULTILÍNEA —`import {\n  a,\n  b,\n} from "x";`—: el 2026-09-23 eran 210 de 813
+  // en app/ + lib/ (26 %), invisibles para C1, C2, C3 y C4. Sigue anclada en
+  // `import` / `export` a principio de línea, así que la palabra «from» en prosa
+  // no cuenta; medida contra un `from "…"` sin ancla, las dos ven los mismos 813.
+  for (const m of src.matchAll(/(?:^|\n)\s*(?:import|export)\b[^;]*?\bfrom\s+["']([^"']+)["']/g)) fuera.push(m[1]);
   for (const m of src.matchAll(/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g)) fuera.push(m[1]);
+  // El import de efecto lateral, sin `from`. Es justo la forma en que se escribe
+  // `import "server-only"`, lo que C3 prohíbe en el cliente: sin esta línea, C3
+  // no podía ver la única violación que existe para vigilar.
+  for (const m of src.matchAll(/(?:^|\n)\s*import\s+["']([^"']+)["']/g)) fuera.push(m[1]);
   return fuera;
 }
 
@@ -133,9 +143,12 @@ function comprobar(id, regla, umbral, buscar, deuda) {
 const ES_TS = (f) => /\.tsx?$/.test(f) && !/\.d\.ts$/.test(f);
 
 // ── C1 · lib/escolar no usa el alias «@/» ──────────────────────────────────
-// ORDEN.md §1b. No es estilo: las suites compilan módulos sueltos con
-// `ts.transpileModule` y `tsc` NO reescribe `@/`, así que un import absoluto
-// aquí rompe la suite sin romper el build. Falla en el sitio equivocado.
+// ORDEN.md §1b. No es estilo: las suites cargan `lib/` con Node, que ejecuta
+// los `.ts` directamente (PROMPT H-bis) y NO resuelve el alias `@/` —eso lo hace
+// el bundler de Next, no Node—. Un import absoluto aquí rompe la suite sin romper
+// el build: falla en el sitio equivocado. Antes de H-bis el motivo era el mismo
+// por otro camino (`ts.transpileModule` tampoco reescribía `@/`), y por eso esta
+// regla sobrevivió intacta al cambio de mecanismo.
 comprobar("C1", "lib/escolar/** importa por ruta relativa, nunca «@/»", 0, () =>
   listar("lib/escolar", ES_TS)
     .flatMap((f) => importsDe(leer(f)).filter((s) => s.startsWith("@/")).map((s) => ({ archivo: f, detalle: s }))),
@@ -310,6 +323,27 @@ comprobar("C12", "ninguna action lee formData a mano: valida contra lib/validaci
       archivo: f,
       detalle: `formData.${m[1]}(`,
     })),
+  ),
+);
+
+// ── C13 · los imports relativos de lib/ llevan extensión ───────────────────
+// ORDEN.md §1b. Desde el PROMPT H-bis las suites cargan `lib/` con Node, que
+// ejecuta los `.ts` directamente —sin paso de compilar— y cuyo resolver ESM exige
+// la extensión EXACTA. `from "../tables"` no resuelve; `from "../tables.ts"` sí.
+//
+// Por qué hace falta una regla y no basta con tsc: `allowImportingTsExtensions`
+// hace que tsc ACEPTE las dos formas en silencio, y el build también. Quitar una
+// extensión deja tsc y build en verde y rompe solo la suite que cargue ese módulo
+// —si la hay—, con ERR_MODULE_NOT_FOUND. Comprobado el 2026-09-23 sobre
+// `calendario.ts`: tsc exit 0, Node roto. Sin esta regla, H-bis se deshace con el
+// primer import nuevo, y nadie lo ve hasta que falla una prueba que no la mira.
+//
+// Solo `lib/`: es lo único que Node carga. `app/` lo resuelve el bundler de Next.
+comprobar("C13", "lib/** importa con extensión explícita: Node carga los .ts sin compilar", 0, () =>
+  listar("lib", ES_TS).flatMap((f) =>
+    importsDe(leer(f))
+      .filter((s) => /^\.\.?\//.test(s) && !/\.(ts|tsx|js|mjs|json)$/.test(s))
+      .map((s) => ({ archivo: f, detalle: `import sin extensión: "${s}"` })),
   ),
 );
 

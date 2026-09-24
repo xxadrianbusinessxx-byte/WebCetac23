@@ -19,7 +19,7 @@
  * consulta, y vive en `documentos.ts`. Aquí solo se responde, dado un nivel ya
  * resuelto, qué habilita ese nivel.
  */
-import { type NivelPermiso } from "./tables";
+import { type NivelPermiso } from "./tables.ts";
 
 /** Fila de carpeta. Lo mínimo que necesita `rutaCarpeta`; la fila completa la
  *  define `documentos.ts`, que es quien la lee de la base. */

@@ -5,12 +5,12 @@ import {
   normalizarGrupoCatalogo,
   normalizarTextoCatalogo,
   type MateriaRow,
-} from "../catalogo/catalogo-academico";
+} from "../catalogo/catalogo-academico.ts";
 import {
   TABLA_HORARIO_SEMANAL,
   TABLA_MATERIAS,
   TABLA_PERIODOS,
-} from "../tables";
+} from "../tables.ts";
 import {
   buscarGrupoEnLista,
   clavesEquivalenciaMateria,
@@ -20,7 +20,7 @@ import {
   obtenerGruposConCarreraDePeriodo,
   type GrupoConCarrera,
   type HorarioBloqueRow,
-} from "./horario-semanal";
+} from "./horario-semanal.ts";
 import {
   columnasObligatoriasHorario,
   detectarColumnasHorario,
@@ -29,12 +29,12 @@ import {
   leerLibroExcel,
   localizarHojaDetalle,
   parsearFilaHorario,
-} from "./horario-importar-lectura";
+} from "./horario-importar-lectura.ts";
 import type {
   FilaHorarioNormalizada,
   FilaHorarioParaEscribir,
   FilaReporteHorario,
-} from "./horario-importar";
+} from "./horario-importar.ts";
 
 /**
  * HORARIO SEMANAL · IMPORTACIÓN · VALIDACIÓN.

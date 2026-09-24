@@ -2,10 +2,7 @@
  * test-reparar-tabla-legacy.mjs - Pruebas PURAS de la reparacion de
  * grupo_materias.tabla_legacy (Prompt A), sin Supabase.
  *
- * Compilar (recompilar tras cambios en lib/escolar/ciclo/contexto-ciclo.ts):
- *   npx tsc lib/escolar/ciclo/contexto-ciclo.ts ^
- *     --outDir scripts/.tmp-reparar-tabla-legacy --module commonjs ^
- *     --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
+ * Ejecutar (Node carga los .ts de lib/ directamente; no hay paso de compilar):
  *   node scripts/test-reparar-tabla-legacy.mjs
  *
  * Cubre los 6 puntos de la VALIDACION del prompt:
@@ -16,16 +13,8 @@
  *  5. idempotencia: aplicar el plan dos veces -> 0 cambios la segunda;
  *  6. grupos que difieren solo por carrera no se confunden entre si.
  */
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
-const dir = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  ".tmp-reparar-tabla-legacy",
-);
-const M = require(path.join(dir, "ciclo/contexto-ciclo.js"));
+const M = await import("../lib/escolar/ciclo/contexto-ciclo.ts");
 
 let pasadas = 0;
 let fallidas = 0;

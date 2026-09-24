@@ -4,11 +4,11 @@ import {
   TABLA_CARRERAS,
   TABLA_GRUPOS,
   TABLA_INSCRIPCIONES_ALUMNO,
-} from "../tables";
+} from "../tables.ts";
 import {
   configuracionPermitidaEnPeriodo,
   consultarPeriodo,
-} from "../ciclo/ciclo-estado";
+} from "../ciclo/ciclo-estado.ts";
 
 /**
  * F3 — ADMINISTRACIÓN ACADÉMICA DE UN CICLO (preferentemente BORRADOR).

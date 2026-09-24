@@ -1,7 +1,7 @@
 import "server-only";
 
-import { cloudinaryConfigurado, getCloudinary } from "./config";
-import { publicIdPerfil, urlFotoPerfilAvatar } from "./urls";
+import { cloudinaryConfigurado, getCloudinary } from "./config.ts";
+import { publicIdPerfil, urlFotoPerfilAvatar } from "./urls.ts";
 
 /**
  * O5 — Caché en memoria de la existencia/URL de la foto de perfil (por CURP).

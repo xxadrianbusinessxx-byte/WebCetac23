@@ -90,7 +90,6 @@ hay que arreglarlo — no cargar todo por si acaso.
 | `scripts/README.md` | Inventario con etiqueta LEE / ESCRIBE / DESTRUCTIVO por script. |
 | `scripts/gen-matriz-permisos.mjs` | Mantiene al día el inventario de la matriz de permisos (`npm run gen:matriz`). |
 | `scripts/gen-contexto.mjs` | Arma el contexto acotado de un trabajo desde este índice y el resto de fuentes. `--agente=cline` (por defecto) da el paquete de instrucciones; `--agente=claude`, el brief de diagnóstico. **Se genera, no se escribe a mano** (`AGENTS.md` §Reparto). |
-| `scripts/compilar-suites.mjs` | Recompila los módulos puros que consumen las suites (`npm run test:compilar`). Sin esto, `test-*.mjs` falla en un clon limpio. |
 | `scripts/verificar-docs.mjs` | Vigila que ESTE sistema de documentos siga sano: rutas vivas en los documentos del presente y techo de tokens del arranque (`npm run verificar:docs`). Está en el CI. |
 | `docs/historial/README.md` | Por qué nada de esa carpeta describe el presente. |
 | `scripts/_peligrosos/` | Escriben o borran sin guarda. No ejecutar. |

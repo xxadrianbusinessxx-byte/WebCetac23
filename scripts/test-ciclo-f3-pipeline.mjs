@@ -1,33 +1,16 @@
 // test-ciclo-f3-pipeline.mjs — Pruebas FUNCIONALES (mock Supabase en memoria +
 // parseo real de CSV) del pipeline F3 dirigido por `periodoId`.
 //
-// Requisitos A–N de F3. Compila el grafo TS (carga-academica + inscripciones-
-// borrador + dependencias) a CommonJS con scripts/tsconfig.test-ciclo-f3.json y
-// ejecuta el pipeline real contra una base simulada.
+// Requisitos A–N de F3. Carga el grafo TS real (carga-academica + inscripciones-
+// borrador + dependencias) y ejecuta el pipeline contra una base simulada.
+//
+// Hasta el PROMPT H-bis compilaba ese grafo a CommonJS con `tsc -p` y un tsconfig
+// propio (`scripts/tsconfig.test-ciclo-f3.json`, retirado). Ahora Node carga los
+// `.ts` de lib/ directamente: mismo grafo, sin paso intermedio.
 //
 // Uso: node scripts/test-ciclo-f3-pipeline.mjs   (desde la raíz del repo)
-import { spawnSync } from "node:child_process";
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const raiz = path.resolve(__dirname, "..");
-
-// Compilar el grafo TS (como los demás tests de módulos TS del repo).
-const tscBin = path.join(raiz, "node_modules", "typescript", "bin", "tsc");
-const cfg = path.join(__dirname, "tsconfig.test-ciclo-f3.json");
-const comp = spawnSync(process.execPath, [tscBin, "-p", cfg], { cwd: raiz, encoding: "utf8" });
-if (comp.status !== 0) {
-  console.error(comp.stdout || "Sin stdout");
-  console.error(comp.stderr || "Sin stderr");
-  process.exit(2);
-}
-
-const require = createRequire(import.meta.url);
-const out = path.join(__dirname, ".tmp-cf3");
-const CARGA = require(path.join(out, "catalogo/carga-academica.js"));
-const INSC = require(path.join(out, "catalogo/inscripciones-borrador.js"));
+const CARGA = await import("../lib/escolar/catalogo/carga-academica.ts");
+const INSC = await import("../lib/escolar/catalogo/inscripciones-borrador.ts");
 
 let pasadas = 0;
 let fallidas = 0;

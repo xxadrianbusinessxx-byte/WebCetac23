@@ -1,14 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { nombreCompletoAlumno } from "./alumnos";
-import { archivoCsvAFilas } from "../csv";
+import { nombreCompletoAlumno } from "./alumnos.ts";
+import { archivoCsvAFilas } from "../csv.ts";
 import {
   STATUS_COL_CURP,
   STATUS_FILAS_MATERIAS,
   STATUS_FILAS_PROMEDIO,
   STATUS_TODAS_COLUMNAS_DATO,
-} from "./etiquetas-schema";
-import { TABLA_ETIQUETAS_STATUS } from "../tables";
-import type { AlumnoRow } from "../types";
+} from "./etiquetas-schema.ts";
+import { TABLA_ETIQUETAS_STATUS } from "../tables.ts";
+import type { AlumnoRow } from "../types.ts";
 
 export type EtiquetasStatusRow = Record<string, string | number | null | undefined>;
 

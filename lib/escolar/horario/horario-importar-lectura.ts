@@ -1,15 +1,15 @@
-import { normalizarEncabezadoColumna } from "../materia/mapeo-columnas";
+import { normalizarEncabezadoColumna } from "../materia/mapeo-columnas.ts";
 import {
   horaAMinutos,
   materiaClaveHorario,
   normalizarDiaSemanaHorario,
   normalizarHoraVisible,
   normalizarTipoClaseHorario,
-} from "./horario-semanal";
+} from "./horario-semanal.ts";
 import type {
   ColumnasHorarioDetectadas,
   FilaHorarioNormalizada,
-} from "./horario-importar";
+} from "./horario-importar.ts";
 
 /**
  * HORARIO SEMANAL · IMPORTACIÓN · LECTURA DEL EXCEL.

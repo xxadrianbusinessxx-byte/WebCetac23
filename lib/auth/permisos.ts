@@ -18,8 +18,8 @@
  *   actions después de exigir().
  */
 
-import type { PortalRole } from "./types";
-import type { Capacidad } from "./capacidades";
+import type { PortalRole } from "./types.ts";
+import type { Capacidad } from "./capacidades.ts";
 
 /** Capacidades que no requieren sesión (hoy solo la portada pública). */
 export const CAPACIDADES_PUBLICAS: ReadonlySet<Capacidad> = new Set(["portada.ver"]);

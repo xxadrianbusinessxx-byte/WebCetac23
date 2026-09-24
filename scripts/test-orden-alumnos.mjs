@@ -8,16 +8,10 @@
  * QUE ESCRIBE: nada. Solo lee del filesystem.
  *
  * Uso:
- *   npm run test:compilar   (una vez, o tras tocar el modulo)
  *   node scripts/test-orden-alumnos.mjs
  */
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
-const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), ".tmp-orden-alumnos");
-const M = require(path.join(dir, "alumno/orden-alumnos.js"));
+const M = await import("../lib/escolar/alumno/orden-alumnos.ts");
 
 let pasadas = 0;
 let fallidas = 0;

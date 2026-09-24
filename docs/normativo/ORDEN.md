@@ -61,10 +61,20 @@ la misma unidad que usan `docs/sistema/MAPA-DEL-SISTEMA.md` y este documento.
 | `tutores/` | tutores, tutores-types |
 | (raíz) | transversales: `tables`, `types`, `nombres`, `fechas`, `csv`, `buscar-en-filas`, `matriz-hoja`, `exportar-xlsx`, `excel-a-registros`, `openapi`, `comentarios`, `documentos` |
 
-**Dentro de `lib/escolar/` los imports son relativos** (`./x`, `../familia/x`), no `@/`.
-No es estilo: las suites compilan módulos sueltos con `tsc` y Node hace `require` del JS
-emitido; `tsc` no reescribe el alias `@/`, así que un import absoluto ahí rompe la suite
-sin romper el build. Desde `app/` sí se usa `@/lib/escolar/<familia>/<x>`.
+**Dentro de `lib/escolar/` los imports son relativos, y en todo `lib/` llevan
+extensión** (`./x.ts`, `../familia/x.ts`), nunca `@/`. No es estilo: las suites cargan
+`lib/` con Node, que ejecuta los `.ts` directamente (PROMPT H-bis) y tiene dos
+limitaciones que el bundler de Next no tiene:
+
+- **no resuelve el alias `@/`** — un import absoluto rompe la suite sin romper el build.
+  Lo vigila **C1**.
+- **exige la extensión exacta** — `from "../tables"` no resuelve y `from "../tables.ts"`
+  sí. `tsc` y el build aceptan las dos formas en silencio (`allowImportingTsExtensions`),
+  así que quitar una extensión solo rompe la suite que cargue ese módulo, si la hay. Lo
+  vigila **C13**.
+
+Desde `app/` sí se usa `@/lib/escolar/<familia>/<x>`, sin extensión: a `app/` solo lo
+carga el bundler, nunca Node.
 
 ### Reglas de ruta
 
@@ -210,7 +220,6 @@ tablas.
 | `scripts/` | herramientas vivas y reutilizables |
 | `scripts/_peligrosos/` | escriben o borran sin guarda. No ejecutar. |
 | `scripts/_archivo/` | un solo uso ya consumido. No re-ejecutar. |
-| `scripts/.tmp-*` | salida compilada, ignorada por git. `npm run test:compilar` |
 
 Todo script nuevo: cabecera con **qué mide**, **qué escribe** (o «nada») y **cómo se
 ejecuta**, y una fila en `scripts/README.md`. Sin eso, no está terminado.

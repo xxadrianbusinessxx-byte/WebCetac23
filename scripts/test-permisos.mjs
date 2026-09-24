@@ -15,43 +15,16 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
 
-const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
 // ---------------------------------------------------------------------------
-// 1) Transpilar módulos puros de lib/auth a CommonJS temporal
+// 1) Módulos puros de lib/auth: Node carga los `.ts` directamente (PROMPT H-bis)
 // ---------------------------------------------------------------------------
-const tmp = path.join(__dirname, ".tmp-permisos");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
-
-const archivos = [
-  ["lib/auth/types.ts", "types.js"],
-  ["lib/auth/capacidades.ts", "capacidades.js"],
-  ["lib/auth/permisos.ts", "permisos.js"],
-];
-
-for (const [src, out] of archivos) {
-  const ruta = path.join(root, src);
-  const codigo = fs.readFileSync(ruta, "utf8");
-  const { outputText } = ts.transpileModule(codigo, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-      esModuleInterop: true,
-    },
-    fileName: src,
-  });
-  fs.writeFileSync(path.join(tmp, out), outputText);
-}
-
-const { CAPACIDADES } = require(path.join(tmp, "capacidades.js"));
-const { puede, rolesDe, CAPACIDADES_PUBLICAS } = require(path.join(tmp, "permisos.js"));
+const { CAPACIDADES } = await import("../lib/auth/capacidades.ts");
+const { puede, rolesDe, CAPACIDADES_PUBLICAS } = await import("../lib/auth/permisos.ts");
 
 const ROLES = ["alumno", "maestro", "directivo", "tutor", "tecnico"];
 

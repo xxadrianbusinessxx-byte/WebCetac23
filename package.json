@@ -13,7 +13,6 @@
     "gen:materias": "node scripts/gen-materias-list.mjs",
     "gen:registros": "node scripts/gen-registros-list.mjs",
     "gen:tablas": "node scripts/gen-tablas-desde-supabase.mjs",
-    "test:compilar": "node scripts/compilar-suites.mjs",
     "gen:matriz": "node scripts/gen-matriz-permisos.mjs",
     "gen:invariantes": "node scripts/gen-invariantes.mjs",
     "gen:rumbo": "node scripts/gen-rumbo.mjs",

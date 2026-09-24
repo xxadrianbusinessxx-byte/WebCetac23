@@ -5,30 +5,16 @@
 // documento idéntica al código (el test-permisos compara código ⇄ §4).
 import fs from "node:fs";
 import path from "node:path";
-import ts from "typescript";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
-const tmp = path.join(__dirname, ".tmp-sec4");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
 
-for (const [src, out] of [
-  ["lib/auth/types.ts", "types.js"],
-  ["lib/auth/capacidades.ts", "capacidades.js"],
-  ["lib/auth/permisos.ts", "permisos.js"],
-]) {
-  const codigo = fs.readFileSync(path.join(root, src), "utf8");
-  const { outputText } = ts.transpileModule(codigo, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
-    fileName: src,
-  });
-  fs.writeFileSync(path.join(tmp, out), outputText);
-}
-const { puede } = require(path.join(tmp, "permisos.js"));
+// Node carga el `.ts` directamente (PROMPT H-bis). Transpilaba a CommonJS en
+// `.tmp-sec4` y seguía funcionando tras el codemod de extensiones solo porque
+// `permisos.ts` importa únicamente TIPOS, que la transpilación borra: el mismo
+// patrón frágil que rompió `diag-alcance-tutor.mjs`.
+const { puede } = await import("../lib/auth/permisos.ts");
 
 const doc = fs.readFileSync(path.join(root, "docs/sistema/MATRIZ-PERMISOS.md"), "utf8").split("\r\n").join("\n");
 const ini = doc.indexOf("| Capacidad | Qué habilita | D | M | Tec | T | A |");

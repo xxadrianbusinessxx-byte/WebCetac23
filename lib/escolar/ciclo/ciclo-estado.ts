@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { contarDiasClaseDePeriodo } from "./calendario";
+import { contarDiasClaseDePeriodo } from "./calendario.ts";
 import {
   TABLA_GRUPOS,
   TABLA_GRUPO_MATERIAS,
@@ -8,7 +8,7 @@ import {
   TABLA_MATERIAS,
   TABLA_PERIODOS,
   TABLA_PERIODOS_EVALUACION,
-} from "../tables";
+} from "../tables.ts";
 import {
   ESTADO_BORRADOR,
   ESTADO_HISTORICO,
@@ -23,7 +23,7 @@ import {
   type FilaInscripcionSync,
   type FilaPeriodoEstado,
   type ResultadoIntegridad,
-} from "./ciclo-estado-puro";
+} from "./ciclo-estado-puro.ts";
 
 /**
  * F1 — ESTADO E INTEGRIDAD DEL CICLO (capa Supabase).
@@ -759,14 +759,14 @@ export {
   estadoDesdeActivo,
   esEstadoCiclo,
   validarIntegridadCiclo as validarIntegridadCicloPura,
-} from "./ciclo-estado-puro";
+} from "./ciclo-estado-puro.ts";
 export type {
   EstadoCiclo,
   FilaPeriodoEstado,
   AsuntoIntegridad,
   ResultadoIntegridad,
   DatosValidacionCiclo,
-} from "./ciclo-estado-puro";
+} from "./ciclo-estado-puro.ts";
 
 
 

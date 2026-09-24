@@ -18,7 +18,7 @@ import {
   type EstadoConstancia,
   type Gravedad,
   type TipoBuzon,
-} from "./flujos-puro";
+} from "./flujos-puro.ts";
 
 export const TABLA_REPORTES = "reportes_alumno";
 export const TABLA_CITAS = "citas";

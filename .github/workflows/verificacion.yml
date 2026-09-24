@@ -36,7 +36,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 24 y no 20: las suites cargan los .ts de lib/ directamente y solo
+          # Node 22.18+ ejecuta TypeScript sin flags. En 20 no arranca ninguna.
+          node-version: 24
           cache: npm
 
       - name: Instalar dependencias
@@ -47,9 +49,6 @@ jobs:
 
       - name: Lint (npm run lint · puerta del PROMPT F)
         run: npm run lint
-
-      - name: Compilar suites puras (test:compilar)
-        run: npm run test:compilar
 
       - name: Suites puras (test:suites)
         run: npm run test:suites

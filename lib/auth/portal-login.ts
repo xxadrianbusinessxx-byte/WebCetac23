@@ -17,7 +17,7 @@ import {
   verificarContraseñaTutor,
 } from "@/lib/escolar/tutores/tutores";
 
-import type { PortalRole } from "./types";
+import type { PortalRole } from "./types.ts";
 
 export type LoginResult = {
   matricula: string;

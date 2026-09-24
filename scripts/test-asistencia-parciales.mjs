@@ -2,10 +2,7 @@
  * test-asistencia-parciales.mjs - Pruebas PURAS del recorte POR PARCIAL de
  * asistencias (ciclo global + parciales), sin Supabase.
  *
- * Compilar (recompilar tras cambios en lib/escolar/asistencia/asistencia-parcial.ts):
- *   npx tsc lib/escolar/asistencia/asistencia-parcial.ts ^
- *     --outDir scripts/.tmp-asistencia-parciales --module commonjs ^
- *     --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
+ * Ejecutar (Node carga los .ts de lib/ directamente; no hay paso de compilar):
  *   node scripts/test-asistencia-parciales.mjs
  *
  * Cubre los 6 puntos de la seccion VALIDACION del prompt:
@@ -18,16 +15,8 @@
  *  5. parciales solapados -> se reporta el conflicto, no se elige uno al azar;
  *  6. un parcial sin dias de clase -> resumen en cero, sin excepcion.
  */
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
-const dir = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  ".tmp-asistencia-parciales",
-);
-const M = require(path.join(dir, "asistencia/asistencia-parcial.js"));
+const M = await import("../lib/escolar/asistencia/asistencia-parcial.ts");
 
 let pasadas = 0;
 let fallidas = 0;

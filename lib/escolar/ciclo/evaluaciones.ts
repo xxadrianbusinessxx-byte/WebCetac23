@@ -6,11 +6,11 @@ import {
   marcarCicloNoOperativo,
   obtenerCicloOperativoGlobal,
   validarIntegridadCiclo,
-} from "./ciclo-estado";
+} from "./ciclo-estado.ts";
 import {
   TABLA_PERIODOS,
   TABLA_PERIODOS_EVALUACION,
-} from "../tables";
+} from "../tables.ts";
 
 /**
  * FASE CICLO — PERIODOS DE EVALUACIÓN (parciales) POR CICLO ESCOLAR.

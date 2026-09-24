@@ -3,13 +3,13 @@ import {
   normalizarCarreraCatalogo,
   normalizarGradoCatalogo,
   normalizarGrupoCatalogo,
-} from "../catalogo/catalogo-academico";
-import { obtenerGruposConCarreraDePeriodo } from "../horario/horario-semanal";
-import { TABLA_GRUPO_MATERIAS, TABLA_PERIODOS } from "../tables";
+} from "../catalogo/catalogo-academico.ts";
+import { obtenerGruposConCarreraDePeriodo } from "../horario/horario-semanal.ts";
+import { TABLA_GRUPO_MATERIAS, TABLA_PERIODOS } from "../tables.ts";
 import type {
   GrupoDestinoParaPlan,
   GrupoOrigenParaPlan,
-} from "./contexto-ciclo-clonar";
+} from "./contexto-ciclo-clonar.ts";
 
 /**
  * CONTEXTO ACADÉMICO DEL CICLO · REPARACIÓN DE `tabla_legacy`.
