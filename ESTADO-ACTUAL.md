@@ -115,7 +115,7 @@ permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
 **Una de las 40 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
 mitad mecánica de `ORDEN.md` —capas, scripts, raíz, tamaño de archivo, composición de
-UI, entrada validada y extensión explícita en `lib/`— y existe porque esas reglas eran prosa en un repo que tocan dos
+UI, entrada validada, extensión explícita en `lib/` y exports de `"use server"`— y existe porque esas reglas eran prosa en un repo que tocan dos
 agentes de IA. Correrlo dice en qué estado está cada regla; el histórico de lo que
 cerró, en `MAPA-DEL-SISTEMA.md` §2b.
 

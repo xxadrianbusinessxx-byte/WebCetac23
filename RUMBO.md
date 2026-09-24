@@ -12,10 +12,12 @@
 - Legacy y fallbacks (R8): no se retiran.
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
-- **Rama y HEAD:** feature/uis-pendientes · 5a3e457
+- **Rama y HEAD:** feature/uis-pendientes · ffe1ff5
 
 ## Qué cerró (últimos 10 commits)
 
+- ffe1ff5 · H-bis: las suites cargan lib/ sin compilar, y el andamio se retira
+- f68fad6 · H-bis: el camino de H sí estaba abierto, y archivos_calificaciones pasa…
 - 5a3e457 · Prompts H, I, J y K: TS nativo (parado), C11, el esquema medido y la ent…
 - c0705ff · Cuatro prompts: TS nativo, guardián de UI, tipos desde la base y validac…
 - 7ee0d60 · El CI corre en la rama, no solo al fusionar
@@ -24,8 +26,6 @@
 - ec2579d · Recursos por materia: una columna, no un sistema nuevo
 - 8d17188 · UIs pendientes: las seis pantallas del diseño pasan a operar, y la UI an…
 - 598e03b · A1 · Documentos: el panel huérfano se monta en el portal y la ruta se re…
-- 4307186 · B4: los permisos de Documentos salen a un módulo puro, y estrenan suite
-- d2d806a · ESTADO-ACTUAL: de 148 a 132 líneas, quitando repeticiones y no contenido
 
 ## Lo que más pesa hoy
 

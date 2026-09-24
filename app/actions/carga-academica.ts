@@ -29,11 +29,17 @@ import { leerFormData } from "@/lib/validacion/leer-form-data";
 import { esquemaCargaAcademica } from "@/lib/validacion/esquemas-puro";
 
 /**
- * Los tipos del catálogo de reconocimiento viven en la capa de dominio
- * (`lib/escolar/catalogo/carga-academica.ts`); se re-exportan aquí para no
- * romper los imports existentes de la UI.
+ * Los tipos de presentación viven en la capa de dominio (`lib/escolar/catalogo/carga-academica.ts`) y la UI los
+ * importa DE AHÍ, con `import type`.
+ *
+ * NO SE REEXPORTAN DESDE ESTE ARCHIVO, y no es estilo: un `"use server"` solo
+ * puede exportar funciones async. Al compilar con Turbopack —lo que hace Vercel—
+ * Next trata cada nombre de una lista `export type { … }` como si fuera una
+ * Server Action y genera `registerServerReference(ElTipo, …)`: como el tipo no
+ * existe en tiempo de ejecución, el módulo de acciones de `/oceano` revienta al
+ * cargarse con `ReferenceError` y caen TODAS las acciones de la app con 500.
+ * En `next dev --webpack` no pasa, por eso no se vio en local. Lo vigila C14.
  */
-export type { CatalogoReconocimiento, GrupoReconocimiento };
 
 function extraerMapeoOError(mapeoRaw: string): { mapeo?: MapeoRoster; error?: string } {
   if (!mapeoRaw.trim()) return {};

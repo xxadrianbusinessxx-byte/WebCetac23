@@ -180,6 +180,17 @@
       "doc": "docs/historial/informes/INFORME-PROMPT-J-TIPOS-DESDE-LA-BASE.md",
       "revisado": "2026-09-20",
       "estado": "abierto"
+    },
+    {
+      "id": "ui-sin-manejo-de-errores",
+      "titulo": "31 de 35 componentes llaman a Server Actions sin manejar el error",
+      "detalle": "Medido el 2026-09-23. Si la accion falla (500, timeout, red), la promesa se rechaza y el estado de carga nunca se resetea: la pantalla se queda cargando para siempre y sin mensaje. Asi estuvo producción del 17 al 23 de septiembre con TODAS las acciones de /oceano en 500 (ReferenceError por tres `export type { }` en archivos use server, ya corregido y vigilado por C14) y se reporto como 'Supabase no responde'. Hace falta un helper comun para llamar acciones con manejo de error y una regla que lo exija; son 31 componentes, va en su propio prompt.",
+      "riesgo": "medio",
+      "quien": "agente — un prompt con helper comun + regla en test-orden",
+      "verificar": "grep -L '.catch\\|try {' en los componentes use client que llaman action*",
+      "doc": "docs/normativo/ORDEN.md",
+      "revisado": "2026-09-23",
+      "estado": "abierto"
     }
   ]
 }

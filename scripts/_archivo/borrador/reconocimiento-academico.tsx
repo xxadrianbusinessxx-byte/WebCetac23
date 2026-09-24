@@ -19,8 +19,10 @@ import {
   actionAplicarCargaAcademica,
   actionListarCatalogoReconocimiento,
   actionPrevisualizarCargaAcademica,
-  type CatalogoReconocimiento,
 } from "@/app/actions/carga-academica";
+// Archivado, pero tsc lo sigue comprobando. El tipo se importa de su módulo de
+// dominio: el archivo de acciones ya no lo reexporta (ver el aviso allí).
+import type { CatalogoReconocimiento } from "@/lib/escolar/catalogo/carga-academica";
 import { archivoCsvAFilas } from "@/lib/escolar/csv";
 import {
   detectarColumnasRoster,

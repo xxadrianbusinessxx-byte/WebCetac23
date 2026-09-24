@@ -22,10 +22,8 @@
  * un tutor abre esta pantalla.
  */
 import { useCallback, useEffect, useState } from "react";
-import {
-  actionListarMensajesDelTutor,
-  type MensajeJustificacionConDetalle,
-} from "@/app/actions/justificaciones";
+import { actionListarMensajesDelTutor } from "@/app/actions/justificaciones";
+import type { MensajeJustificacionConDetalle } from "@/lib/escolar/asistencia/justificaciones";
 
 export function MensajesTutorPanel() {
   const [mensajes, setMensajes] = useState<MensajeJustificacionConDetalle[]>([]);
