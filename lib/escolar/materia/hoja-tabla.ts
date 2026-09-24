@@ -1,13 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { contenidoTextoAVista } from "./contenido-tabla";
-import { parseCsvTexto } from "../csv";
+import { contenidoTextoAVista } from "./contenido-tabla.ts";
+import { parseCsvTexto } from "../csv.ts";
 import {
   filasDbAVistaDirecta,
   listarColumnasTabla,
   prepararYConstruirFilas,
   type FilaInsertDirecta,
-} from "../excel-a-registros";
-import type { MateriaTablaVista } from "../types";
+} from "../excel-a-registros.ts";
+import type { MateriaTablaVista } from "../types.ts";
 
 export const MARCA_FILA_HOJA_COMPLETA = "__HOJA__";
 

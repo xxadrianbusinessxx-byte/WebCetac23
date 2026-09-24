@@ -22,7 +22,7 @@
  *     ofrece `inscribirAlumno({ unaActiva: true })`, no una constraint rígida.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { gradoASemestre, semestreActivoDeGrupo, semestresInactivos } from "../ciclo/semestres";
+import { gradoASemestre, semestreActivoDeGrupo, semestresInactivos } from "../ciclo/semestres.ts";
 import {
   TABLA_ASIGNACIONES_PROFESOR,
   TABLA_CARRERAS,
@@ -30,7 +30,7 @@ import {
   TABLA_GRUPOS,
   TABLA_MATERIAS,
   TABLA_PERIODOS,
-} from "../tables";
+} from "../tables.ts";
 import {
   normClave,
   obtenerInscripcionActiva,
@@ -43,7 +43,7 @@ import {
   type GrupoRow,
   type MateriaRow,
   type PeriodoRow,
-} from "./catalogo-academico-resolucion";
+} from "./catalogo-academico-resolucion.ts";
 
 /**
  * Asignaciones activas de un profesor, con oferta resuelta.
@@ -556,4 +556,4 @@ export async function cambiarVisibilidadMateria(
  * profesor, y visibilidad de las materias.
  * ------------------------------------------------------------------------- */
 
-export * from "./catalogo-academico-resolucion";
+export * from "./catalogo-academico-resolucion.ts";

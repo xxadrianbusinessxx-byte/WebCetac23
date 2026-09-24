@@ -31,8 +31,8 @@ import {
   validarOrdenEtiqueta,
   type AlumnoEtiquetaRow,
   type EtiquetaAlumno,
-} from "./etiquetas-dinamicas";
-import { TABLA_ALUMNO_ETIQUETAS } from "../tables";
+} from "./etiquetas-dinamicas.ts";
+import { TABLA_ALUMNO_ETIQUETAS } from "../tables.ts";
 
 /** Resultado estructurado del módulo (patrón { ok, error } del proyecto). */
 export type ResultadoEtiquetas<T> =

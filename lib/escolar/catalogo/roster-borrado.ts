@@ -13,7 +13,7 @@
  * que no se descubra después.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { obtenerInscripcionActiva } from "./catalogo-academico";
+import { obtenerInscripcionActiva } from "./catalogo-academico.ts";
 import {
   TABLA_ALUMNOS,
   TABLA_ASISTENCIA_ALUMNOS,
@@ -22,7 +22,7 @@ import {
   TABLA_INSCRIPCIONES_ALUMNO,
   TABLA_JUSTIFICACIONES_ASISTENCIA,
   TABLA_MATERIAS,
-} from "../tables";
+} from "../tables.ts";
 
 export type PreviewBajaRoster = {
   curp: string;

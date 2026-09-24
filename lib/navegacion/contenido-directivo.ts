@@ -23,6 +23,10 @@
 
 /** Piezas reales que ya existen como componente y se reubican en el shell. */
 export type PiezaDirectivo =
+  | "admin-reportes"
+  | "admin-citas"
+  | "admin-constancias"
+  | "admin-buzon"
   | "boleta-grupo"
   | "grupo-visualizador"
   | "alumnos-tutores";
@@ -36,6 +40,12 @@ const HUECOS: Readonly<Record<string, PiezaDirectivo>> = {
 
   // Administración escolar — el único activo. Selector de ámbito
   // (grado · grupo · carrera) + lista + ficha con su tutor + «Entrar al perfil».
+  // Las cuatro pantallas que eran MAQUETA hasta el 2026-09-17. Ahora tienen
+  // tablas, actions y panel; el diseño no cambió, lo que cambió es que operan.
+  "administracion/reportes": "admin-reportes",
+  "administracion/citas": "admin-citas",
+  "administracion/recursos-administrativos": "admin-constancias",
+  "administracion/buzon": "admin-buzon",
   "administracion/alumnos-tutores": "alumnos-tutores",
 
   // Citas, Reportes, Recursos administrativos y Buzón: SIN entrada a propósito.

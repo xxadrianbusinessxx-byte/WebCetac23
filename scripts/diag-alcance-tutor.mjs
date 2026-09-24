@@ -12,10 +12,7 @@
 // Uso: node scripts/diag-alcance-tutor.mjs [--tutor=<id>] [--tabla=<nombre>]
 import fs from "node:fs";
 import path from "node:path";
-import ts from "typescript";
-import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url);
 const root = path.join(import.meta.dirname, "..");
 const args = process.argv.slice(2);
 const arg = (n) => (args.find((a) => a.startsWith(`--${n}=`)) ?? "").split("=")[1] ?? null;
@@ -53,21 +50,12 @@ async function getTabla(nombre, limit = 1000) {
   return get(`"${nombre}"`, "*", `&limit=${limit}`);
 }
 
-// ── El criterio REAL, transpilado del módulo puro ────────────────────────────
-const tmp = path.join(import.meta.dirname, ".tmp-alcance");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
-for (const [src, out] of [
-  ["lib/escolar/nombres.ts", "nombres.js"],
-  ["lib/escolar/buscar-en-filas.ts", "buscar-en-filas.js"],
-]) {
-  const codigo = fs.readFileSync(path.join(root, src), "utf8");
-  const { outputText } = ts.transpileModule(codigo, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
-  });
-  fs.writeFileSync(path.join(tmp, out), outputText, "utf8");
-}
-const filas = require(path.join(tmp, "buscar-en-filas.js"));
+// ── El criterio REAL, cargado del módulo puro ─────────────────────────────────
+// Node carga el `.ts` directamente (PROMPT H-bis). Este diagnóstico transpilaba a
+// CommonJS en `.tmp-alcance`, y el codemod de extensiones lo rompió sin que nada
+// lo viera: `buscar-en-filas.ts` pasó a importar `./nombres.ts`, y en la carpeta
+// temporal solo existía `nombres.js`. Como toca la red, no corre en el CI.
+const filas = await import("../lib/escolar/buscar-en-filas.ts");
 
 const normalizarCurp = (c) => String(c ?? "").trim().toUpperCase();
 

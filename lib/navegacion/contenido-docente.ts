@@ -29,7 +29,9 @@ export type PiezaDocente =
   | "materia-avance"
   | "materia-asistencia"
   | "asistencia-alumnos"
-  | "calendario-escolar";
+  | "calendario-escolar"
+  | "mensajes-internos"
+  | "materia-recursos";
 
 /** Clave = `idPestana/idApartado`, tal cual los devuelve el mapa. */
 const HUECOS: Readonly<Record<string, PiezaDocente>> = {
@@ -37,6 +39,9 @@ const HUECOS: Readonly<Record<string, PiezaDocente>> = {
   // apartados aparecen al seleccionar una materia.
   "materias/calificaciones": "materia-avance",
   "materias/asistencia": "materia-asistencia",
+  // Recursos de la materia: el MISMO panel de documentos, acotado por
+  // `materia_interna`. No es un repositorio aparte.
+  "materias/recursos": "materia-recursos",
 
   // Calendario/Asistencias
   "calendario-asistencias/asistencias": "asistencia-alumnos",
@@ -51,6 +56,10 @@ const HUECOS: Readonly<Record<string, PiezaDocente>> = {
   // (`calendario.ver`) la tienen los cinco roles, y el dibujo del mes es el
   // mismo. Lo único que se apaga son los controles que escriben.
   "calendario-asistencias/calendario-escolar": "calendario-escolar",
+
+  // Mensajería interna. Vive aquí porque maestro y directivo comparten la
+  // pestaña, igual que Materias y Calendario.
+  "mensajes/bandeja": "mensajes-internos",
 };
 
 /** Pieza que corresponde a un hueco, o `null` si ese hueco no tiene pieza. */

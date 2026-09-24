@@ -1,5 +1,5 @@
 import type { GeneroUsuario } from "@/lib/escolar/types";
-import type { PortalRole } from "./types";
+import type { PortalRole } from "./types.ts";
 
 export type DemoProfile = {
   matricula: string;

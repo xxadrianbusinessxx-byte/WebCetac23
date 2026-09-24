@@ -17,12 +17,12 @@
  * PERSISTENCIA (solo servidor; reciben el cliente Supabase como parámetro).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { MateriaIdentidadCatalogo } from "../catalogo/catalogo-academico";
+import type { MateriaIdentidadCatalogo } from "../catalogo/catalogo-academico.ts";
 import {
   materiaIdDesdeNombreTabla,
   type MateriaIdentidad,
-} from "./materia-identidad";
-import { normalizarNombre } from "../nombres";
+} from "./materia-identidad.ts";
+import { normalizarNombre } from "../nombres.ts";
 
 /** Nombre de la tabla ligera de configuración (no es una tabla de materia). */
 export const TABLA_NOMBRES_VISIBLES = "materias_nombres_visibles";

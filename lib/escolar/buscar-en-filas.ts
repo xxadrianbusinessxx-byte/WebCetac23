@@ -1,4 +1,4 @@
-import { nombresCoinciden, normalizarNombre } from "./nombres";
+import { nombresCoinciden, normalizarNombre } from "./nombres.ts";
 
 /** Formato CURP mexicano (18 caracteres). */
 export const CURP_ALUMNO_RE =

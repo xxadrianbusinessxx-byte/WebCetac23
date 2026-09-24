@@ -19,6 +19,8 @@ import { esRol } from "@/lib/auth/permisos";
 import type { PortalSessionPayload } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
+import { esquemaSolicitarJustificacion } from "@/lib/validacion/esquemas-puro";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores";
 import {
   aplicarAsistenciaJustificada,
@@ -123,27 +125,17 @@ export async function actionSolicitarJustificacionConArchivo(
   const rolProfesorJustifica =
     esRol(sesion.rol, "maestro") || esRol(sesion.rol, "directivo");
 
-  const curp = String(formData.get("curp") ?? "").trim().toUpperCase();
-  const fecha = String(formData.get("fecha") ?? "").trim();
-  const motivo = String(formData.get("motivo") ?? "").trim();
-  // Prompt B: materia del horario para justificar UNA CLASE (solo profesor/
-  // dirección). Vacía = día completo (comportamiento actual).
-  const materiaClave = String(formData.get("materia_clave") ?? "").trim();
-  const archivo = formData.get("archivo");
-  if (!curp || !fecha || !motivo) {
-    return { ok: false, error: "Indica CURP, fecha y motivo." };
-  }
+  const entrada = leerFormData(esquemaSolicitarJustificacion(JUSTIFICACION_MAX_BYTES), formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
+  // Prompt B: `materia_clave` es la materia del horario para justificar UNA CLASE (solo
+  // profesor/dirección). Vacía = día completo (comportamiento actual) — por eso es
+  // opcional en el esquema, y por eso el valor ausente llega como cadena vacía.
+  const { curp, fecha, motivo, materia_clave: materiaClave, archivo } = entrada.datos;
   if (motivo.length > JUSTIFICACION_MOTIVO_MAX) {
     return {
       ok: false,
       error: `El motivo no puede superar ${JUSTIFICACION_MOTIVO_MAX} caracteres.`,
     };
-  }
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Adjunta un archivo (PDF, PNG o JPG) obligatorio." };
-  }
-  if (archivo.size > JUSTIFICACION_MAX_BYTES) {
-    return { ok: false, error: "El archivo supera el tamaño máximo (5 MB)." };
   }
   if (!esNombreArchivoJustificacionSeguro(archivo.name)) {
     return {

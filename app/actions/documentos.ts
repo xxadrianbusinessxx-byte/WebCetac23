@@ -39,6 +39,8 @@ import {
   rolDesdePermisos,
 } from "@/lib/escolar/catalogo/profesores";
 import { normalizarNombre } from "@/lib/escolar/nombres";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
+import { esquemaSubirDocumento } from "@/lib/validacion/esquemas-puro";
 
 
 
@@ -71,6 +73,10 @@ export type EstadoDocumentos = {
 
 export async function actionObtenerEstadoDocumentos(
   carpetaId: string | null,
+  /** `undefined` = institucional (Contenido › Documentos). Con valor, los
+   *  recursos de esa materia (Materias › Recursos). Mismo sistema, mismo
+   *  permiso: solo cambia el ámbito de las carpetas. */
+  materiaInterna?: string,
 ): Promise<EstadoDocumentos | null> {
   const g = await exigir("documento.ver");
   if (!g.ok) return null;
@@ -80,7 +86,7 @@ export async function actionObtenerEstadoDocumentos(
   const lectura = await clienteLecturaEscolar(supabase);
 
   const [carpetas, permisos, profesoresRows] = await Promise.all([
-    listarCarpetas(lectura),
+    listarCarpetas(lectura, materiaInterna),
     listarPermisos(lectura),
     listarProfesores(lectura),
   ]);
@@ -209,13 +215,9 @@ export async function actionSubirDocumento(
   }
   const sesion = g.sesion;
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona un archivo válido." };
-  }
-  if (archivo.size > DOCUMENTO_MAX_BYTES) {
-    return { ok: false, error: "El archivo supera el límite de 20MB." };
-  }
+  const entrada = leerFormData(esquemaSubirDocumento(DOCUMENTO_MAX_BYTES), formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
+  const archivo = entrada.datos.archivo;
 
   const supabase = await createClient();
   const lectura = await clienteLecturaEscolar(supabase);

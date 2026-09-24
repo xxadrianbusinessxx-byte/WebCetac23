@@ -31,7 +31,9 @@ export type PiezaTecnico =
   | "asignaciones-profesor"
   | "roster-alumnos"
   | "tutores"
-  | "profesores-credenciales";
+  | "profesores-credenciales"
+  | "documentos"
+  | "mensajes-internos";
 
 /** Clave = `idPestana/idApartado`, tal cual los devuelve el mapa. */
 const HUECOS: Readonly<Record<string, PiezaTecnico>> = {
@@ -52,10 +54,15 @@ const HUECOS: Readonly<Record<string, PiezaTecnico>> = {
   "personas/tutores": "tutores",
   "personas/profesores": "profesores-credenciales",
 
-  // Contenido — sin entradas A PROPÓSITO. Documentos está apagado por decisión
-  // (su código funciona y no se toca) y Noticias también: el sistema Cloudinary
-  // está desactivado y ningún componente llama a `actionPublicarNoticiaInicio`.
-  // Es la única pestaña del sistema sin ningún apartado activo.
+  // Contenido — Documentos ENCENDIDO (2026-09-17): el panel institucional ya
+  // existía, con sus tablas y su suite; lo que faltaba era montarlo. Noticias
+  // sigue sin entrada: el sistema Cloudinary está desactivado y ningún
+  // componente llama a `actionPublicarNoticiaInicio`.
+  "contenido/documentos": "documentos",
+
+  // Mensajería interna, el único sitio donde el técnico coincide con el resto
+  // del personal.
+  "mensajes/bandeja": "mensajes-internos",
 };
 
 /** Pieza que corresponde a un hueco, o `null` si ese hueco no tiene pieza. */

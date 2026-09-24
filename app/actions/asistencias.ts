@@ -37,6 +37,8 @@ import {
   totalBloquesGrupoPorDia,
 } from "@/lib/escolar/horario/horario-semanal";
 import { listarGrupoIdsAsignadosProfesor } from "@/lib/escolar/catalogo/asignaciones-profesor";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
+import { esquemaArchivoAsistencias } from "@/lib/validacion/esquemas-puro";
 import { consultarPeriodo } from "@/lib/escolar/ciclo/ciclo-estado";
 import { obtenerNombreCompletoAlumno } from "@/lib/escolar/alumno/alumnos";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores";
@@ -198,10 +200,8 @@ export async function actionPrevisualizarAsistencias(
   }
   const sesion = g.sesion!;
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona un archivo válido." };
-  }
+  const entrada = leerFormData(esquemaArchivoAsistencias, formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
   if (!materiaClave.trim()) {
     return { ok: false, error: "Selecciona la materia para analizar la plantilla." };
   }
@@ -212,7 +212,7 @@ export async function actionPrevisualizarAsistencias(
     evaluacionId ?? null,
   );
   if (!operativo.ok) return { ok: false, error: operativo.error };
-  const resultado = await previsualizarAsistencias(supabase, archivo, {
+  const resultado = await previsualizarAsistencias(supabase, entrada.datos.archivo, {
     grado,
     grupo,
     carrera,
@@ -247,10 +247,8 @@ export async function actionConfirmarAsistencias(
   }
   const sesion = g.sesion!;
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return { ok: false, error: "Selecciona un archivo válido." };
-  }
+  const entrada = leerFormData(esquemaArchivoAsistencias, formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
   if (!materiaClave.trim()) {
     return { ok: false, error: "Selecciona la materia para guardar la plantilla." };
   }
@@ -261,7 +259,7 @@ export async function actionConfirmarAsistencias(
     evaluacionId ?? null,
   );
   if (!operativo.ok) return { ok: false, error: operativo.error };
-  const resultado = await confirmarAsistencias(supabase, archivo, {
+  const resultado = await confirmarAsistencias(supabase, entrada.datos.archivo, {
     grado,
     grupo,
     carrera,

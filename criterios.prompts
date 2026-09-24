@@ -7,13 +7,27 @@
   revisa el repositorio.
 
   Relación con los demás documentos (cada uno cumple una función distinta):
-    · contexto.feliz            → contexto FUNCIONAL actual (qué está hecho).
-    · docs/OPTIMIZACION_*.md    → decisiones, optimizaciones, historial técnico
-                                  y criterios de rendimiento.
+    · AGENTS.md                 → punto de entrada, orden de autoridad y
+                                  reparto Claude / Cline.
+    · ESTADO-ACTUAL.md          → contexto FUNCIONAL actual (qué es verdad hoy).
+    · docs/00-INDICE.md         → el presupuesto de lectura por tipo de tarea,
+                                  que es lo que un prompt debe respetar.
+    · docs/normativo/
+        CONTRATO-DE-CAMBIO.md   → el bloque que se pega al final de cada prompt
+                                  (§1) y el checklist con que se audita (§2).
     · filosofia.estructural     → reglas arquitectónicas PERMANENTES de cómo
                                   debe crecer y modificarse el proyecto.
     · criterios.prompts         → cómo agrupar y redactar el trabajo de
                                   implementación (ESTE archivo).
+    · docs/historial/prompts/   → los prompts ya enviados, tal cual se enviaron.
+                                  Su informe correspondiente, en `informes/`.
+
+  El paquete de contexto de un prompt NO se escribe a mano: lo arma
+  `scripts/gen-contexto.mjs`, que lee el presupuesto de `docs/00-INDICE.md` y el
+  contrato de `CONTRATO-DE-CAMBIO.md` §1 en vez de reescribirlos. Con
+  `--agente=claude` emite, desde las mismas fuentes, el brief de diagnóstico que
+  necesita quien redacta el prompt; con `--agente=cline` (por defecto), el
+  paquete que se le entrega a quien lo implementa.
 ================================================================================
 
 ================================================================================

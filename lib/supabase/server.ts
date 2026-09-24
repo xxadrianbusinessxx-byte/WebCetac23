@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { getSupabasePublicKey, getSupabaseUrl } from "./env";
+import { getSupabasePublicKey, getSupabaseUrl } from "./env.ts";
 
 /** Cliente por petición: Server Components, Server Actions y Route Handlers. */
 export async function createClient() {

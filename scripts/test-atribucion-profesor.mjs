@@ -2,10 +2,7 @@
  * test-atribucion-profesor.mjs - Pruebas PURAS de la atribución de materia al
  * profesor en la subida de asistencias (Prompt C, R-3), sin Supabase.
  *
- * Compilar (tras cambios en lib/escolar/asistencia/atribucion-profesor.ts):
- *   npx tsc lib/escolar/asistencia/atribucion-profesor.ts ^
- *     --outDir scripts/.tmp-atribucion-profesor --module commonjs ^
- *     --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
+ * Ejecutar (Node carga los .ts de lib/ directamente; no hay paso de compilar):
  *   node scripts/test-atribucion-profesor.mjs
  *
  * Casos de la VALIDACIÓN del prompt (R-3 + R-2):
@@ -18,16 +15,8 @@
  *  5. sin profesorId en sesión → error, y las filas NUEVAS nunca se escriben
  *     con profesor_clave (la contraseña deja de ser identidad).
  */
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
-const dir = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  ".tmp-atribucion-profesor",
-);
-const M = require(path.join(dir, "asistencia/atribucion-profesor.js"));
+const M = await import("../lib/escolar/asistencia/atribucion-profesor.ts");
 
 let pasadas = 0;
 let fallidas = 0;

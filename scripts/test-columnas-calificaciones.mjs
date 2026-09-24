@@ -13,46 +13,14 @@
  *
  * Uso: node scripts/test-columnas-calificaciones.mjs
  */
-import fs from "node:fs";
-import path from "node:path";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-import ts from "typescript";
 
-const require = createRequire(import.meta.url);
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.join(__dirname, "..");
 
 // ---------------------------------------------------------------------------
-// 1) Transpilar módulos puros a CommonJS temporal
+// 1) Módulos bajo prueba: Node carga los `.ts` de lib/ directamente (PROMPT H-bis)
 // ---------------------------------------------------------------------------
-const tmp = path.join(__dirname, ".tmp-tests");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
 
-const archivos = [
-  ["lib/escolar/nombres.ts", "nombres.js"],
-  ["lib/escolar/materia/columnas-calificaciones.ts", "materia/columnas-calificaciones.js"],
-  ["lib/escolar/buscar-en-filas.ts", "buscar-en-filas.js"],
-];
-
-for (const [src, out] of archivos) {
-  const ruta = path.join(root, src);
-  const codigo = fs.readFileSync(ruta, "utf8");
-  const { outputText } = ts.transpileModule(codigo, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-      esModuleInterop: true,
-    },
-    fileName: src,
-  });
-  fs.mkdirSync(path.dirname(path.join(tmp, out)), { recursive: true });
-  fs.writeFileSync(path.join(tmp, out), outputText);
-}
-
-const col = require(path.join(tmp, "materia/columnas-calificaciones.js"));
-const { buscarIndiceFilaAlumno } = require(path.join(tmp, "buscar-en-filas.js"));
+const col = await import("../lib/escolar/materia/columnas-calificaciones.ts");
+const { buscarIndiceFilaAlumno } = await import("../lib/escolar/buscar-en-filas.ts");
 
 // ---------------------------------------------------------------------------
 // 2) Mini harness de aserciones
@@ -280,12 +248,6 @@ console.log(`\n${pasos} verificaciones, ${fallos} fallos`);
 //  27) Tablas/columnas reales intactas (verificado con git diff).
 //  28) Subida de Excel sin cambios (actionSubirMateriaExcel intacta).
 
-// Limpieza del directorio temporal de transpilación
-try {
-  fs.rmSync(tmp, { recursive: true, force: true });
-} catch {
-  /* no crítico */
-}
 
 process.exit(fallos ? 1 : 0);
 

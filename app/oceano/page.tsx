@@ -80,6 +80,11 @@ export default async function OceanoPage({
           puedeEditarEtiquetas: perfil.acceso.puedeEditarEtiquetas,
           puedeImportarEtiquetas: perfil.acceso.puedeImportarEtiquetas,
           puedeEditarDatosPersonales: perfil.acceso.puedeEditarDatosPersonales,
+          // UIs pendientes (2026-09-17): los dos flags de Actividades se
+          // resuelven aquí con la MISMA `puede()` del servidor. La UI los
+          // recibe; no pregunta por el rol.
+          puedeEditarActividades: puede(rol, "actividad.editar"),
+          puedeEntregarActividades: puede(rol, "actividad.entregar"),
         }
       : null;
 

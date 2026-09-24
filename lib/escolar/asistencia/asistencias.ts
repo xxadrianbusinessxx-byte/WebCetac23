@@ -1,22 +1,22 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { carreraEscolarDesdeEtiquetas } from "../alumno/informacion-personal";
+import { carreraEscolarDesdeEtiquetas } from "../alumno/informacion-personal.ts";
 import {
   TABLA_ASISTENCIA_ALUMNOS,
   TABLA_CARRERAS,
   TABLA_ETIQUETAS_PERSONALES,
   TABLA_GRUPOS,
   TABLA_INSCRIPCIONES_ALUMNO,
-} from "../tables";
-import type { EtiquetasPersonalesRow } from "../types";
+} from "../tables.ts";
+import type { EtiquetasPersonalesRow } from "../types.ts";
 import {
   cargarContextoCatalogoAsistencia,
   type GrupoAsistencia,
-} from "./asistencia-configuracion";
+} from "./asistencia-configuracion.ts";
 import {
   FALLBACK_LEGACY_ETIQUETAS_ACTIVO,
   TAMANO_PAGINA,
   norm,
-} from "./asistencia-comun";
+} from "./asistencia-comun.ts";
 
 /**
  * ASISTENCIA — FACHADA Y CONTEXTO DEL ALUMNO.
@@ -252,12 +252,12 @@ export async function fijarClasesAsistidas(
 // asistencia-parcial.ts para que las pruebas compilen sin Supabase).
 export {
   resumenAsistenciaPorParcial,
-} from "./asistencia-parcial";
+} from "./asistencia-parcial.ts";
 export type {
   ParcialAsistencia,
   ResumenPorParcial,
   ResultadoResumenPorParcial,
-} from "./asistencia-parcial";
+} from "./asistencia-parcial.ts";
 
 /* ---------------------------------------------------------------------------
  * PROMPT E · R-3 — este archivo tenía 1 845 líneas. Se partió por
@@ -272,7 +272,7 @@ export type {
  * Aquí quedan los grupos por periodo y el contexto/anulación del alumno.
  * ------------------------------------------------------------------------- */
 
-export * from "./asistencia-comun";
-export * from "./asistencia-configuracion";
-export * from "./asistencia-plantillas";
-export * from "./asistencia-estados";
+export * from "./asistencia-comun.ts";
+export * from "./asistencia-configuracion.ts";
+export * from "./asistencia-plantillas.ts";
+export * from "./asistencia-estados.ts";

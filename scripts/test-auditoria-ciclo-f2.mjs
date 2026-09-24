@@ -21,7 +21,12 @@ function ok(nombre, condicion, detalle = "") {
 const actCarga = leer("app/actions/carga-academica.ts");
 const libCarga = leer("lib/escolar/catalogo/carga-academica.ts");
 const paso = leer("app/components/ciclo-configurador/paso-academico.tsx");
-const client = leer("app/configuracion/configuracion-client.tsx");
+// 2026-09-17: `configuracion-client.tsx` se RETIRÓ con el resto de la UI
+// antigua. El consumidor externo al wizard no desapareció — se mudó a
+// `roster-alumnos-panel.tsx`, que salió de ese mismo cliente al extraerlo por
+// bloques. Cambia la RUTA, no el invariante: se sigue comprobando que la carga
+// académica se consume desde fuera del configurador.
+const client = leer("app/components/roster-alumnos-panel.tsx");
 // PROMPT F (2026-09-16): este componente se ARCHIVÓ (la cuarentena `_borrador/` se
 // resolvió archivo por archivo). La aserción es la misma: comprueba que la UI de
 // reconocimiento usa el catálogo por periodo, no una vía propia.
@@ -35,8 +40,12 @@ ok("consumidores externos al wizard existen", recon.includes("actionPrevisualiza
 ok("parser CSV existente reutilizado", /archivoCsvAFilas/.test(recon));
 
 // Identidad actual de la carga (GAP documentado).
+// 2026-09-20 (PROMPT K): la comprobación era `/extraerContexto/` porque esa función
+// leía el FormData a mano. Ahora la entrada se valida con un esquema declarado y la
+// función se llama `contextoDe(datos)` — la RUTA cambia, el invariante no: la carga
+// sigue resolviendo su contexto por `periodoNombre`.
 ok("GAP: la carga resuelve contexto por periodoNombre (no periodoId destino)",
-  /extraerContexto/.test(actCarga) && /periodoNombre/.test(actCarga));
+  /contextoDe|extraerContexto/.test(actCarga) && /periodoNombre/.test(actCarga));
 ok("GAP: wizard PasoAcademico solo clona (no importa Excel)", !/archivo|Excel|FormData/.test(paso) && paso.includes("actionClonarContextoAcademico"));
 ok("PasoAcademico recibe periodoId", /periodoId/.test(paso));
 

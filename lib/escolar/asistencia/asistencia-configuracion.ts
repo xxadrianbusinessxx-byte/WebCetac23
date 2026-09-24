@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   obtenerCicloOperativoGlobal,
-} from "../ciclo/ciclo-estado";
+} from "../ciclo/ciclo-estado.ts";
 import {
   diaSemanaDesdeFecha,
-} from "../ciclo/calendario";
+} from "../ciclo/calendario.ts";
 import {
   normalizarCarreraCatalogo,
   normalizarGradoCatalogo,
@@ -12,33 +12,33 @@ import {
   type CarreraRow,
   type GrupoRow,
   type PeriodoRow,
-} from "../catalogo/catalogo-academico";
+} from "../catalogo/catalogo-academico.ts";
 import {
   nombreCompletoAlumno,
-} from "../alumno/alumnos";
+} from "../alumno/alumnos.ts";
 import {
   claveOrdenAlumno,
   compararPorClaveOrden,
-} from "../alumno/orden-alumnos";
+} from "../alumno/orden-alumnos.ts";
 import {
   TABLA_ALUMNOS,
   TABLA_CARRERAS,
   TABLA_CONFIGURACION_CLASES_PROFESOR,
   TABLA_GRUPOS,
   TABLA_INSCRIPCIONES_ALUMNO,
-} from "../tables";
+} from "../tables.ts";
 import type {
   AlumnoRow,
-} from "../types";
+} from "../types.ts";
 import {
   CLAVE_DIA_A_COLUMNA,
   TAMANO_PAGINA,
   norm,
-} from "./asistencia-comun";
+} from "./asistencia-comun.ts";
 import type {
   AlumnoPlantilla,
   ConfiguracionClasesProfesor,
-} from "./asistencia-comun";
+} from "./asistencia-comun.ts";
 /** ConfiguraciÃ³n vacÃ­a por defecto (todas las clases en 0). */
 export function configuracionVacia(profesorClave: string): ConfiguracionClasesProfesor {
   return {

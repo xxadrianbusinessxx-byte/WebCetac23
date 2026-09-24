@@ -1,5 +1,5 @@
-import { normalizarNombre } from "../nombres";
-import { listarRegistrosCompletos } from "../materia/tablas-supabase";
+import { normalizarNombre } from "../nombres.ts";
+import { listarRegistrosCompletos } from "../materia/tablas-supabase.ts";
 
 const SUFIJO_REGISTRO = " REGISTRO DE CALIFICACIONES FINALES";
 

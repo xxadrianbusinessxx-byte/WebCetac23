@@ -3,17 +3,17 @@ import {
   normalizarCarreraCatalogo,
   normalizarGradoCatalogo,
   normalizarGrupoCatalogo,
-} from "../catalogo/catalogo-academico";
-import { obtenerGruposConCarreraDePeriodo } from "../horario/horario-semanal";
-import { normalizarNombre } from "../nombres";
-import { listarNombresVisiblesMaterias } from "../materia/nombres-visibles";
+} from "../catalogo/catalogo-academico.ts";
+import { obtenerGruposConCarreraDePeriodo } from "../horario/horario-semanal.ts";
+import { normalizarNombre } from "../nombres.ts";
+import { listarNombresVisiblesMaterias } from "../materia/nombres-visibles.ts";
 import {
   TABLA_CARRERAS,
   TABLA_GRUPO_MATERIAS,
   TABLA_GRUPOS,
   TABLA_MATERIAS,
   TABLA_PERIODOS,
-} from "../tables";
+} from "../tables.ts";
 
 /**
  * CONTEXTO ACADÉMICO DEL CICLO · CARGA DESDE EL CATÁLOGO LEGACY.

@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
 import { Nunito } from "next/font/google";
 import "./globals.css";
-import { actionTieneAccesoDocumentos } from "./actions/documentos";
-import { BarraNavegacionGlobal } from "@/app/components/ui/barra-navegacion";
 import { DecoracionFondo } from "@/app/components/ui/decoracion-fondo";
 import { WebVitals } from "@/app/components/ui/web-vitals";
 // PROMPT-5/B1 — UNA sola puerta para el cambio forzado de clave: el layout
 // raíz la aplica a TODAS las rutas del portal (antes solo /configuracion,
 // /profesor y /directivo la tenían; /perfil, /documentos y /tutor no).
 import { PantallaCambioClaveForzado } from "@/app/components/cambio-clave-forzado";
-import { puede, esRol } from "@/lib/auth/permisos";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 
 const nunito = Nunito({
@@ -30,16 +27,6 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const sesion = await obtenerSesionPortal();
-  // PROMPT-3/T2: la UI decide por capacidad con la MISMA puede() del servidor.
-  // Documentos lo ve quien tiene documento.ver; los maestros además necesitan
-  // al menos un permiso otorgado (consulta de acceso), los directivos/técnicos
-  // siempre lo tienen.
-  const puedeDocumentos = sesion ? puede(sesion.rol, "documento.ver") : false;
-  const esMaestro = sesion ? esRol(sesion.rol, "maestro") : false;
-  const tieneDocumentos =
-    puedeDocumentos && esMaestro
-      ? await actionTieneAccesoDocumentos()
-      : puedeDocumentos;
 
   // PROMPT-5/B1 — UNA sola puerta para el cambio forzado de clave. Se aplica en
   // el layout raíz (TODAS las rutas del portal: profesor, directivo,
@@ -63,11 +50,10 @@ export default async function RootLayout({
             <WebVitals />
             {/* C4.27-A/B — Fondo global vivo montado UNA sola vez (fixed, decorativo). */}
             <DecoracionFondo />
-            {/* C4.27-C/D — Barra de navegación global (franja sticky, con logo CETAC). */}
-            <BarraNavegacionGlobal
-              rol={sesion?.rol ?? null}
-              tieneDocumentos={tieneDocumentos}
-            />
+            {/* La barra de navegación legacy se RETIRÓ el 2026-09-17. Llevaba
+                semanas sin dibujarse en ninguna parte: devolvía null en `/`,
+                `/login` y `/oceano`, y todas las demás rutas ya redirigen al
+                portal. El logo CETAC vive ahora en la barra superior del shell. */}
             {children}
           </>
         )}

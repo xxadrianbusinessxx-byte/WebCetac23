@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
-import { decodePortalSession, PORTAL_SESSION_COOKIE } from "./session";
-import type { PortalSessionPayload } from "./types";
+import { decodePortalSession, PORTAL_SESSION_COOKIE } from "./session.ts";
+import type { PortalSessionPayload } from "./types.ts";
 
 export async function obtenerSesionPortal(): Promise<PortalSessionPayload | null> {
   const store = await cookies();

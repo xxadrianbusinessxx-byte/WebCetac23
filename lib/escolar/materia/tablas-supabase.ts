@@ -1,4 +1,4 @@
-import { obtenerSpecOpenAPI } from "../openapi";
+import { obtenerSpecOpenAPI } from "../openapi.ts";
 import {
   TABLA_ALUMNOS,
   TABLA_ASIGNACIONES_PROFESOR,
@@ -28,7 +28,7 @@ import {
   TABLA_TUTOR_ALUMNOS,
   TABLA_TUTOR_CREDENCIALES_INICIALES,
   TABLA_TUTORES,
-} from "../tables";
+} from "../tables.ts";
 
 const TABLAS_SISTEMA = new Set([
   TABLA_ALUMNOS,
@@ -97,7 +97,7 @@ export async function listarTablasRegistrosDesdeSupabase(): Promise<string[]> {
 
 /** Lista completa para carga de archivos (directivo / profesor). */
 export async function listarMateriasCompletas(): Promise<string[]> {
-  const { MATERIAS_ESCOLAR } = await import("./materias-list");
+  const { MATERIAS_ESCOLAR } = await import("./materias-list.ts");
   const desdeDb = await listarTablasMateriasDesdeSupabase();
   if (desdeDb.length > 0) return desdeDb;
   return [...MATERIAS_ESCOLAR];
@@ -105,7 +105,7 @@ export async function listarMateriasCompletas(): Promise<string[]> {
 
 /** Lista completa de registros finales por grupo. */
 export async function listarRegistrosCompletos(): Promise<string[]> {
-  const { REGISTROS_ESCOLAR } = await import("./registros-list");
+  const { REGISTROS_ESCOLAR } = await import("./registros-list.ts");
   const desdeDb = await listarTablasRegistrosDesdeSupabase();
   if (desdeDb.length > 0) return desdeDb;
   return [...REGISTROS_ESCOLAR];

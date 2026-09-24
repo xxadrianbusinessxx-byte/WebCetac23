@@ -1,9 +1,9 @@
 import "server-only";
 
 import { CLOUDINARY_FOLDER } from "@/lib/escolar/tables";
-import { cloudinaryConfigurado, getCloudinary } from "./config";
-import { subirImagenCloudinary } from "./upload";
-import { urlCloudinaryDesdePublicId } from "./urls";
+import { cloudinaryConfigurado, getCloudinary } from "./config.ts";
+import { subirImagenCloudinary } from "./upload.ts";
+import { urlCloudinaryDesdePublicId } from "./urls.ts";
 
 export const NOTICIAS_INICIO_SLOTS = [1, 2] as const;
 export type NoticiaInicioSlot = (typeof NOTICIAS_INICIO_SLOTS)[number];

@@ -6,8 +6,8 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-17 (PROMPT F cerrado; MAPA-DEL-SISTEMA §2 registra las deudas cerradas)
-- **HEAD:** `4eb3f53` (2026-09-17) · árbol limpio
+- **Última revisión:** 2026-09-23 (H-bis: las suites cargan `lib/` sin compilar)
+- **HEAD:** `f68fad6` (2026-09-20) · árbol limpio
 
 ---
 
@@ -110,13 +110,19 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **38 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **40 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
-**Una de las 38 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
-mitad mecánica de `ORDEN.md` —capas, nombres, scripts y raíz— y existe porque esas
-reglas eran prosa en un repo que tocan dos agentes de IA. Correrlo dice en qué estado
-está cada regla; el histórico de lo que cerró, en `MAPA-DEL-SISTEMA.md` §2b.
+**Una de las 40 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
+mitad mecánica de `ORDEN.md` —capas, scripts, raíz, tamaño de archivo, composición de
+UI, entrada validada y extensión explícita en `lib/`— y existe porque esas reglas eran prosa en un repo que tocan dos
+agentes de IA. Correrlo dice en qué estado está cada regla; el histórico de lo que
+cerró, en `MAPA-DEL-SISTEMA.md` §2b.
+
+Desde el 2026-09-19 el CI también vigila **la documentación**, no solo el código:
+`scripts/verificar-docs.mjs` falla si un documento del presente cita un archivo
+retirado o si la lectura de arranque pasa de su techo de tokens. Misma razón que
+las otras dos verificaciones: una regla que nada comprueba se degrada sola.
 
 **Cómo se llegó hasta aquí → `docs/historial/BITACORA-2026-09.md`.**
 
@@ -127,6 +133,6 @@ npx tsc --noEmit
 npm run build
 node scripts/<la suite pura del módulo>.mjs   # ver scripts/README.md
 ```
-Si tocaste un módulo puro, antes de la suite: `npm run test:compilar`.
+No hay paso de compilar: las suites cargan los `.ts` de `lib/` directamente (Node ≥ 22.18).
 
 Checklist completo de aceptación: `docs/normativo/CONTRATO-DE-CAMBIO.md`.

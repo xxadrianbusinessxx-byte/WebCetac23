@@ -19,7 +19,7 @@
  * consulta, y vive en `documentos.ts`. Aquí solo se responde, dado un nivel ya
  * resuelto, qué habilita ese nivel.
  */
-import { type NivelPermiso } from "./tables";
+import { type NivelPermiso } from "./tables.ts";
 
 /** Fila de carpeta. Lo mínimo que necesita `rutaCarpeta`; la fila completa la
  *  define `documentos.ts`, que es quien la lee de la base. */
@@ -29,6 +29,9 @@ export type CarpetaRow = {
   parent_id: string | null;
   creado_por: string | null;
   created_at: string | null;
+  /** `null` = carpeta institucional. Con valor, pertenece a esa materia
+   *  (`idInterno`) y sale en «Materias › Recursos». */
+  materia_interna?: string | null;
 };
 
 /** Nivel efectivo de acceso de un profesor a una carpeta (o null si no tiene). */

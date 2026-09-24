@@ -2,10 +2,7 @@
  * test-justificacion-por-clase.mjs - Pruebas PURAS de la justificacion POR
  * CLASE (Prompt B), sin Supabase.
  *
- * Compilar (recompilar tras cambios en lib/escolar/asistencia/justificaciones.ts):
- *   npx tsc lib/escolar/asistencia/justificaciones.ts ^
- *     --outDir scripts/.tmp-justificacion-clase --module commonjs ^
- *     --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck
+ * Ejecutar (Node carga los .ts de lib/ directamente; no hay paso de compilar):
  *   node scripts/test-justificacion-por-clase.mjs
  *
  * Casos de la VALIDACION del prompt:
@@ -18,16 +15,8 @@
  *  6. materia que NO esta en el horario de ese dia -> rechazada;
  *  7. una justificacion rechazada no suma clases.
  */
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
-const dir = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  ".tmp-justificacion-clase",
-);
-const M = require(path.join(dir, "asistencia/justificaciones.js"));
+const M = await import("../lib/escolar/asistencia/justificaciones.ts");
 
 let pasadas = 0;
 let fallidas = 0;

@@ -1,5 +1,5 @@
-import { parseCsvTexto } from "../csv";
-import type { MateriaTablaVista } from "../types";
+import { parseCsvTexto } from "../csv.ts";
+import type { MateriaTablaVista } from "../types.ts";
 
 export type FilaContenidoTabla = { contenido: string | null };
 

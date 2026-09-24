@@ -1,13 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { TABLA_ALUMNOS } from "../tables";
-import type { AlumnoRow } from "../types";
+import { TABLA_ALUMNOS } from "../tables.ts";
+import type { AlumnoRow } from "../types.ts";
 import {
   listarEtiquetasStatus,
   promedioDesdeFilaStatus,
   type AlumnoEstrella,
-} from "./etiquetas-status";
-import { STATUS_COL_CURP } from "./etiquetas-schema";
-import { nombreCompletoAlumno } from "./alumnos";
+} from "./etiquetas-status.ts";
+import { STATUS_COL_CURP } from "./etiquetas-schema.ts";
+import { nombreCompletoAlumno } from "./alumnos.ts";
 
 export type { AlumnoEstrella };
 

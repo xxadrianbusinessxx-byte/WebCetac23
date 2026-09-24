@@ -14,68 +14,24 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
 
-const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
 // ── 1) Transpilar los módulos puros a CommonJS temporal ────────────────────
-const tmp = path.join(__dirname, ".tmp-oceano");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
 
-const archivos = [
-  ["lib/escolar/nombres.ts", "nombres.js"],
-  ["lib/escolar/materia/materia-identidad.ts", "materia/materia-identidad.js"],
-  ["lib/escolar/materia/facetas-materia.ts", "materia/facetas-materia.js"],
-  // etiquetas.ts hace I/O, pero de él solo se usa la CONSTANTE
-  // CAMPOS_PERSONALES_PRIMARIOS. Se compila entero con sus dependencias para no
-  // duplicar la constante en un módulo paralelo (R6): la prueba tiene valor
-  // precisamente porque compara contra la fuente real.
-  ["lib/escolar/tables.ts", "tables.js"],
-  ["lib/escolar/alumno/etiquetas-schema.ts", "alumno/etiquetas-schema.js"],
-  ["lib/escolar/alumno/etiquetas.ts", "alumno/etiquetas.js"],
-  ["lib/escolar/alumno/grupos-campos-personales.ts", "alumno/grupos-campos-personales.js"],
-  ["lib/escolar/asistencia/asistencia-tabular.ts", "asistencia/asistencia-tabular.js"],
-  ["lib/escolar/buscar-en-filas.ts", "buscar-en-filas.js"],
-  [ "lib/navegacion/mapa-navegacion.ts", "navegacion/mapa-navegacion.js"],
-  // Fase 3 — la lista de «Perfil › Notificaciones» (comentarios + justificaciones).
-  // Se añadió a esta suite al crearse el módulo: es una decisión pura y sin I/O,
-  // y su sitio natural es junto a los demás módulos de navegación/contenido.
-  ["lib/navegacion/notificaciones-alumno.ts", "navegacion/notificaciones-alumno.js"],
-  // Fases 6 y 7 — emparejamiento hueco→pieza de directivo y tecnico.
-  ["lib/navegacion/contenido-docente.ts", "navegacion/contenido-docente.js"],
-  ["lib/navegacion/contenido-directivo.ts", "navegacion/contenido-directivo.js"],
-  ["lib/navegacion/contenido-tecnico.ts", "navegacion/contenido-tecnico.js"],
-];
-
-for (const [src, out] of archivos) {
-  const codigo = fs.readFileSync(path.join(root, src), "utf8");
-  const { outputText } = ts.transpileModule(codigo, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-      esModuleInterop: true,
-    },
-  });
-  const destino = path.join(tmp, out);
-  fs.mkdirSync(path.dirname(destino), { recursive: true });
-  fs.writeFileSync(destino, outputText, "utf8");
-}
-
-const facetas = require(path.join(tmp, "materia/facetas-materia.js"));
-const grupos = require(path.join(tmp, "alumno/grupos-campos-personales.js"));
-const etiquetas = require(path.join(tmp, "alumno/etiquetas.js"));
-const tabular = require(path.join(tmp, "asistencia/asistencia-tabular.js"));
-const nav = require(path.join(tmp, "navegacion/mapa-navegacion.js"));
-const enFilas = require(path.join(tmp, "buscar-en-filas.js"));
-const notif = require(path.join(tmp, "navegacion/notificaciones-alumno.js"));
-const cDoc = require(path.join(tmp, "navegacion/contenido-docente.js"));
-const cDir = require(path.join(tmp, "navegacion/contenido-directivo.js"));
-const cTec = require(path.join(tmp, "navegacion/contenido-tecnico.js"));
+const facetas = await import("../lib/escolar/materia/facetas-materia.ts");
+const grupos = await import("../lib/escolar/alumno/grupos-campos-personales.ts");
+const etiquetas = await import("../lib/escolar/alumno/etiquetas.ts");
+const tabular = await import("../lib/escolar/asistencia/asistencia-tabular.ts");
+const nav = await import("../lib/navegacion/mapa-navegacion.ts");
+const enFilas = await import("../lib/escolar/buscar-en-filas.ts");
+const notif = await import("../lib/navegacion/notificaciones-alumno.ts");
+const cAl = await import("../lib/navegacion/contenido-alumno.ts");
+const cDoc = await import("../lib/navegacion/contenido-docente.ts");
+const cDir = await import("../lib/navegacion/contenido-directivo.ts");
+const cTec = await import("../lib/navegacion/contenido-tecnico.ts");
 
 // ── 2) Utilidades de prueba ────────────────────────────────────────────────
 let fallos = 0;
@@ -326,13 +282,17 @@ for (const rol of ROLES) {
 eq(nav.pestanasDe(null), [], "sin sesión no hay navegación");
 
 eq(nav.pestanasDe("alumno").map((p) => p.id), ["perfil", "materias", "calendario", "chat"], "pestañas del alumno");
-eq(nav.pestanasDe("maestro").map((p) => p.id), ["materias", "calendario-asistencias"], "pestañas del profesor");
+ok(!nav.pestanasDe("alumno").some((p) => p.id === "mensajes"), "el alumno NO entra en la mensajería del personal");
+// 2026-09-17: el personal gana «Mensajes» (mensajería privada entre directivo,
+// técnico y profesor, pedida por el responsable). Alumno y tutor NO la tienen:
+// su chat quedó descartado.
+eq(nav.pestanasDe("maestro").map((p) => p.id), ["materias", "calendario-asistencias", "mensajes"], "pestañas del profesor");
 eq(
   nav.pestanasDe("directivo").map((p) => p.id),
-  ["materias", "grupos-boleta", "calendario-asistencias", "administracion"],
+  ["materias", "grupos-boleta", "calendario-asistencias", "administracion", "mensajes"],
   "pestañas del directivo",
 );
-eq(nav.pestanasDe("tecnico").map((p) => p.id), ["ciclo-escolar", "catalogo", "personas", "contenido"], "pestañas del técnico");
+eq(nav.pestanasDe("tecnico").map((p) => p.id), ["ciclo-escolar", "catalogo", "personas", "contenido", "mensajes"], "pestañas del técnico");
 
 // El directivo es el profesor MÁS dos pestañas: las compartidas deben ser la
 // misma referencia, no una copia que pueda divergir.
@@ -397,61 +357,98 @@ ok(
   nav.TEXTO_APAGADO["sin-datos"] !== nav.TEXTO_APAGADO.decision,
   "dependencia de datos y decisión se explican distinto",
 );
-eq(nav.apartado("tecnico", "contenido", "documentos").razon, "decision", "Documentos está apagado por decisión");
-// ── Maquetas: se enseñan porque el diseño las dibujó ───────────────────────
-// El criterio NO es «¿tiene backend?» sino «¿existe el frame en Figma?».
-// Actividades tiene sus dos pantallas dibujadas; Recursos y Chat no tienen
-// ninguna, así que no hay maqueta posible sin inventarla.
-eq(nav.apartado("alumno", "materias", "actividades").estado, "maqueta", "Actividades se enseña: el diseño la dibuja");
-eq(nav.apartado("alumno", "materias", "recursos").estado, "apagado", "Recursos no: ningún frame dibuja su contenido");
+// 2026-09-17: Documentos se ENCENDIÓ. El INVARIANTE cambió por decisión, no la
+// ruta — así que esta aserción se reescribe declarándolo, no se borra. El
+// backend nunca estuvo apagado: lo que faltaba era montarlo en el shell.
+eq(nav.apartado("tecnico", "contenido", "documentos").estado, "activo", "Documentos ya está activo");
+ok(cTec.piezaDe("contenido", "documentos") !== null, "…y tiene pieza que lo pinta");
+// ── Lo que era maqueta, el 2026-09-17 pasó a operar ────────────────────────
+// Durante el rediseño estas pantallas se DIBUJABAN sin datos, porque el frame
+// existía y el backend no. Ahora tienen tablas, actions y panel: el INVARIANTE
+// cambió por trabajo hecho, no porque la aserción estorbara.
+eq(nav.apartado("alumno", "materias", "actividades").estado, "activo", "Actividades ya opera");
+ok(cAl.piezaDe("materias", "actividades") !== null, "…y tiene pieza");
+// 2026-09-17: Recursos se ENCENDIÓ. No hizo falta inventar el frame que no
+// existía: resultó ser Documentos con otro ámbito, y se reusa ese sistema con
+// una columna `materia_interna` en CARPETAS en vez de abrir un camino paralelo.
+eq(nav.apartado("alumno", "materias", "recursos").estado, "activo", "Recursos ya opera, reusando Documentos");
+ok(cAl.piezaDe("materias", "recursos") !== null, "…y tiene pieza");
 eq(nav.apartado("alumno", "chat", "chat").estado, "apagado", "Chat tampoco");
 
 for (const id of ["citas", "reportes", "recursos-administrativos", "buzon"]) {
-  eq(nav.apartado("directivo", "administracion", id).estado, "maqueta", `${id} se enseña (once frames lo dibujan)`);
+  eq(nav.apartado("directivo", "administracion", id).estado, "activo", `${id} ya opera`);
+  ok(cDir.piezaDe("administracion", id) !== null, `${id} tiene pieza que lo pinta`);
   ok(nav.apartado("directivo", "administracion", id).modos.length > 0, `${id} conserva su barra de modo`);
 }
 
 // Una maqueta SE NAVEGA. Si no, no sirve para nada.
 ok(nav.esNavegable(nav.apartado("directivo", "administracion", "citas")), "una maqueta es navegable");
 ok(nav.esNavegable(nav.apartado("alumno", "materias", "calificacion")), "un activo es navegable");
-ok(!nav.esNavegable(nav.apartado("alumno", "materias", "recursos")), "un apagado NO es navegable");
+// El apagado que queda para comprobar la regla es Chat, descartado por decisión
+// del responsable.
+ok(!nav.esNavegable(nav.apartado("alumno", "chat", "chat")), "un apagado NO es navegable");
 ok(!nav.esNavegable(null), "sin apartado no se navega");
 
 // Y lleva su aviso: quien la usa tiene que saber que no guarda.
-ok(nav.textoMaqueta(nav.apartado("directivo", "administracion", "buzon")), "la maqueta lleva aviso");
+// Ya no queda NINGUNA maqueta en el mapa. Lo que se comprueba ahora es que el
+// mecanismo sigue existiendo —si mañana se dibuja un frame nuevo antes de tener
+// backend, el aviso tiene que aparecer— y que un activo nunca lo lleva.
+eq(nav.apartadosMaqueta("directivo").length, 0, "el directivo ya no tiene maquetas");
+eq(nav.apartadosMaqueta("alumno").length, 0, "el alumno tampoco");
+ok(typeof nav.TEXTO_MAQUETA === "string" && nav.TEXTO_MAQUETA.length > 0, "el aviso de maqueta sigue definido para cuando haga falta");
 ok(nav.textoMaqueta(nav.apartado("alumno", "materias", "calificacion")) === null, "un activo no lleva aviso de maqueta");
-ok(nav.textoApagado(nav.apartado("directivo", "administracion", "buzon")) === null, "una maqueta no es un apagado");
+ok(nav.textoApagado(nav.apartado("directivo", "administracion", "buzon")) === null, "un activo no es un apagado");
 
 // apartadoInicial prefiere lo que FUNCIONA sobre lo que solo se enseña.
-eq(nav.apartadoInicial("directivo", "administracion").id, "alumnos-tutores", "entra al activo, no a la primera maqueta");
-eq(nav.apartadoInicial("alumno", "materias").id, "calificacion", "igual en Materias del alumno");
+// Ya no hay maqueta que saltar: el primero de la lista opera, así que entra ahí.
+eq(nav.apartadoInicial("directivo", "administracion").id, "citas", "entra al primer apartado, que ya opera");
+eq(nav.apartadoInicial("alumno", "materias").id, "actividades", "igual en Materias del alumno");
 
-// TODA maqueta del mapa tiene pantalla dibujada, y viceversa. Un apartado en
-// estado `maqueta` sin pantalla seria un hueco mudo: se entra y no hay nada.
-// Se comprueba leyendo el fichero de maquetas, no importandolo (es JSX).
+// El archivo de maquetas SE RETIRÓ el 2026-09-17 al quedarse sin uso: sus cinco
+// pantallas —Citas, Reportes, Recursos administrativos, Buzón y Actividades—
+// pasaron a operar con tablas y actions propias, así que dibujarlas sin datos
+// dejó de tener sentido.
+//
+// Lo que se comprueba ahora es la coherencia inversa: si el mapa NO tiene
+// maquetas, el archivo que las dibujaba no debe existir. Si algún día vuelve a
+// hacer falta una maqueta, esta aserción obliga a reponer el archivo con ella.
 {
-  const fuente = fs.readFileSync(path.join(root, "app/components/oceano/maquetas-oceano.tsx"), "utf8");
-  const dibujadas = new Set(
-    [...fuente.matchAll(/"([a-z-]+\/[a-z-]+)":\s*[A-Z]/g)].map((m) => m[1]),
-  );
+  const rutaMaquetas = path.join(root, "app/components/oceano/maquetas-oceano.tsx");
   const enElMapa = new Set();
   for (const rol of ROLES) {
     for (const { pestana: p, apartado: a } of nav.apartadosMaqueta(rol)) {
       enElMapa.add(`${p}/${a.id}`);
     }
   }
-  for (const clave of enElMapa) {
-    ok(dibujadas.has(clave), `la maqueta ${clave} tiene pantalla dibujada`);
-  }
-  for (const clave of dibujadas) {
-    ok(enElMapa.has(clave), `la pantalla ${clave} corresponde a una maqueta del mapa`);
-  }
-  eq(dibujadas.size, enElMapa.size, "no sobra ni falta ninguna pantalla de maqueta");
+  const existe = fs.existsSync(rutaMaquetas);
+  eq(enElMapa.size, 0, "el mapa no declara ninguna maqueta");
+  ok(!existe, "y el archivo que las dibujaba ya no está");
+  ok(
+    enElMapa.size === 0 || existe,
+    "si hubiera maquetas en el mapa, tendría que existir el archivo que las dibuja",
+  );
 }
 
-// apartadoInicial salta los apagados.
-eq(nav.apartadoInicial("alumno", "materias").id, "calificacion", "entra al primer apartado ACTIVO, no al primero");
-eq(nav.apartadoInicial("directivo", "administracion").id, "alumnos-tutores", "en Administración entra al único activo");
+
+// apartadoInicial salta los apagados. Las dos comprobaciones cambian de sujeto
+// el 2026-09-17: ahora el PRIMERO de cada lista ya está activo, así que lo que
+// se verifica es que sigue eligiendo un activo y nunca un apagado.
+eq(nav.apartadoInicial("alumno", "materias").id, "actividades", "entra al primer apartado, que ya está activo");
+ok(nav.apartadoInicial("alumno", "materias").estado === "activo", "y es un activo, no un apagado");
+eq(nav.apartadoInicial("directivo", "administracion").id, "citas", "en Administración entra al primero, ya activo");
+// La que de verdad protege la regla: en una pestaña cuyo primer apartado está
+// APAGADO, el inicial tiene que saltarlo.
+{
+  const conApagadoDelante = nav.pestanasDe("alumno").find((p) =>
+    p.apartados.length > 1 && p.apartados[0].estado === "apagado",
+  );
+  if (conApagadoDelante) {
+    ok(
+      nav.apartadoInicial("alumno", conApagadoDelante.id).estado !== "apagado",
+      `en «${conApagadoDelante.id}» el inicial salta el apagado de cabeza`,
+    );
+  }
+}
 eq(nav.apartadoInicial("alumno", "chat"), null, "una pestaña sin activos no tiene apartado inicial");
 
 // ordenSidebar: el activo sube a la primera posición.
@@ -482,10 +479,12 @@ eq(nav.apartado("directivo", "administracion", "citas").modos.length, 3, "Citas 
 // «uno» y la suite la cazó al cambiar el mapa: el número es la comprobación.
 eq(
   nav.apartadosApagados("tecnico").map((x) => x.apartado.id).sort(),
-  ["documentos", "noticias"],
-  "el técnico tiene dos apartados apagados, y ambos en «Contenido»",
+  ["noticias"],
+  "al técnico le queda UN apartado apagado: Noticias (Cloudinary desactivado)",
 );
-ok(nav.apartadosApagados("maestro").length === 1, "el profesor solo tiene Recursos apagado");
+// Al profesor ya no le queda NINGÚN apagado: Recursos se encendió el
+// 2026-09-17 reusando el sistema de documentos.
+eq(nav.apartadosApagados("maestro").length, 0, "el profesor ya no tiene apartados apagados");
 
 // ── 7) notificaciones-alumno ───────────────────────────────────────────────
 console.log("\nnotificaciones-alumno");
@@ -704,11 +703,12 @@ for (const clave of cTec.huecosConPieza()) {
   );
 }
 
-// Contenido del tecnico: la unica pestaña sin ningun apartado activo.
+// Contenido del tecnico: ya NO es la pestaña sin nada activo. Documentos se
+// encendió el 2026-09-17; Noticias sigue apagada porque Cloudinary lo está.
 const contenido = nav.pestana("tecnico", "contenido");
 ok(
-  contenido.apartados.every((a) => a.estado === "apagado"),
-  "«Contenido» del tecnico no tiene ningun apartado activo (Documentos y Noticias apagados)",
+  contenido.apartados.some((a) => a.estado === "activo"),
+  "«Contenido» del tecnico ya tiene un apartado activo (Documentos)",
 );
 eq(
   nav.apartado("tecnico", "contenido", "noticias").razon,

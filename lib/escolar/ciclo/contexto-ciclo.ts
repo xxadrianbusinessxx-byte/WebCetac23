@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { obtenerGruposConCarreraDePeriodo } from "../horario/horario-semanal";
-import { TABLA_GRUPO_MATERIAS, TABLA_PERIODOS } from "../tables";
+import { obtenerGruposConCarreraDePeriodo } from "../horario/horario-semanal.ts";
+import { TABLA_GRUPO_MATERIAS, TABLA_PERIODOS } from "../tables.ts";
 
 /**
  * CONTEXTO ACADÉMICO DEL CICLO (FASE CONSOLIDACIÓN)
@@ -107,6 +107,6 @@ export async function verContextoAcademicoPeriodo(
  *   · ./contexto-ciclo-reparar.ts  — reparar `tabla_legacy`
  * ------------------------------------------------------------------------- */
 
-export * from "./contexto-ciclo-clonar";
-export * from "./contexto-ciclo-catalogo";
-export * from "./contexto-ciclo-reparar";
+export * from "./contexto-ciclo-clonar.ts";
+export * from "./contexto-ciclo-catalogo.ts";
+export * from "./contexto-ciclo-reparar.ts";

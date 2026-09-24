@@ -18,8 +18,8 @@
  *   actions después de exigir().
  */
 
-import type { PortalRole } from "./types";
-import type { Capacidad } from "./capacidades";
+import type { PortalRole } from "./types.ts";
+import type { Capacidad } from "./capacidades.ts";
 
 /** Capacidades que no requieren sesión (hoy solo la portada pública). */
 export const CAPACIDADES_PUBLICAS: ReadonlySet<Capacidad> = new Set(["portada.ver"]);
@@ -36,6 +36,14 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "justificacion.solicitar",
     "justificacion.ver_propias",
     "portada.ver",
+    // UIs pendientes (2026-09-17): el alumno ve sus actividades y las
+    // entrega; pide citas y constancias; escribe al buzón. No gestiona nada.
+    "actividad.ver",
+    "actividad.entregar",
+    "cita.ver_propias",
+    "cita.solicitar",
+    "constancia.solicitar",
+    "buzon.enviar",
   ]),
 
   tecnico: new Set<Capacidad>([
@@ -86,6 +94,9 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "tutor.crear",
     "tutor.generar_automaticos",
     "tutor.cambiar_credenciales_propias",
+    // UIs pendientes (2026-09-17): el técnico NO toca contenido académico
+    // (regla del PROMPT-3). Solo entra en la mensajería interna.
+    "mensaje_interno.usar",
   ]),
 
   tutor: new Set<Capacidad>([
@@ -102,6 +113,14 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "portada.ver",
     "tutor.cambiar_credenciales_propias",
     "tutor.ver_propio",
+    // UIs pendientes (2026-09-17): el tutor ve lo de su vinculado y puede
+    // pedir cita y escribir al buzón. NO entrega actividades: eso lo hace el
+    // alumno, y el alcance por CURP lo resuelve la action.
+    "actividad.ver",
+    "cita.ver_propias",
+    "cita.solicitar",
+    "constancia.solicitar",
+    "buzon.enviar",
   ]),
 
   maestro: new Set<Capacidad>([
@@ -130,6 +149,11 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "materia.descargar_plantilla",
     "portada.ver",
     "profesor.cambiar_clave_propia",
+    // UIs pendientes (2026-09-17): crea y califica actividades de sus materias,
+    // y usa la mensajería interna. No toca reportes ni constancias.
+    "actividad.ver",
+    "actividad.editar",
+    "mensaje_interno.usar",
   ]),
 
   directivo: new Set<Capacidad>([
@@ -180,6 +204,18 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "semestre.ver",
     "tutor.cambiar_credenciales_propias",
     "tutor.ver_propio",
+    // UIs pendientes (2026-09-17): es quien resuelve. Reportes, citas,
+    // constancias y buzón son suyos; también crea actividades (R-4: opera sin
+    // depender de asignaciones).
+    "actividad.ver",
+    "actividad.editar",
+    "reporte.ver",
+    "reporte.crear",
+    "reporte.anular",
+    "cita.gestionar",
+    "constancia.gestionar",
+    "buzon.ver",
+    "mensaje_interno.usar",
   ]),
 };
 

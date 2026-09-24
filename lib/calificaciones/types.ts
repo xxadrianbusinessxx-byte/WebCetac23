@@ -1,5 +1,5 @@
 import type { PortalRole } from "@/lib/auth/types";
-import type { ExtensionCalificaciones } from "./constants";
+import type { ExtensionCalificaciones } from "./constants.ts";
 
 export type CalificacionesUploaderRole = Extract<PortalRole, "maestro" | "directivo">;
 

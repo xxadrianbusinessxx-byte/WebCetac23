@@ -61,10 +61,20 @@ la misma unidad que usan `docs/sistema/MAPA-DEL-SISTEMA.md` y este documento.
 | `tutores/` | tutores, tutores-types |
 | (raíz) | transversales: `tables`, `types`, `nombres`, `fechas`, `csv`, `buscar-en-filas`, `matriz-hoja`, `exportar-xlsx`, `excel-a-registros`, `openapi`, `comentarios`, `documentos` |
 
-**Dentro de `lib/escolar/` los imports son relativos** (`./x`, `../familia/x`), no `@/`.
-No es estilo: las suites compilan módulos sueltos con `tsc` y Node hace `require` del JS
-emitido; `tsc` no reescribe el alias `@/`, así que un import absoluto ahí rompe la suite
-sin romper el build. Desde `app/` sí se usa `@/lib/escolar/<familia>/<x>`.
+**Dentro de `lib/escolar/` los imports son relativos, y en todo `lib/` llevan
+extensión** (`./x.ts`, `../familia/x.ts`), nunca `@/`. No es estilo: las suites cargan
+`lib/` con Node, que ejecuta los `.ts` directamente (PROMPT H-bis) y tiene dos
+limitaciones que el bundler de Next no tiene:
+
+- **no resuelve el alias `@/`** — un import absoluto rompe la suite sin romper el build.
+  Lo vigila **C1**.
+- **exige la extensión exacta** — `from "../tables"` no resuelve y `from "../tables.ts"`
+  sí. `tsc` y el build aceptan las dos formas en silencio (`allowImportingTsExtensions`),
+  así que quitar una extensión solo rompe la suite que cargue ese módulo, si la hay. Lo
+  vigila **C13**.
+
+Desde `app/` sí se usa `@/lib/escolar/<familia>/<x>`, sin extensión: a `app/` solo lo
+carga el bundler, nunca Node.
 
 ### Reglas de ruta
 
@@ -76,6 +86,11 @@ sin romper el build. Desde `app/` sí se usa `@/lib/escolar/<familia>/<x>`.
   rutas, sube a `app/components/`. Si vive bajo una ruta y lo importa otra, está mal
   colocado.
 - **Nunca `public/` a mano** para decoraciones: es salida generada.
+- **Una pieza de presentación se define una vez.** Un componente visual sin dominio
+  (píldora, pestaña, aviso, campo) vive en `app/components/ui/` y se **importa**; si el
+  mismo nombre se declara en dos archivos de `app/`, está mal, aunque los dos «se vean
+  bien». Lo vigila la regla **C11** de `test-orden.mjs` (trinquete en 21 copias sobrantes),
+  y el plan que las unifica es `docs/sistema/MATRIZ-UX.md` §7 (F-UX1).
 - Nada nuevo en la raíz del repo. La raíz ya está cerrada: configuración, los cuatro
   documentos de arranque y `Name_of_archives_excels_CSVs`.
 
@@ -104,6 +119,7 @@ supabase/*.sql           esquema, RPC, triggers
 | `page.tsx` | actions, components, `lib/auth` | otra `page.tsx` |
 | `*-client.tsx` | actions, components, tipos de `lib/` | `lib/supabase/*`, nada con `server-only` |
 | `app/actions/` | todo `lib/` | otro `app/actions/` |
+| `lib/validacion/` (esquemas de entrada) | `valibot` y nada más: es un módulo puro | Supabase, `app/`, I/O de cualquier tipo |
 | `lib/auth/` (permisos, exigir, capacidades) | `lib/auth/types` y nada de Supabase en el módulo puro | decidir permisos desde la action |
 
 > **PROMPT-2 (centralización de permisos):** toda Server Action empieza por
@@ -119,6 +135,14 @@ supabase/*.sql           esquema, RPC, triggers
 > visible que el servidor rechaza es un bug). El recorte a directivo de la §4
 > (configuración → técnico; lectura conservada) ya está aplicado en
 > `lib/auth/permisos.ts` y verificado por `scripts/test-permisos.mjs`.
+>
+> **PROMPT-K (entrada validada, ejecutado 2026-09-20):** `exigir()` responde «este rol
+> puede hacer esto», **no** «esto que ha llegado es lo que dice ser». El orden es
+> **autorizar → validar → delegar**: ninguna action lee el `FormData` a mano —lo lee
+> `leerFormData(esquema, formData)` de `lib/validacion/`, contra un esquema declarado— y
+> los mensajes de error siguen siendo los de siempre, en castellano y para el usuario.
+> Lo vigila la regla **C12** de `test-orden.mjs` (umbral 0). Pesaba más aquí que en otros
+> repos: las policies de RLS son `USING (true)`, así que no hay una segunda red debajo.
 | `lib/escolar/` | otros `lib/`, por ruta **relativa** | cualquier cosa de `app/`; el alias `@/` |
 | `lib/*-puro.ts` | solo tipos | I/O de cualquier tipo |
 
@@ -196,7 +220,6 @@ tablas.
 | `scripts/` | herramientas vivas y reutilizables |
 | `scripts/_peligrosos/` | escriben o borran sin guarda. No ejecutar. |
 | `scripts/_archivo/` | un solo uso ya consumido. No re-ejecutar. |
-| `scripts/.tmp-*` | salida compilada, ignorada por git. `npm run test:compilar` |
 
 Todo script nuevo: cabecera con **qué mide**, **qué escribe** (o «nada») y **cómo se
 ejecuta**, y una fila en `scripts/README.md`. Sin eso, no está terminado.

@@ -3,7 +3,7 @@
  * test-reactivacion-inscripciones.mjs — PROMPT-4/T1 (opción A) suite de
  * regresión: reactivar el ciclo NO invierte una decisión manual.
  *
- * Pura (sin BD): transpila `lib/escolar/ciclo/ciclo-estado-puro.ts` y prueba
+ * Pura (sin BD): carga `lib/escolar/ciclo/ciclo-estado-puro.ts` y prueba
  * `planSincronizacionInscripciones` / `aplicarPlanSincronizacion`.
  *
  * Escenario real (medido 2026-09-06): 92 CURPs con >1 fila en el operativo, y
@@ -14,37 +14,11 @@
  *
  * Uso: node scripts/test-reactivacion-inscripciones.mjs
  */
-import fs from "node:fs";
-import path from "node:path";
-import ts from "typescript";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-
-const require = createRequire(import.meta.url);
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.join(__dirname, "..");
-const tmp = path.join(__dirname, ".tmp-reactivacion");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
-
-const codigo = fs.readFileSync(
-  path.join(root, "lib/escolar/ciclo/ciclo-estado-puro.ts"),
-  "utf8",
-);
-const { outputText } = ts.transpileModule(codigo, {
-  compilerOptions: {
-    module: ts.ModuleKind.CommonJS,
-    target: ts.ScriptTarget.ES2020,
-    esModuleInterop: true,
-  },
-  fileName: "ciclo-estado-puro.ts",
-});
-fs.writeFileSync(path.join(tmp, "ciclo-estado-puro.js"), outputText);
-
+// Node carga el `.ts` de lib/ directamente (PROMPT H-bis): sin transpilar a CommonJS.
 const {
   planSincronizacionInscripciones,
   aplicarPlanSincronizacion,
-} = require(path.join(tmp, "ciclo-estado-puro.js"));
+} = await import("../lib/escolar/ciclo/ciclo-estado-puro.ts");
 
 let pasos = 0;
 let fallos = 0;

@@ -29,7 +29,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { pareceCurp, normalizarCurp } from "../buscar-en-filas";
+import { pareceCurp, normalizarCurp } from "../buscar-en-filas.ts";
 import {
   normalizarCarreraCatalogo,
   normalizarGradoCatalogo,
@@ -39,33 +39,33 @@ import {
   type CarreraRow,
   type GrupoRow,
   type InscripcionRow,
-} from "./catalogo-academico";
+} from "./catalogo-academico.ts";
 import {
   analizarRoster,
   sincronizarAlumnosDesdeArchivo,
-} from "../alumno/alumnos";
-import { archivoCsvAFilas } from "../csv";
+} from "../alumno/alumnos.ts";
+import { archivoCsvAFilas } from "../csv.ts";
 import {
   ESTADO_HISTORICO,
   consultarPeriodo,
   obtenerCicloOperativoGlobal,
   resolverEstadoPeriodo,
   type FilaPeriodoEstado,
-} from "../ciclo/ciclo-estado";
-import { gradoASemestre } from "../ciclo/semestres";
-import { inscribirAlumnoEnCiclo } from "./inscripciones-borrador";
+} from "../ciclo/ciclo-estado.ts";
+import { gradoASemestre } from "../ciclo/semestres.ts";
+import { inscribirAlumnoEnCiclo } from "./inscripciones-borrador.ts";
 import {
   detectarColumnasRoster,
   mapeoRosterValido,
   crearMapeoRoster,
   type MapeoRoster,
-} from "../materia/mapeo-columnas";
+} from "../materia/mapeo-columnas.ts";
 import {
   TABLA_CARRERAS,
   TABLA_GRUPOS,
   TABLA_INSCRIPCIONES_ALUMNO,
   TABLA_PERIODOS,
-} from "../tables";
+} from "../tables.ts";
 
 /* ---------------------------------------------------------------------------
  * TIPOS

@@ -16,50 +16,18 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
 
-const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
 // ---------------------------------------------------------------------------
-// 1) Transpilar módulos puros a CommonJS temporal
+// 1) Módulos bajo prueba: Node carga los `.ts` de lib/ directamente (PROMPT H-bis)
 // ---------------------------------------------------------------------------
-const tmp = path.join(__dirname, ".tmp-tests");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
 
-const archivos = [
-  ["lib/escolar/nombres.ts", "nombres.js"],
-  ["lib/escolar/materia/columnas-calificaciones.ts", "materia/columnas-calificaciones.js"],
-  ["lib/escolar/materia/mapeo-columnas-materia.ts", "materia/mapeo-columnas-materia.js"],
-  ["lib/escolar/buscar-en-filas.ts", "buscar-en-filas.js"],
-  ["lib/escolar/matriz-hoja.ts", "matriz-hoja.js"],
-  ["lib/escolar/openapi.ts", "openapi.js"],
-  ["lib/escolar/materia/schema-tabla.ts", "materia/schema-tabla.js"],
-  ["lib/escolar/excel-a-registros.ts", "excel-a-registros.js"],
-];
-
-for (const [src, out] of archivos) {
-  const ruta = path.join(root, src);
-  const codigo = fs.readFileSync(ruta, "utf8");
-  const { outputText } = ts.transpileModule(codigo, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-      esModuleInterop: true,
-    },
-    fileName: src,
-  });
-  fs.mkdirSync(path.dirname(path.join(tmp, out)), { recursive: true });
-  fs.writeFileSync(path.join(tmp, out), outputText);
-}
-
-const mapeoCol = require(path.join(tmp, "materia/mapeo-columnas-materia.js"));
-const col = require(path.join(tmp, "materia/columnas-calificaciones.js"));
-const { matrizAFilasDirectas } = require(path.join(tmp, "excel-a-registros.js"));
+const mapeoCol = await import("../lib/escolar/materia/mapeo-columnas-materia.ts");
+const col = await import("../lib/escolar/materia/columnas-calificaciones.ts");
+const { matrizAFilasDirectas } = await import("../lib/escolar/excel-a-registros.ts");
 
 // ---------------------------------------------------------------------------
 // 2) Mini harness de aserciones
@@ -377,12 +345,6 @@ console.log(`\n${pasos} verificaciones, ${fallos} fallos`);
 //   Caso 15) supabase.from(nombreVisible) NO existe → verificado con búsqueda
 //           en el repositorio (solo supabase.from(idInterno)).
 
-// Limpieza del directorio temporal de transpilación
-try {
-  fs.rmSync(tmp, { recursive: true, force: true });
-} catch {
-  /* no crítico */
-}
 
 process.exit(fallos ? 1 : 0);
 

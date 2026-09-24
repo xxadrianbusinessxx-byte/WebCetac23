@@ -15,8 +15,8 @@
  * `MateriaIdentidad` ya expone grado, grupo, carrera y asignatura, así que las
  * tres facetas salen de datos existentes: cero consultas nuevas.
  */
-import { normalizarNombre } from "../nombres";
-import type { MateriaIdentidad } from "./materia-identidad";
+import { normalizarNombre } from "../nombres.ts";
+import type { MateriaIdentidad } from "./materia-identidad.ts";
 
 /** Lo mínimo que necesita este módulo. `nombreVisible` es opcional: las listas
  *  del catálogo lo traen, las crudas no. */

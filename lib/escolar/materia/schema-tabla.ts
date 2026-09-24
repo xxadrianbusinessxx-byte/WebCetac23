@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { invalidarCacheOpenAPI, obtenerSpecOpenAPI } from "../openapi";
+import { invalidarCacheOpenAPI, obtenerSpecOpenAPI } from "../openapi.ts";
 
 const COLUMNAS_SISTEMA = new Set([
   "id",

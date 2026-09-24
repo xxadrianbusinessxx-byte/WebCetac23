@@ -6,7 +6,7 @@ import {
   TABLA_INSCRIPCIONES_ALUMNO,
   TABLA_MATERIAS,
   TABLA_PERIODOS,
-} from "../tables";
+} from "../tables.ts";
 
 /**
  * CATÁLOGO ACADÉMICO · TIPOS, NORMALIZACIÓN Y RESOLUCIÓN.

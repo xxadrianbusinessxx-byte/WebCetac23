@@ -49,8 +49,6 @@ const abs = (rel) => path.join(root, rel);
 const existe = (rel) => fs.existsSync(abs(rel));
 const leer = (rel) => fs.readFileSync(abs(rel), "utf8");
 const pesa = (rel) => (existe(rel) ? fs.statSync(abs(rel)).size : 0);
-/** Aproximación estándar del repo: ~4 bytes por token. */
-const tok = (b) => Math.round(b / 4);
 
 // ── Fuentes: lista blanca ──────────────────────────────────────────────────
 // Solo esto se ejecuta. Todas `LEE(fs)`: leen archivos del repo, no la base.
@@ -58,6 +56,7 @@ const FUENTES = [
   { id: "orden", script: "test-orden.mjs", args: ["--json"] },
   { id: "restyle", script: "diag-restyle-oceano.mjs", args: ["--json"] },
   { id: "estadoActual", script: "verificar-estado-actual.mjs", args: ["--json"] },
+  { id: "docs", script: "verificar-docs.mjs", args: ["--json"] },
 ];
 
 const fuentes = [];
@@ -89,6 +88,7 @@ function correr({ id, script, args }) {
 const orden = correr(FUENTES[0]);
 const restyle = correr(FUENTES[1]);
 const docState = correr(FUENTES[2]);
+const docSistema = correr(FUENTES[3]);
 
 // ── Git ────────────────────────────────────────────────────────────────────
 const git = (...a) => {
@@ -106,16 +106,10 @@ const repo = {
 };
 
 // ── Coste de arranque ──────────────────────────────────────────────────────
-// La lectura obligatoria de AGENTS.md. La pagan entera Claude y Cline en CADA
-// sesión nueva: es la optimización de tokens con mejor relación esfuerzo/ahorro
-// que tiene el repo.
-const ARRANQUE = [
-  "AGENTS.md", "ESTADO-ACTUAL.md",
-  "docs/normativo/REGLAS_NO_HACER.md", "docs/normativo/GLOSARIO.md", "docs/00-INDICE.md",
-];
-const arranque = ARRANQUE.map((f) => ({ archivo: f, bytes: pesa(f), tokens: tok(pesa(f)) }))
-  .sort((a, b) => b.bytes - a.bytes);
-const arranqueTokens = arranque.reduce((a, x) => a + x.tokens, 0);
+// Ya NO se mide aquí. La lista de lectura obligatoria y su techo viven en
+// `verificar-docs.mjs`, que es quien los vigila en el CI, y el panel los lee de
+// su `--json` (ver FUENTES). Medirlos otra vez aquí daría dos fuentes para la
+// misma verdad —R6— y la cifra del panel podría dejar de ser la que falla.
 
 /** Bytes de todos los archivos bajo `dir` que cumplen `filtro`. */
 function pesarArbol(dir, filtro, acc = { n: 0, bytes: 0 }) {
@@ -237,13 +231,27 @@ if (docState) {
     doc: "ESTADO-ACTUAL.md", peorSi: "sube",
   });
 }
-señal({
-  zona: "docs", id: "docs.arranque", titulo: "Coste de arranque del agente", valor: arranqueTokens,
-  unidad: "tokens", estado: arranqueTokens > 12000 ? "aviso" : "ok",
-  detalle: "lo que pagan Claude y Cline en CADA sesión nueva, antes de escribir una línea",
-  doc: "AGENTS.md", peorSi: "sube",
-  items: arranque.map((x) => `${x.archivo} — ${x.tokens.toLocaleString("es-MX")} tokens · ${Math.round((x.tokens / arranqueTokens) * 100)}%`),
-});
+if (docSistema) {
+  const arranque = docSistema.arranque ?? [];
+  const arranqueTokens = docSistema.arranqueTokens ?? 0;
+  const techo = docSistema.techoTokens ?? 0;
+  señal({
+    zona: "docs", id: "docs.arranque", titulo: "Coste de arranque del agente", valor: arranqueTokens,
+    unidad: `tokens / techo ${techo.toLocaleString("es-MX")}`,
+    estado: arranqueTokens > techo ? "mal" : arranqueTokens > techo * 0.95 ? "aviso" : "ok",
+    detalle: "lo que pagan Claude y Cline en CADA sesión nueva, antes de escribir una línea",
+    accion: "node scripts/verificar-docs.mjs", doc: "AGENTS.md", peorSi: "sube",
+    items: arranque.map((x) => `${x.archivo} — ${x.tokens.toLocaleString("es-MX")} tokens · ${Math.round((x.tokens / arranqueTokens) * 100)}%`),
+  });
+  señal({
+    zona: "docs", id: "docs.rutasMuertas", titulo: "Rutas muertas en docs del presente",
+    valor: (docSistema.rutasMuertas ?? []).length, unidad: `en ${docSistema.docsRevisados} documentos`,
+    estado: (docSistema.rutasMuertas ?? []).length === 0 ? "ok" : "mal",
+    detalle: "un documento del presente que cita un archivo retirado gasta contexto para nada",
+    accion: "node scripts/verificar-docs.mjs", doc: "docs/00-INDICE.md", peorSi: "sube",
+    items: (docSistema.rutasMuertas ?? []).map((x) => `${x.doc} → ${x.ruta}`),
+  });
+}
 señal({
   zona: "docs", id: "docs.peso", titulo: "Peso total de docs/", valor: Math.round(docs.bytes / 1024),
   unidad: `KB en ${docs.n} archivos`, estado: "info",
@@ -317,7 +325,7 @@ const estado = {
   zonas: ZONAS.map((z) => ({ ...z, senales: senales.filter((s) => s.zona === z.id) })),
   alertas: senales.filter((s) => s.estado === "mal" || s.delta?.empeora === true).map((s) => s.id),
   puntosCiegos: [
-    "lint — 151 errores la última vez que se miró; no está en el CI ni aquí (necesita eslint -f json)",
+    "lint — SÍ está en el CI desde el PROMPT F y hoy pasa; lo que el panel no ve es el recuento de warnings (necesita eslint -f json)",
     "tsc --noEmit — no se corre en el panel rápido",
     "rendimiento — las cifras de FASE 10 son anteriores al rediseño Océano entero",
     "Supabase — filas, FK, RPC y SQL aplicado: todo requiere red (Fase 2)",

@@ -33,6 +33,8 @@ import {
   type AsignacionProfesorResuelta,
 } from "@/lib/escolar/catalogo/catalogo-academico";
 import { createClient } from "@/lib/supabase/server";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
+import { esquemaAliasArchivo } from "@/lib/validacion/esquemas-puro";
 
 /**
  * Filtra las tablas de materias visibles/operativas: la decisión vive en
@@ -218,13 +220,11 @@ export async function actionPrevisualizarAliasArchivo(
   const g = await exigir("materia.editar_alias");
   if (!g.ok) return { ok: false, error: "No autorizado." };
 
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File)) {
-    return { ok: false, error: "Selecciona un archivo." };
-  }
+  const entrada = leerFormData(esquemaAliasArchivo, formData);
+  if (!entrada.ok) return { ok: false, error: entrada.error };
   let filasMatriz: string[][];
   try {
-    const { filas } = await archivoCsvAFilas(archivo);
+    const { filas } = await archivoCsvAFilas(entrada.datos.archivo);
     filasMatriz = filas;
   } catch (e) {
     return { ok: false, error: `No se pudo leer el archivo: ${String(e)}` };

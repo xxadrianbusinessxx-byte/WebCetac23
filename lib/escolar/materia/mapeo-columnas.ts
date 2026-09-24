@@ -1,4 +1,4 @@
-import { normalizarNombre } from "../nombres";
+import { normalizarNombre } from "../nombres.ts";
 
 /**
  * Detección determinística y local de columnas de un archivo (CSV/Excel).

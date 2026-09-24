@@ -23,6 +23,8 @@ import {
 import { listarPeriodosSimple } from "@/lib/escolar/ciclo/ciclo-estado";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores";
 import { createClient } from "@/lib/supabase/server";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
+import { esquemaArchivoHorario } from "@/lib/validacion/esquemas-puro";
 
 /**
  * Server Actions del HORARIO SEMANAL OFICIAL (FASE HORARIO).
@@ -122,12 +124,10 @@ export async function actionImportarHorarioPreview(
     return previewError("Solo directivos pueden importar el horario.", periodoNombre);
   }
   const sesion = g.sesion;
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
-    return previewError("Selecciona un archivo Excel válido.", periodoNombre);
-  }
+  const entrada = leerFormData(esquemaArchivoHorario, formData);
+  if (!entrada.ok) return previewError(entrada.error, periodoNombre);
   const supabase = await createClient();
-  return previsualizarImportacionHorario(supabase, archivo, {
+  return previsualizarImportacionHorario(supabase, entrada.datos.archivo, {
     periodoNombre,
     creadoPor: sesion?.nombre ?? sesion?.matricula ?? "",
   });
@@ -153,11 +153,11 @@ export async function actionImportarHorarioAplicar(
     };
   }
   const sesion = g.sesion;
-  const archivo = formData.get("archivo");
-  if (!(archivo instanceof File) || archivo.size === 0) {
+  const entrada = leerFormData(esquemaArchivoHorario, formData);
+  if (!entrada.ok) {
     return {
       ok: false,
-      error: "Selecciona un archivo Excel válido.",
+      error: entrada.error,
       periodoNombre,
       aplicadas: 0,
       actualizadas: 0,
@@ -168,7 +168,7 @@ export async function actionImportarHorarioAplicar(
     };
   }
   const supabase = await createClient();
-  return aplicarImportacionHorario(supabase, archivo, {
+  return aplicarImportacionHorario(supabase, entrada.datos.archivo, {
     periodoNombre,
     creadoPor: sesion?.nombre ?? sesion?.matricula ?? "",
   });

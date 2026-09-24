@@ -76,15 +76,19 @@ otra; hoy se cumple.
 | 2 | Shell de contenido (crea el stacking context) | `app/components/ui/frutiger-backdrop.tsx` | `relative isolate z-[1]` | `z-[1]` |
 | 3 | Contenedor de página (ancho, padding, rejilla) | cada `*-client.tsx` / `page.tsx` | `relative z-10 mx-auto …` | `z-10` |
 | 4 | Paneles glass y sus piezas | `app/components/*` | §5 | — |
-| 5 | Barra de navegación (sticky, full-width) | `app/components/ui/barra-navegacion.tsx` + `.app-nav-bar*` en `globals.css` | `.app-nav-bar` | `z-40` |
+| 5 | Barra superior y sidebar | `app/components/oceano/nav-superior-oceano.tsx` · `app/components/oceano/sidebar-oceano.tsx`, montados por `app/components/oceano/shell-oceano.tsx` | — | `z-40` |
 | 6 | Pantalla de cambio forzado de clave (sustituye TODO) | `app/components/cambio-clave-forzado.tsx`, montada en `app/layout.tsx` | — | — |
 | 7 | Diálogos / overlays | inline en los paneles que los tienen | 2 usos | `z-50` |
 
-**Montaje único:** `app/layout.tsx` monta las capas 1, 5 y 6 una sola vez para todas
-las rutas. Ninguna página debe volver a montarlas.
+**Montaje único:** `app/layout.tsx` monta las capas 1 y 6 una sola vez para todas las
+rutas. La capa 5 la monta el shell Océano, que solo existe bajo `/oceano`: por eso
+no hay barra en `/` ni en `/login`.
 
-**La barra no se muestra en `/` ni en `/login`** (primera línea del componente en
-`barra-navegacion.tsx`), haya o no sesión.
+> **Retirado en `8d17188`:** `ui/barra-navegacion.tsx` y `ui/glossy-nav-pill.tsx`
+> ya no existen; `.app-nav-bar*` sigue en `app/globals.css` (8 reglas) sin nadie
+> que lo use. Las §§2, 3, 5 y 6 de este documento son anteriores a ese commit y
+> **están pendientes de reauditar** (`docs/sistema/pendientes.json`,
+> `matriz-ux-anterior-al-shell`).
 
 ---
 
@@ -108,18 +112,33 @@ relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 
 | `/documentos` | `documentos/page.tsx` | `documentos-client.tsx` (57) | estándar | todo vive en `documentos-panel.tsx` (700 líneas) |
 | `/tutor` | `tutor/page.tsx` | `tutor-client.tsx` (596) | estándar | 4 pestañas `MainTabButton`: datos · alumnos · asistencia · mensajes. `BubblePill`, `GreyActionPill`, `calendario-asistencia-alumno`, `horario-alumno-resumen` |
 
-### Quién ve qué en la barra (`ui/barra-navegacion.tsx`)
+### Quién ve qué en la barra
 
-| Rol | Hogar (pill 1) | Pills adicionales |
-|---|---|---|
-| alumno | `/perfil` | — |
-| maestro | `/profesor` | `/documentos` (solo si además tiene algún permiso otorgado) |
-| directivo | `/directivo` | `/documentos`, `/configuracion` (mientras conserve `ciclo.crear`) |
-| técnico | `/configuracion` (rotulado «Técnico») | `/documentos` |
-| tutor | `/tutor` + `/tutor?tab=alumnos` («Alumno») | — |
+> **Reescrito el 2026-09-19.** Hasta el commit `8d17188` («la UI antigua se
+> retira») esta sección describía la barra retirada en §2: eran *pills* que
+> apuntaban a rutas (`/perfil`, `/profesor`, `/directivo`…). El shell Océano no
+> navega por rutas: todo cuelga de `/oceano` y la barra superior conmuta
+> **pestañas**.
 
-La barra decide por **capacidad** (`puede()`), no por rol: un pill visible que el
-servidor rechaza es un bug (`docs/sistema/MATRIZ-PERMISOS.md`).
+La fuente única es **`lib/navegacion/mapa-navegacion.ts`** (`MAPA_POR_ROL`). La
+barra (`app/components/oceano/nav-superior-oceano.tsx`) es presentación pura:
+recibe las pestañas ya resueltas y no decide nada.
+
+| Rol | Pestañas, en orden |
+|---|---|
+| alumno | Perfil · Materias · Calendario · Chat |
+| tutor | Perfil (+ «Mis mensajes») · Materias · Calendario · Chat |
+| maestro | Materias · Calendario y asistencias · Mensajes |
+| directivo | Materias · Grupos y boleta · Calendario y asistencias · Administración · Mensajes |
+| técnico | Ciclo escolar · Catálogo · Personas · Contenido · Mensajes |
+
+Dentro de cada pestaña, **los apartados** sí se filtran por **capacidad**
+(`puede()`), no por rol: un apartado visible que el servidor rechaza es un bug
+(`docs/sistema/MATRIZ-PERMISOS.md`).
+
+> El resto de esta §3 —la tabla de rutas y el árbol de componentes— es anterior
+> al mismo commit y **no se ha reauditado**. No apoyarse en ella sin comprobar
+> contra el código.
 
 ### Árbol de uso de componentes
 
@@ -329,8 +348,6 @@ que las usan** y copiadas a mano.
 |---|---|---|---|
 | `FrutigerBackdrop` | `ui/frutiger-backdrop.tsx` | 8 archivos | `relative isolate z-[1] min-h-dvh overflow-x-hidden font-sans` |
 | `DecoracionFondo` | `ui/decoracion-fondo.tsx` | `layout.tsx` | 7 capas CSS + 12 burbujas con posición inline |
-| `BarraNavegacionGlobal` | `ui/barra-navegacion.tsx` | `layout.tsx` | `.app-nav-bar*` en `globals.css` |
-| `GlossyNavPill` | `ui/glossy-nav-pill.tsx` | `barra-navegacion` | `rounded-full`; activo `from-sky-400 via-sky-600 to-sky-800`, inactivo `from-sky-600 via-sky-800 to-sky-950`; brillo con pseudo-elemento `before:` |
 | `GlossyPersonIcon` | `ui/glossy-person-icon.tsx` | 8 archivos | SVG con `PALETAS` por género |
 | `WebVitals` | `ui/web-vitals.tsx` | `layout.tsx` | sin render |
 
@@ -385,9 +402,8 @@ sitios toca. Todos son de solo lectura.
 | **Color/animación del fondo** | `app/globals.css` `:root` (`--app-bg-*`) | 1 archivo, global | bajo |
 | **Intensidad del movimiento del fondo** | `--app-bg-animation-duration*` en `globals.css` | 1 archivo | bajo |
 | **Quitar/mover burbujas** | `BURBUJAS` en `ui/decoracion-fondo.tsx` + `.app-bg-bubble` | 2 archivos | bajo |
-| **Barra de navegación (altura, fondo, luz, logo)** | `.app-nav-bar*` en `globals.css` | 1 archivo | bajo |
-| **Qué pills salen en la barra y para quién** | `ui/barra-navegacion.tsx` | 1 archivo — debe seguir a `puede()` | **alto**: un pill que el servidor rechaza es un bug |
-| **Aspecto de los pills de la barra** | `ui/glossy-nav-pill.tsx` | 1 archivo | bajo |
+| **Barra superior (aspecto)** | `app/components/oceano/nav-superior-oceano.tsx` | 1 archivo — presentación pura | bajo |
+| **Qué pestañas salen y para quién** | `lib/navegacion/mapa-navegacion.ts` (`MAPA_POR_ROL`) | 1 archivo — los apartados siguen a `puede()` | **alto**: un apartado que el servidor rechaza es un bug |
 | **Color de los botones primarios** | 3 copias de `PillButton` + gradientes sueltos | `grep -rn "from-sky-500 via-sky-600 to-sky-700" app --include=*.tsx` (7) | medio |
 | **Color de los botones neutros** | 10 copias de `GreyActionPill` + rótulos `PanelTab` | `grep -rn "from-slate-400 via-slate-500 to-slate-600" app --include=*.tsx` (77) | medio |
 | **Forma de los botones** (dejar de ser cápsula) | las 5 piezas de §5.2 | `grep -rn "rounded-full" app --include=*.tsx` (192; incluye avatares y chips) | medio |
@@ -556,6 +572,18 @@ datos. Ninguna cambia comportamiento: solo dónde vive el CSS.
 | **F-UX2 — Tokens** | Declarar en `globals.css` (`@theme`) los valores canónicos de §4.2/4.3/4.4 con nombre (`--surface-glass`, `--radius-panel`, `--shadow-pill`…) y usarlos desde las piezas de F-UX1 | ningún `.tsx` nuevo con `shadow-[...]`; el número de sombras distintas baja de 40 |
 | **F-UX3 — Semántica** | Un solo tono de error (`red`, retirar `rose`), una sola receta por tono, un componente `Mensaje({tono})` | `grep -rc "rose-" app` = 0 |
 | **F-UX4 — Jerarquía** | Subir la escala tipográfica (cuerpo mínimo 12 px, títulos reales de panel) y retirar `text-[8px]`/`[9px]` | ninguna clase `text-[8px]`/`text-[9px]`; revisión visual de las 8 rutas |
+
+**Estado (2026-09-20) — F-UX1 ya tiene detector.** El PROMPT I añadió la regla **C11** a
+`scripts/test-orden.mjs`: cuenta las definiciones **sobrantes** de componentes en `app/`
+(copias menos una por nombre, fuera de `app/components/ui/` que es el destino) y hoy marca
+**21**, como **trinquete**: no falla por existir, falla si sube. El reparto medido es
+`GreyActionPill` 7 copias (6 sobran) · `Aviso` 7 (6) · `PanelTab` 6 (5) · `PillButton` 3 (2) ·
+`Boton` 2 (1) · `Campo` 2 (1).
+
+Dos avisos para cuando se ejecute F-UX1: (1) la cifra de §5.2 —«5 nombres, 25 copias»,
+2026-09-08— es anterior a esta medición y **no** la sustituye; el detector es la fuente, y
+además aparece **`Aviso`**, que §5 no lista y es la pieza más copiada; (2) al bajar el número
+hay que **apretar el umbral de C11 en el mismo cambio**, o el guardián queda flojo.
 
 Orden obligatorio: **F-UX1 antes que F-UX2** (no tiene sentido dar nombre a un valor que
 está copiado 25 veces). F-UX3 y F-UX4 son independientes entre sí.

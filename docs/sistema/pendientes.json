@@ -147,6 +147,39 @@
       "doc": "supabase/agregar-grupo-materia-justificaciones.sql",
       "revisado": "2026-09-17",
       "estado": "abierto"
+    },
+    {
+      "id": "matriz-ux-anterior-al-shell",
+      "titulo": "MATRIZ-UX §§2, 3, 5 y 6 describen la UI retirada en 8d17188",
+      "detalle": "El shell Oceano sustituyo la navegacion por rutas (pills) por pestanas desde lib/navegacion/mapa-navegacion.ts, y retiro ui/barra-navegacion.tsx y ui/glossy-nav-pill.tsx. Las referencias muertas ya se corrigieron una a una, pero el mapa de rutas (§3), el catalogo de piezas (§5) y la matriz de cambio (§6) siguen midiendo 53 archivos del 2026-09-08. Hasta reauditarlos, un cambio visual pedido desde este documento puede tocar un archivo que ya no se monta.",
+      "riesgo": "medio",
+      "quien": "agente — es medicion sobre el codigo, la hace un prompt",
+      "verificar": "node scripts/verificar-docs.mjs",
+      "doc": "docs/sistema/MATRIZ-UX.md",
+      "revisado": "2026-09-19",
+      "estado": "abierto"
+    },
+    {
+      "id": "tipos-db-sin-generar",
+      "titulo": "database.types.ts no se ha podido generar: falta Docker o un token de la CLI",
+      "detalle": "El PROMPT J dejó el generador (scripts/gen-tipos-db.mjs, con --check y la versión de la CLI clavada) pero NO el archivo. `supabase gen types --db-url` exige Docker en las tres versiones probadas (2.117.0, 2.39.2, 1.207.9: arranca la imagen postgres-meta) y esta máquina no tiene demonio de Docker; `--project-id` y `--linked` exigen una sesión de la CLI (access token) que tampoco existe. Es una decisión de una persona: instalar Docker Desktop, o emitir un token y exportar SUPABASE_ACCESS_TOKEN. Después: correr el generador y, ANTES de enchufar el genérico al cliente, comprobar `npx tsc --noEmit` y el tamaño del archivo (C9: ningún archivo de app/ o lib/ pasa de 1000 líneas, y un database.types.ts real lo supera, así que necesita su excepción decidida). NO se generó desde el OpenAPI de PostgREST a propósito: es una fuente derivada y con pérdida (no distingue uuid de text, aproxima la nulabilidad) y habría producido una lista de errores de tsc en parte ficticia, que es justo el artefacto que ese prompt venía a medir.",
+      "riesgo": "medio",
+      "quien": "persona — instalar Docker o emitir un token; el resto lo hace un agente",
+      "verificar": "node scripts/gen-tipos-db.mjs --check",
+      "doc": "docs/historial/informes/INFORME-PROMPT-J-TIPOS-DESDE-LA-BASE.md",
+      "revisado": "2026-09-20",
+      "estado": "abierto"
+    },
+    {
+      "id": "tabla-calificaciones-inexistente",
+      "titulo": "archivos_calificaciones: una action viva apunta a una tabla que no esta en public",
+      "detalle": "Medido en el PROMPT J: GET /rest/v1/archivos_calificaciones devuelve HTTP 404 PGRST205. El nombre vive en lib/calificaciones/constants.ts (CALIFICACIONES_TABLE) y lo usan TRES llamadas .from() de lib/calificaciones/storage.ts, que importa app/actions/calificaciones.ts: es codigo alcanzable, no una constante huerfana. Ninguno de los 47 .sql la crea; solo aparece en dos comentarios de crear-tablas-asistencias.sql. Caben dos explicaciones y hay que saber cual: (a) la tabla existe en un esquema que PostgREST no expone, y entonces no pasa nada pero hay que documentarlo; (b) no existe, y entonces subir o leer archivos de calificaciones esta roto en produccion y nadie lo ha notado, lo que a su vez diria que la funcion no la usa nadie. Riesgo alto hasta que se decida cual de las dos: se resuelve en un minuto desde el SQL Editor.",
+      "riesgo": "alto",
+      "quien": "persona - una consulta en el SQL Editor de Supabase",
+      "verificar": "node scripts/check-supabase-public.mjs",
+      "doc": "docs/historial/informes/INFORME-PROMPT-J-TIPOS-DESDE-LA-BASE.md",
+      "revisado": "2026-09-20",
+      "estado": "abierto"
     }
   ]
 }

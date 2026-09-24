@@ -23,7 +23,7 @@ Variables de entorno: copiar `.env.example` a `.env.local` y rellenarlas.
 | `npm run build` | Build de producción. |
 | `npm run lint` | ESLint. |
 | `npx tsc --noEmit` | Typecheck. Debe dar 0 errores antes de cualquier entrega. |
-| `npm run test:compilar` | Compila los módulos puros que consumen las suites `test-*.mjs`. |
+| `npm run test:suites` | Las 40 suites puras. Sin paso previo: Node carga los `.ts` de `lib/` directamente. |
 
 ## Documentación
 

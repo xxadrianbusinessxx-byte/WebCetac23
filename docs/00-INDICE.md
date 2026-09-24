@@ -11,6 +11,7 @@ escribir una línea. Aquí está qué leer según la tarea, y nada más.
 | **`normativo/`** | Obliga. Si el código lo contradice, el código está mal. | Siempre que se vaya a modificar algo. |
 | **`sistema/`** | Describe el presente, medido sobre el código. | Para localizar dónde vive un problema. |
 | **`historial/`** | Describe **un momento pasado**. NO es el estado actual. | Solo para responder «por qué se hizo así». Nunca como fuente de verdad. |
+| **`informes/`** | **Ninguna.** Generado por `npm run informe`, se regenera entero. | Para una persona que quiere ver de dónde viene el repo sin abrirlo. Nunca se cita como norma ni como estado. |
 
 > Regla dura: **nada de `historial/` se cita como estado actual.** Esos documentos
 > fueron ciertos el día que se escribieron. Para saber qué es verdad hoy: leer el
@@ -25,7 +26,7 @@ hay que arreglarlo — no cargar todo por si acaso.
 
 | Tarea | Leer |
 |---|---|
-| **Cualquier cambio** (mínimo obligatorio, ~35 KB) | `AGENTS.md` · `ESTADO-ACTUAL.md` · `docs/normativo/REGLAS_NO_HACER.md` · `docs/normativo/GLOSARIO.md` |
+| **Cualquier cambio** (mínimo obligatorio, ~37 KB) | `AGENTS.md` · `ESTADO-ACTUAL.md` · `RUMBO.md` · `docs/normativo/REGLAS_NO_HACER.md` · `docs/normativo/INVARIANTES.md` · `docs/normativo/GLOSARIO.md` |
 | Crear un archivo, función, script o SQL nuevo | + `docs/normativo/ORDEN.md` (**dónde va cada cosa**) |
 | Localizar un bug del que solo se conoce el síntoma | + `docs/sistema/MAPA-DEL-SISTEMA.md` |
 | Entender cómo viaja una petición de punta a punta | + `docs/sistema/FLUJO-TECNICO.md` |
@@ -47,17 +48,18 @@ hay que arreglarlo — no cargar todo por si acaso.
 | Archivo | Qué es |
 |---|---|
 | `AGENTS.md` | Punto de entrada. Orden de autoridad y reglas de trabajo. |
-| `CLAUDE.md` | Espejo de `AGENTS.md` para Claude Code. |
+| `CLAUDE.md` | Puntero a `AGENTS.md`, nada más. No repite ninguna regla: duplicarla es R6. |
 | `ESTADO-ACTUAL.md` | **Qué es verdad hoy.** Lo primero que se lee y lo primero que se actualiza. |
+| `RUMBO.md` | **En medio de qué estamos.** Campaña, cierre y fuera de alcance. |
 | `filosofia.estructural` | NORMATIVO. 16 principios de arquitectura. |
 | `criterios.prompts` | NORMATIVO. Cómo se redacta un prompt para Cline. |
 | `Name_of_archives_excels_CSVs` | Referencia: nombres literales de las tablas de materia. |
-| `contexto.feliz` | HISTORIAL. Bitácora append-only desde mayo. Contiene afirmaciones ya falsas. No es contexto de arranque. |
 
 ### `docs/normativo/` — obliga
 | Archivo | Qué es |
 |---|---|
 | `REGLAS_NO_HACER.md` | R1–R8: los errores que ya rompieron el sistema. Prohibiciones permanentes. |
+| `INVARIANTES.md` | Los 16 principios, uno por línea. Generado desde el ensayo. |
 | `GLOSARIO.md` | Los términos donde el sistema ya se rompió por confundirlos. |
 | `ORDEN.md` | Dónde va cada cosa: rutas, capas, funciones, scripts, SQL y prompts. Seis órdenes con tabla de decisión. |
 | `CONTRATO-DE-CAMBIO.md` | Checklist que todo cambio debe pasar antes de aceptarse. |
@@ -74,11 +76,12 @@ hay que arreglarlo — no cargar todo por si acaso.
 | `modulos/HORARIO_SEMANAL_MODULO.md` | Horario semanal. |
 
 ### `docs/historial/` — pasado, no citar como presente
-| Carpeta | Contenido |
+| Ruta | Contenido |
 |---|---|
 | `auditorias/` | 20 documentos: P0, P1, fases F1–F10, auditorías de ciclo, cierres. |
 | `informes/` | Resultado de cada prompt ejecutado (A–D, asistencia, inscripciones). |
 | `prompts/` | Los prompts que se le dieron a Cline, tal cual se enviaron. Incluye `PROMPT-1`/`PROMPT-2`/`PROMPT-3`/`PROMPT-4` (ejecutados; informe de cada uno en `informes/`) y `PROMPT-5` (ejecutado en parte: A completa + B1/B2/B6/B7; B3/B4/B5 pendientes, ver su informe). |
+| `contexto.feliz.md` | Bitácora append-only desde mayo. Contiene afirmaciones ya falsas. **No es contexto de arranque**: se conserva para responder «por qué se hizo así». |
 | `OPTIMIZACION_RENDIMIENTO_400_500.md` | Benchmark real con 461 alumnos. Las mediciones siguen siendo útiles; las recomendaciones pueden estar aplicadas ya. |
 
 ### `scripts/` y `supabase/`
@@ -86,7 +89,8 @@ hay que arreglarlo — no cargar todo por si acaso.
 |---|---|
 | `scripts/README.md` | Inventario con etiqueta LEE / ESCRIBE / DESTRUCTIVO por script. |
 | `scripts/gen-matriz-permisos.mjs` | Mantiene al día el inventario de la matriz de permisos (`npm run gen:matriz`). |
-| `scripts/compilar-suites.mjs` | Recompila los módulos puros que consumen las suites (`npm run test:compilar`). Sin esto, `test-*.mjs` falla en un clon limpio. |
+| `scripts/gen-contexto.mjs` | Arma el contexto acotado de un trabajo desde este índice y el resto de fuentes. `--agente=cline` (por defecto) da el paquete de instrucciones; `--agente=claude`, el brief de diagnóstico. **Se genera, no se escribe a mano** (`AGENTS.md` §Reparto). |
+| `scripts/verificar-docs.mjs` | Vigila que ESTE sistema de documentos siga sano: rutas vivas en los documentos del presente y techo de tokens del arranque (`npm run verificar:docs`). Está en el CI. |
 | `docs/historial/README.md` | Por qué nada de esa carpeta describe el presente. |
 | `scripts/_peligrosos/` | Escriben o borran sin guarda. No ejecutar. |
 | `scripts/_archivo/` | Un solo uso, ya consumido. No re-ejecutar. |

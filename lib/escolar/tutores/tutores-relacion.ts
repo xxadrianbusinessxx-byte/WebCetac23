@@ -1,9 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { nombreCompletoAlumno } from "../alumno/alumnos";
-import type { AlumnoRow } from "../types";
-import { TABLA_ALUMNOS, TABLA_TUTORES, TABLA_TUTOR_ALUMNOS } from "../tables";
-import { type TutorRow } from "./tutores-types";
+import { nombreCompletoAlumno } from "../alumno/alumnos.ts";
+import type { AlumnoRow } from "../types.ts";
+import { TABLA_ALUMNOS, TABLA_TUTORES, TABLA_TUTOR_ALUMNOS } from "../tables.ts";
+import { type TutorRow } from "./tutores-types.ts";
 import {
   SELECT_TUTOR,
   buscarTutorPorId,
@@ -14,7 +14,7 @@ import {
   generarUsuarioUnico,
   guardarCredencialesIniciales,
   hashContraseñaTutor,
-} from "./tutores-credenciales";
+} from "./tutores-credenciales.ts";
 
 /**
  * TUTORES · RELACIÓN TUTOR↔ALUMNO (Bloque 6A/6C).

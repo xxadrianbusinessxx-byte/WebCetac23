@@ -23,6 +23,9 @@ const libCarga = leer("lib/escolar/catalogo/carga-academica.ts");
 const paso = leer("app/components/ciclo-configurador/paso-alumnos.tsx");
 const insc = leer("app/actions/inscripciones-admin.ts");
 const inscLib = leer("lib/escolar/catalogo/inscripciones-borrador.ts");
+// PROMPT K: los esquemas de entrada, que es donde se declara `periodoId` desde que la
+// action dejó de leer el FormData a mano.
+const esquemasValidacion = leer("lib/validacion/esquemas-puro.ts");
 
 // Pipeline real (roster de alumnos) reutilizable.
 ok("preview roster existe (SOLO LECTURA)", /actionPrevisualizarCargaAcademica/.test(actCarga));
@@ -32,7 +35,11 @@ ok("parser CSV único reutilizable", /archivoCsvAFilas/.test(libCarga));
 
 // F3 — parametrización por `periodoId` (GAP cerrado).
 ok("ContextoAcademico incluye periodoId (opcional)", /periodoId\?: string/.test(libCarga));
-ok("extraerContexto lee formData.periodoId", /formData\.get\("periodoId"\)/.test(actCarga));
+// 2026-09-20 (PROMPT K): la lectura del FormData se movió al esquema declarado de
+// `lib/validacion/`, así que la aserción mira el esquema Y la action. La RUTA cambia;
+// el invariante es el mismo: `periodoId` entra por el formulario de la carga.
+ok("la entrada de la carga declara periodoId (esquema) y la action la valida",
+  /esquemaCargaAcademica/.test(actCarga) && /periodoId: textoOpcional/.test(esquemasValidacion));
 ok("ruta F3 valida período destino por id (BORRADOR/OPERATIVO)", /validarPeriodoDestinoCarga/.test(libCarga) && /consultarPeriodo/.test(libCarga) && /resolverEstadoPeriodo/.test(libCarga));
 ok("ruta F3 resuelve grupos por grupos.periodo_id", /eq\("periodo_id", periodoId\)/.test(libCarga) || /eq\("periodo_id", pid\)/.test(libCarga));
 ok("preview F3 no usa inscripción activa global en la ruta periodoId",

@@ -34,8 +34,8 @@ export {
   nombreCompletoTutor,
   type TutorAlumnoRow,
   type TutorRow,
-} from "./tutores-types";
+} from "./tutores-types.ts";
 
-export * from "./tutores-credenciales";
-export * from "./tutores-relacion";
-export * from "./tutores-generacion";
+export * from "./tutores-credenciales.ts";
+export * from "./tutores-relacion.ts";
+export * from "./tutores-generacion.ts";

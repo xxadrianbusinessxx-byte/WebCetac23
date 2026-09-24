@@ -1,7 +1,7 @@
 import {
   EXTENSIONES_PERMITIDAS,
   type ExtensionCalificaciones,
-} from "./constants";
+} from "./constants.ts";
 
 export function extensionDesdeNombre(
   fileName: string,

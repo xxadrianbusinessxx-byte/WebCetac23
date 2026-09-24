@@ -16,6 +16,10 @@ import { useCallback, useState } from "react";
 import { actionObtenerVistaRegistro } from "@/app/actions/escolar";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import {
+  AdministracionPanel,
+  type PantallaAdministracion,
+} from "@/app/components/administracion-panel";
+import {
   claveDeGrupo,
   etiquetaGrupo,
   facetasDisponibles,
@@ -81,9 +85,13 @@ function SelectorAmbito({
 
 export function ContenidoDirectivoOceano({
   pieza,
+  modo = null,
   datos,
 }: {
   pieza: PiezaDirectivo;
+  /** Modo activo de la barra de modo. Las pantallas de Administración lo usan
+   *  para elegir sub-vista (crear vs listar, pendientes vs programadas). */
+  modo?: string | null;
   datos: DatosDirectivoOceano;
 }) {
   const [filtro, setFiltro] = useState<FiltroAmbito>(FILTRO_AMBITO_VACIO);
@@ -116,6 +124,19 @@ export function ContenidoDirectivoOceano({
     setRegistro("");
     setRotulo("");
     setVista(null);
+  }
+
+  // Las cuatro pantallas de Administración escolar. Cada una trae su propio
+  // estado y sus propias actions: este archivo solo elige cuál montar.
+  const ADMIN: Partial<Record<typeof pieza, PantallaAdministracion>> = {
+    "admin-reportes": "reportes",
+    "admin-citas": "citas",
+    "admin-constancias": "constancias",
+    "admin-buzon": "buzon",
+  };
+  const pantallaAdmin = ADMIN[pieza];
+  if (pantallaAdmin) {
+    return <AdministracionPanel pantalla={pantallaAdmin} modo={modo} />;
   }
 
   if (pieza === "alumnos-tutores") {

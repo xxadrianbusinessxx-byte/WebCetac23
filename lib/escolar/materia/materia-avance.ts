@@ -20,12 +20,12 @@
  *   final» si ya existe «CALIFICACION FINAL»).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { filaCoincideAlumno, type CriterioAlumnoEnFila } from "../buscar-en-filas";
-import { archivoCsvAFilas } from "../csv";
-import { matrizAFilasDirectas } from "../excel-a-registros";
-import { obtenerMapeoColumnasMateria } from "./mapeo-columnas-materia";
-import { normalizarNombre } from "../nombres";
-import { invalidarCacheOpenAPI } from "../openapi";
+import { filaCoincideAlumno, type CriterioAlumnoEnFila } from "../buscar-en-filas.ts";
+import { archivoCsvAFilas } from "../csv.ts";
+import { matrizAFilasDirectas } from "../excel-a-registros.ts";
+import { obtenerMapeoColumnasMateria } from "./mapeo-columnas-materia.ts";
+import { normalizarNombre } from "../nombres.ts";
+import { invalidarCacheOpenAPI } from "../openapi.ts";
 
 export type FilaExistente = Record<string, unknown>;
 export type FilaAvance = Record<string, string>;

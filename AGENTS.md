@@ -1,11 +1,13 @@
 # AGENTS.md — Punto de entrada para agentes de IA
 
-## Lectura de arranque (obligatoria, ~35 KB)
+## Lectura de arranque (obligatoria, ~37 KB)
 
 1. `ESTADO-ACTUAL.md` — qué es verdad hoy
-2. `docs/normativo/REGLAS_NO_HACER.md` — R1–R8, las prohibiciones permanentes
-3. `docs/normativo/GLOSARIO.md` — los términos donde el sistema ya se rompió
-4. `docs/00-INDICE.md` — qué leer después, según la tarea
+2. `RUMBO.md` — en medio de qué estamos
+3. `docs/normativo/REGLAS_NO_HACER.md` — R1–R8, las prohibiciones permanentes
+4. `docs/normativo/INVARIANTES.md` — los 16 principios, uno por línea
+5. `docs/normativo/GLOSARIO.md` — los términos donde el sistema ya se rompió
+6. `docs/00-INDICE.md` — qué leer después, según la tarea
 
 **No leas más que eso al arrancar.** `docs/00-INDICE.md` tiene un presupuesto de
 lectura por tipo de tarea; síguelo. Cargar documentación «por si acaso» consume la
@@ -44,8 +46,15 @@ Hay scripts que borran tablas en producción y no lo dice su nombre.
 
 ## Antes de dar un cambio por bueno
 
+```bash
+node scripts/test-orden.mjs        # capas, nombres, scripts, raíz
+node scripts/verificar-docs.mjs    # rutas vivas y coste de arranque
+npm run test:ci                    # suites + ESTADO-ACTUAL al día
+```
+
 `docs/normativo/CONTRATO-DE-CAMBIO.md` — checklist de aceptación, y en su §1 el bloque
-de 12 líneas que se pega al final de cada prompt para Cline.
+de 12 líneas que se pega al final de cada prompt para Cline. Lo que `test-orden`
+no alcanza se revisa a mano contra su §2.
 
 ## Reparto
 
@@ -79,19 +88,18 @@ No es el mismo, y confundirlos es lo que hace caro el reparto:
 | Agente | Recibe | Por qué |
 |---|---|---|
 | Claude | el repo: puede investigar a fondo | diagnosticar exige ver relaciones que no están en ningún archivo |
-| Cline | **solo el paquete del prompt** | con 500 KB de docs gasta la ventana antes de escribir una línea, y no necesita decidir nada: la decisión ya está tomada |
+| Cline | **solo el paquete del prompt** | con ~800 KB de docs gasta la ventana antes de escribir una línea, y no necesita decidir nada: la decisión ya está tomada |
 
-El paquete de Cline se genera, no se escribe a mano:
+**Ninguno de los dos se arma a mano.** El mismo script emite lo que le toca a
+cada uno, desde las mismas fuentes:
 
 ```bash
-node scripts/gen-contexto-cline.mjs --tarea=crear <archivos que se van a tocar>
+node scripts/gen-contexto.mjs --tarea=crear <archivos>   # Cline: paquete cerrado + CONTRATO
+node scripts/gen-contexto.mjs --agente=claude <archivos> # Claude: qué está ya medido y qué no mide nadie
 ```
 
-Devuelve el presupuesto de lectura que corresponde (de `docs/00-INDICE.md`), la
-capa de cada archivo y qué exige, las suites que lo cubren, los términos del
-glosario que de verdad aparecen, y el bloque del CONTRATO. A mano se olvida
-alguno y el prompt acaba diciendo «lee el repo», que es lo contrario del
-presupuesto.
+Qué lleva cada uno y por qué son distintos: `scripts/README.md`. A mano se olvida
+algo y el prompt acaba diciendo «lee el repo», que es lo contrario del presupuesto.
 
 ### Qué nunca se delega sin revisión
 

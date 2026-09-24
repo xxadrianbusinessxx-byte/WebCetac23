@@ -26,11 +26,11 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { PortalSessionPayload } from "../../auth/types";
-import { normalizarCurp } from "../buscar-en-filas";
-import { buscarAlumnoPorClave } from "./alumnos";
-import { profesorTieneAccesoAlumno } from "../catalogo/catalogo-academico";
-import { listarCurpsDeTutor } from "../tutores/tutores";
+import type { PortalSessionPayload } from "../../auth/types.ts";
+import { normalizarCurp } from "../buscar-en-filas.ts";
+import { buscarAlumnoPorClave } from "./alumnos.ts";
+import { profesorTieneAccesoAlumno } from "../catalogo/catalogo-academico.ts";
+import { listarCurpsDeTutor } from "../tutores/tutores.ts";
 
 /** Permisos efectivos para un alumno, calculados SIEMPRE en el servidor. */
 export type AccesoAlumno = {

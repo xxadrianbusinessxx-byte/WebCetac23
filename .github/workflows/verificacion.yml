@@ -1,24 +1,44 @@
 name: Verificación (PROMPT-5/B6)
 
-# Corren en cada push/PR a main y en demanda manual. TODO es de solo lectura:
+# Corren en CADA push, en cada PR y en demanda manual. TODO es de solo lectura:
 # suites puras + compilación + tipos + build. NADA que toque Supabase entra
 # aquí (los diag-*/probe-* necesitan credenciales y viven fuera del CI).
+#
+# 2026-09-20 — antes era `push: branches: [main]`, y eso dejaba la verificación
+# sin ejecutar justo donde se trabaja: el repo lleva 128 commits en 30 días,
+# casi todos en ramas de feature, y ninguno pasaba por aquí. El trabajo se
+# validaba al fusionar, que es el momento más caro para descubrir que algo está
+# roto. Ahora corre en la rama, que es donde todavía es barato arreglarlo.
 
 on:
   push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
+
+# Con 21 commits en 7 días, correr en cada push encola verificaciones de
+# commits que ya nadie va a mirar. Solo interesa la última de cada rama: las
+# anteriores se cancelan. Va junto al cambio de arriba porque es su consecuencia
+# directa — sin esto, activar el CI por rama gasta minutos en resultados muertos.
+concurrency:
+  group: verificacion-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verificar:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # verificar-estado-actual.mjs resuelve `git merge-base --is-ancestor`
+          # contra el sha que declara la cabecera. Con el clon superficial por
+          # defecto ese sha no existe en el CI y el check falla siempre.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 24 y no 20: las suites cargan los .ts de lib/ directamente y solo
+          # Node 22.18+ ejecuta TypeScript sin flags. En 20 no arranca ninguna.
+          node-version: 24
           cache: npm
 
       - name: Instalar dependencias
@@ -30,10 +50,7 @@ jobs:
       - name: Lint (npm run lint · puerta del PROMPT F)
         run: npm run lint
 
-      - name: Compilar suites puras (test:compilar)
-        run: npm run test:compilar
-
-      - name: 37 suites (test:suites)
+      - name: Suites puras (test:suites)
         run: npm run test:suites
 
       - name: Permisos código ⇄ §4 (test-permisos + auditoría)
@@ -42,7 +59,17 @@ jobs:
       - name: Matriz al día (gen:matriz --check)
         run: node scripts/gen-matriz-permisos.mjs --check
 
+      - name: Invariantes al día (gen:invariantes --check)
+        run: node scripts/gen-invariantes.mjs --check
+
+      - name: RUMBO al día (gen:rumbo --check)
+        run: node scripts/gen-rumbo.mjs --check
+
       - name: ESTADO-ACTUAL.md al dia (HEAD + nº de suites)
         run: npm run verificar:estado
+
+      - name: Documentación sana (rutas vivas + techo de arranque)
+        run: npm run verificar:docs
+
       - name: Build (9 rutas)
         run: npm run build

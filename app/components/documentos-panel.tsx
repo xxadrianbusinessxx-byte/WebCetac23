@@ -34,7 +34,7 @@ function PanelTab({
   className?: string;
 }) {
   return (
-    <span className={`rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] sm:text-[11px] ${className}`}>
+    <span className={`rounded-full border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] sm:text-[11px] ${className}`}>
       {children}
     </span>
   );
@@ -59,7 +59,7 @@ function GreyActionPill({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35),0_3px_10px_rgba(2,6,23,0.12)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      className={`rounded-full border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
       {children}
     </button>
@@ -88,7 +88,15 @@ const ETIQUETA_NIVEL: Record<NivelPermiso, string> = {
   eliminar: "Eliminar",
 };
 
-export function DocumentosPanel() {
+/**
+ * `materiaInterna` decide el ÁMBITO de las carpetas:
+ *   · sin valor → institucionales, que es «Contenido › Documentos»;
+ *   · con valor → los recursos de esa materia, que es «Materias › Recursos».
+ *
+ * Es el MISMO panel y el mismo permiso (`documento.ver`): duplicarlo para los
+ * recursos habría sido un camino paralelo (R6).
+ */
+export function DocumentosPanel({ materiaInterna }: { materiaInterna?: string } = {}) {
   const [estado, setEstado] = useState<EstadoDocumentos | null>(null);
   const [carpetaActualId, setCarpetaActualId] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -119,11 +127,11 @@ export function DocumentosPanel() {
     // cascada antes de que llegue el dato (regla
     // `react-hooks/set-state-in-effect`). Mismo patrón que
     // `buscador-alumno-profesor.tsx` y `horario-escolar-panel.tsx`.
-    return actionObtenerEstadoDocumentos(carpetaId).then((res) => {
+    return actionObtenerEstadoDocumentos(carpetaId, materiaInterna).then((res) => {
       setEstado(res);
       setCarpetaActualId(carpetaId);
     });
-  }, []);
+  }, [materiaInterna]);
 
   useEffect(() => {
     void cargar(null);
@@ -314,7 +322,7 @@ export function DocumentosPanel() {
   }
 
   return (
-    <div className="relative flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-sky-800/50 bg-sky-100/35 p-3 shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150 sm:p-4">
+    <div className="relative flex flex-1 flex-col gap-6 overflow-hidden rounded-[2rem] border-[3px] border-[var(--oc-border)] bg-[var(--oc-input)] p-3 backdrop-saturate-150 sm:p-4">
       <div className="flex flex-wrap items-center justify-center gap-2">
         <PanelTab className="mx-auto w-fit">Documentos institucionales</PanelTab>
         {esDirectivo && (
@@ -324,7 +332,7 @@ export function DocumentosPanel() {
               setError(null);
               setMensaje(null);
             }}
-            className={vistaPermisos ? "ring-2 ring-sky-300/70" : ""}
+            className={vistaPermisos ? "ring-2 ring-[var(--oc-border-active)]" : ""}
           >
             {vistaPermisos ? "← Volver a archivos" : "🔐 Permisos"}
           </GreyActionPill>
@@ -335,15 +343,15 @@ export function DocumentosPanel() {
         {vistaPermisos && esDirectivo ? (
           /* ===== FASE 3 — Sub-vista de administración de permisos ===== */
           <div className="flex flex-col gap-4">
-            <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-              <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+            <div className="rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3">
+              <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                 Otorgar acceso a una carpeta (se hereda a todo lo que cuelgue de ella)
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={profesorPermiso}
                   onChange={(e) => setProfesorPermiso(e.target.value)}
-                  className="min-w-[10rem] flex-1 rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                  className="min-w-[10rem] flex-1 rounded-full border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:ring-2 focus:ring-[var(--oc-border-active)]"
                 >
                   <option value="">Selecciona profesor…</option>
                   {profesores.length === 0 ? (
@@ -363,7 +371,7 @@ export function DocumentosPanel() {
                 <select
                   value={carpetaPermiso}
                   onChange={(e) => setCarpetaPermiso(e.target.value)}
-                  className="min-w-[12rem] flex-1 rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                  className="min-w-[12rem] flex-1 rounded-full border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:ring-2 focus:ring-[var(--oc-border-active)]"
                 >
                   <option value="">Selecciona carpeta…</option>
                   {carpetasArbol.map(({ carpeta, profundidad }) => (
@@ -375,7 +383,7 @@ export function DocumentosPanel() {
                 <select
                   value={nivelPermiso}
                   onChange={(e) => setNivelPermiso(e.target.value as NivelPermiso)}
-                  className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                  className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:ring-2 focus:ring-[var(--oc-border-active)]"
                 >
                   {NIVELES_PERMISO.map((n) => (
                     <option key={n} value={n}>
@@ -400,12 +408,12 @@ export function DocumentosPanel() {
             </div>
 
 
-            <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-              <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+            <div className="rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3">
+              <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                 Accesos actuales
               </p>
               {accesosPorProfesor.size === 0 ? (
-                <p className="py-4 text-center text-sm font-semibold text-slate-600">
+                <p className="py-4 text-center text-sm font-semibold text-[var(--oc-muted)]">
                   Aún no hay permisos otorgados.
                 </p>
               ) : (
@@ -413,9 +421,9 @@ export function DocumentosPanel() {
                   {[...accesosPorProfesor.entries()].map(([profesor, lista]) => (
                     <li
                       key={profesor}
-                      className="rounded-2xl border border-white/60 bg-white/50 px-3 py-2"
+                      className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2"
                     >
-                      <p className="mb-1 text-xs font-extrabold uppercase tracking-wide text-sky-900">
+                      <p className="mb-1 text-xs font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
                         {profesor}
                       </p>
                       <ul className="flex flex-col gap-1">
@@ -426,18 +434,18 @@ export function DocumentosPanel() {
                           return (
                             <li
                               key={p.id}
-                              className="flex items-center justify-between gap-2 rounded-xl bg-sky-100/50 px-2 py-1"
+                              className="flex items-center justify-between gap-2 rounded-xl bg-[var(--oc-input)] px-2 py-1"
                             >
-                              <span className="min-w-0 text-xs font-semibold text-slate-700">
+                              <span className="min-w-0 text-xs font-semibold text-[var(--oc-text)]">
                                 <span className="truncate">📁 {ruta || "Raíz"}</span>
-                                <span className="ml-2 rounded-full bg-sky-200/70 px-2 py-0.5 text-[10px] font-extrabold uppercase text-sky-900">
+                                <span className="ml-2 rounded-full bg-[var(--oc-input)] px-2 py-0.5 text-[10px] font-extrabold uppercase text-[var(--oc-text)]">
                                   {ETIQUETA_NIVEL[p.nivel]}
                                 </span>
                               </span>
                               <button
                                 type="button"
                                 onClick={() => onQuitarPermiso(p)}
-                                className="shrink-0 rounded-full px-2 py-1 text-xs text-red-600 hover:bg-red-100"
+                                className="shrink-0 rounded-full px-2 py-1 text-xs text-[var(--oc-alert-text)] hover:bg-[var(--oc-alert)]/20"
                               >
                                 Revocar
                               </button>
@@ -456,21 +464,21 @@ export function DocumentosPanel() {
         {/* Breadcrumb de navegación */}
 
         {/* Breadcrumb de navegación */}
-        <div className="flex flex-wrap items-center gap-1 rounded-full border border-white/60 bg-white/55 px-3 py-2 text-[11px] font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
+        <div className="flex flex-wrap items-center gap-1 rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-[11px] font-bold text-[var(--oc-text)]">
           <button
             type="button"
             onClick={() => void cargar(null)}
-            className="rounded-full px-2 py-1 hover:bg-sky-200/60"
+            className="rounded-full px-2 py-1 hover:bg-[var(--oc-input)]"
           >
             📁 Raíz
           </button>
           {ruta.map((c) => (
             <span key={c.id} className="flex items-center gap-1">
-              <span className="text-sky-400">›</span>
+              <span className="text-[var(--oc-text)]">›</span>
               <button
                 type="button"
                 onClick={() => void cargar(c.id)}
-                className="rounded-full px-2 py-1 hover:bg-sky-200/60"
+                className="rounded-full px-2 py-1 hover:bg-[var(--oc-input)]"
               >
                 {c.nombre}
               </button>
@@ -480,26 +488,26 @@ export function DocumentosPanel() {
 
         {/* Mensajes */}
         {mensaje && (
-          <p className="text-center text-xs font-semibold text-sky-900" role="status">
+          <p className="text-center text-xs font-semibold text-[var(--oc-text)]" role="status">
             {mensaje}
           </p>
         )}
         {error && (
-          <p className="text-center text-xs font-semibold text-red-700" role="alert">
+          <p className="text-center text-xs font-semibold text-[var(--oc-alert-text)]" role="alert">
             {error}
           </p>
         )}
 
         {/* Crear carpeta (solo directivo) */}
         {esDirectivo && (
-          <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+          <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3">
             <input
               type="text"
               value={nuevaCarpeta}
               onChange={(e) => setNuevaCarpeta(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && onCrearCarpeta()}
               placeholder="Nombre de la nueva carpeta"
-              className="min-w-[10rem] flex-1 rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white placeholder:text-white/75 shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+              className="min-w-[10rem] flex-1 rounded-full border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] placeholder:text-[var(--oc-text)] outline-none focus:ring-2 focus:ring-[var(--oc-border-active)]"
             />
             <GreyActionPill onClick={onCrearCarpeta} disabled={creando}>
               {creando ? "Creando…" : "Crear carpeta"}
@@ -509,7 +517,7 @@ export function DocumentosPanel() {
 
         {/* Subir archivo */}
         {puedeSubirAqui && (
-          <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
+          <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3">
             <GreyActionPill onClick={onSubir} disabled={subiendo}>
               {subiendo
                 ? "Subiendo…"
@@ -527,7 +535,7 @@ export function DocumentosPanel() {
               }}
               aria-label="Seleccionar archivo para subir"
             />
-            <span className="text-[10px] font-semibold text-slate-600">
+            <span className="text-[10px] font-semibold text-[var(--oc-muted)]">
               PDF, Word, Excel, CSV, imágenes · máx. 20MB
             </span>
           </div>
@@ -535,20 +543,20 @@ export function DocumentosPanel() {
 
         {/* Subcarpetas */}
         {subcarpetas.length > 0 && (
-          <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-            <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+          <div className="rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3">
+            <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
               Carpetas
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
               {subcarpetas.map((c) => (
                 <div
                   key={c.id}
-                  className="flex items-center justify-between gap-2 rounded-2xl border border-white/60 bg-white/50 px-3 py-2"
+                  className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2"
                 >
                   <button
                     type="button"
                     onClick={() => void cargar(c.id)}
-                    className="flex min-w-0 items-center gap-2 text-left text-sm font-bold text-sky-900 hover:text-sky-700"
+                    className="flex min-w-0 items-center gap-2 text-left text-sm font-bold text-[var(--oc-text)] hover:text-[var(--oc-text)]"
                   >
                     <span>📁</span>
                     <span className="truncate">{c.nombre}</span>
@@ -557,7 +565,7 @@ export function DocumentosPanel() {
                     <button
                       type="button"
                       onClick={() => onEliminarCarpeta(c)}
-                      className="rounded-full px-2 py-1 text-xs text-red-600 hover:bg-red-100"
+                      className="rounded-full px-2 py-1 text-xs text-[var(--oc-alert-text)] hover:bg-[var(--oc-alert)]/20"
                       title="Eliminar carpeta"
                     >
                       🗑️
@@ -570,20 +578,20 @@ export function DocumentosPanel() {
         )}
 
         {/* Documentos */}
-        <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+        <div className="rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3">
+          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
             Documentos
           </p>
           {!carpetaActualId ? (
-            <p className="py-4 text-center text-sm font-semibold text-slate-600">
+            <p className="py-4 text-center text-sm font-semibold text-[var(--oc-muted)]">
               Selecciona una carpeta para ver sus documentos.
             </p>
           ) : !puedeVerAqui ? (
-            <p className="py-4 text-center text-sm font-semibold text-slate-600">
+            <p className="py-4 text-center text-sm font-semibold text-[var(--oc-muted)]">
               No tienes permiso para ver esta carpeta.
             </p>
           ) : documentos.length === 0 ? (
-            <p className="py-4 text-center text-sm font-semibold text-slate-600">
+            <p className="py-4 text-center text-sm font-semibold text-[var(--oc-muted)]">
               Esta carpeta está vacía.
             </p>
           ) : (
@@ -591,15 +599,15 @@ export function DocumentosPanel() {
               {documentos.map((doc) => (
                 <li
                   key={doc.id}
-                  className="flex items-center justify-between gap-2 rounded-2xl border border-white/60 bg-white/50 px-3 py-2"
+                  className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2"
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="text-lg">{iconoDocumento(doc.tipo)}</span>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-sky-900">
+                      <p className="truncate text-sm font-bold text-[var(--oc-text)]">
                         {doc.nombre_original}
                       </p>
-                      <p className="text-[10px] font-semibold text-slate-500">
+                      <p className="text-[10px] font-semibold text-[var(--oc-muted)]">
                         {formatearBytes(doc.tamano_bytes)}
                         {doc.subido_por ? ` · ${doc.subido_por}` : ""}
                       </p>
@@ -609,7 +617,7 @@ export function DocumentosPanel() {
                     <button
                       type="button"
                       onClick={() => onDescargar(doc)}
-                      className="rounded-full px-2 py-1 text-sm hover:bg-sky-200/60"
+                      className="rounded-full px-2 py-1 text-sm hover:bg-[var(--oc-input)]"
                       title="Descargar"
                     >
                       ⬇️
@@ -618,7 +626,7 @@ export function DocumentosPanel() {
                       <button
                         type="button"
                         onClick={() => onEliminarDocumento(doc)}
-                        className="rounded-full px-2 py-1 text-sm text-red-600 hover:bg-red-100"
+                        className="rounded-full px-2 py-1 text-sm text-[var(--oc-alert-text)] hover:bg-[var(--oc-alert)]/20"
                         title="Eliminar"
                       >
                         🗑️
@@ -633,15 +641,15 @@ export function DocumentosPanel() {
 
         {/* Gestión de permisos (solo directivo) */}
         {esDirectivo && carpetaActualId && (
-          <div className="rounded-3xl border border-white/55 bg-slate-400/25 p-3 shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] backdrop-blur-md">
-            <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+          <div className="rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3">
+            <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
               Permisos de esta carpeta
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={profesorPermiso}
                 onChange={(e) => setProfesorPermiso(e.target.value)}
-                className="min-w-[10rem] flex-1 rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                className="min-w-[10rem] flex-1 rounded-full border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:ring-2 focus:ring-[var(--oc-border-active)]"
               >
                 <option value="">Selecciona profesor…</option>
                 {profesores.map((p) => (
@@ -653,7 +661,7 @@ export function DocumentosPanel() {
               <select
                 value={nivelPermiso}
                 onChange={(e) => setNivelPermiso(e.target.value as NivelPermiso)}
-                className="rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] outline-none focus:ring-2 focus:ring-sky-400/60"
+                className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] outline-none focus:ring-2 focus:ring-[var(--oc-border-active)]"
               >
                 {NIVELES_PERMISO.map((n) => (
                   <option key={n} value={n}>
@@ -671,18 +679,18 @@ export function DocumentosPanel() {
                 {permisosDeCarpeta.map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-center justify-between gap-2 rounded-xl border border-white/60 bg-white/50 px-3 py-1.5"
+                    className="flex items-center justify-between gap-2 rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-1.5"
                   >
-                    <span className="text-xs font-bold text-sky-900">
+                    <span className="text-xs font-bold text-[var(--oc-text)]">
                       {p.profesor}
-                      <span className="ml-2 rounded-full bg-sky-200/70 px-2 py-0.5 text-[10px] font-extrabold uppercase text-sky-900">
+                      <span className="ml-2 rounded-full bg-[var(--oc-input)] px-2 py-0.5 text-[10px] font-extrabold uppercase text-[var(--oc-text)]">
                         {ETIQUETA_NIVEL[p.nivel]}
                       </span>
                     </span>
                     <button
                       type="button"
                       onClick={() => onQuitarPermiso(p)}
-                      className="rounded-full px-2 py-1 text-xs text-red-600 hover:bg-red-100"
+                      className="rounded-full px-2 py-1 text-xs text-[var(--oc-alert-text)] hover:bg-[var(--oc-alert)]/20"
                     >
                       Quitar
                     </button>

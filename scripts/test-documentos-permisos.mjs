@@ -4,7 +4,7 @@
  * `lib/escolar/documentos-permisos-puro.ts`.
  *
  * QUÉ MIDE: los tres predicados de nivel, la jerarquía y las migas de pan.
- * QUÉ ESCRIBE: nada. Transpila el módulo a `.tmp-documentos/` y lo compara.
+ * QUÉ ESCRIBE: nada. Carga el `.ts` del módulo directamente y lo compara.
  * CÓMO SE EJECUTA: node scripts/test-documentos-permisos.mjs
  *
  * ── Por qué existe ─────────────────────────────────────────────────────────
@@ -22,36 +22,16 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
-const ts = require("typescript");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
-const tmp = path.join(__dirname, ".tmp-documentos");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
-
-// `tables.ts` entra porque el módulo importa de él el tipo NivelPermiso. No
-// hace I/O: es constantes y tipos.
-for (const [src, out] of [
-  ["lib/escolar/tables.ts", "tables.js"],
-  ["lib/escolar/documentos-permisos-puro.ts", "documentos-permisos-puro.js"],
-]) {
-  const { outputText } = ts.transpileModule(fs.readFileSync(path.join(root, src), "utf8"), {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-      esModuleInterop: true,
-    },
-  });
-  fs.writeFileSync(path.join(tmp, out), outputText, "utf8");
-}
-
-const M = require(path.join(tmp, "documentos-permisos-puro.js"));
-const { NIVELES_PERMISO } = require(path.join(tmp, "tables.js"));
+// Node carga los `.ts` de lib/ directamente (PROMPT H-bis): sin transpilar a
+// CommonJS. `tables.ts` sigue entrando porque el módulo importa de él el tipo
+// NivelPermiso; no hace I/O, es constantes y tipos.
+const M = await import("../lib/escolar/documentos-permisos-puro.ts");
+const { NIVELES_PERMISO } = await import("../lib/escolar/tables.ts");
 
 let fallos = 0;
 let pasadas = 0;

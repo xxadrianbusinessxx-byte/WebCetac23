@@ -9,29 +9,30 @@ No hay entorno de staging: lo que toques, lo tocas en producción.
 
 ## Antes de correr cualquier suite pura
 
-Las suites `test-*.mjs` importan JS **ya compilado** desde `scripts/.tmp-*`. Esas
-carpetas están en `.gitignore`, así que en un clon limpio no existen y la suite falla
-con `ERR_MODULE_NOT_FOUND`. Recompilar con:
+**No hay paso previo.** Desde el PROMPT H-bis (2026-09-23) las 40 suites importan el
+`.ts` de `lib/` directamente y Node lo ejecuta solo: `npm run test:suites` funciona en un
+clon limpio, y lo que se prueba es siempre el fuente actual, nunca una copia compilada
+que se quedó vieja.
 
-```bash
-npm run test:compilar
-```
+Hasta entonces las suites cargaban JS CommonJS de `scripts/.tmp-*`, que había que
+regenerar con `npm run test:compilar` después de cada cambio en `lib/` —si no, se probaba
+la versión anterior y el resultado mentía—. Ese paso costaba el 79 % del ciclo (29,9 s de
+compilar frente a 7,9 s de probar) y desapareció con sus carpetas.
 
-(o `node scripts/compilar-suites.mjs <filtro>` para una sola). Hay que volver a
-correrlo **cada vez que se modifica el módulo de `lib/` que la suite prueba** — si no,
-se está probando la versión anterior y el resultado miente.
+**Lo que lo hace posible, y la regla que hay que respetar para que siga siendo así:**
 
-Seis suites son la excepción y **no** necesitan este paso porque se transpilan solas con
-`ts.transpileModule`: `test-materia-identidad`, `test-mapeo-columnas-materia`,
-`test-columnas-calificaciones`, `test-materia-avance`, `test-etiquetas-dinamicas` e
-`test-importar-etiquetas`. Lo mismo aplica a las dos suites de permisos (PROMPT-2/3:
-`test-permisos.mjs` y `test-auditoria-permisos.mjs`), que transpilan los módulos puros
-de `lib/auth/`. Cada una lleva su propia lista de módulos a transpilar; si
-añades un `import` al módulo bajo prueba, hay que añadir esa dependencia a la lista o la
-suite falla con `Cannot find module`.
-
-La salida compilada **espeja la estructura de `lib/escolar/`** (`.tmp-x/ciclo/…`), porque
-los imports internos de esos módulos son relativos.
+- Node borra los tipos al cargar (*type stripping*, Node ≥ 22.18). No admite `enum`,
+  `namespace` ni propiedades de parámetro en constructores: `lib/` no usa ninguno.
+- El resolver ESM de Node exige la **extensión exacta**. Por eso los imports relativos de
+  `lib/` se escriben `from "../tables.ts"` y no `from "../tables"`. `tsconfig.json` lo
+  permite con `allowImportingTsExtensions` —compatible porque ya es `noEmit`—.
+- **`tsc` y el build aceptan las dos formas en silencio.** Un import nuevo sin extensión
+  no rompe nada salvo la suite que cargue ese módulo. Por eso existe **C13** en
+  `test-orden.mjs`: falla si un import relativo de `lib/` va sin extensión.
+- Node **no resuelve el alias `@/`**: eso lo hace el bundler de Next. Es el motivo de C1.
+- Un módulo que haga `import "server-only"` **no se puede cargar** desde una suite: ese
+  paquete lanza fuera de un entorno de React Server. La decisión que se quiera probar va
+  en un módulo `-puro`, que es lo que ORDEN.md §3 ya exigía.
 
 ## Clasificación
 
@@ -39,6 +40,7 @@ los imports internos de esos módulos son relativos.
 |---|---|
 | `LEE` | Solo `GET`. Ejecutable sin autorización. |
 | `LEE(fs)` | Solo lee archivos del repo. No toca la base. Ejecutable sin autorización. |
+| `LEE(red)` | Solo lee, pero **por la red**: necesita credenciales de `.env.local`. No escribe en la base ni en el repo salvo su archivo de salida. **No es `LEE(fs)`** aunque empiece por `gen-`: sin red no corre. |
 | `ESCRIBE --apply` | Por defecto hace DRY-RUN e imprime el plan. Solo escribe con `--apply`. Requiere autorización antes del `--apply`. |
 | `ESCRIBE` | Escribe en cuanto arranca, sin guarda. |
 | `DESTRUCTIVO` | Borra filas. |
@@ -48,7 +50,7 @@ los imports internos de esos módulos son relativos.
 ## Raíz de `scripts/` — seguros salvo lo marcado
 
 ### Suites puras (`LEE(fs)`) — la red de seguridad del repo
-Compilan el módulo puro a `.tmp-*/` y comparan resultados. No tocan la base.
+Cargan el `.ts` de `lib/` directamente y comparan resultados. No tocan la base.
 Correr las que apliquen **antes y después** de cualquier cambio de dominio.
 
 | Script | Módulo que prueba |
@@ -67,18 +69,32 @@ Correr las que apliquen **antes y después** de cualquier cambio de dominio.
 | `test-traspaso-materia.mjs` | `lib/escolar/materia/traspaso-materia.ts` |
 | `test-materia-identidad.mjs` · `test-materia-avance.mjs` · `test-columnas-calificaciones.mjs` | identidad y columnas de materia |
 | `test-importar-etiquetas.mjs` · `test-inscripciones-f3.mjs` · `test-ciclo-f3-pipeline.mjs` | importación y pipeline de ciclo |
+| `test-validacion.mjs` | `lib/validacion/esquemas-puro.ts` y `leer-form-data.ts` (PROMPT K): 70 comprobaciones de que la entrada se acepta o se rechaza con el mensaje de siempre, y de que el helper devuelve la MISMA forma que las actions (`{ok, datos}` / `{ok, error}`). Importa el FUENTE `.ts` directo: son módulos puros que solo importan `valibot` |
 | `test-auditoria-ciclo-f0..f8.mjs` | detectores de regresión por fase (lectura de código estático) |
 | `test-auditoria-permisos.mjs` | (PROMPT-2/T5) detector de regresión de la centralización: ninguna Server Action pregunta por rol, toda action llama a `exigir()` (salvo las públicas de `portada.ver` y la delegación verificada de etiquetas), capacidades ⇄ §5, y el rol nunca se lee de FormData/parámetros |
-| `test-rediseno-oceano.mjs` | (rediseño Océano) los módulos puros que preparan las fases 1-7: `materia/facetas-materia` (selector de ámbito + buscador), `alumno/grupos-campos-personales` (reparto personal/médico, verifica que ningún campo de `CAMPOS_PERSONALES_PRIMARIOS` quede sin apartado), `asistencia/asistencia-tabular` (resumen por parcial → forma de boleta), `navegacion/mapa-navegacion` (tres niveles × cinco roles, incluido que el técnico no vea contenido académico ni apagado), `navegacion/notificaciones-alumno` (comentarios + justificaciones en una lista ordenada) y `buscar-en-filas` (qué fila es de qué alumno: el alcance del tutor). **180 verificaciones**. Transpila en `.tmp-oceano`; no toca la base |
-| `gen-estado.mjs` | (`LEE(fs)`) **recolector**: junta el estado del repo en un solo `.panel/estado.json` (ignorado por git) y añade una línea a `.panel/historico.jsonl`. No mide casi nada por su cuenta — ejecuta una **lista blanca explícita** de fuentes (`test-orden --json`, `diag-restyle-oceano --json`, `verificar-estado-actual --json`) y solo calcula lo que nadie más mide: git, tamaños y el coste de arranque en tokens. La lista blanca es a mano y no hay `readdir`: en esta carpeta hay scripts que vacían tablas en producción. El histórico existe porque el problema del repo no es que un número esté mal, es que **empeora solo** (lint 140→151, archivos >1 000 líneas 4→7) — el panel tiene que decir «+11», no «151». `--salida=X.json`, `--sin-historico` |
+| `test-rediseno-oceano.mjs` | (rediseño Océano) los módulos puros que preparan las fases 1-7: `materia/facetas-materia` (selector de ámbito + buscador), `alumno/grupos-campos-personales` (reparto personal/médico, verifica que ningún campo de `CAMPOS_PERSONALES_PRIMARIOS` quede sin apartado), `asistencia/asistencia-tabular` (resumen por parcial → forma de boleta), `navegacion/mapa-navegacion` (tres niveles × cinco roles, incluido que el técnico no vea contenido académico ni apagado), `navegacion/notificaciones-alumno` (comentarios + justificaciones en una lista ordenada) y `buscar-en-filas` (qué fila es de qué alumno: el alcance del tutor). **335 verificaciones**. Carga los `.ts` directamente; no toca la base |
+| `gen-estado.mjs` | (`LEE(fs)`) **recolector**: junta el estado del repo en un solo `.panel/estado.json` (ignorado por git) y añade una línea a `.panel/historico.jsonl`. No mide casi nada por su cuenta — ejecuta una **lista blanca explícita** de fuentes (`test-orden --json`, `diag-restyle-oceano --json`, `verificar-estado-actual --json`, `verificar-docs --json`) y solo calcula lo que nadie más mide: git y tamaños. El coste de arranque **ya no se calcula aquí**: lo mide y lo vigila `verificar-docs.mjs`, y el panel lo lee de su JSON para no tener dos fuentes de la misma cifra (R6). La lista blanca es a mano y no hay `readdir`: en esta carpeta hay scripts que vacían tablas en producción. El histórico existe porque el problema del repo no es que un número esté mal, es que **empeora solo** (lint 140→151, archivos >1 000 líneas 4→7) — el panel tiene que decir «+11», no «151». `--salida=X.json`, `--sin-historico` |
 | `gen-panel.mjs` | (`LEE(fs)`) **renderer**: dibuja `.panel/estado.json` como `.panel/panel.html`, autocontenido (el JSON va incrustado, porque `fetch` desde `file://` lo bloquea CORS y levantar un servidor para mirar un panel es la fricción que hace que no se mire). **No mide nada**, y es deliberado: un número que se calculara aquí no estaría en el JSON, no tendría histórico y no se podría verificar. Zonas: técnico, frontend, datos, documentación y pendientes humanos; arriba «atender primero» (roto + lo que empeoró) y abajo **lo que el panel NO mide**, porque una zona en silencio entrena a creer que está bien. Los dos juntos: `npm run panel` |
-| `gen-contexto-cline.mjs` | (`LEE(fs)`, aunque es `gen-`) arma el **paquete de contexto acotado** de un prompt para Cline: se le pasan los archivos que el cambio va a tocar y devuelve el presupuesto de lectura (leído de la tabla de `docs/00-INDICE.md`), la capa de cada archivo y qué exige, las suites que lo cubren, los términos del `GLOSARIO.md` que de verdad aparecen, y el bloque CONTRATO §1 tal cual. **Nada se reescribe dentro del script** — las cuatro fuentes se leen, porque copiarlas crearía la segunda fuente que R6 prohíbe. `--tareas` lista las tareas; `--salida=X.md` escribe a archivo |
+| `gen-informe.mjs` | (`LEE(fs)`) **el informe para personas**: `docs/informes/<AAAA-MM>.md`. No mide nada — lee `test-orden --json`, `verificar-docs --json`, `.panel/historico.jsonl`, `pendientes.json`, `INVARIANTES.md`, `RUMBO.md` y git. Lo que no existía en ningún sitio es su §1: **de los 16 invariantes, cuáles vigila una máquina y cuáles dependen de que alguien se acuerde**. El listón para contar como vigilado es duro —violar el invariante tiene que hacer fallar la regla—, y por eso salen 3 y no 6: una tabla que se infla sola es lo que este informe evita. Su §2 enseña **código real** que hoy cumple el principio, con el archivo elegido por el script y no clavado a mano. Si el ensayo gana o pierde una sección, el script **para**: la tabla de vigilancia es a mano y no puede quedarse corta en silencio. `--stdout`, `--salida=X.md` |
+| `gen-contexto.mjs` | (`LEE(fs)`, aunque es `gen-`) arma el **contexto acotado** de un trabajo: se le pasan los archivos que se van a tocar y devuelve la capa de cada uno y qué exige, las suites que lo cubren y los términos del `GLOSARIO.md` que de verdad aparecen. **Nada se reescribe dentro del script** — todo se lee de su fuente, porque copiarlo crearía la segunda fuente que R6 prohíbe. Emite un documento distinto por agente, como manda `AGENTS.md` §Reparto: `--agente=cline` (por defecto) un **paquete de instrucciones** —presupuesto cerrado de `docs/00-INDICE.md`, qué no tocar y el CONTRATO §1—, y `--agente=claude` un **brief de diagnóstico** —qué está ya medido y por qué script, qué es deuda declarada y no un bug, qué pendientes tocan esos archivos, qué queda fuera de la campaña de `RUMBO.md` y, al final, los puntos ciegos: dónde no hay instrumento—. `--tareas` lista las tareas; `--salida=X.md` escribe a archivo |
 | `test-documentos-permisos.mjs` | `lib/escolar/documentos-permisos-puro.ts` — los tres predicados de nivel (`puedeVer`/`puedeSubir`/`puedeEliminar`) con la tabla COMPLETA incluido `null`, la jerarquía `eliminar ⊃ subir ⊃ ver` por sus dos caminos (predicados y `nivelMayor`), y `rutaCarpeta`. Creada en el PROMPT B4: esas tres funciones deciden qué botones ve el usuario en Documentos y **no las cubría ningún test**, porque vivían dentro de un módulo con 14 funciones de I/O. Lleva documentado un hallazgo que NO se arregló ahí: `rutaCarpeta` entra en bucle infinito con un ciclo en `parent_id` |
-| `test-orden.mjs` | **no prueba un módulo: prueba el REPO.** La mitad mecánica de `docs/normativo/ORDEN.md` — capas (`lib/escolar` sin alias `@/`, `lib/` sin importar `app/`, cliente sin `lib/supabase`, action sin llamar a otra action, `-puro` sin I/O), scripts (`test-`/`diag-`/`probe-` que no escriben) y raíz cerrada. Diez reglas: siete **duras** (umbral 0, se cumplen hoy) y tres **trinquete** (deuda declarada con prompt asignado; fallan solo si el número sube). Neutraliza comentarios y literales de cadena antes de medir, porque el grep ingenuo daba falsos positivos reales. `--detalle` lista cada archivo |
+| `test-uis-pendientes.mjs` | los módulos puros de las UIs pendientes (2026-09-17): `administracion/flujos-puro` —máquinas de estado de citas y constancias, gravedades y `sanearTexto`—, `materia/actividades-puro` —el estado ACTIVA/VENCIDA **derivado** de la fecha límite, no guardado, más el reparto de pesos y el orden de presentación— y el agrupado en hilos de `mensajes-internos`. **62 verificaciones.** Las que más valen son las que prohíben un salto: una cita `pendiente` no puede pasar a `finalizada` sin aceptarse, y una constancia no se entrega sin aprobarse |
+| `test-orden.mjs` | **no prueba un módulo: prueba el REPO.** La mitad mecánica de `docs/normativo/ORDEN.md` — capas (`lib/escolar` sin alias `@/`, `lib/` sin importar `app/`, cliente sin `lib/supabase`, action sin llamar a otra action, `-puro` sin I/O), scripts (`test-`/`diag-`/`probe-` que no escriben), raíz cerrada, tamaño de archivo, **composición de UI** (C11: ninguna pieza de presentación definida a mano en dos archivos — hoy 21 copias sobrantes, el plan que las baja es `MATRIZ-UX` §7 F-UX1) y **entrada validada** (C12: ninguna action lee `formData` a mano). **Extensión explícita** (C13: todo import relativo de `lib/` lleva `.ts`, porque Node los carga sin compilar y `tsc` acepta las dos formas en silencio). Trece reglas: once **duras** (umbral 0, se cumplen hoy) y dos **trinquete** (deuda declarada con prompt asignado; fallan solo si el número sube). Neutraliza comentarios y literales de cadena antes de medir, porque el grep ingenuo daba falsos positivos reales. Su extractor de imports (`importsDe`) cortaba en el salto de línea y **no veía ningún import multilínea** —210 de 813 en `app/` + `lib/`, invisibles para C1-C4—: corregido en H-bis, y las doce reglas dieron exactamente lo mismo antes y después, así que acertaban por suerte y ahora por construcción. `--detalle` lista cada archivo |
 | `test-permisos.mjs` | (PROMPT-2/T1/T2 + PROMPT-3 + PROMPT-4) pruebas puras de `lib/auth/permisos.ts`: transpila los módulos puros de `lib/auth`, valida `puede()` con los **5 roles** y compara el código contra la §4 completa del MATRIZ («Código ⇄ §4 (los 5 roles)», regla: la matriz implementada coincide con el documento) |
 | `test-reactivacion-inscripciones.mjs` | (PROMPT-4/T1) suite pura (16 checks) que transpila `ciclo-estado-puro.ts`: la fila marcada con `decision_manual` jamás se reactiva/desactiva; sin marcas se conserva el comportamiento previo |
 | `test-borrar-paso.mjs` | (PROMPT-4/T4) suite pura (10 checks) que transpila `borrar-paso-puro.ts` (`calcularBloqueosPaso`): académico con inscripciones bloquea, horario con actividad bloquea, roster del OPERATIVO bloquea, BORRADOR permite, evaluaciones nunca bloquea |
 | `test-calendario-periodo-f5.mjs` · `test-ciclo-calendario.mjs` · `test-asistencia-contexto.mjs` · `test-activacion-ciclo-f8.mjs` | ciclo / calendario / contexto |
+
+### Verificadores de documentación (`LEE(fs)`) — que los documentos no mientan
+
+No prueban código: prueban que lo que los agentes leen siga siendo verdad. Los dos
+salen con código 1 si divergen, y los dos exponen `--json` para que el panel lea su
+medición en vez de recalcularla.
+
+| Script | Qué vigila |
+|---|---|
+| `verificar-estado-actual.mjs` | Que `ESTADO-ACTUAL.md` siga siendo «qué es verdad hoy»: el `HEAD:` declarado es ancestro del real y no más de 10 commits atrás, el nº de suites coincide con `scripts/test-*.mjs`, y el archivo respeta su propio límite de ~150 líneas. Nació porque la cabecera llegó a estar 31 commits atrás, decía 34 suites habiendo 36, y tenía 517 líneas |
+| `verificar-docs.mjs` | Que el **sistema** de documentos siga siendo utilizable. (1) **Rutas vivas**: ningún documento del presente cita un archivo retirado — el caso que lo originó es `MATRIZ-UX.md` señalando `ui/barra-navegacion.tsx` tres commits después de borrarlo. (2) **Coste de arranque**: los 6 archivos de lectura obligatoria por debajo de su techo en tokens, que es la única cifra que se paga en CADA sesión. `docs/historial/` **no** se escanea a propósito: citar lo que ya no existe es lo que lo hace historial. Las rutas citadas a propósito (`app/api/`, las cuarentenas retiradas, las piezas aún no construidas) van en una lista de excepciones **con su motivo**, y se imprimen en cada ejecución para que no sirvan de escondite |
 
 ### Diagnósticos vivos (`LEE`) — el instrumental para medir antes de tocar
 `AGENTS.md` exige medir antes de modificar. Estos son los que hay que usar.
@@ -105,7 +121,10 @@ Correr las que apliquen **antes y después** de cualquier cambio de dominio.
 | `check-supabase-public.mjs` · `check-documentos-route.mjs` | conectividad y rutas |
 | `gen-materias-list.mjs` · `gen-registros-list.mjs` · `gen-tablas-desde-supabase.mjs` · `sync-decoraciones.mjs` | generan listados en disco (`LEE(fs)` + escritura de archivos del repo, no de la base) |
 | `gen-matriz-permisos.mjs` | `LEE(fs)`. Regenera la §5 de `docs/sistema/MATRIZ-PERMISOS.md` desde `app/actions/**`. `npm run gen:matriz`; con `--check` no escribe y sale 1 si hay desfase. Respeta la §4 (la matriz de roles, que se edita a mano). |
+| `gen-invariantes.mjs` | `LEE(fs)`. Escribe `docs/normativo/INVARIANTES.md` con las 16 líneas `INVARIANTE:` del ensayo (`filosofia.estructural`), que sigue siendo la fuente. `npm run gen:invariantes`; con `--check` no escribe y sale 1 si hay desfase. Si una sección no declara invariante, para y lo reporta sin escribir. |
+| `gen-rumbo.mjs` | `LEE(fs)`. Reescribe **solo** el bloque GENERADO de `RUMBO.md`: últimos 10 commits (`git log`), pendientes abiertos de riesgo alto (`docs/sistema/pendientes.json`) y reglas de `test-orden --json` que no están en 0. `npm run gen:rumbo`; con `--check` no escribe y sale 1 si hay desfase. La cabecera y «Fuera de alcance ahora» se editan a mano. |
 | `gen-seccion4.mjs` | (PROMPT-3) Regenera la **tabla §4** de `docs/sistema/MATRIZ-PERMISOS.md` desde `lib/auth/permisos.ts` (la matriz implementada), para que documento y código no diverjan. `node scripts/gen-seccion4.mjs`; no lleva `--check`. |
+| `gen-tipos-db.mjs` | (**PROMPT J**) `LEE(red)` — el único generador que **no** es `LEE(fs)`: lee el esquema REAL por la red y escribe `lib/supabase/database.types.ts`, con la cabecera «no editar a mano» dentro. `node scripts/gen-tipos-db.mjs` lo regenera; `--check` no escribe y sale 1 si el archivo del repo dejó de coincidir con la base — mismo contrato que `gen-matriz-permisos --check`. La versión de la CLI va **clavada** en el script porque `--check` compara su salida. **Hoy no se puede ejecutar en esta máquina**: `supabase gen types --db-url` exige Docker (arranca `postgres-meta`) y `--project-id` exige una sesión de la CLI. Ver `docs/historial/informes/INFORME-PROMPT-J-TIPOS-DESDE-LA-BASE.md`. |
 | `migrar-crear-tecnico.mjs` | `ESCRIBE --apply` (PROMPT-3/T1). Crea la fila del rol **técnico** en `PROFESORES` (`Permisos='Tecnico'`, `debe_cambiar_credenciales=true`). Idempotente: si ya existe, no duplica. Dry-run por defecto. Autorizado 2026-09-06. |
 | `probe-login-tecnico.mjs` | (PROMPT-3) Verifica el login del rol técnico contra la BD (rol, `profesorId`, flag de cambio forzado). |
 | `diag-asignaciones-profesor.mjs` | (PROMPT-3/T3·A2) Estado de `asignaciones_profesor`: DDL C4.11 aplicado, filas totales y activas. Es el «¿ya se pobló la atribución?». |
@@ -159,3 +178,4 @@ Historial, no herramientas. **No re-ejecutar.** Incluye:
 - **Ajustes de datos de septiembre** (`quitar-3ro-extras`, `registrar-alumnos-extras-3ro`, `actualizar-inscripciones-listas`) — altas/bajas de alumnos concretos de un día concreto.
 - **Creación de tablas y buckets** (`crear-tablas-*.mjs`, `crear-bucket-documentos.mjs`) — el equivalente vivo y versionado son los `.sql` de `supabase/`.
 - **Migraciones ejecutadas** (`migrar-credenciales-iniciales`, `migrar-catalogo-desde-tablas`, `migrar-nombres-fisicos`).
+- **Codemods del PROMPT H-bis** (`codemod-extensiones-lib`, `codemod-suites-a-ts`, `codemod-suites-autotranspiladas`, `codemod-cabeceras-suites`) — pusieron la extensión `.ts` a los 272 imports relativos de `lib/` y convirtieron las suites para cargarlos sin compilar. Ya aplicados: volver a correrlos no cambia nada, porque solo tocan lo que aún no tiene extensión.

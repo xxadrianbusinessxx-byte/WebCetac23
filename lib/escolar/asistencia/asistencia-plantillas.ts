@@ -1,34 +1,34 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   archivoCsvAFilasConValores,
-} from "../csv";
+} from "../csv.ts";
 import {
   matrizAXlsxBase64,
-} from "../exportar-xlsx";
+} from "../exportar-xlsx.ts";
 import {
   CURP_ALUMNO_RE,
-} from "../buscar-en-filas";
+} from "../buscar-en-filas.ts";
 import {
   type DiaSemana,
-} from "../ciclo/calendario";
+} from "../ciclo/calendario.ts";
 import {
   detectarColumnasFechaAsistencia,
-} from "../fechas";
+} from "../fechas.ts";
 import {
   normalizarCarreraCatalogo,
   normalizarGradoCatalogo,
   normalizarGrupoCatalogo,
-} from "../catalogo/catalogo-academico";
+} from "../catalogo/catalogo-academico.ts";
 import {
   carreraEscolarDesdeEtiquetas,
-} from "../alumno/informacion-personal";
+} from "../alumno/informacion-personal.ts";
 import {
   TABLA_ASISTENCIA_ALUMNOS,
   TABLA_CLASES_IMPARTIDAS,
   TABLA_ETIQUETAS_PERSONALES,
   TABLA_GRUPO_MATERIAS,
   type TipoDiaCalendario,
-} from "../tables";
+} from "../tables.ts";
 import {
   buscarGrupoEnLista,
   clavesEquivalenciaMateria,
@@ -37,18 +37,18 @@ import {
   obtenerConteosHorarioMateria,
   obtenerGruposConCarreraDePeriodo,
   obtenerPeriodoPorNombre,
-} from "../horario/horario-semanal";
+} from "../horario/horario-semanal.ts";
 import {
   ERROR_ATRIBUCION_MATERIA_NO_RESUELTA,
   ERROR_ATRIBUCION_SIN_PROFESOR_ID,
   atribuirMateriaAlPlan,
-} from "./atribucion-profesor";
+} from "./atribucion-profesor.ts";
 import {
   traspasarMateriaAProfesor,
-} from "../materia/traspaso-materia";
+} from "../materia/traspaso-materia.ts";
 import type {
   EtiquetasPersonalesRow,
-} from "../types";
+} from "../types.ts";
 import {
   ERROR_DDL_ATRIBUCION_PENDIENTE,
   FALLBACK_LEGACY_ETIQUETAS_ACTIVO,
@@ -58,22 +58,22 @@ import {
   columnaExiste,
   esEnteroNoNegativo,
   norm,
-} from "./asistencia-comun";
+} from "./asistencia-comun.ts";
 import {
   cargarCalendarioAsistenciaContexto,
-} from "./asistencia-estados";
+} from "./asistencia-estados.ts";
 import {
   cargarContextoCatalogoAsistencia,
   completarNombresAlumnos,
   obtenerCurpsInscritasGrupo,
-} from "./asistencia-configuracion";
+} from "./asistencia-configuracion.ts";
 import type {
   AlumnoPlantilla,
   ContextoAsistencia,
   PlanAsistencia,
   ResultadoAnalisis,
   ResultadoPlantilla,
-} from "./asistencia-comun";
+} from "./asistencia-comun.ts";
 /**
  * C4.3 â€” Obtiene los alumnos de un grado/grupo/carrera.
  * Fuente primaria: inscripciones_alumno (activas) del grupo del catÃ¡logo,

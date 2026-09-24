@@ -54,9 +54,6 @@ next-env.d.ts
 dev-server.log
 *.log
 
-# salida compilada de las suites puras (regenerar: node scripts/compilar-suites.mjs)
-/scripts/.tmp-*/
-
 # panel local del repo (regenerar: npm run panel). Es una FOTO, no fuente:
 # versionarlo metería un diff en cada commit y volvería a discutirse en cada PR.
 /.panel/
