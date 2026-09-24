@@ -180,6 +180,28 @@
       "doc": "docs/historial/informes/INFORME-PROMPT-J-TIPOS-DESDE-LA-BASE.md",
       "revisado": "2026-09-20",
       "estado": "abierto"
+    },
+    {
+      "id": "ui-sin-manejo-de-errores",
+      "titulo": "31 de 35 componentes llaman a Server Actions sin manejar el error",
+      "detalle": "Medido el 2026-09-23. Si la accion falla (500, timeout, red), la promesa se rechaza y el estado de carga nunca se resetea: la pantalla se queda cargando para siempre y sin mensaje. Asi estuvo producción del 17 al 23 de septiembre con TODAS las acciones de /oceano en 500 (ReferenceError por tres `export type { }` en archivos use server, ya corregido y vigilado por C14) y se reporto como 'Supabase no responde'. Hace falta un helper comun para llamar acciones con manejo de error y una regla que lo exija; son 31 componentes, va en su propio prompt.",
+      "riesgo": "medio",
+      "quien": "agente — un prompt con helper comun + regla en test-orden",
+      "verificar": "grep -L '.catch\\|try {' en los componentes use client que llaman action*",
+      "doc": "docs/normativo/ORDEN.md",
+      "revisado": "2026-09-23",
+      "estado": "abierto"
+    },
+    {
+      "id": "tablas-sistema-como-materia",
+      "titulo": "10 tablas de sistema aparecen como MATERIAS en los selectores",
+      "detalle": "Medido el 2026-09-23 contra el esquema real (426 tablas). listarTablasMateriasDesdeSupabase devuelve toda tabla que no este en TABLAS_SISTEMA (lib/escolar/materia/tablas-supabase.ts), y la usan 8 acciones de app/actions/materias.ts. Se cuelan: buzon_mensajes, alumno_etiquetas, actividades, reportes_alumno, solicitudes_constancia, citas, mensajes_internos, ciclo_transiciones, actividad_entregas, asistencia_traspasos_historico — siete son de las UIs pendientes del 17 de septiembre. Las dos de la portada (portada_medios, portada_ajustes) ya se excluyeron en el PROMPT M. Arreglo inmediato: añadirlas a TABLAS_SISTEMA. Arreglo de fondo: que el descubrimiento sea POSITIVO (solo tablas con forma de materia) o que una regla falle cuando aparezca una tabla nueva sin clasificar, porque cada tabla nueva vuelve a colarse en silencio.",
+      "riesgo": "medio",
+      "quien": "agente — cambio pequeño, pero toca el selector de materias",
+      "verificar": "ver el script de medicion en el informe del PROMPT M",
+      "doc": "docs/historial/informes/INFORME-PROMPT-M-PORTADA-ACCIONES.md",
+      "revisado": "2026-09-23",
+      "estado": "abierto"
     }
   ]
 }

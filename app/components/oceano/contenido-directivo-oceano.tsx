@@ -19,6 +19,7 @@ import {
   AdministracionPanel,
   type PantallaAdministracion,
 } from "@/app/components/administracion-panel";
+import { PortadaMediosPanel } from "@/app/components/portada-medios-panel";
 import {
   claveDeGrupo,
   etiquetaGrupo,
@@ -137,6 +138,12 @@ export function ContenidoDirectivoOceano({
   const pantallaAdmin = ADMIN[pieza];
   if (pantallaAdmin) {
     return <AdministracionPanel pantalla={pantallaAdmin} modo={modo} />;
+  }
+
+  // Configuración → Video e imágenes: la portada pública (PROMPT N), la misma
+  // pieza que monta el técnico. Cada acción exige `noticia.publicar` en el servidor.
+  if (pieza === "portada-medios") {
+    return <PortadaMediosPanel />;
   }
 
   if (pieza === "alumnos-tutores") {

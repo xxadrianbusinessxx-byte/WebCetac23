@@ -4,5 +4,12 @@ export const DECORACIONES_GENERADAS: readonly string[] = [
   "580b585b2edbce24c47b2734.png",
   "584aced6f9777273048b87d9.png",
   "BACKGROUND.jpg",
-  "Gemini_Generated_Image_jburdjburdjburdj-removebg-preview.png"
+  "CetacLogo.png",
+  "DGTAyCMLogo.png",
+  "FacebookLogo.png",
+  "GmailLogo.png",
+  "SEMSLogo.png",
+  "SEPLogo.png",
+  "TikTokLogo.png",
+  "WhatsAppLogo.png"
 ] as const;

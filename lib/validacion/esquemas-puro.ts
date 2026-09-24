@@ -226,3 +226,100 @@ export const esquemaCargaAcademica = v.object(
   },
   MSJ.archivo,
 );
+
+/* ── Portada administrable (PROMPT M, 2026-09-23) ─────────────────────────── */
+//
+// Estas acciones reciben OBJETOS, no `FormData`: el archivo va directo del
+// navegador a Cloudinary (lib/cloudinary/firma.ts) y a la action solo le llegan
+// datos. Se leen con `leerEntrada`.
+//
+// Aquí solo va la FORMA de cada campo. Las reglas entre campos («una imagen
+// necesita posición; un video, carrera») y los límites (5 imágenes, 7:3…) viven
+// en `lib/escolar/portada/portada-puro.ts`: este módulo solo importa valibot, y
+// una comprobación a nivel de objeto aquí se saltaría, porque `leerEntrada` valida
+// campo a campo. El único número que hace falta, el máximo del carrusel, se
+// INYECTA, como `DOCUMENTO_MAX_BYTES`, para que siga habiendo una sola fuente.
+
+const MSJ_PORTADA = "Los datos de la portada no son válidos.";
+
+/** Un uuid de Postgres: los ids de `portada_medios` y de `carreras`. */
+const uuid = (mensaje: string) =>
+  v.pipe(v.string(mensaje), v.trim(), v.uuid(mensaje));
+
+/** Opcional y anulable: ausente, `null` o el valor. */
+const opcional = <T extends v.GenericSchema>(esquema: T) => v.optional(v.nullable(esquema), null);
+
+const tipoMedio = v.picklist(["imagen", "video"], "Tipo de archivo no válido.");
+const variante = v.picklist(["escritorio", "movil"], "Falta indicar si la imagen es para escritorio o para teléfono.");
+const orden = (maxOrden: number) =>
+  v.pipe(
+    v.number("La posición del carrusel no es válida."),
+    v.integer("La posición del carrusel no es válida."),
+    v.minValue(1, "La posición del carrusel no es válida."),
+    v.maxValue(maxOrden, `La posición del carrusel tiene que estar entre 1 y ${maxOrden}.`),
+  );
+
+/** `portada.ts` · actionFirmarSubidaPortada — a dónde va lo que se va a subir. */
+export const esquemaFirmarPortada = (maxOrden: number) =>
+  v.object(
+    {
+      tipo: tipoMedio,
+      variante: opcional(variante),
+      orden: opcional(orden(maxOrden)),
+      carreraId: opcional(uuid("La carrera indicada no es válida.")),
+    },
+    MSJ_PORTADA,
+  );
+
+/** `portada.ts` · actionRegistrarMedioPortada — lo que el navegador dice haber subido. */
+export const esquemaRegistrarPortada = (maxOrden: number) =>
+  v.object(
+    {
+      tipo: tipoMedio,
+      variante: opcional(variante),
+      orden: opcional(orden(maxOrden)),
+      carreraId: opcional(uuid("La carrera indicada no es válida.")),
+      public_id: v.pipe(v.string(MSJ_PORTADA), v.trim(), v.nonEmpty(MSJ_PORTADA), v.maxLength(200, MSJ_PORTADA)),
+      textoAlt: opcional(v.pipe(v.string("La descripción no es válida."), v.trim(), v.maxLength(300, "La descripción es demasiado larga (máximo 300 caracteres)."))),
+    },
+    MSJ_PORTADA,
+  );
+
+/** `portada.ts` · actionEliminarMedioPortada — `variante: "movil"` quita solo la versión de teléfono. */
+export const esquemaEliminarPortada = v.object(
+  {
+    id: uuid(MSJ_PORTADA),
+    variante: opcional(v.picklist(["movil"], MSJ_PORTADA)),
+  },
+  MSJ_PORTADA,
+);
+
+/** `portada.ts` · actionReordenarPortada — los ids de TODAS las imágenes, en el orden nuevo. */
+export const esquemaReordenarPortada = (maxOrden: number) =>
+  v.object(
+    {
+      ids: v.pipe(
+        v.array(uuid(MSJ_PORTADA), MSJ_PORTADA),
+        v.minLength(1, MSJ_PORTADA),
+        v.maxLength(maxOrden, MSJ_PORTADA),
+      ),
+    },
+    MSJ_PORTADA,
+  );
+
+/**
+ * `portada.ts` · actionGuardarAjustesPortada — clave → valor. Las claves válidas se
+ * INYECTAN desde `portada-puro.ts` (`CLAVES_AJUSTE`), que es también lo que admite el
+ * CHECK de la base: una sola lista. El formato de cada valor lo valida `validarAjuste`.
+ */
+export const esquemaAjustesPortada = (claves: readonly string[]) =>
+  v.object(
+    {
+      ajustes: v.record(
+        v.picklist(claves as string[], "Uno de los ajustes no existe."),
+        v.pipe(v.string("Un ajuste no es texto."), v.maxLength(300, "Un ajuste es demasiado largo (máximo 300 caracteres).")),
+        MSJ_PORTADA,
+      ),
+    },
+    MSJ_PORTADA,
+  );

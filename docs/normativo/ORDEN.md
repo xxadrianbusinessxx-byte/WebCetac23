@@ -122,6 +122,14 @@ supabase/*.sql           esquema, RPC, triggers
 | `lib/validacion/` (esquemas de entrada) | `valibot` y nada más: es un módulo puro | Supabase, `app/`, I/O de cualquier tipo |
 | `lib/auth/` (permisos, exigir, capacidades) | `lib/auth/types` y nada de Supabase en el módulo puro | decidir permisos desde la action |
 
+> **Un `"use server"` exporta funciones async y nada más.** Ni `export { … }` ni
+> `export type { … }`: Next con Turbopack —lo que compila Vercel— registra cada
+> nombre de esa lista como Server Action, y si es un tipo el módulo revienta al
+> cargarse. Del 17 al 23 de septiembre, tres reexportaciones de tipos tumbaron
+> **todas** las acciones de `/oceano` en producción, con tsc, lint, suites y build
+> en verde. Los tipos que necesite la UI se importan de su módulo de `lib/` con
+> `import type`. Lo vigila **C14**.
+>
 > **PROMPT-2 (centralización de permisos):** toda Server Action empieza por
 > `exigir("capacidad")`. El rol se lee SOLO de la cookie firmada (nunca de
 > FormData/parámetros), y la matriz `rol → capacidades` vive en el módulo puro

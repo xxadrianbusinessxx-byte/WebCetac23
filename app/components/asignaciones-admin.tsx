@@ -17,10 +17,12 @@ import {
   actionListarAsignacionesProfesorAdmin,
   actionListarGruposMateriasParaAsignacion,
   actionListarProfesoresParaAsignacion,
-  type GrupoMateriaParaAsignacion,
   type ProfesorParaAsignacion,
 } from "@/app/actions/asignaciones-profesor";
-import type { AsignacionAdminListado } from "@/lib/escolar/catalogo/asignaciones-profesor";
+import type {
+  AsignacionAdminListado,
+  GrupoMateriaParaAsignacion,
+} from "@/lib/escolar/catalogo/asignaciones-profesor";
 
 export function AsignacionesProfesorAdmin() {
   const [profesores, setProfesores] = useState<ProfesorParaAsignacion[]>([]);

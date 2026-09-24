@@ -13,8 +13,8 @@ import {
   actionListarJustificacionesPendientesConDetalle,
   actionObtenerUrlArchivoJustificacion,
   actionRechazarJustificacion,
-  type JustificacionConDetalle,
 } from "@/app/actions/justificaciones";
+import type { JustificacionConDetalle } from "@/lib/escolar/asistencia/justificaciones";
 
 function PanelTab({
   children,

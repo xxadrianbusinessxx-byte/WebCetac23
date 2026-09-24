@@ -347,6 +347,35 @@ comprobar("C13", "lib/** importa con extensión explícita: Node carga los .ts s
   ),
 );
 
+// ── C14 · un "use server" no reexporta listas ──────────────────────────────
+// Un archivo `"use server"` solo puede exportar funciones async. Next recorre
+// sus `export` para registrarlos como Server Actions, y al compilar con
+// Turbopack —lo que hace Vercel— trata CADA nombre de una lista `export { … }`
+// o `export type { … }` como una acción: genera `registerServerReference(X, …)`.
+// Si X es un tipo, no existe en tiempo de ejecución y el módulo revienta al
+// cargarse con `ReferenceError`.
+//
+// No es teórico. Del 2026-09-17 al 23, producción devolvió 500 en TODAS las
+// Server Actions de `/oceano` —mensajes y asistencias se quedaban «cargando»
+// para siempre— por tres `export type { … }` que el PROMPT E puso «para no
+// romper los imports de la UI». `tsc`, lint, las 40 suites y `next build`
+// pasaban: el build termina bien y el fallo es al EVALUAR el módulo. En local
+// no se veía porque `npm run dev` usa webpack.
+//
+// Las declaraciones `export type X = {…}` NO disparan el fallo (medido: de 13
+// en archivos "use server", ninguna acabó registrada) y se permiten.
+const USE_SERVER = /^(?:\s|\/\/[^\n]*\n|\/\*[\s\S]*?\*\/)*["']use server["']/;
+comprobar("C14", "un \"use server\" no reexporta listas: Next las registraría como Server Actions", 0, () =>
+  [...listar("app", ES_TS), ...listar("lib", ES_TS)]
+    .filter((f) => USE_SERVER.test(leer(f)))
+    .flatMap((f) =>
+      [...codigoDesnudo(leer(f)).matchAll(/(?:^|\n)\s*export\s+(type\s+)?(\{|\*)/g)].map((m) => ({
+        archivo: f,
+        detalle: m[2] === "*" ? "export * from …" : `export ${m[1] ? "type " : ""}{ … }`,
+      })),
+    ),
+);
+
 // ── Informe ────────────────────────────────────────────────────────────────
 
 if (JSON_OUT) {

@@ -1,5 +1,22 @@
 import "server-only";
 
+/**
+ * @deprecated 2026-09-23 (PROMPT N). Todo este módulo —las «noticias de inicio» en
+ * dos slots fijos de Cloudinary— queda SUSTITUIDO por la portada administrable:
+ *   · datos:    `lib/escolar/portada/portada.ts` + tabla `portada_medios`
+ *   · acciones: `app/actions/portada.ts`
+ *   · panel:    «Configuración → Video e imágenes» (`portada-medios-panel.tsx`)
+ *
+ * Por qué se sustituyó y no se amplió: comprobaba existencia con la API de
+ * administración de Cloudinary (500 consultas/hora) en una página PÚBLICA, no
+ * guardaba orden ni carrera, y al sobrescribir el mismo `public_id` el CDN podía
+ * seguir sirviendo la versión vieja. Nunca tuvo superficie: ningún componente
+ * lo llamaba.
+ *
+ * NO se borra todavía (R8, filosofía §14): se retira en su propio cambio, cuando
+ * la portada nueva lleve un tiempo en producción. No añadir llamadores nuevos.
+ */
+
 import { CLOUDINARY_FOLDER } from "@/lib/escolar/tables";
 import { cloudinaryConfigurado, getCloudinary } from "./config.ts";
 import { subirImagenCloudinary } from "./upload.ts";
@@ -33,6 +50,7 @@ export function claveNoticiaInicio(slot: NoticiaInicioSlot): string {
   return `${CLOUDINARY_FOLDER}/${publicIdNoticiaInicio(slot)}`;
 }
 
+/** @deprecated Usa `lib/escolar/portada/portada.ts` (ver la cabecera). */
 export async function urlNoticiaInicioSiExiste(
   slot: NoticiaInicioSlot,
 ): Promise<string | null> {
@@ -55,6 +73,7 @@ export async function urlNoticiaInicioSiExiste(
   return url;
 }
 
+/** @deprecated Usa `lib/escolar/portada/portada.ts` (ver la cabecera). */
 export async function listarUrlsNoticiasInicio(): Promise<
   Record<NoticiaInicioSlot, string | null>
 > {
@@ -71,6 +90,7 @@ export async function listarUrlsNoticiasInicio(): Promise<
  * invalida la caché. Todo el I/O de Cloudinary vive aquí; la Server Action solo
  * valida la sesión y el archivo antes de delegar.
  */
+/** @deprecated Usa `lib/escolar/portada/portada.ts` (ver la cabecera). */
 export async function publicarNoticiaInicio(
   slot: NoticiaInicioSlot,
   archivo: File,

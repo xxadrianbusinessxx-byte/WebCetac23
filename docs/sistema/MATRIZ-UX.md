@@ -102,7 +102,7 @@ relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 
 
 | Ruta | Server | Client (líneas) | Contenedor | Zonas / piezas propias |
 |---|---|---|---|---|
-| `/` | `app/page.tsx` (todo) | `home-login-form.tsx` | **excepción:** `max-w-6xl` / `lg:max-w-7xl` + rejilla `lg:grid-cols-12` (3 · 5 · 4) | barra decorativa superior · `GlassShell` · `SectionPill` · `PanelTab` decorativo · `alumnos-estrella` · `eventos-inicio`. **Sin barra de navegación.** |
+| `/` | `app/page.tsx` | `portada-carrusel.tsx` | **a sangre**, sin contenedor: el hero y las bandas de carrera ocupan todo el ancho | frame «Pantalla de bienvenida» (prompt O, 2026-09-24): barra de contacto con redes · carrusel 7:3 (4:5 en teléfono) o portada institucional si no hay imágenes · una banda por carrera con su video 16:9 · pie con ubicación, contactos, redes y logos SEMS / DGETAyCM / SEP. Lo administrable llega de `leerPortadaPublica`; si falla, se pinta lo fijo. **Sin barra de navegación.** |
 | `/login` | `app/login/page.tsx` | — | — | `redirect("/")`; no pinta nada |
 | `/oceano` | `oceano/page.tsx` (94) | `components/oceano/shell-oceano.tsx` (179) + 8 piezas | **propio:** el shell pinta su fondo (`--oc-bg`) y el rail va anclado a x=0; no usa el contenedor estándar | **Fases 1-4** — shell único: barra superior por rol (nivel 1) + rail de apartados (nivel 2) con **selector de alumno vinculado** por encima (Fase 4) + barra de modo (nivel 3), desde `lib/navegacion/mapa-navegacion.ts`. El contenido de los huecos con pieza lo decide `lib/navegacion/contenido-alumno.ts` y lo montan `contenido-alumno-oceano.tsx`, `asistencia-tabular-alumno.tsx` y `notificaciones-alumno.tsx`; las MISMAS piezas sirven al alumno y al tutor (reciben el `curp` del alumno elegido, no el rol). No sustituye a ninguna ruta viva: convive con ellas (R8). |
 | `/perfil` | `perfil/page.tsx` | `perfil-client.tsx` (822) | estándar (+ variante centrada `items-center justify-center` para el estado vacío) | 4 pestañas `MainTabButton`: materia · estatus · comentarios · boleta. `BubblePill`, `materia-selector`, `materia-tabla-vista`, `materia-calificaciones-alumno`, `calendario-asistencia-alumno`, `horario-alumno-resumen`, `etiquetas-dinamicas-panel` |
@@ -129,8 +129,13 @@ recibe las pestañas ya resueltas y no decide nada.
 | alumno | Perfil · Materias · Calendario · Chat |
 | tutor | Perfil (+ «Mis mensajes») · Materias · Calendario · Chat |
 | maestro | Materias · Calendario y asistencias · Mensajes |
-| directivo | Materias · Grupos y boleta · Calendario y asistencias · Administración · Mensajes |
-| técnico | Ciclo escolar · Catálogo · Personas · Contenido · Mensajes |
+| directivo | Materias · Grupos y boleta · Calendario y asistencias · Administración · Configuración · Mensajes |
+| técnico | Ciclo escolar · Catálogo · Personas · Contenido · Configuración · Mensajes |
+
+**Configuración** (prompt N, 2026-09-23) es la MISMA pestaña para los dos roles: un apartado,
+«Video e imágenes» → `portada-medios-panel.tsx`, que administra el carrusel, los videos por
+carrera y los enlaces de contacto de la portada pública. Sustituye al apartado apagado
+«Noticias» de Contenido.
 
 Dentro de cada pestaña, **los apartados** sí se filtran por **capacidad**
 (`puede()`), no por rol: un apartado visible que el servidor rechaza es un bug
@@ -144,7 +149,7 @@ Dentro de cada pestaña, **los apartados** sí se filtran por **capacidad**
 
 ```
 layout.tsx ─ decoracion-fondo · barra-navegacion ─ glossy-nav-pill · cambio-clave-forzado · web-vitals
-page.tsx (/) ─ alumnos-estrella ─ glossy-person-icon · eventos-inicio · home-login-form
+page.tsx (/) ─ portada-carrusel
 perfil ─ materia-selector · materia-tabla-vista · materia-calificaciones-alumno
         · calendario-asistencia-alumno · horario-alumno-resumen · etiquetas-dinamicas-panel
 profesor ─ buscador-alumno-profesor ─ (calendario-asistencia-alumno · horario-alumno-resumen)
@@ -282,7 +287,7 @@ Rótulos: casi todo botón/pill es `font-extrabold uppercase tracking-wide` (o
 | Decisión | Valor | Dónde |
 |---|---|---|
 | Ancho de página | `max-w-5xl` → `lg:max-w-6xl` | 7 rutas |
-| Ancho de `/` | `max-w-6xl` → `lg:max-w-7xl` | `app/page.tsx` |
+| Ancho de `/` | a sangre (sin `max-w`) | `app/page.tsx` |
 | Padding lateral | `px-4 sm:px-6 lg:px-8` | todas |
 | Padding superior | `pt-6 lg:pt-8` | todas |
 | Padding inferior | `pb-24` | todas (deja aire bajo el último panel) |
@@ -419,7 +424,7 @@ sitios toca. Todos son de solo lectura.
 | **Aspecto de los campos de formulario** | receta repetida en cada panel | `grep -rn "focus:ring-sky-400/50" app --include=*.tsx` | medio |
 | **Aspecto de las pestañas** | `MainTabButton` ×2 (`perfil`, `tutor`) | 2 archivos | bajo |
 | **La pantalla de cambio forzado de clave** | `components/cambio-clave-forzado.tsx` | 1 archivo | bajo |
-| **La portada `/`** | `app/page.tsx` (rejilla 3·5·4 + 3 piezas locales) | 1 archivo | bajo |
+| **La portada `/`** | `app/page.tsx` + `portada-carrusel.tsx`; el contenido, en «Configuración → Video e imágenes» | 2 archivos | bajo |
 | **Icono de persona / avatares** | `PALETAS` en `ui/glossy-person-icon.tsx` | 1 archivo, 8 consumidores | bajo |
 | **Logo de la esquina** | `LOGO_ESQUINAS_ARCHIVO` en `lib/decoraciones/config.ts` + `npm run sync:decoraciones` | 1 archivo + el binario en `decoraciones imagenes/` | bajo |
 

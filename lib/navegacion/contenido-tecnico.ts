@@ -33,7 +33,8 @@ export type PiezaTecnico =
   | "tutores"
   | "profesores-credenciales"
   | "documentos"
-  | "mensajes-internos";
+  | "mensajes-internos"
+  | "portada-medios";
 
 /** Clave = `idPestana/idApartado`, tal cual los devuelve el mapa. */
 const HUECOS: Readonly<Record<string, PiezaTecnico>> = {
@@ -55,10 +56,12 @@ const HUECOS: Readonly<Record<string, PiezaTecnico>> = {
   "personas/profesores": "profesores-credenciales",
 
   // Contenido — Documentos ENCENDIDO (2026-09-17): el panel institucional ya
-  // existía, con sus tablas y su suite; lo que faltaba era montarlo. Noticias
-  // sigue sin entrada: el sistema Cloudinary está desactivado y ningún
-  // componente llama a `actionPublicarNoticiaInicio`.
+  // existía, con sus tablas y su suite; lo que faltaba era montarlo.
   "contenido/documentos": "documentos",
+
+  // Configuración de la portada pública (PROMPT N): sustituye al apartado
+  // «Noticias» que estuvo apagado aquí. La misma pieza que el directivo.
+  "configuracion/video-imagenes": "portada-medios",
 
   // Mensajería interna, el único sitio donde el técnico coincide con el resto
   // del personal.

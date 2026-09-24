@@ -12,11 +12,15 @@ import { esquemaNoticia } from "@/lib/validacion/esquemas-puro";
 /**
  * Pública por diseño: es la portada, se sirve antes del login. Capacidad
  * `portada.ver` (excepción declarada del detector de permisos).
+ *
+ * @deprecated 2026-09-23. Sustituida por `app/actions/portada.ts`; ningún
+ * componente la llama. No se borra aún (R8).
  */
 export async function actionObtenerNoticiasInicio() {
   return listarUrlsNoticiasInicio();
 }
 
+/** @deprecated 2026-09-23. Sustituida por `app/actions/portada.ts`; ningún componente la llama. No se borra aún (R8). */
 export async function actionPublicarNoticiaInicio(
   slot: NoticiaInicioSlot,
   formData: FormData,

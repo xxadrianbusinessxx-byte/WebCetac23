@@ -4,9 +4,8 @@
  */
 export const CARPETA_DECORACIONES_PUBLIC = "/decoraciones-imagenes";
 
-/** Logo CETAC en las cuatro esquinas (sync:decoraciones lo copia a public). */
-export const LOGO_ESQUINAS_ARCHIVO =
-  "Gemini_Generated_Image_jburdjburdjburdj-removebg-preview.png";
+/** Logo CETAC (sync:decoraciones lo copia a public). Antes «Gemini_Generated_Image_…png»: el mismo archivo, renombrado el 2026-09-23. */
+export const LOGO_ESQUINAS_ARCHIVO = "CetacLogo.png";
 
 export const LOGO_ESQUINAS_SRC = `${CARPETA_DECORACIONES_PUBLIC}/${LOGO_ESQUINAS_ARCHIVO}`;
 
