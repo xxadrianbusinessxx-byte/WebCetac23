@@ -100,10 +100,32 @@ eq(P.ordenTrasEliminar(cinco, "no-existe").length, 5, "eliminar algo que no est�
 const copia = JSON.stringify(cinco);
 P.ordenTrasEliminar(cinco, "i1");
 ok("ordenTrasEliminar no muta la entrada", JSON.stringify(cinco) === copia);
+ok("carrusel vacío: se puede subir a la 1", P.ordenPermitidoParaSubir([], 1));
+ok("carrusel vacío: NO a la 5 (dejaría huecos)", !P.ordenPermitidoParaSubir([], 5));
+ok("con 1 y 2: se puede reemplazar la 2", P.ordenPermitidoParaSubir([1, 2], 2));
+ok("con 1 y 2: se puede añadir la 3", P.ordenPermitidoParaSubir([1, 2], 3));
+ok("con 1 y 2: NO la 4", !P.ordenPermitidoParaSubir([1, 2], 4));
+ok("lleno: se puede reemplazar cualquiera", P.ordenPermitidoParaSubir([1, 2, 3, 4, 5], 4));
 ok("una permutación válida se acepta", P.esPermutacion(["b", "a", "c"], ["a", "b", "c"]));
 ok("falta uno → no", !P.esPermutacion(["a", "b"], ["a", "b", "c"]));
 ok("repetido → no", !P.esPermutacion(["a", "a", "b"], ["a", "b", "c"]));
 ok("uno ajeno → no", !P.esPermutacion(["a", "b", "x"], ["a", "b", "c"]));
+
+/* ── Destino de una subida ─────────────────────────────────────────────── */
+console.log("\ndestino de una subida — reglas entre campos");
+const MEC = "c250801e-36b2-40c1-8951-7f2b91874533";
+ok("imagen de escritorio en la posición 3", P.validarDestino({ tipo: "imagen", variante: "escritorio", orden: 3 }).ok);
+ok("imagen móvil en la posición 5", P.validarDestino({ tipo: "imagen", variante: "movil", orden: 5 }).ok);
+ok("imagen sin variante → no", !P.validarDestino({ tipo: "imagen", orden: 1 }).ok);
+ok("imagen en la posición 6 → no", !P.validarDestino({ tipo: "imagen", variante: "escritorio", orden: 6 }).ok);
+ok("imagen en la posición 0 → no", !P.validarDestino({ tipo: "imagen", variante: "escritorio", orden: 0 }).ok);
+ok("imagen en la posición 2,5 → no", !P.validarDestino({ tipo: "imagen", variante: "escritorio", orden: 2.5 }).ok);
+ok("imagen ligada a una carrera → no", !P.validarDestino({ tipo: "imagen", variante: "escritorio", orden: 1, carreraId: MEC }).ok);
+ok("video de una carrera", P.validarDestino({ tipo: "video", carreraId: MEC }).ok);
+ok("video sin carrera → no", !P.validarDestino({ tipo: "video" }).ok);
+ok("video con posición → no", !P.validarDestino({ tipo: "video", carreraId: MEC, orden: 1 }).ok);
+ok("video con variante móvil → no", !P.validarDestino({ tipo: "video", carreraId: MEC, variante: "movil" }).ok);
+ok("tipo inventado → no", !P.validarDestino({ tipo: "audio" }).ok);
 
 /* ── Identificadores de Cloudinary ─────────────────────────────────────── */
 console.log("\npublic_id de Cloudinary");
@@ -117,6 +139,11 @@ ok("un sufijo demasiado corto lanza", lanzo);
 ok("un id de portada se reconoce", P.esPublicIdDePortada(idImg));
 ok("un id de otra carpeta NO", !P.esPublicIdDePortada("cetac23/noticia_inicio_1"));
 ok("un id con ruta intercalada NO", !P.esPublicIdDePortada("cetac23/portada/../secreto_abcdefgh"));
+const idVid = P.publicIdNuevo("video", null, "abcdef12");
+ok("una imagen de escritorio corresponde a su tipo", P.publicIdCorrespondeA(idImg, "imagen", "escritorio"));
+ok("un video NO puede registrarse como imagen", !P.publicIdCorrespondeA(idVid, "imagen", "escritorio"));
+ok("una imagen de escritorio NO como móvil", !P.publicIdCorrespondeA(idImg, "imagen", "movil"));
+ok("una imagen NO como video", !P.publicIdCorrespondeA(idImg, "video", null));
 
 /* ── Ajustes de contacto ───────────────────────────────────────────────── */
 console.log("\najustes — uno bueno y uno malo de cada");

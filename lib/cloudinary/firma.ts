@@ -79,7 +79,12 @@ export type RecursoCloudinary = {
 export async function leerRecurso(publicId: string, resourceType: TipoRecurso): Promise<RecursoCloudinary | null> {
   const cld = getCloudinary();
   try {
-    const r = await cld.api.resource(publicId, { resource_type: resourceType, media_metadata: false });
+    // La DURACIÓN de un video solo viene con `media_metadata: true`: sin él, la API
+    // de administración la omite aunque la subida sí la devolviera. Medido el
+    // 2026-09-23 con un mp4 de 13,4 s: `{}` y `{ media_metadata: false }` dan
+    // `duration: undefined`; `true` da 13.4134. Sin esto, TODO video se rechazaba
+    // por «no se pudo leer la duración». A las imágenes no les hace falta.
+    const r = await cld.api.resource(publicId, { resource_type: resourceType, media_metadata: resourceType === "video" });
     return {
       public_id: r.public_id,
       version: Number(r.version),

@@ -23,6 +23,8 @@ import {
   TABLA_PERIODOS,
   TABLA_PERIODOS_EVALUACION,
   TABLA_PERMISOS_CARPETAS,
+  TABLA_PORTADA_AJUSTES,
+  TABLA_PORTADA_MEDIOS,
   TABLA_PROFESORES,
   TABLA_SEMESTRES,
   TABLA_TUTOR_ALUMNOS,
@@ -70,6 +72,12 @@ const TABLAS_SISTEMA = new Set([
   TABLA_SEMESTRES,
   "materias_nombres_visibles",
   "materias_mapeo_columnas",
+  // Portada pública (PROMPT L, 2026-09-23). Sin esto, las dos tablas aparecían
+  // como MATERIAS en los selectores: el descubrimiento devuelve toda tabla que
+  // no esté en esta lista. Se midió al añadirlas y no son las únicas: hay otras
+  // diez de sistema que ya se colaban (pendiente `tablas-sistema-como-materia`).
+  TABLA_PORTADA_MEDIOS,
+  TABLA_PORTADA_AJUSTES,
 ]);
 
 /** Nombres de tablas expuestas en PostgREST (OpenAPI). O3: usa caché del spec. */

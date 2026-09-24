@@ -239,12 +239,54 @@ export function ordenTrasEliminar(lista: readonly ConOrden[], idEliminado: strin
     .map((x, i) => ({ id: x.id, orden: i + 1 }));
 }
 
+/**
+ * ¿Se puede subir una imagen de escritorio a esta posición? Sí si REEMPLAZA una
+ * que ya está, o si ocupa la siguiente libre. Saltar a la 5 con el carrusel vacío
+ * dejaría huecos, y el carrusel nunca los tiene.
+ */
+export function ordenPermitidoParaSubir(ocupados: readonly number[], orden: number): boolean {
+  return ocupados.includes(orden) || orden === siguienteOrdenLibre(ocupados);
+}
+
 /** ¿`nuevos` son exactamente `actuales`, sin faltar ni repetir ninguno? */
 export function esPermutacion(nuevos: readonly string[], actuales: readonly string[]): boolean {
   if (nuevos.length !== actuales.length) return false;
   const a = [...nuevos].sort();
   const b = [...actuales].sort();
   return a.every((x, i) => x === b[i]) && new Set(nuevos).size === nuevos.length;
+}
+
+/* ── A dónde va una subida ──────────────────────────────────────────────── */
+
+export type Destino = {
+  tipo: TipoMedio;
+  variante?: Variante | null;
+  orden?: number | null;
+  carreraId?: string | null;
+};
+
+/**
+ * ¿Tiene sentido este destino? Una imagen necesita variante y posición; un video,
+ * carrera y nada más. Es una regla ENTRE campos, y por eso vive aquí y no en el
+ * esquema de `lib/validacion/`: `leerEntrada` valida campo a campo, y una
+ * comprobación a nivel de objeto dentro del esquema se saltaría sin avisar.
+ */
+export function validarDestino(d: Destino): Resultado {
+  if (d.tipo === "imagen") {
+    if (d.variante !== "escritorio" && d.variante !== "movil") return mal("Falta indicar si la imagen es para escritorio o para teléfono.");
+    if (!Number.isInteger(d.orden) || (d.orden as number) < 1 || (d.orden as number) > MAX_IMAGENES) {
+      return mal(`La posición del carrusel tiene que estar entre 1 y ${MAX_IMAGENES}.`);
+    }
+    if (d.carreraId) return mal("Una imagen del carrusel no va ligada a una carrera.");
+    return bien;
+  }
+  if (d.tipo === "video") {
+    if (!d.carreraId) return mal("Falta indicar de qué carrera es el video.");
+    if (d.orden != null) return mal("Un video no ocupa posición en el carrusel.");
+    if (d.variante != null) return mal("Un video no tiene versión para teléfono.");
+    return bien;
+  }
+  return mal("Tipo de archivo no válido.");
 }
 
 /* ── Identificadores en Cloudinary ──────────────────────────────────────── */
@@ -269,6 +311,17 @@ export function publicIdNuevo(tipo: TipoMedio, variante: Variante | null, sufijo
 /** ¿Este `public_id` pertenece a la portada? El servidor no registra nada de otra carpeta. */
 export function esPublicIdDePortada(publicId: string): boolean {
   return /^cetac23\/portada\/(imagen_(escritorio|movil)|video)_[a-z0-9-]{8,}$/.test(publicId);
+}
+
+/**
+ * ¿Este `public_id` es del tipo que se dice registrar? Sin esto, un video firmado
+ * como video podría registrarse como imagen de escritorio: la firma fija el
+ * destino al subir, y esto lo vuelve a exigir al registrar.
+ */
+export function publicIdCorrespondeA(publicId: string, tipo: TipoMedio, variante: Variante | null): boolean {
+  if (!esPublicIdDePortada(publicId)) return false;
+  const parte = tipo === "video" ? "video" : `imagen_${variante ?? "escritorio"}`;
+  return publicId.startsWith(`${CARPETA_PORTADA}/${parte}_`);
 }
 
 /* ── Ajustes de contacto ────────────────────────────────────────────────── */

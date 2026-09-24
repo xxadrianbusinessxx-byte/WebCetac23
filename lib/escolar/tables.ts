@@ -31,6 +31,10 @@ export const TABLA_PERIODOS = "periodos";
  *  Ver supabase/crear-periodos-evaluacion.sql y lib/escolar/evaluaciones.ts. */
 export const TABLA_PERIODOS_EVALUACION = "periodos_evaluacion";
 export const TABLA_CARRERAS = "carreras";
+/** Portada pública: carrusel e imágenes por carrera (PROMPT L). Los archivos viven en Cloudinary. */
+export const TABLA_PORTADA_MEDIOS = "portada_medios";
+/** Portada pública: enlaces y datos de contacto configurables (PROMPT L). */
+export const TABLA_PORTADA_AJUSTES = "portada_ajustes";
 export const TABLA_MATERIAS = "materias";
 export const TABLA_GRUPOS = "grupos";
 export const TABLA_GRUPO_MATERIAS = "grupo_materias";

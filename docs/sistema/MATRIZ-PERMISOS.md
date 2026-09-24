@@ -193,7 +193,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 170 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 176 Server Actions.
 
 ### `actividades.ts`
 
@@ -454,6 +454,17 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 170 Server Actions.
 |---|---|---|
 | `actionObtenerNoticiasInicio` | **SIN SESION** | `portada.ver` |
 | `actionPublicarNoticiaInicio` | exigir: noticia.publicar | `noticia.publicar` |
+
+### `portada.ts`
+
+| Action | Guardia hoy | Capacidad |
+|---|---|---|
+| `actionListarMediosPortada` | exigir: noticia.publicar | `noticia.publicar` |
+| `actionFirmarSubidaPortada` | exigir: noticia.publicar | `noticia.publicar` |
+| `actionRegistrarMedioPortada` | exigir: noticia.publicar | `noticia.publicar` |
+| `actionEliminarMedioPortada` | exigir: noticia.publicar | `noticia.publicar` |
+| `actionReordenarPortada` | exigir: noticia.publicar | `noticia.publicar` |
+| `actionGuardarAjustesPortada` | exigir: noticia.publicar | `noticia.publicar` |
 
 ### `profesores.ts`
 
