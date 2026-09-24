@@ -27,6 +27,9 @@ export function rolDesdePermisos(permisos: string): PortalRole {
   // Permisos = 'Tecnico'. Hereda identidad estructural (ID), login y cambio
   // forzado de clave. No es un segundo camino de autenticación.
   if (p.includes("tecnic")) return "tecnico";
+  // 2026-09-24: Administración escolar, igual que el técnico — una fila normal de
+  // PROFESORES con Permisos = 'Administracion'. Sin segundo camino de acceso (R6).
+  if (p.includes("administ")) return "administracion";
   return "maestro";
 }
 

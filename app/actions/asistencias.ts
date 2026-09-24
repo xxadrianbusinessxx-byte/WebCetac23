@@ -326,7 +326,8 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
   //  - tutor: solo CURP de sus alumnos vinculados (relación activa).
   //  - maestro: solo alumnos de grupos donde imparte clase (validado abajo con
   //    la inscripción resuelta del alumno) y SIEMPRE su propio aporte.
-  //  - directivo: acceso total (sin restricción de grupo ni profesor).
+  //  - directivo y administración escolar: acceso total (sin restricción de
+  //    grupo ni profesor).
   if (esRol(sesion.rol, "alumno")) {
     if (!sesion.curp || sesion.curp.trim().toUpperCase() !== curp) {
       return { ok: false, error: "Solo puedes consultar tu propia asistencia." };
@@ -336,7 +337,11 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
     if (!curps.includes(curp)) {
       return { ok: false, error: "No tienes relación con ese alumno." };
     }
-  } else if (!esRol(sesion.rol, "directivo") && !esRol(sesion.rol, "maestro")) {
+  } else if (
+    !esRol(sesion.rol, "directivo") &&
+    !esRol(sesion.rol, "maestro") &&
+    !esRol(sesion.rol, "administracion")
+  ) {
     return { ok: false, error: "No tienes permiso para consultar asistencias." };
   }
 

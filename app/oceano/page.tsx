@@ -4,6 +4,7 @@ import { actionListarMateriasConNombreVisible } from "@/app/actions/materias";
 import { actionListarAlumnosDelTutor } from "@/app/actions/tutores";
 import {
   ShellOceano,
+  type DatosAdministracionOceano,
   type DatosAlumnoOceano,
   type DatosDirectivoOceano,
   type DatosDocenteOceano,
@@ -51,19 +52,27 @@ export default async function OceanoPage({
   // Maestro/directivo necesitan su propio selector y entran en su fase (5-6).
   const esAlumno = rol === "alumno";
   const esTutor = rol === "tutor";
+  // Administración escolar (2026-09-24): abre el expediente del alumno que eligió
+  // en su buscador (`?alumno=CURP`). Que pueda verlo lo decide la action del
+  // perfil con `resolverAccesoAlumno`, no este parámetro.
+  const esAdministracion = rol === "administracion";
 
   // La lista de vinculados se resuelve UNA vez por navegación (no por componente)
   // y es lo que el selector puede ofrecer. Con un solo alumno se elige solo.
   const alumnosVinculados = esTutor ? await actionListarAlumnosDelTutor() : [];
   const curpPedida = (params.alumno ?? "").trim().toUpperCase();
-  const curpConsulta = !esTutor
-    ? null
-    : (alumnosVinculados.find((a) => a.curp.trim().toUpperCase() === curpPedida)?.curp ??
-      alumnosVinculados[0]?.curp ??
-      null);
+  const curpConsulta = esAdministracion
+    ? curpPedida || null
+    : !esTutor
+      ? null
+      : (alumnosVinculados.find((a) => a.curp.trim().toUpperCase() === curpPedida)?.curp ??
+        alumnosVinculados[0]?.curp ??
+        null);
 
   const perfil =
-    esAlumno || esTutor ? await actionObtenerPerfilAlumno(curpConsulta) : null;
+    esAlumno || esTutor || (esAdministracion && curpConsulta)
+      ? await actionObtenerPerfilAlumno(curpConsulta)
+      : null;
   const datosAlumno: DatosAlumnoOceano | null =
     perfil && perfil.acceso?.puedeLeer
       ? {
@@ -100,7 +109,7 @@ export default async function OceanoPage({
   // en el ciclo en curso y no en el primero de la lista alfabética. Es la misma
   // lectura de siempre; solo se amplía a quién se le sirve.
   const nombreCicloOperativo =
-    rol === "tecnico" || esDocente
+    rol === "tecnico" || esDocente || esAdministracion
       ? await (async () => {
           const supabase = await createClient();
           const ciclo = await obtenerCicloOperativoGlobal(supabase);
@@ -126,6 +135,13 @@ export default async function OceanoPage({
   const datosDirectivo: DatosDirectivoOceano | null =
     rol === "directivo" ? { materias: materiasDocente } : null;
 
+  // El expediente va DENTRO de los datos de este rol y no como `datosAlumno`: el
+  // alumno abierto no es quien tiene la sesión, y las piezas del alumno se montan
+  // desde su propio emparejamiento (`contenido-administracion.ts`).
+  const datosAdministracion: DatosAdministracionOceano | null = esAdministracion
+    ? { alumno: datosAlumno, cicloOperativo: nombreCicloOperativo }
+    : null;
+
   // La carga académica del técnico sigue esperando una lista; se arma con el
   // mismo nombre que se acaba de leer, sin repetir la consulta.
   const periodos = rol === "tecnico" && nombreCicloOperativo ? [nombreCicloOperativo] : [];
@@ -139,7 +155,8 @@ export default async function OceanoPage({
       key={rol ?? "sin-sesion"}
       rol={rol}
       nombre={sesion?.nombre ?? sesion?.matricula ?? ""}
-      datosAlumno={datosAlumno}
+      datosAlumno={esAdministracion ? null : datosAlumno}
+      datosAdministracion={datosAdministracion}
       datosDocente={datosDocente}
       datosDirectivo={datosDirectivo}
       periodos={periodos}

@@ -80,3 +80,19 @@ export const ETIQUETAS_ESTATUS_KEYS = ["EMPTY1", "EMPTY2", "EMPTY3"] as const;
 export const ETIQUETAS_PERSONALES_KEYS = ["EMPTY4", "EMPTY5", "EMPTY6"] as const;
 
 export const CLOUDINARY_FOLDER = "cetac23";
+
+/**
+ * UIs pendientes (2026-09-17) y ciclo. Antes cada módulo declaraba su nombre y
+ * este registro no las conocía; por eso se colaban como materias
+ * (`materia/tablas-sistema.ts`). Los módulos de dominio las importan de aquí.
+ */
+export const TABLA_ACTIVIDADES = "actividades";
+export const TABLA_ACTIVIDAD_ENTREGAS = "actividad_entregas";
+export const TABLA_REPORTES_ALUMNO = "reportes_alumno";
+export const TABLA_CITAS = "citas";
+export const TABLA_SOLICITUDES_CONSTANCIA = "solicitudes_constancia";
+export const TABLA_BUZON_MENSAJES = "buzon_mensajes";
+export const TABLA_MENSAJES_INTERNOS = "mensajes_internos";
+export const TABLA_CICLO_TRANSICIONES = "ciclo_transiciones";
+/** Traspasos de asistencia entre materias (supabase/crear-rpc-traspasar-materia.sql). */
+export const TABLA_ASISTENCIA_TRASPASOS_HISTORICO = "asistencia_traspasos_historico";

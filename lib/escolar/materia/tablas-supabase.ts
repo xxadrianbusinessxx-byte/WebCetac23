@@ -1,84 +1,8 @@
 import { obtenerSpecOpenAPI } from "../openapi.ts";
-import {
-  TABLA_ALUMNOS,
-  TABLA_ASIGNACIONES_PROFESOR,
-  TABLA_ASISTENCIA_ALUMNOS,
-  TABLA_CALENDARIO_ESCOLAR,
-  TABLA_CARPETAS,
-  TABLA_CARRERAS,
-  TABLA_CLASES_IMPARTIDAS,
-  TABLA_COMENTARIOS,
-  TABLA_COMENTARIOS_PROFESORES,
-  TABLA_CONFIGURACION_CLASES_PROFESOR,
-  TABLA_DOCUMENTOS,
-  TABLA_ETIQUETAS_PERSONALES,
-  TABLA_ETIQUETAS_STATUS,
-  TABLA_GRUPO_MATERIAS,
-  TABLA_GRUPOS,
-  TABLA_HORARIO_SEMANAL,
-  TABLA_INSCRIPCIONES_ALUMNO,
-  TABLA_JUSTIFICACIONES_ASISTENCIA,
-  TABLA_MATERIAS,
-  TABLA_MENSAJES_JUSTIFICACION,
-  TABLA_PERIODOS,
-  TABLA_PERIODOS_EVALUACION,
-  TABLA_PERMISOS_CARPETAS,
-  TABLA_PORTADA_AJUSTES,
-  TABLA_PORTADA_MEDIOS,
-  TABLA_PROFESORES,
-  TABLA_SEMESTRES,
-  TABLA_TUTOR_ALUMNOS,
-  TABLA_TUTOR_CREDENCIALES_INICIALES,
-  TABLA_TUTORES,
-} from "../tables.ts";
+import { esTablaMateria, PATRON_REGISTRO_FINAL } from "./tablas-sistema.ts";
 
-const TABLAS_SISTEMA = new Set([
-  TABLA_ALUMNOS,
-  TABLA_PROFESORES,
-  TABLA_COMENTARIOS,
-  TABLA_COMENTARIOS_PROFESORES,
-  TABLA_ETIQUETAS_PERSONALES,
-  TABLA_ETIQUETAS_STATUS,
-  "BOLETA",
-  "mensajes_chat",
-  // Catálogo académico (FASE C1): tablas de OFERTA/RELACIONES. NO son materias
-  // legacy ni registros; se excluyen EXPLÍCITAMENTE del descubrimiento.
-  TABLA_PERIODOS,
-  TABLA_CARRERAS,
-  TABLA_MATERIAS,
-  TABLA_GRUPOS,
-  TABLA_GRUPO_MATERIAS,
-  TABLA_INSCRIPCIONES_ALUMNO,
-  TABLA_ASIGNACIONES_PROFESOR,
-  // C4.28 — Tablas de SISTEMA/BACKEND (documentos, tutores, asistencia,
-  // justificaciones, semestres, configuración de nombres/mapeo). NO son
-  // materias: son almacenes internos modificables por interacción de backend y
-  // NO deben aparecer en el descubrimiento de materias ni en los selectores
-  // (el apartado "General" del buscador de materias).
-  TABLA_CARPETAS,
-  TABLA_DOCUMENTOS,
-  TABLA_PERMISOS_CARPETAS,
-  TABLA_CALENDARIO_ESCOLAR,
-  TABLA_CLASES_IMPARTIDAS,
-  TABLA_ASISTENCIA_ALUMNOS,
-  TABLA_CONFIGURACION_CLASES_PROFESOR,
-  TABLA_HORARIO_SEMANAL,
-  TABLA_PERIODOS_EVALUACION,
-  TABLA_TUTORES,
-  TABLA_TUTOR_ALUMNOS,
-  TABLA_TUTOR_CREDENCIALES_INICIALES,
-  TABLA_JUSTIFICACIONES_ASISTENCIA,
-  TABLA_MENSAJES_JUSTIFICACION,
-  TABLA_SEMESTRES,
-  "materias_nombres_visibles",
-  "materias_mapeo_columnas",
-  // Portada pública (PROMPT L, 2026-09-23). Sin esto, las dos tablas aparecían
-  // como MATERIAS en los selectores: el descubrimiento devuelve toda tabla que
-  // no esté en esta lista. Se midió al añadirlas y no son las únicas: hay otras
-  // diez de sistema que ya se colaban (pendiente `tablas-sistema-como-materia`).
-  TABLA_PORTADA_MEDIOS,
-  TABLA_PORTADA_AJUSTES,
-]);
+// Qué tabla NO es materia lo decide `tablas-sistema.ts`: una sola lista, la
+// misma que usa el generador y que vigila la regla C15.
 
 /** Nombres de tablas expuestas en PostgREST (OpenAPI). O3: usa caché del spec. */
 export async function listarTablasDesdeSupabase(): Promise<string[]> {
@@ -91,16 +15,12 @@ export async function listarTablasDesdeSupabase(): Promise<string[]> {
 
 export async function listarTablasMateriasDesdeSupabase(): Promise<string[]> {
   const todas = await listarTablasDesdeSupabase();
-  return todas.filter(
-    (t) =>
-      !TABLAS_SISTEMA.has(t) &&
-      !/REGISTRO DE CALIFICACIONES FINALES/i.test(t),
-  );
+  return todas.filter(esTablaMateria);
 }
 
 export async function listarTablasRegistrosDesdeSupabase(): Promise<string[]> {
   const todas = await listarTablasDesdeSupabase();
-  return todas.filter((t) => /REGISTRO DE CALIFICACIONES FINALES/i.test(t));
+  return todas.filter((t) => PATRON_REGISTRO_FINAL.test(t));
 }
 
 /** Lista completa para carga de archivos (directivo / profesor). */

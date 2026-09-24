@@ -18,7 +18,7 @@
  *   actions después de exigir().
  */
 
-import type { PortalRole } from "./types.ts";
+import { ROLES_PORTAL, type PortalRole } from "./types.ts";
 import type { Capacidad } from "./capacidades.ts";
 
 /** Capacidades que no requieren sesión (hoy solo la portada pública). */
@@ -217,6 +217,48 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "buzon.ver",
     "mensaje_interno.usar",
   ]),
+
+  // 2026-09-24 — Administración escolar. Administra a las PERSONAS y sus
+  // trámites: expediente completo del alumno (lectura de todo lo que se ve de él
+  // y edición de sus datos), tutores, reportes, constancias, documentos y
+  // mensajes. Como el técnico, no toca contenido académico: no califica, no pasa
+  // lista, no configura el ciclo ni el catálogo. Sobre QUÉ alumno puede actuar
+  // lo decide `resolverAccesoAlumno` (a todos, como el directivo).
+  administracion: new Set<Capacidad>([
+    // Expediente: buscar a cualquier alumno y ver todo lo que se ve de él.
+    "alumno.ver_expediente",
+    "alumno.ver_perfil",
+    "asistencia.ver_alumno",
+    "calendario.ver",
+    "calificacion.ver",
+    "ciclo.ver",
+    "horario.ver_alumno",
+    "justificacion.ver_propias",
+    // …y modificar sus datos.
+    "alumno.editar_datos_personales",
+    "alumno.editar_etiquetas",
+    "alumno.editar_estatus",
+    // Tutores.
+    "tutor.ver_lista",
+    "tutor.crear",
+    "tutor.generar_automaticos",
+    // Trámites escolares.
+    "reporte.ver",
+    "reporte.crear",
+    "reporte.anular",
+    "constancia.gestionar",
+    // Documentos: las cinco, como directivo y técnico. Con solo ver/subir no
+    // vería nada hasta que alguien le asignara carpeta por carpeta.
+    "documento.ver",
+    "documento.subir",
+    "documento.eliminar",
+    "documento.gestionar_carpetas",
+    "documento.asignar_permisos",
+    "mensaje_interno.usar",
+    "portada.ver",
+    // Es una fila de PROFESORES: cambia su clave como cualquier personal.
+    "profesor.cambiar_clave_propia",
+  ]),
 };
 
 /** ¿Puede `rol` ejecutar `capacidad`? rol null = sin sesión (solo públicas). */
@@ -229,7 +271,7 @@ export function puede(rol: PortalRole | null, capacidad: Capacidad): boolean {
 /** Roles que pueden ejecutar una capacidad (para la UI y el informe). */
 export function rolesDe(capacidad: Capacidad): PortalRole[] {
   if (CAPACIDADES_PUBLICAS.has(capacidad)) {
-    return ["alumno", "maestro", "directivo", "tutor", "tecnico"];
+    return [...ROLES_PORTAL];
   }
   return (Object.keys(MATRIZ_HOY) as PortalRole[]).filter((r) => MATRIZ_HOY[r]?.has(capacidad));
 }

@@ -17,6 +17,7 @@ import {
   TABLA_ASIGNACIONES_PROFESOR,
   TABLA_ASISTENCIA_ALUMNOS,
   TABLA_CALENDARIO_ESCOLAR,
+  TABLA_CICLO_TRANSICIONES,
   TABLA_CLASES_IMPARTIDAS,
   TABLA_GRUPO_MATERIAS,
   TABLA_GRUPOS,
@@ -27,8 +28,6 @@ import {
   TABLA_PERIODOS_EVALUACION,
   TABLA_SEMESTRES,
 } from "../tables.ts";
-
-const TABLA_CICLO_TRANSICIONES = "ciclo_transiciones";
 
 export type ConteosEliminarCiclo = {
   grupos: number;

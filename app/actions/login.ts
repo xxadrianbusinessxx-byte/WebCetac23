@@ -26,6 +26,10 @@ function destinationForRole(rol: PortalRole): string {
       // PROMPT-3: la consola del técnico vive en /configuracion (T2/T3), la
       // ruta de quien tenga las capacidades de configuración.
       return "/configuracion";
+    case "administracion":
+      // 2026-09-24: rol nuevo, sin ruta heredada que redirija. Entra directo al
+      // shell, que es donde vive todo lo suyo.
+      return "/oceano";
     default:
       return "/";
   }

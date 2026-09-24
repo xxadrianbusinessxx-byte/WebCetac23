@@ -14,7 +14,7 @@ falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/h
 ## 1. Qué es el proyecto
 
 Portal escolar del CETAC 23. Roles: **alumno**, **profesor** (rol `maestro`),
-**directivo**, **tutor** y, desde el PROMPT-3, **técnico**.
+**directivo**, **tutor**, **técnico** (PROMPT-3) y **administración escolar** (2026-09-24).
 Next.js 16.2.6 · React 19.2.4 · Supabase (PostgREST + Storage) · Cloudinary · SheetJS.
 
 **No hay REST API propia.** No existe `app/api/`. Todo el transporte navegador→servidor

@@ -104,10 +104,17 @@ const fecha = (iso: string | null) =>
 
 /* ── Reportes disciplinarios ───────────────────────────────────────────── */
 
-function Reportes({ modo }: { modo: string | null }) {
+/** El alumno sobre el que se trabaja. `undefined` = la pantalla del directivo,
+ *  que escribe la CURP; con valor (o null) = Administración escolar, que lo
+ *  eligió en el buscador del expediente. */
+type AlumnoElegido = { curp: string; nombre: string } | null | undefined;
+
+function Reportes({ modo, alumno }: { modo: string | null; alumno?: AlumnoElegido }) {
   const [lista, setLista] = useState<ReporteRow[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [form, setForm] = useState({ curp: "", motivo: "", gravedad: "leve", ocurridoAt: "" });
+  const [soloDelAlumno, setSoloDelAlumno] = useState(true);
+  const conBuscador = alumno !== undefined;
 
   const cargar = useCallback(() => {
     return Promise.resolve()
@@ -117,17 +124,32 @@ function Reportes({ modo }: { modo: string | null }) {
   useEffect(() => { void cargar(); }, [cargar]);
 
   if ((modo ?? "").startsWith("Crea")) {
+    if (conBuscador && !alumno) {
+      return (
+        <>
+          <Titulo>Reportes</Titulo>
+          <Aviso>Busca al alumno en el panel de la izquierda para elaborar su reporte.</Aviso>
+        </>
+      );
+    }
     return (
       <>
         <Titulo>Reportes</Titulo>
         <Panel>
           <div className="flex flex-col gap-4">
-            <Campo
-              placeholder="CURP del alumno"
-              value={form.curp}
-              onChange={(e) => setForm({ ...form, curp: e.target.value })}
-              className="w-full max-w-md"
-            />
+            {alumno ? (
+              <p className="text-sm text-[var(--oc-text)]">
+                Reporte para <strong>{alumno.nombre || alumno.curp}</strong>
+                <span className="text-[var(--oc-muted)]"> · {alumno.curp}</span>
+              </p>
+            ) : (
+              <Campo
+                placeholder="CURP del alumno"
+                value={form.curp}
+                onChange={(e) => setForm({ ...form, curp: e.target.value })}
+                className="w-full max-w-md"
+              />
+            )}
             <textarea
               placeholder="Motivo del reporte"
               value={form.motivo}
@@ -159,7 +181,7 @@ function Reportes({ modo }: { modo: string | null }) {
                 primario
                 onClick={() => {
                   void actionCrearReporte({
-                    curp: form.curp,
+                    curp: alumno ? alumno.curp : form.curp,
                     grupoId: null,
                     motivo: form.motivo,
                     gravedad: form.gravedad,
@@ -182,17 +204,31 @@ function Reportes({ modo }: { modo: string | null }) {
     );
   }
 
+  // Con un alumno abierto se enseñan SUS reportes; el conmutador vuelve a todos.
+  const filtrar = Boolean(alumno) && soloDelAlumno;
+  const visibles = lista && filtrar ? lista.filter((r) => r.curp === alumno!.curp) : lista;
+
   return (
     <>
       <Titulo>Reportes</Titulo>
+      {alumno && (
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <p className="text-sm text-[var(--oc-muted)]">
+            {filtrar ? `Reportes de ${alumno.nombre || alumno.curp}` : "Todos los reportes del ciclo"}
+          </p>
+          <Boton onClick={() => setSoloDelAlumno(!soloDelAlumno)}>
+            {filtrar ? "Ver todos" : "Solo este alumno"}
+          </Boton>
+        </div>
+      )}
       <Panel>
-        {lista === null ? (
+        {visibles === null ? (
           <Aviso>Cargando reportes…</Aviso>
-        ) : lista.length === 0 ? (
-          <Aviso>No hay reportes en este ciclo.</Aviso>
+        ) : visibles.length === 0 ? (
+          <Aviso>{filtrar ? "Este alumno no tiene reportes en el ciclo." : "No hay reportes en este ciclo."}</Aviso>
         ) : (
           <div className="flex flex-col gap-3">
-            {lista.map((r) => (
+            {visibles.map((r) => (
               <div
                 key={r.id}
                 className="rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] p-4"
@@ -427,13 +463,16 @@ export type PantallaAdministracion = "reportes" | "citas" | "constancias" | "buz
 export function AdministracionPanel({
   pantalla,
   modo,
+  alumno,
 }: {
   pantalla: PantallaAdministracion;
   modo: string | null;
+  /** Solo Administración escolar: el alumno elegido en su buscador (o null). */
+  alumno?: AlumnoElegido;
 }) {
   switch (pantalla) {
     case "reportes":
-      return <Reportes modo={modo} />;
+      return <Reportes modo={modo} alumno={alumno} />;
     case "citas":
       return <Citas modo={modo} />;
     case "constancias":

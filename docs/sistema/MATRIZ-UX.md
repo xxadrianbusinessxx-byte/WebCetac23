@@ -131,11 +131,19 @@ recibe las pestañas ya resueltas y no decide nada.
 | maestro | Materias · Calendario y asistencias · Mensajes |
 | directivo | Materias · Grupos y boleta · Calendario y asistencias · Administración · Configuración · Mensajes |
 | técnico | Ciclo escolar · Catálogo · Personas · Contenido · Configuración · Mensajes |
+| administración escolar | Alumnos · Tutores · Trámites escolares · Documentos · Mensajes |
 
 **Configuración** (prompt N, 2026-09-23) es la MISMA pestaña para los dos roles: un apartado,
 «Video e imágenes» → `portada-medios-panel.tsx`, que administra el carrusel, los videos por
 carrera y los enlaces de contacto de la portada pública. Sustituye al apartado apagado
 «Noticias» de Contenido.
+
+**Administración escolar** (2026-09-24). «Alumnos» es un EXPEDIENTE: un buscador en el
+sidebar (`buscador-expediente-oceano.tsx`, en el sitio del selector del tutor) fija el
+alumno, y cada apartado es la MISMA pieza que ven el alumno y su tutor
+(`contenido-administracion.ts` los empareja). «Trámites escolares» tiene Constancias de
+estudios —vista previa **beta** (`constancia-estudios-vista-previa.tsx`) y solicitudes— y
+Reportes, que se elaboran sobre el alumno elegido.
 
 Dentro de cada pestaña, **los apartados** sí se filtran por **capacidad**
 (`puede()`), no por rol: un apartado visible que el servidor rechaza es un bug

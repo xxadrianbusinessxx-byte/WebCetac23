@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import type { PortalSessionPayload } from "./types.ts";
+import { esRolPortal, type PortalSessionPayload } from "./types.ts";
 
 export const PORTAL_SESSION_COOKIE = "aulanube_portal";
 
@@ -36,11 +36,7 @@ export function decodePortalSession(token: string): PortalSessionPayload | null 
     if (
       parsed &&
       typeof parsed.matricula === "string" &&
-      (parsed.rol === "alumno" ||
-        parsed.rol === "maestro" ||
-        parsed.rol === "directivo" ||
-        parsed.rol === "tutor" ||
-        parsed.rol === "tecnico")
+      esRolPortal(parsed.rol)
     ) {
       return parsed;
     }

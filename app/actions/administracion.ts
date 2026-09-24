@@ -29,6 +29,7 @@ import { obtenerSesionPortal } from "@/lib/auth/session-server";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo/ciclo-estado";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores-relacion";
+import { buscarAlumnosCandidatos, type AlumnoCandidato } from "@/lib/escolar/catalogo/inscripciones-borrador";
 import {
   anularReporte,
   cambiarEstadoCita,
@@ -312,4 +313,29 @@ export async function actionMarcarBuzonLeido(id: string): Promise<{ ok: true } |
   const supabase = await createClient();
   const r = await marcarBuzonLeido(supabase, id, await profesorId());
   return r.ok ? { ok: true } : fallo(r.error);
+}
+
+/* ── Expediente (Administración escolar, 2026-09-24) ───────────────────── */
+
+/**
+ * Busca alumnos por nombre o CURP para abrir su expediente. Devuelve como mucho
+ * 30 (el tope de `buscarAlumnosCandidatos`, la misma búsqueda que ya usa la
+ * inscripción). Pide al menos 3 caracteres: con una letra coincidiría media
+ * escuela y la lista no serviría para elegir.
+ *
+ * `alumno.ver_expediente` y no `alumno.ver_perfil`: esta la tienen también
+ * maestro, tutor y alumno, con alcance acotado por la action del perfil. Buscar
+ * entre TODOS los alumnos es otra cosa y tiene su propia capacidad.
+ */
+export async function actionBuscarAlumnosExpediente(
+  texto: string,
+): Promise<{ ok: true; alumnos: AlumnoCandidato[] } | Fallo> {
+  const g = await exigir("alumno.ver_expediente");
+  if (!g.ok) return fallo("No autorizado.");
+  const t = typeof texto === "string" ? texto.trim().slice(0, 80) : "";
+  if (t.length < 3) return { ok: true, alumnos: [] };
+  const supabase = await createClient();
+  const r = await buscarAlumnosCandidatos(supabase, t);
+  if (!r.ok) return fallo("No se pudo buscar. Inténtalo de nuevo.");
+  return { ok: true, alumnos: r.alumnos ?? [] };
 }

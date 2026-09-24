@@ -32,6 +32,7 @@ const cAl = await import("../lib/navegacion/contenido-alumno.ts");
 const cDoc = await import("../lib/navegacion/contenido-docente.ts");
 const cDir = await import("../lib/navegacion/contenido-directivo.ts");
 const cTec = await import("../lib/navegacion/contenido-tecnico.ts");
+const cAdm = await import("../lib/navegacion/contenido-administracion.ts");
 
 // ── 2) Utilidades de prueba ────────────────────────────────────────────────
 let fallos = 0;
@@ -275,7 +276,7 @@ eq(tabular.detallePorParcial(RES)[2].porcentaje, null, "el parcial sin registro 
 // ── 6) mapa-navegacion ─────────────────────────────────────────────────────
 console.log("\nmapa-navegacion");
 
-const ROLES = ["alumno", "tutor", "maestro", "directivo", "tecnico"];
+const ROLES = ["alumno", "tutor", "maestro", "directivo", "tecnico", "administracion"];
 for (const rol of ROLES) {
   ok(nav.pestanasDe(rol).length > 0, `${rol} tiene pestañas`);
 }
@@ -732,6 +733,58 @@ eq(nav.apartado("tecnico", "configuracion", "video-imagenes")?.estado, "activo",
 eq(cTec.piezaDe("configuracion", "video-imagenes"), "portada-medios", "el técnico monta el panel de la portada");
 eq(cDir.piezaDe("configuracion", "video-imagenes"), "portada-medios", "el directivo monta la misma pieza");
 eq(cTec.piezaDe("inventada", "inexistente"), null, "un hueco desconocido devuelve null");
+
+// ── Administración escolar (2026-09-24) ────────────────────────────────────
+console.log("\nadministración escolar");
+eq(
+  nav.pestanasDe("administracion").map((p) => p.id),
+  ["expediente", "tutores", "tramites", "documentos", "mensajes"],
+  "pestañas de Administración escolar",
+);
+eq(
+  nav.pestanasDe("administracion").map((p) => p.label),
+  ["Alumnos", "Tutores", "Trámites escolares", "Documentos", "Mensajes"],
+  "con los rótulos pedidos: «Trámites escolares» arriba",
+);
+eq(
+  nav.pestana("administracion", "tramites").apartados.map((a) => a.label),
+  ["Constancias de estudios", "Reportes"],
+  "Trámites escolares tiene sus dos apartados",
+);
+ok(
+  nav.pestana("administracion", "mensajes") === nav.pestana("tecnico", "mensajes"),
+  "Mensajes es el MISMO objeto que el del personal",
+);
+// No toca contenido académico: ni Materias, ni Calendario docente, ni Ciclo.
+for (const id of ["materias", "calendario-asistencias", "grupos-boleta", "ciclo-escolar", "catalogo", "configuracion"]) {
+  eq(nav.pestana("administracion", id), null, `Administración escolar no ve «${id}»`);
+}
+// Todo apartado del rol tiene pieza, y toda pieza cae en un apartado activo.
+compruebaHuecos(cAdm, "administracion", "administracion");
+for (const p of nav.pestanasDe("administracion")) {
+  for (const a of p.apartados) {
+    ok(cAdm.piezaDe(p.id, a.id) !== null, `administracion: ${p.id}/${a.id} tiene pieza`);
+  }
+}
+// El expediente NO tiene piezas propias: cada apartado es una pieza del alumno,
+// y todas existen de verdad en `contenido-alumno.ts`.
+const piezasAlumno = new Set(cAl.huecosConPieza().map((h) => cAl.piezaDe(...h.split("/"))));
+for (const a of nav.pestana("administracion", "expediente").apartados) {
+  const pz = cAdm.piezaDe("expediente", a.id);
+  ok(pz?.tipo === "alumno" && piezasAlumno.has(pz.pieza), `expediente/${a.id} reutiliza la pieza del alumno «${pz?.pieza}»`);
+}
+ok(
+  !nav.pestana("administracion", "expediente").apartados.some((a) => a.id === "sesiones-programadas"),
+  "sin «Sesiones programadas»: su pieza ofrece «Solicitar cita», que este rol no tiene",
+);
+// El buscador de alumno sale en las pestañas que trabajan sobre uno.
+eq([...nav.PESTANAS_CON_ALUMNO], ["expediente", "tramites"], "el buscador vive en Alumnos y en Trámites");
+// Sin alumno elegido: el expediente y la vista previa lo piden; las solicitudes no.
+ok(cAdm.necesitaAlumno(cAdm.piezaDe("expediente", "boleta"), null), "la boleta pide un alumno");
+ok(cAdm.necesitaAlumno(cAdm.piezaDe("tramites", "constancias"), "Vista previa"), "la vista previa de constancia pide un alumno");
+ok(!cAdm.necesitaAlumno(cAdm.piezaDe("tramites", "constancias"), "Solicitudes"), "las solicitudes son de todos: no piden alumno");
+ok(!cAdm.necesitaAlumno(cAdm.piezaDe("tutores", "tutores"), null), "tutores no pide alumno");
+eq(cAdm.piezaDe("inventada", "inexistente"), null, "administracion: un hueco desconocido devuelve null");
 
 console.log(`\n${pruebas - fallos}/${pruebas} pruebas correctas`);
 if (fallos > 0) {

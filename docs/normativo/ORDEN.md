@@ -136,6 +136,10 @@ supabase/*.sql           esquema, RPC, triggers
 > `lib/auth/permisos.ts`. `lib/auth/exigir.ts` es el ÚNICO sitio con I/O de
 > sesión en el camino de autorización por capacidad.
 >
+> **Rol administración escolar (2026-09-24):** sexto rol, `administracion`, con la
+> misma forma que el técnico. Los roles viven en UNA lista, `ROLES_PORTAL` de
+> `lib/auth/types.ts`: la sesión y `rolesDe` la recorren en vez de repetirla.
+>
 > **PROMPT-3 (rol técnico, ejecutado 2026-09-06):** los roles son **5** (`alumno`,
 > `maestro`, `directivo`, `tutor`, `tecnico`). El técnico es una fila normal de
 > `PROFESORES` con `Permisos='Tecnico'` — no hay segundo camino de autenticación
@@ -253,6 +257,9 @@ ejecuta**, y una fila en `scripts/README.md`. Sin eso, no está terminado.
   aplicado. Es el único historial que hay.
 - Todo cambio de esquema necesita su `.sql` versionado, aunque se haya aplicado a mano
   en el SQL Editor.
+- **Una tabla nueva se clasifica al crearla.** Si no es una materia, su nombre va en
+  `lib/escolar/tables.ts` y en `lib/escolar/materia/tablas-sistema.ts`: el descubrimiento
+  de materias ofrece como materia toda tabla que no esté en esa lista. Lo vigila **C15**.
 - La lógica que deba ser atómica o exclusiva va en **PL/pgSQL**, no en TypeScript:
   la exclusividad de ciclo la impone `activar_ciclo_operativo()`, no el código.
 

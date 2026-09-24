@@ -666,12 +666,20 @@ export async function actionObtenerVistaMateria(
   // decisión «qué fila corresponde a este alumno» NO vive aquí: se reutiliza
   // `leerVistaMateriaAlumno` + `buscarIndiceFilaAlumno` (buscar-en-filas), el
   // MISMO criterio (CURP primero, nombre normalizado después) que usa el alumno.
-  if (sesion && esRol(sesion.rol, "tutor")) {
+  //
+  // Administración escolar (2026-09-24) entra por el MISMO camino desde el
+  // expediente: consulta a UN alumno, así que recibe su fila y no la del grupo
+  // entero. Su alcance es cualquier alumno, por eso no valida vínculo.
+  const esTutor = sesion ? esRol(sesion.rol, "tutor") : false;
+  const esAdministracion = sesion ? esRol(sesion.rol, "administracion") : false;
+  if (sesion && (esTutor || esAdministracion)) {
     const curpObjetivo = normalizarCurp(curpConsulta ?? "");
     if (!curpObjetivo) return null;
 
-    const vinculados = await listarCurpsDeTutor(supabase, sesion.matricula);
-    if (!vinculados.includes(curpObjetivo)) return null;
+    if (esTutor) {
+      const vinculados = await listarCurpsDeTutor(supabase, sesion.matricula);
+      if (!vinculados.includes(curpObjetivo)) return null;
+    }
 
     const alumno = await buscarAlumnoPorCurp(supabase, curpObjetivo);
     const criterio = {
