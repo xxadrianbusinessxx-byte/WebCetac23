@@ -1,6 +1,6 @@
 /**
  * mapa-navegacion.ts — MÓDULO PURO. El mapa de los tres niveles de navegación
- * del rediseño Océano, para los cinco roles.
+ * del rediseño Océano, para los seis roles.
  *
  * La gramática del diseño tiene tres niveles, no dos:
  *   1. Barra superior  — pestañas globales. VARÍAN POR ROL.
@@ -330,6 +330,62 @@ const CONFIGURACION: Pestana = {
   apartados: [act("video-imagenes", "Video e imágenes")],
 };
 
+// ── Administración escolar (2026-09-24) ────────────────────────────────────
+// Administra PERSONAS y sus trámites, no contenido académico. Su centro es el
+// EXPEDIENTE: se busca a un alumno y se navega todo lo que se ve de él con las
+// MISMAS piezas que usan el alumno y el tutor (`contenido-administracion.ts`
+// reenvía cada apartado a su pieza de `contenido-alumno.ts`). No hay una segunda
+// versión de «datos personales» ni de «boleta»: es la misma pantalla con otro
+// alcance, que decide el servidor (`resolverAccesoAlumno`).
+const EXPEDIENTE: Pestana = {
+  id: "expediente",
+  label: "Alumnos",
+  apartados: [
+    act("datos-personales", "Datos personales"),
+    act("estatus-academico", "Estatus académico"),
+    act("boleta", "Boleta"),
+    act("asistencia", "Asistencia"),
+    act("calendario-asistencia", "Calendario de asistencia"),
+    act("horario", "Horario"),
+    act("seguimiento-semestral", "Seguimiento semestral"),
+    act("seguimiento-medico", "Seguimiento médico"),
+    act("notificaciones", "Notificaciones", ["Comentarios", "Justificaciones"]),
+    // Sin «Sesiones programadas»: su pieza lista las citas de la CURP de la
+    // SESIÓN y ofrece «Solicitar cita», que este rol no tiene. Enseñarla aquí
+    // sería una lista siempre vacía con un botón que el servidor rechaza.
+  ],
+};
+
+const TUTORES_ADMINISTRACION: Pestana = {
+  id: "tutores",
+  label: "Tutores",
+  apartados: [act("tutores", "Tutores")],
+};
+
+/**
+ * Trámites escolares. Los dos trabajan SOBRE el alumno elegido en el buscador.
+ * Constancias es BETA: la vista previa se arma con los datos que ya hay, y los
+ * que faltan para emitirla sola (folio, CCT, firma, sello) se señalan en ella.
+ */
+const TRAMITES: Pestana = {
+  id: "tramites",
+  label: "Trámites escolares",
+  apartados: [
+    act("constancias", "Constancias de estudios", ["Vista previa", "Solicitudes"]),
+    act("reportes", "Reportes", ["Crea un reporte", "Reportes"]),
+  ],
+};
+
+/** Documentos institucionales: la misma pieza que Contenido › Documentos. */
+const DOCUMENTOS: Pestana = {
+  id: "documentos",
+  label: "Documentos",
+  apartados: [act("documentos", "Documentos")],
+};
+
+/** Pestañas donde el buscador de alumno fija de quién son los datos. */
+export const PESTANAS_CON_ALUMNO: readonly string[] = [EXPEDIENTE.id, TRAMITES.id];
+
 /** El mapa. Una pestaña ausente para un rol es una pestaña que ese rol NO ve. */
 const MAPA: Record<PortalRole, Pestana[]> = {
   alumno: [PERFIL_ALUMNO, MATERIAS_ALUMNO, CALENDARIO_ALUMNO, CHAT],
@@ -339,6 +395,7 @@ const MAPA: Record<PortalRole, Pestana[]> = {
   maestro: [MATERIAS_DOCENTE, CALENDARIO_DOCENTE, MENSAJES_PERSONAL],
   directivo: [MATERIAS_DOCENTE, GRUPOS_BOLETA, CALENDARIO_DOCENTE, ADMINISTRACION, CONFIGURACION, MENSAJES_PERSONAL],
   tecnico: [CICLO_ESCOLAR, CATALOGO, PERSONAS, CONTENIDO, CONFIGURACION, MENSAJES_PERSONAL],
+  administracion: [EXPEDIENTE, TUTORES_ADMINISTRACION, TRAMITES, DOCUMENTOS, MENSAJES_PERSONAL],
 };
 
 /** Pestañas visibles para un rol. Sin sesión, ninguna. */

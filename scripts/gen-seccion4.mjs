@@ -17,6 +17,8 @@ const root = path.join(__dirname, "..");
 const { puede } = await import("../lib/auth/permisos.ts");
 
 const doc = fs.readFileSync(path.join(root, "docs/sistema/MATRIZ-PERMISOS.md"), "utf8").split("\r\n").join("\n");
+// La cabecera se busca sin la última columna: así se encuentra antes y después
+// de añadir AE (Administración escolar, 2026-09-24).
 const ini = doc.indexOf("| Capacidad | Qué habilita | D | M | Tec | T | A |");
 const fin = doc.indexOf("### Capacidades que aún no existen");
 if (ini < 0 || fin < 0) {
@@ -26,20 +28,20 @@ if (ini < 0 || fin < 0) {
 const cabecera = doc.slice(0, ini);
 const resto = doc.slice(fin);
 
-const ROLES = ["directivo", "maestro", "tecnico", "tutor", "alumno"];
+const ROLES = ["directivo", "maestro", "tecnico", "tutor", "alumno", "administracion"];
 const re = /^\| `([a-z_]+\.[a-z_]+)` \| (.*?) \| .*$/gm;
 const filas = [];
-filas.push("| Capacidad | Qué habilita | D | M | Tec | T | A |", "|---|---|---|:-:|:-:|:-:|:-:|:-:|");
+filas.push("| Capacidad | Qué habilita | D | M | Tec | T | A | AE |", "|---|---|---|:-:|:-:|:-:|:-:|:-:|:-:|");
 let m;
 while ((m = re.exec(doc.slice(ini, fin)))) {
   const cap = m[1];
   const desc = m[2];
   if (cap === "chat.participar") {
-    filas.push(`| ~~\`chat.participar\`~~ | ${desc} | X | X | X | X | X |`);
+    filas.push(`| ~~\`chat.participar\`~~ | ${desc} | X | X | X | X | X | X |`);
     continue;
   }
   if (cap === "portada.ver") {
-    filas.push(`| \`portada.ver\` | ${desc} | público | público | público | público | público |`);
+    filas.push(`| \`portada.ver\` | ${desc} | público | público | público | público | público | público |`);
     continue;
   }
   const celdas = ROLES.map((r) => (puede(r, cap) ? "✅" : "X")).join(" | ");

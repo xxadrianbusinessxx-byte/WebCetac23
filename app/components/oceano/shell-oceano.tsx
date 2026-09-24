@@ -27,6 +27,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PortalRole } from "@/lib/auth/types";
 import { opcionesDePieza, piezaDe } from "@/lib/navegacion/contenido-alumno";
+import { piezaDe as piezaAdministracionDe } from "@/lib/navegacion/contenido-administracion";
 import { piezaDe as piezaDirectivoDe } from "@/lib/navegacion/contenido-directivo";
 import { piezaDe as piezaDocenteDe } from "@/lib/navegacion/contenido-docente";
 import { piezaDe as piezaTecnicoDe } from "@/lib/navegacion/contenido-tecnico";
@@ -36,10 +37,16 @@ import {
   ordenSidebar,
   pestana,
   pestanasDe,
+  PESTANAS_CON_ALUMNO,
   textoMaqueta,
   type Apartado,
 } from "@/lib/navegacion/mapa-navegacion";
 import { BarraModoOceano } from "./barra-modo-oceano";
+import { BuscadorExpedienteOceano } from "./buscador-expediente-oceano";
+import {
+  ContenidoAdministracionOceano,
+  type DatosAdministracionOceano,
+} from "./contenido-administracion-oceano";
 import {
   ContenidoAlumnoOceano,
   type DatosAlumnoOceano,
@@ -59,7 +66,7 @@ import { SelectorAlumnoOceano } from "./selector-alumno-oceano";
 import { SidebarOceano } from "./sidebar-oceano";
 
 /** Datos ya resueltos por el servidor para las piezas reales. */
-export type { DatosAlumnoOceano, DatosDirectivoOceano, DatosDocenteOceano };
+export type { DatosAdministracionOceano, DatosAlumnoOceano, DatosDirectivoOceano, DatosDocenteOceano };
 
 type Seleccion = {
   idPestana: string;
@@ -87,6 +94,7 @@ export function ShellOceano({
   datosAlumno = null,
   datosDocente = null,
   datosDirectivo = null,
+  datosAdministracion = null,
   periodos = [],
   alumnosVinculados,
   alumnoSeleccionado = null,
@@ -99,6 +107,11 @@ export function ShellOceano({
   datosDocente?: DatosDocenteOceano | null;
   /** Fase 6 — lo exclusivo del directivo (Grupos/Boleta, Alumnos/Tutores). */
   datosDirectivo?: DatosDirectivoOceano | null;
+  /**
+   * Administración escolar (2026-09-24) — el expediente del alumno elegido en su
+   * buscador y el ciclo en curso. `null` = este rol no es Administración escolar.
+   */
+  datosAdministracion?: DatosAdministracionOceano | null;
   /** Fase 9 — ciclos para la carga académica del técnico. */
   periodos?: string[];
   /**
@@ -169,6 +182,23 @@ export function ShellOceano({
               }
             />
           ) : null}
+          {/* Administración escolar — el buscador ocupa el mismo sitio que el
+              selector del tutor y hace lo mismo: fija de quién son los datos.
+              Solo en las pestañas que trabajan sobre un alumno. */}
+          {datosAdministracion && activa && PESTANAS_CON_ALUMNO.includes(activa.id) ? (
+            <BuscadorExpedienteOceano
+              seleccionado={
+                datosAdministracion.alumno
+                  ? { curp: datosAdministracion.alumno.curp, nombre: datosAdministracion.alumno.nombre }
+                  : null
+              }
+              onSeleccionar={(curp) =>
+                router.replace(`/oceano?alumno=${encodeURIComponent(curp)}`, {
+                  scroll: false,
+                })
+              }
+            />
+          ) : null}
         </SidebarOceano>
 
         <main className="min-w-0 flex-1 px-5 py-6 sm:px-6 lg:px-10 lg:py-8">
@@ -200,6 +230,14 @@ export function ShellOceano({
               modo={sel.modo}
               permitirJustificacion={opcionesDePieza(activa.id, activo.id).permitirJustificacion}
               datos={datosAlumno}
+            />
+          ) : activa && activo && datosAdministracion && piezaAdministracionDe(activa.id, activo.id) ? (
+            /* Administración escolar — va ANTES del técnico: comparten la pestaña
+               Mensajes, y con el rol presente la sirve su propio emparejamiento. */
+            <ContenidoAdministracionOceano
+              pieza={piezaAdministracionDe(activa.id, activo.id)!}
+              modo={sel.modo}
+              datos={datosAdministracion}
             />
           ) : activa && activo && piezaTecnicoDe(activa.id, activo.id) ? (
             /* Fase 7 — el técnico. No lleva `datos`: sus diez paneles ya
@@ -239,6 +277,7 @@ export function ShellOceano({
                 activa &&
                   activo &&
                   (piezaDe(activa.id, activo.id) ||
+                    piezaAdministracionDe(activa.id, activo.id) ||
                     piezaDocenteDe(activa.id, activo.id) ||
                     piezaDirectivoDe(activa.id, activo.id) ||
                     piezaTecnicoDe(activa.id, activo.id)),

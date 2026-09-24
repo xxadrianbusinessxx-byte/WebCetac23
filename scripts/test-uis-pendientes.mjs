@@ -4,7 +4,9 @@
  *
  * QUÉ MIDE: `administracion/flujos-puro` (máquinas de estado de citas,
  *           constancias, reportes y buzón), `materia/actividades-puro` (estado
- *           derivado y pesos) y el agrupado en hilos de `mensajes-internos`.
+ *           derivado y pesos), el agrupado en hilos de `mensajes-internos` y
+ *           la constancia de estudios BETA de Administración escolar
+ *           (`administracion/constancia-puro`, 2026-09-24).
  * QUÉ ESCRIBE: nada. Carga los `.ts` directamente. No toca la base.
  * CÓMO SE EJECUTA: node scripts/test-uis-pendientes.mjs
  *
@@ -20,6 +22,7 @@
 const F = await import("../lib/escolar/administracion/flujos-puro.ts");
 const A = await import("../lib/escolar/materia/actividades-puro.ts");
 const M = await import("../lib/escolar/mensajes-internos.ts");
+const C = await import("../lib/escolar/administracion/constancia-puro.ts");
 
 let pasadas = 0;
 let fallos = 0;
@@ -165,6 +168,30 @@ eq(paraMi[0].sinLeer, 1, "lo que me enviaron y no he leído, sí");
 const yaLeido = M.agruparEnHilos([m("h5", 2, YO, "2026-09-17T10:00:00Z", "2026-09-17T10:05:00Z")], YO);
 eq(yaLeido[0].sinLeer, 0, "lo leído no cuenta");
 eq(M.agruparEnHilos([], YO), [], "sin mensajes, sin hilos");
+
+/* ── Constancia de estudios (beta) ─────────────────────────────────────── */
+console.log("\nconstancia de estudios — vista previa beta");
+const COMPLETO = {
+  nombre: "Ana Pérez López", curp: "pela050101mqtrrna1", matricula: "2305001",
+  grado: "3RO", grupo: "A", carrera: "MECATRONICA", ciclo: "AGO 2026 - ENE 2027",
+  fecha: new Date(2026, 8, 24),
+};
+const armada = C.armarConstancia(COMPLETO);
+eq(armada.faltantesAlumno, [], "con el expediente completo no falta ningún dato del alumno");
+ok("el cuerpo nombra al alumno en mayúsculas", armada.cuerpo?.includes("ANA PÉREZ LÓPEZ"));
+ok("…con su CURP normalizada", armada.cuerpo?.includes("PELA050101MQTRRNA1"));
+ok("…su matrícula, grado, grupo, carrera y ciclo", ["2305001", "3RO semestre", "grupo A", "MECATRONICA", "AGO 2026 - ENE 2027"].every((x) => armada.cuerpo?.includes(x)));
+eq(armada.lugarYFecha, "El Marqués, Querétaro, a 24 de septiembre de 2026", "fecha en español, sin depender del idioma del equipo");
+eq(C.fechaLarga(new Date(2027, 0, 5)), "5 de enero de 2027", "enero es el mes 0");
+// Lo institucional NUNCA se inventa: siempre se declara pendiente.
+eq([...armada.faltantesInstitucion], ["Folio consecutivo", "Clave del centro de trabajo (CCT)", "Nombre y cargo de quien la expide", "Firma", "Sello del plantel"], "folio, CCT, firma y sello se declaran pendientes");
+const sinGrupo = C.armarConstancia({ ...COMPLETO, grado: "", grupo: "" });
+eq(sinGrupo.cuerpo, null, "sin inscripción no se arma el texto (no se inventa el grado)");
+ok("…y se dice qué falta", sinGrupo.faltantesAlumno.some((f) => f.startsWith("Grado y grupo")));
+const sinCiclo = C.armarConstancia({ ...COMPLETO, ciclo: "  " });
+ok("un ciclo en blanco cuenta como faltante", sinCiclo.faltantesAlumno.includes("Ciclo escolar en curso") && sinCiclo.cuerpo === null);
+const sinMatricula = C.armarConstancia({ ...COMPLETO, matricula: "" });
+ok("sin matrícula el texto se arma igual, sin la frase de matrícula", sinMatricula.cuerpo !== null && !sinMatricula.cuerpo.includes("matrícula"));
 
 console.log(`\nResultado: ${pasadas + fallos} verificaciones · ${pasadas} pasadas, ${fallos} fallidas`);
 if (fallos > 0) process.exit(1);

@@ -84,6 +84,9 @@ async function sesionAutorizaCurp(
   curp: string,
 ): Promise<boolean> {
   if (esRol(sesion.rol, "directivo")) return true;
+  // Administración escolar LEE las justificaciones del expediente de cualquier
+  // alumno (no las resuelve: no tiene `justificacion.resolver`).
+  if (esRol(sesion.rol, "administracion")) return true;
   // PROFESOR (Prompt B): accede desde "Asistencia de mis alumnos" (grupos con
   // horario). El circuito reutiliza las mismas reglas que tutor/alumno.
   if (esRol(sesion.rol, "maestro")) return true;

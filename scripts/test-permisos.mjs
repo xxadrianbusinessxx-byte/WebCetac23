@@ -185,14 +185,37 @@ ok(!puede("tecnico", "justificacion.ver_todas"), "tecnico NO puede justificacion
 ok(!puede("tecnico", "tutor.ver_propio"), "tecnico NO puede tutor.ver_propio");
 ok(!puede("tecnico", "materia.mapear_columnas"), "tecnico NO puede materia.mapear_columnas");
 
-// Lectura de la §4: cada fila `| capacidad | ... | D | M | Tec | T | A |`.
-// PROMPT-3/T5: el código = §4 completa con los 5 roles (directivo recortado).
-seccion("Código ⇄ §4 (los 5 roles)");
-const ROL_POR_COLUMNA = { D: "directivo", M: "maestro", Tec: "tecnico", T: "tutor", A: "alumno" };
+seccion("Administración escolar (2026-09-24) — personas y trámites, no contenido académico");
+ok(puede("administracion", "alumno.ver_expediente"), "administracion puede alumno.ver_expediente (buscar a cualquier alumno)");
+ok(puede("administracion", "alumno.editar_datos_personales"), "administracion puede alumno.editar_datos_personales");
+ok(puede("administracion", "calificacion.ver"), "administracion puede calificacion.ver (boleta del expediente)");
+ok(puede("administracion", "reporte.crear"), "administracion puede reporte.crear");
+ok(puede("administracion", "constancia.gestionar"), "administracion puede constancia.gestionar");
+ok(puede("administracion", "tutor.crear"), "administracion puede tutor.crear");
+ok(puede("administracion", "documento.gestionar_carpetas"), "administracion puede documento.gestionar_carpetas");
+ok(puede("administracion", "mensaje_interno.usar"), "administracion puede mensaje_interno.usar");
+ok(puede("administracion", "profesor.cambiar_clave_propia"), "administracion puede cambiar su propia clave");
+ok(!puede("administracion", "calificacion.subir"), "administracion NO puede calificacion.subir");
+ok(!puede("administracion", "asistencia.subir"), "administracion NO puede asistencia.subir");
+ok(!puede("administracion", "ciclo.crear"), "administracion NO puede ciclo.crear");
+ok(!puede("administracion", "justificacion.resolver"), "administracion NO puede justificacion.resolver");
+ok(!puede("administracion", "justificacion.solicitar"), "administracion NO puede justificacion.solicitar");
+ok(!puede("administracion", "cita.solicitar"), "administracion NO puede cita.solicitar");
+ok(!puede("administracion", "alumno.importar_estatus"), "administracion NO puede alumno.importar_estatus (importación masiva)");
+ok(!puede("administracion", "profesor.ver_credenciales_acceso"), "administracion NO ve credenciales de profesores");
+// La capacidad nueva no se le da a nadie más: buscar entre TODOS los alumnos es
+// de este rol. Maestro, tutor y alumno tienen `alumno.ver_perfil` con alcance.
+ok(!puede("maestro", "alumno.ver_expediente") && !puede("tutor", "alumno.ver_expediente") && !puede("alumno", "alumno.ver_expediente"), "alumno.ver_expediente no la tienen maestro, tutor ni alumno");
+
+// Lectura de la §4: cada fila `| capacidad | ... | D | M | Tec | T | A | AE |`.
+// PROMPT-3/T5: el código = §4 completa (directivo recortado). Desde el 2026-09-24,
+// seis roles: AE = Administración escolar.
+seccion("Código ⇄ §4 (los 6 roles)");
+const ROL_POR_COLUMNA = { D: "directivo", M: "maestro", Tec: "tecnico", T: "tutor", A: "alumno", AE: "administracion" };
 const celdasVacias = [];
-for (const m of doc.matchAll(/^\| `([a-z_]+\.[a-z_]+)` \| [^|]* \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \|/gm)) {
+for (const m of doc.matchAll(/^\| `([a-z_]+\.[a-z_]+)` \| [^|]* \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \|/gm)) {
   const cap = m[1];
-  const celdas = { D: m[2], M: m[3], Tec: m[4], T: m[5], A: m[6] };
+  const celdas = { D: m[2], M: m[3], Tec: m[4], T: m[5], A: m[6], AE: m[7] };
   for (const [col, rol] of Object.entries(ROL_POR_COLUMNA)) {
     const celda = String(celdas[col] ?? "").trim();
     if (celda === "✅") ok(puede(rol, cap), `§4 ${col} ✅ → ${rol} puede ${cap}`);
@@ -210,7 +233,7 @@ if (celdasVacias.length) {
 }
 
 seccion("rolesDe() y públicas");
-ok(rolesDe("portada.ver").length === 5, "portada.ver la tienen los 5 roles");
+ok(rolesDe("portada.ver").length === 6, "portada.ver la tienen los 6 roles");
 ok(!CAPACIDADES_PUBLICAS.has("ciclo.ver"), "ciclo.ver no es pública");
 
 

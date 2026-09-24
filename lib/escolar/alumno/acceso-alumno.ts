@@ -12,6 +12,9 @@
  *                   personales ni etiquetas ni información del tutor).
  *   · TUTOR       → lee/edita SOLO alumnos vinculados activos (tutor_alumnos).
  *   · DIRECTIVO   → acceso administrativo completo (incluye importación global).
+ *   · ADMINISTRACIÓN ESCOLAR (2026-09-24) → cualquier alumno, lee todo y edita
+ *                   sus datos, etiquetas y foto. No importa en masa: eso es del
+ *                   técnico y del directivo.
  *   · MAESTRO     → consulta SOLO alumnos de grupos donde imparte clase
  *                   (asignaciones_profesor → grupo_materias → grupos →
  *                   inscripciones_alumno). Sin escritura sobre datos
@@ -35,7 +38,7 @@ import { listarCurpsDeTutor } from "../tutores/tutores.ts";
 /** Permisos efectivos para un alumno, calculados SIEMPRE en el servidor. */
 export type AccesoAlumno = {
   /** Rol con el que se accede (presentación y semántica). */
-  modo: "alumno" | "tutor" | "directivo" | "maestro";
+  modo: "alumno" | "tutor" | "directivo" | "maestro" | "administracion";
   puedeLeer: boolean;
   /** Editar etiquetas dinámicas (alumno_etiquetas). */
   puedeEditarEtiquetas: boolean;
@@ -98,6 +101,26 @@ export async function resolverAccesoAlumno(
         puedeEditarDatosPersonales: true,
         puedeImportarEtiquetas: true,
         puedeImportarGlobal: true,
+        puedeSubirFoto: true,
+        esPropioAlumno: false,
+      },
+    };
+  }
+
+  if (sesion.rol === "administracion") {
+    if (!curpSolicitada) {
+      return accesoDenegado("Indica la CURP del alumno a consultar.");
+    }
+    return {
+      ok: true,
+      curp: curpSolicitada,
+      acceso: {
+        modo: "administracion",
+        puedeLeer: true,
+        puedeEditarEtiquetas: true,
+        puedeEditarDatosPersonales: true,
+        puedeImportarEtiquetas: false,
+        puedeImportarGlobal: false,
         puedeSubirFoto: true,
         esPropioAlumno: false,
       },

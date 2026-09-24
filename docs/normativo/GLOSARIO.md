@@ -69,6 +69,11 @@ Si un prompt usa uno de estos términos de forma ambigua, el prompt está mal es
 > sesión** (web) de cuentas de rol maestro; **nunca** `PROFESORES.ID` como llave
 > maestra expuesta en su consola, ni credenciales de Supabase, ni las claves de
 > directivo/técnico. Es técnico de la web, no de la base.
+>
+> **Rol administración escolar (2026-09-24).** Igual que el técnico: fila normal de
+> `PROFESORES` con `Permisos = 'Administracion'`. Abre el expediente de cualquier
+> alumno y edita sus datos; gestiona tutores, reportes, constancias (beta),
+> documentos y mensajes. No califica ni configura.
 
 
 > Las 81 filas históricas de `clases_impartidas` con clave `4321` tienen **autoría

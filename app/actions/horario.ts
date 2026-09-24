@@ -316,7 +316,11 @@ export async function actionObtenerHorarioAlumno(
     if (!curps.includes(c)) {
       return { ok: false, error: "No tienes relación con ese alumno." };
     }
-  } else if (!esRol(sesion.rol, "directivo") && !esRol(sesion.rol, "maestro")) {
+  } else if (
+    !esRol(sesion.rol, "directivo") &&
+    !esRol(sesion.rol, "maestro") &&
+    !esRol(sesion.rol, "administracion")
+  ) {
     return { ok: false, error: "No tienes permiso para consultar horarios." };
   }
 

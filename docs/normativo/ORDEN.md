@@ -136,6 +136,10 @@ supabase/*.sql           esquema, RPC, triggers
 > `lib/auth/permisos.ts`. `lib/auth/exigir.ts` es el ÚNICO sitio con I/O de
 > sesión en el camino de autorización por capacidad.
 >
+> **Rol administración escolar (2026-09-24):** sexto rol, `administracion`, con la
+> misma forma que el técnico. Los roles viven en UNA lista, `ROLES_PORTAL` de
+> `lib/auth/types.ts`: la sesión y `rolesDe` la recorren en vez de repetirla.
+>
 > **PROMPT-3 (rol técnico, ejecutado 2026-09-06):** los roles son **5** (`alumno`,
 > `maestro`, `directivo`, `tutor`, `tecnico`). El técnico es una fila normal de
 > `PROFESORES` con `Permisos='Tecnico'` — no hay segundo camino de autenticación
