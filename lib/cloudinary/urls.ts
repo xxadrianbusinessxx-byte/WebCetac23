@@ -20,10 +20,19 @@ export function publicIdChatUpload(curp: string, unique: string): string {
   return `chat_${sanitizarId(curp)}_${unique}`;
 }
 
-/** URL pública optimizada (Next/Image o <img>). */
+/**
+ * URL pública optimizada (Next/Image o <img>).
+ *
+ * `opciones` es ADITIVO (PROMPT L, portada): sin él, la URL es exactamente la de
+ * siempre, así que los llamadores anteriores no cambian.
+ * - `version`: va en la URL (`/v123/`). Al reemplazar un archivo cambia, y con
+ *   ella la URL, así que ningún CDN sirve la copia vieja.
+ * - `tipo`: `video` sirve desde `/video/upload/`, que es donde vive un video.
+ */
 export function urlCloudinaryDesdePublicId(
   publicId: string,
   transformaciones: string = "f_auto,q_auto",
+  opciones: { version?: number | string | null; tipo?: "image" | "video" } = {},
 ): string {
   const cloud =
     process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME?.trim() ||
@@ -33,7 +42,9 @@ export function urlCloudinaryDesdePublicId(
   const id = limpio.includes("/")
     ? limpio
     : `${CLOUDINARY_FOLDER}/${limpio}`;
-  return `https://res.cloudinary.com/${cloud}/image/upload/${transformaciones}/${id}`;
+  const tipo = opciones.tipo ?? "image";
+  const version = opciones.version != null && `${opciones.version}` !== "" ? `v${opciones.version}/` : "";
+  return `https://res.cloudinary.com/${cloud}/${tipo}/upload/${transformaciones}/${version}${id}`;
 }
 
 export function urlFotoPerfil(curp: string): string {

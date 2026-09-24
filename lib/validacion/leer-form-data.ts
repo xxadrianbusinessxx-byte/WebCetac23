@@ -74,7 +74,39 @@ export function leerFormData<TSchema extends v.GenericSchema>(
   esquema: TSchema,
   formData: FormData,
 ): ResultadoEntrada<v.InferOutput<TSchema>> {
-  const plano = planoDe(formData);
+  return validarPlano(esquema, planoDe(formData));
+}
+
+/**
+ * Hermana de `leerFormData` para las actions que reciben un OBJETO y no un
+ * `FormData` (PROMPT L). Las de la portada son así: el archivo va directo del
+ * navegador a Cloudinary y a la action solo le llegan datos.
+ *
+ * Misma respuesta, mismos mensajes y el mismo recorrido campo a campo: comparten
+ * `validarPlano`. Sin este helper cada action de ese tipo validaría a su manera,
+ * que es justo lo que C12 existe para impedir con `FormData`.
+ */
+export function leerEntrada<TSchema extends v.GenericSchema>(
+  esquema: TSchema,
+  entrada: unknown,
+): ResultadoEntrada<v.InferOutput<TSchema>> {
+  // Lo que llega del navegador puede ser cualquier cosa. Un no-objeto no se
+  // «arregla»: se valida tal cual y el esquema lo rechaza con su mensaje.
+  const plano =
+    entrada !== null && typeof entrada === "object" && !Array.isArray(entrada)
+      ? (entrada as Record<string, unknown>)
+      : {};
+  if (plano !== entrada && entradasDe(esquema)) {
+    return { ok: false, error: mensajeRespaldo(esquema) };
+  }
+  return validarPlano(esquema, plano);
+}
+
+/** El recorrido común: campo a campo si es un objeto, entero si no. */
+function validarPlano<TSchema extends v.GenericSchema>(
+  esquema: TSchema,
+  plano: Record<string, unknown>,
+): ResultadoEntrada<v.InferOutput<TSchema>> {
   const entradas = entradasDe(esquema);
 
   if (entradas) {
