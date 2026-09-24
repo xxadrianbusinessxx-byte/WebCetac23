@@ -17,7 +17,9 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const TABLA_MENSAJES_INTERNOS = "mensajes_internos";
+import { TABLA_MENSAJES_INTERNOS } from "./tables.ts";
+
+export { TABLA_MENSAJES_INTERNOS };
 
 export type MensajeInternoRow = {
   id: string;

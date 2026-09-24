@@ -19,11 +19,18 @@ import {
   type Gravedad,
   type TipoBuzon,
 } from "./flujos-puro.ts";
+import {
+  TABLA_BUZON_MENSAJES,
+  TABLA_CITAS as TABLA_CITAS_REGISTRO,
+  TABLA_REPORTES_ALUMNO,
+  TABLA_SOLICITUDES_CONSTANCIA,
+} from "../tables.ts";
 
-export const TABLA_REPORTES = "reportes_alumno";
-export const TABLA_CITAS = "citas";
-export const TABLA_CONSTANCIAS = "solicitudes_constancia";
-export const TABLA_BUZON = "buzon_mensajes";
+// Nombres del registro único `tables.ts`; se conservan los alias de este módulo.
+export const TABLA_REPORTES = TABLA_REPORTES_ALUMNO;
+export const TABLA_CITAS = TABLA_CITAS_REGISTRO;
+export const TABLA_CONSTANCIAS = TABLA_SOLICITUDES_CONSTANCIA;
+export const TABLA_BUZON = TABLA_BUZON_MENSAJES;
 
 export type ReporteRow = {
   id: string;

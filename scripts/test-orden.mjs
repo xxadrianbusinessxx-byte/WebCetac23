@@ -376,6 +376,44 @@ comprobar("C14", "un \"use server\" no reexporta listas: Next las registraría c
     ),
 );
 
+// ── C15 · toda tabla nueva queda clasificada: sistema o materia ────────────
+// El descubrimiento de materias es NEGATIVO: `listarTablasMateriasDesdeSupabase`
+// ofrece como materia toda tabla que no esté en `TABLAS_SISTEMA`. Una tabla
+// nueva que nadie añade ahí aparece en los selectores de materias sin avisar.
+// Pasó: el 2026-09-23 había diez colándose (buzón, citas, reportes, constancias,
+// mensajes internos…), cada una añadida por un cambio que no sabía de esa lista.
+//
+// Sin red, así que no mira la base: mira de dónde NACEN las tablas —los
+// `create table` de `supabase/*.sql` y los `TABLA_*` de `lib/escolar/tables.ts`—
+// y exige que cada una esté en la lista o tenga forma de materia legacy
+// (`1ROAMAT001`). Las plantillas `%I` de las RPC que crean materias se saltan.
+const { TABLAS_SISTEMA } = await import("../lib/escolar/materia/tablas-sistema.ts");
+const FORMA_MATERIA = /^[0-9][A-Z]+MAT[0-9]{3}$/;
+function tablasCreadasEnSql(src) {
+  const sinComentarios = src.replace(/--[^\n]*/g, "");
+  const fuera = [];
+  for (const m of sinComentarios.matchAll(
+    /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?(?:"([^"]+)"|([A-Za-z_%][A-Za-z0-9_%]*))/gi,
+  )) {
+    const nombre = m[1] ?? m[2];
+    if (!nombre.includes("%")) fuera.push(nombre);
+  }
+  return fuera;
+}
+comprobar("C15", "toda tabla que nace en supabase/*.sql o tables.ts está clasificada: no se cuela como materia", 0, () => {
+  const sistema = new Set(TABLAS_SISTEMA);
+  const clasificada = (t) => sistema.has(t) || FORMA_MATERIA.test(t);
+  const desdeSql = listar("supabase", (f) => f.endsWith(".sql")).flatMap((f) =>
+    tablasCreadasEnSql(leer(f)).map((t) => ({ archivo: f, tabla: t })),
+  );
+  const desdeTables = [...leer("lib/escolar/tables.ts").matchAll(/export const TABLA_\w+\s*=\s*"([^"]+)"/g)].map(
+    (m) => ({ archivo: "lib/escolar/tables.ts", tabla: m[1] }),
+  );
+  return [...desdeSql, ...desdeTables]
+    .filter((x) => !clasificada(x.tabla))
+    .map((x) => ({ archivo: x.archivo, detalle: `«${x.tabla}» no está en materia/tablas-sistema.ts: saldría como materia` }));
+});
+
 // ── Informe ────────────────────────────────────────────────────────────────
 
 if (JSON_OUT) {

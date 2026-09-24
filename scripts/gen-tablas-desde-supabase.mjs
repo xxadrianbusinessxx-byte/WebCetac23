@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { esTablaMateria, PATRON_REGISTRO_FINAL } from "../lib/escolar/materia/tablas-sistema.ts";
 
 const root = path.join(import.meta.dirname, "..");
 const raw = fs.readFileSync(path.join(root, ".env.local"), "utf8");
@@ -25,58 +26,19 @@ const r = await fetch(`${urlBase}/rest/v1/`, {
 });
 const spec = await r.json();
 const defs = spec.definitions ?? spec;
-// Catálogo académico (FASE C1): excluir de "materias" las tablas de
-// oferta/relaciones. Mantener sincronizado con TABLAS_SISTEMA en
-// lib/escolar/materia/tablas-supabase.ts (exclusión EXPLÍCITA, no heurística).
-const sistema = new Set([
-  "ALUMNOS",
-  "PROFESORES",
-  "COMENTARIOS",
-  "COMENTARIOS PROFESORES",
-  "ETIQUETAS (STATUS)",
-  "ETIQUETAS PERSONALES",
-  "BOLETA",
-  "mensajes_chat",
-  "periodos",
-  "carreras",
-  "materias",
-  "grupos",
-  "grupo_materias",
-  "inscripciones_alumno",
-  "asignaciones_profesor",
-  // C4.28 — Tablas de SISTEMA/BACKEND que NO son materias (documentos, tutores,
-  // asistencia, justificaciones, semestres, nombres visibles, mapeo de columnas).
-  // Mantener sincronizado con TABLAS_SISTEMA en lib/escolar/materia/tablas-supabase.ts.
-  "CARPETAS",
-  "DOCUMENTOS",
-  "PERMISOS CARPETAS",
-  "calendario_escolar",
-  "clases_impartidas",
-  "asistencia_alumnos",
-  "configuracion_clases_profesor",
-  "tutores",
-  "tutor_alumnos",
-  "tutor_credenciales_iniciales",
-  "justificaciones_asistencia",
-  "mensajes_justificacion",
-  "academico_semestres",
-  "materias_nombres_visibles",
-  "materias_mapeo_columnas",
-]);
-
+// Qué tabla NO es materia lo decide `lib/escolar/materia/tablas-sistema.ts`, la
+// MISMA lista que usa la app. Antes este script tenía su propia copia y ya no
+// coincidían (no conocía la portada ni las tablas de las UIs del 17-09).
 const todas = Object.keys(defs).filter((k) => !k.startsWith("rpc_")).sort();
-const materias = todas.filter(
-  (t) => !sistema.has(t) && !/REGISTRO DE CALIFICACIONES FINALES/i.test(t),
-);
-const registros = todas.filter((t) =>
-  /REGISTRO DE CALIFICACIONES FINALES/i.test(t),
-);
+const materias = todas.filter(esTablaMateria);
+const registros = todas.filter((t) => PATRON_REGISTRO_FINAL.test(t));
 
 const writeList = (file, constName, arr) => {
   const out = `/** Generado desde Supabase OpenAPI — node scripts/gen-tablas-desde-supabase.mjs */
 export const ${constName}: readonly string[] = ${JSON.stringify(arr, null, 2)} as const;
 `;
-  fs.writeFileSync(path.join(root, "lib", "escolar", file), out);
+  // Las listas viven en lib/escolar/materia/ desde la reorganización por familias.
+  fs.writeFileSync(path.join(root, "lib", "escolar", "materia", file), out);
 };
 
 writeList("materias-list.ts", "MATERIAS_ESCOLAR", materias);

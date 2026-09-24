@@ -253,6 +253,9 @@ ejecuta**, y una fila en `scripts/README.md`. Sin eso, no está terminado.
   aplicado. Es el único historial que hay.
 - Todo cambio de esquema necesita su `.sql` versionado, aunque se haya aplicado a mano
   en el SQL Editor.
+- **Una tabla nueva se clasifica al crearla.** Si no es una materia, su nombre va en
+  `lib/escolar/tables.ts` y en `lib/escolar/materia/tablas-sistema.ts`: el descubrimiento
+  de materias ofrece como materia toda tabla que no esté en esa lista. Lo vigila **C15**.
 - La lógica que deba ser atómica o exclusiva va en **PL/pgSQL**, no en TypeScript:
   la exclusividad de ciclo la impone `activar_ciclo_operativo()`, no el código.
 

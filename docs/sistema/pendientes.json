@@ -200,8 +200,9 @@
       "quien": "agente — cambio pequeño, pero toca el selector de materias",
       "verificar": "ver el script de medicion en el informe del PROMPT M",
       "doc": "docs/historial/informes/INFORME-PROMPT-M-PORTADA-ACCIONES.md",
-      "revisado": "2026-09-23",
-      "estado": "abierto"
+      "revisado": "2026-09-24",
+      "estado": "cerrado",
+      "cierre": "2026-09-24: las diez añadidas a una lista ÚNICA, lib/escolar/materia/tablas-sistema.ts, que usan la app y el generador (antes cada uno tenía su copia). Arreglo de fondo: la regla C15 de test-orden falla si una tabla creada en supabase/*.sql o declarada en tables.ts no está clasificada. Medido contra la base: 426 tablas, 360 materias, 0 colándose."
     }
   ]
 }

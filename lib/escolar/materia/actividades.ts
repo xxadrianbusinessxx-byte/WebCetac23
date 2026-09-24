@@ -11,8 +11,10 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const TABLA_ACTIVIDADES = "actividades";
-export const TABLA_ENTREGAS = "actividad_entregas";
+import { TABLA_ACTIVIDAD_ENTREGAS, TABLA_ACTIVIDADES } from "../tables.ts";
+
+export { TABLA_ACTIVIDADES };
+export const TABLA_ENTREGAS = TABLA_ACTIVIDAD_ENTREGAS;
 
 export type ActividadRow = {
   id: string;
