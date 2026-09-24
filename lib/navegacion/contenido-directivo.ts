@@ -29,7 +29,8 @@ export type PiezaDirectivo =
   | "admin-buzon"
   | "boleta-grupo"
   | "grupo-visualizador"
-  | "alumnos-tutores";
+  | "alumnos-tutores"
+  | "portada-medios";
 
 /** Clave = `idPestana/idApartado`, tal cual los devuelve el mapa. */
 const HUECOS: Readonly<Record<string, PiezaDirectivo>> = {
@@ -47,6 +48,8 @@ const HUECOS: Readonly<Record<string, PiezaDirectivo>> = {
   "administracion/recursos-administrativos": "admin-constancias",
   "administracion/buzon": "admin-buzon",
   "administracion/alumnos-tutores": "alumnos-tutores",
+  // Configuración de la portada pública (PROMPT N): la misma pieza que el técnico.
+  "configuracion/video-imagenes": "portada-medios",
 
   // Citas, Reportes, Recursos administrativos y Buzón: SIN entrada a propósito.
   // Apagados en el mapa por falta de modelo de datos.

@@ -311,12 +311,23 @@ const CONTENIDO: Pestana = {
     // HUÉRFANA —desde `/oceano` no había ningún enlace— y solo se alcanzaba
     // escribiendo la URL.
     act("documentos", "Documentos"),
-    // El sistema de noticias (Cloudinary) esta DESACTIVADO: `eventos-inicio.tsx`
-    // lo declara y `actionPublicarNoticiaInicio` no la llama ningun componente.
-    // La capacidad `noticia.publicar` sigue concedida, pero no hay superficie
-    // que la ejerza. Apagado por decision, como Documentos: el codigo existe.
-    off("noticias", "Noticias", "decision"),
+    // Aquí estuvo «Noticias», apagado por decisión: el sistema de slots de
+    // Cloudinary (`lib/cloudinary/noticias.ts`) nunca tuvo superficie. Se retiró
+    // el 2026-09-23 (PROMPT N) porque su función —publicar en la portada— pasó a
+    // «Configuración → Video e imágenes», con la misma capacidad `noticia.publicar`.
+    // Dejarlo aquí apagado serían dos entradas para una sola cosa.
   ],
+};
+
+/**
+ * Configuración de la portada pública (PROMPT N, 2026-09-23). La comparten
+ * directivo y técnico —los dos roles con `noticia.publicar`— como MISMA
+ * referencia, igual que `MATERIAS_DOCENTE`: una sola definición, no dos copias.
+ */
+const CONFIGURACION: Pestana = {
+  id: "configuracion",
+  label: "Configuración",
+  apartados: [act("video-imagenes", "Video e imágenes")],
 };
 
 /** El mapa. Una pestaña ausente para un rol es una pestaña que ese rol NO ve. */
@@ -326,8 +337,8 @@ const MAPA: Record<PortalRole, Pestana[]> = {
   // Mensajes va al final en los tres: es transversal, no el trabajo principal
   // de ninguno. Alumno y tutor NO la tienen — su chat quedó descartado.
   maestro: [MATERIAS_DOCENTE, CALENDARIO_DOCENTE, MENSAJES_PERSONAL],
-  directivo: [MATERIAS_DOCENTE, GRUPOS_BOLETA, CALENDARIO_DOCENTE, ADMINISTRACION, MENSAJES_PERSONAL],
-  tecnico: [CICLO_ESCOLAR, CATALOGO, PERSONAS, CONTENIDO, MENSAJES_PERSONAL],
+  directivo: [MATERIAS_DOCENTE, GRUPOS_BOLETA, CALENDARIO_DOCENTE, ADMINISTRACION, CONFIGURACION, MENSAJES_PERSONAL],
+  tecnico: [CICLO_ESCOLAR, CATALOGO, PERSONAS, CONTENIDO, CONFIGURACION, MENSAJES_PERSONAL],
 };
 
 /** Pestañas visibles para un rol. Sin sesión, ninguna. */

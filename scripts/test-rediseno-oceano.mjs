@@ -287,12 +287,25 @@ ok(!nav.pestanasDe("alumno").some((p) => p.id === "mensajes"), "el alumno NO ent
 // técnico y profesor, pedida por el responsable). Alumno y tutor NO la tienen:
 // su chat quedó descartado.
 eq(nav.pestanasDe("maestro").map((p) => p.id), ["materias", "calendario-asistencias", "mensajes"], "pestañas del profesor");
+// 2026-09-23 (PROMPT N): directivo y técnico ganan «Configuración», donde se
+// administra la portada pública. Son los dos roles con `noticia.publicar`.
 eq(
   nav.pestanasDe("directivo").map((p) => p.id),
-  ["materias", "grupos-boleta", "calendario-asistencias", "administracion", "mensajes"],
+  ["materias", "grupos-boleta", "calendario-asistencias", "administracion", "configuracion", "mensajes"],
   "pestañas del directivo",
 );
-eq(nav.pestanasDe("tecnico").map((p) => p.id), ["ciclo-escolar", "catalogo", "personas", "contenido", "mensajes"], "pestañas del técnico");
+eq(
+  nav.pestanasDe("tecnico").map((p) => p.id),
+  ["ciclo-escolar", "catalogo", "personas", "contenido", "configuracion", "mensajes"],
+  "pestañas del técnico",
+);
+ok(
+  nav.pestana("directivo", "configuracion") === nav.pestana("tecnico", "configuracion"),
+  "directivo y técnico comparten la MISMA pestaña Configuración",
+);
+for (const rol of ["maestro", "alumno", "tutor"]) {
+  ok(!nav.pestanasDe(rol).some((p) => p.id === "configuracion"), `${rol} NO ve Configuración (no tiene noticia.publicar)`);
+}
 
 // El directivo es el profesor MÁS dos pestañas: las compartidas deben ser la
 // misma referencia, no una copia que pueda divergir.
@@ -474,13 +487,14 @@ eq(nav.apartado("tecnico", "ciclo-escolar", "configurador").modos.length, 7, "el
 eq(nav.apartado("directivo", "administracion", "citas").modos.length, 3, "Citas apagado conserva sus 3 modos");
 
 // Registro de lo apagado, por rol.
-// Eran dos desde que se descubrió que el sistema de noticias está desactivado
-// (ningún componente llama a actionPublicarNoticiaInicio). Esta aserción decía
-// «uno» y la suite la cazó al cambiar el mapa: el número es la comprobación.
+// Al técnico le quedaba UNO, «Noticias» (el sistema de slots de Cloudinary sin
+// superficie). El 2026-09-23 se retiró: publicar en la portada pasó a
+// «Configuración → Video e imágenes» (PROMPT N). El número sigue siendo la
+// comprobación: si reaparece un apagado, esto lo caza.
 eq(
   nav.apartadosApagados("tecnico").map((x) => x.apartado.id).sort(),
-  ["noticias"],
-  "al técnico le queda UN apartado apagado: Noticias (Cloudinary desactivado)",
+  [],
+  "al técnico ya no le queda NINGÚN apartado apagado",
 );
 // Al profesor ya no le queda NINGÚN apagado: Recursos se encendió el
 // 2026-09-17 reusando el sistema de documentos.
@@ -703,19 +717,20 @@ for (const clave of cTec.huecosConPieza()) {
   );
 }
 
-// Contenido del tecnico: ya NO es la pestaña sin nada activo. Documentos se
-// encendió el 2026-09-17; Noticias sigue apagada porque Cloudinary lo está.
+// Contenido del tecnico: Documentos se encendió el 2026-09-17. «Noticias»
+// (apagado) se retiró el 2026-09-23: su función es ahora Configuración.
 const contenido = nav.pestana("tecnico", "contenido");
 ok(
   contenido.apartados.some((a) => a.estado === "activo"),
   "«Contenido» del tecnico ya tiene un apartado activo (Documentos)",
 );
-eq(
-  nav.apartado("tecnico", "contenido", "noticias").razon,
-  "decision",
-  "Noticias esta apagado por decision: el sistema Cloudinary esta desactivado",
-);
-eq(cTec.piezaDe("contenido", "noticias"), null, "un apartado apagado no tiene pieza");
+eq(nav.apartado("tecnico", "contenido", "noticias"), null, "«Noticias» ya no existe: no quedan dos entradas para lo mismo");
+eq(cTec.piezaDe("contenido", "noticias"), null, "…ni tiene pieza");
+
+// Configuración → Video e imágenes: activo, y con la MISMA pieza en los dos roles.
+eq(nav.apartado("tecnico", "configuracion", "video-imagenes")?.estado, "activo", "«Video e imágenes» está activo");
+eq(cTec.piezaDe("configuracion", "video-imagenes"), "portada-medios", "el técnico monta el panel de la portada");
+eq(cDir.piezaDe("configuracion", "video-imagenes"), "portada-medios", "el directivo monta la misma pieza");
 eq(cTec.piezaDe("inventada", "inexistente"), null, "un hueco desconocido devuelve null");
 
 console.log(`\n${pruebas - fallos}/${pruebas} pruebas correctas`);

@@ -129,8 +129,13 @@ recibe las pestañas ya resueltas y no decide nada.
 | alumno | Perfil · Materias · Calendario · Chat |
 | tutor | Perfil (+ «Mis mensajes») · Materias · Calendario · Chat |
 | maestro | Materias · Calendario y asistencias · Mensajes |
-| directivo | Materias · Grupos y boleta · Calendario y asistencias · Administración · Mensajes |
-| técnico | Ciclo escolar · Catálogo · Personas · Contenido · Mensajes |
+| directivo | Materias · Grupos y boleta · Calendario y asistencias · Administración · Configuración · Mensajes |
+| técnico | Ciclo escolar · Catálogo · Personas · Contenido · Configuración · Mensajes |
+
+**Configuración** (prompt N, 2026-09-23) es la MISMA pestaña para los dos roles: un apartado,
+«Video e imágenes» → `portada-medios-panel.tsx`, que administra el carrusel, los videos por
+carrera y los enlaces de contacto de la portada pública. Sustituye al apartado apagado
+«Noticias» de Contenido.
 
 Dentro de cada pestaña, **los apartados** sí se filtran por **capacidad**
 (`puede()`), no por rol: un apartado visible que el servidor rechaza es un bug

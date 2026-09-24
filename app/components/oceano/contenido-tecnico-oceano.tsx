@@ -22,6 +22,7 @@ import { CicloConfigurador } from "@/app/components/ciclo-configurador";
 import { DeshacerPasoPanel } from "@/app/components/deshacer-paso-panel";
 import { DocumentosPanel } from "@/app/components/documentos-panel";
 import { MensajesInternosPanel } from "@/app/components/mensajes-internos-panel";
+import { PortadaMediosPanel } from "@/app/components/portada-medios-panel";
 import { HorarioEscolarPanel } from "@/app/components/horario-escolar-panel";
 import { ImportarEtiquetasPanel } from "@/app/components/importar-etiquetas-panel";
 import { RosterAlumnosPanel } from "@/app/components/roster-alumnos-panel";
@@ -60,6 +61,11 @@ export function ContenidoTecnicoOceano({
 
     case "documentos":
       return <DocumentosPanel />;
+
+    // Configuración → Video e imágenes: la portada pública (PROMPT N). El
+    // servidor exige `noticia.publicar` en cada acción; aquí solo se monta.
+    case "portada-medios":
+      return <PortadaMediosPanel />;
 
     case "ciclo-configurador":
       // Sus 7 pasos YA eran un conmutador interno; ahora el nivel 3 del shell
