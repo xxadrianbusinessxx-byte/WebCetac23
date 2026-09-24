@@ -20,7 +20,6 @@ import {
   previsualizarCargaAcademica,
   type CatalogoReconocimiento,
   type ContextoAcademico,
-  type GrupoReconocimiento,
   type PreviewCargaAcademica,
   type ResultadoAplicarCarga,
 } from "@/lib/escolar/catalogo/carga-academica";
