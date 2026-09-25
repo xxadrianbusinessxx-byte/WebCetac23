@@ -66,7 +66,7 @@ pendientes del 17-09):
 | **maestro** | 27 | `Permisos = 'Profesor'` |
 | **tutor** | 17 | Tabla `tutores` |
 | **alumno** | 14 | Tabla `ALUMNOS` |
-| **administracion** | 25 (expediente de cualquier alumno, sus datos, tutores, reportes, constancias, documentos, mensajes) | `Permisos = 'Administracion'` |
+| **administracion** | 26 (expediente de cualquier alumno, sus datos y su número de control, tutores, reportes, constancias, documentos, mensajes) | `Permisos = 'Administracion'` |
 
 Directivo ya no es el rol-comodín de configuración: la §4 (recorte T5) le deja la
 lectura (`materia.ver_catalogo`, `semestre.ver`, `ciclo.ver_operativo`) y la
@@ -153,6 +153,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `alumno.cargar_roster` | Sincronizar alumnos desde archivo | X | X | ✅ | X | X | X |
 | `alumno.borrar_roster` | **PROMPT-4/T3**: sacar a un alumno del roster del ciclo (previsualizar→confirmar; no borra de `ALUMNOS`) | X | X | ✅ | X | X | X |
 | `alumno.ver_expediente` | **2026-09-24**: buscar a CUALQUIER alumno por nombre o CURP y abrir su expediente (Administración escolar) | X | X | X | X | X | ✅ |
+| `alumno.editar_numero_control` | **2026-09-24**: capturar o corregir el número de control (matrícula) del alumno, el que va en la constancia de estudios | X | X | X | X | X | ✅ |
 | `profesor.cambiar_clave_propia` | Cambiar la propia clave de acceso | ✅ | ✅ | ✅ | X | X | ✅ |
 | `profesor.ver_credenciales_acceso` | Ver/reponer claves de **inicio de sesión** | X | X | ✅ | X | X | X |
 | `profesor.forzar_cambio_clave` | Obligar a cambiar clave en el próximo acceso | X | X | ✅ | X | X | X |
@@ -198,7 +199,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 177 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 178 Server Actions.
 
 ### `actividades.ts`
 
@@ -229,6 +230,7 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 177 Server Actions.
 | `actionEnviarAlBuzon` | exigir: buzon.enviar | `buzon.enviar` |
 | `actionMarcarBuzonLeido` | exigir: buzon.ver | `buzon.ver` |
 | `actionBuscarAlumnosExpediente` | exigir: alumno.ver_expediente | `alumno.ver_expediente` |
+| `actionGuardarNumeroControl` | exigir: alumno.editar_numero_control | `alumno.editar_numero_control` |
 
 ### `asignaciones-profesor.ts`
 

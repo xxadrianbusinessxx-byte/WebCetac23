@@ -323,3 +323,17 @@ export const esquemaAjustesPortada = (claves: readonly string[]) =>
     },
     MSJ_PORTADA,
   );
+
+/**
+ * `administracion.ts` · actionGuardarNumeroControl (2026-09-24). El número llega
+ * crudo: el FORMATO lo decide `validarNumeroControl` (numero-control-puro), que es
+ * la misma regla que el CHECK de la base. Aquí solo se exige forma y tamaño.
+ */
+export const esquemaNumeroControl = v.object(
+  {
+    curp: textoMayusculas("Falta el alumno.", 25),
+    // Opcional: vacío es «quitar el número», y lo decide `validarNumeroControl`.
+    numeroControl: textoOpcional("El número de control no es válido.", 40),
+  },
+  "El número de control no es válido.",
+);

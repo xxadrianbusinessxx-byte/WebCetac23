@@ -142,7 +142,9 @@ carrera y los enlaces de contacto de la portada pública. Sustituye al apartado 
 sidebar (`buscador-expediente-oceano.tsx`, en el sitio del selector del tutor) fija el
 alumno, y cada apartado es la MISMA pieza que ven el alumno y su tutor
 (`contenido-administracion.ts` los empareja). «Trámites escolares» tiene Constancias de
-estudios —vista previa **beta** (`constancia-estudios-vista-previa.tsx`) y solicitudes— y
+estudios —la constancia con el **formato oficial** del plantel, lista para imprimir o
+guardar en PDF (`constancia-estudios-vista-previa.tsx`: una sola hoja en unidades `cqw`,
+tamaño carta al imprimir), y las solicitudes— y
 Reportes, que se elaboran sobre el alumno elegido.
 
 Dentro de cada pestaña, **los apartados** sí se filtran por **capacidad**

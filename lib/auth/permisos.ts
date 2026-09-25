@@ -238,6 +238,9 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "alumno.editar_datos_personales",
     "alumno.editar_etiquetas",
     "alumno.editar_estatus",
+    // El número de control es institucional: lo captura la escuela, no el tutor
+    // (que sí edita datos personales). Por eso es una capacidad aparte.
+    "alumno.editar_numero_control",
     // Tutores.
     "tutor.ver_lista",
     "tutor.crear",
