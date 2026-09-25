@@ -212,6 +212,16 @@ ok(puede("administracion", "alumno.editar_numero_control"), "administracion pued
 ok(!puede("tutor", "alumno.editar_numero_control"), "el tutor NO captura el número de control (aunque edite datos personales)");
 ok(!puede("alumno", "alumno.editar_numero_control"), "el alumno NO captura su número de control");
 
+seccion("Constancias de estudios (2026-09-25) — solicitud, aceptación y emisión directa");
+ok(puede("alumno", "constancia.solicitar") && puede("tutor", "constancia.solicitar"), "alumno y tutor la piden desde su perfil");
+ok(puede("alumno", "constancia.ver_propias") && puede("tutor", "constancia.ver_propias"), "…y ven cómo va");
+ok(puede("administracion", "constancia.gestionar"), "Administración escolar acepta y rechaza");
+ok(!puede("directivo", "constancia.gestionar"), "Dirección ya NO acepta solicitudes (solo Administración escolar)");
+ok(puede("directivo", "constancia.emitir"), "Dirección la genera directo, por CURP");
+ok(puede("administracion", "constancia.emitir"), "Administración escolar también la emite");
+ok(!puede("maestro", "constancia.emitir") && !puede("tutor", "constancia.emitir") && !puede("alumno", "constancia.emitir"), "maestro, tutor y alumno no emiten");
+ok(JSON.stringify(rolesDe("constancia.gestionar")) === '["administracion"]', "constancia.gestionar es SOLO de Administración escolar");
+
 // Lectura de la §4: cada fila `| capacidad | ... | D | M | Tec | T | A | AE |`.
 // PROMPT-3/T5: el código = §4 completa (directivo recortado). Desde el 2026-09-24,
 // seis roles: AE = Administración escolar.

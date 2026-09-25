@@ -786,6 +786,21 @@ ok(!cAdm.necesitaAlumno(cAdm.piezaDe("tramites", "constancias"), "Solicitudes"),
 ok(!cAdm.necesitaAlumno(cAdm.piezaDe("tutores", "tutores"), null), "tutores no pide alumno");
 eq(cAdm.piezaDe("inventada", "inexistente"), null, "administracion: un hueco desconocido devuelve null");
 
+// ── Constancias de estudios (2026-09-25) ───────────────────────────────────
+console.log("\nconstancias de estudios");
+for (const rol of ["alumno", "tutor"]) {
+  eq(nav.apartado(rol, "perfil", "constancias")?.estado, "activo", `${rol}: Perfil › Constancias de estudios está activo`);
+}
+eq(cAl.piezaDe("perfil", "constancias"), "perfil-constancias", "…y monta el panel de solicitudes");
+ok(
+  nav.pestana("alumno", "perfil").apartados.findIndex((a) => a.id === "constancias") ===
+    nav.pestana("alumno", "perfil").apartados.findIndex((a) => a.id === "sesiones-programadas") + 1,
+  "va justo después de Sesiones programadas: es el mismo sistema",
+);
+eq(cDir.piezaDe("administracion", "recursos-administrativos"), "constancia-directa", "Dirección: la constancia directa por CURP");
+eq(nav.apartado("directivo", "administracion", "recursos-administrativos")?.modos, ["Constancia de estudios"], "…sin los modos de solicitudes, que ya no atiende");
+ok(!cDir.huecosConPieza().some((h) => cDir.piezaDe(...h.split("/")) === "admin-constancias"), "Dirección ya no monta la lista de solicitudes");
+
 console.log(`\n${pruebas - fallos}/${pruebas} pruebas correctas`);
 if (fallos > 0) {
   console.error(`${fallos} fallo(s).`);

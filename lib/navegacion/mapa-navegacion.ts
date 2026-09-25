@@ -138,6 +138,9 @@ const PERFIL_ALUMNO: Pestana = {
     // ENCENDIDO (2026-09-17): ya hay datos. Lee la MISMA tabla `citas` que
     // «Administración escolar › Citas» del directivo — una entidad, dos vistas.
     act("sesiones-programadas", "Sesiones programadas"),
+    // 2026-09-25: el sistema de citas aplicado a la constancia de estudios —
+    // asunto, motivo y día para recogerla—. Solo Administración escolar la acepta.
+    act("constancias", "Constancias de estudios"),
   ],
 };
 
@@ -234,11 +237,9 @@ const ADMINISTRACION: Pestana = {
     // hacen nada porque las cuatro entidades no existen en Supabase.
     act("citas", "Citas", ["Configurar citas", "Citas pendientes", "Citas programadas"]),
     act("reportes", "Reportes", ["Crea un reporte", "Reportes"]),
-    act("recursos-administrativos", "Recursos administrativos", [
-      "Constancias",
-      "Constancias programadas",
-      "Configurar cita de constancia",
-    ]),
+    // 2026-09-25: Dirección ya no acepta solicitudes de constancia (solo
+    // Administración escolar). Aquí la genera DIRECTAMENTE, con la CURP.
+    act("recursos-administrativos", "Recursos administrativos", ["Constancia de estudios"]),
     act("alumnos-tutores", "Alumnos / Tutores"),
     act("buzon", "Buzón", ["Buzón de quejas", "Buzón (comentarios)"]),
   ],

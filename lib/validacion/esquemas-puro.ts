@@ -337,3 +337,24 @@ export const esquemaNumeroControl = v.object(
   },
   "El número de control no es válido.",
 );
+
+/**
+ * `administracion.ts` · actionSolicitarConstancia (2026-09-25). Alumno o tutor la
+ * piden desde su perfil: asunto, motivo y día para recogerla. El día lo valida
+ * `validarFechaRecogida` (flujos-puro): a partir de mañana, entre semana.
+ */
+export const esquemaSolicitudConstancia = v.object(
+  {
+    curp: textoMayusculas("Falta el alumno.", 25),
+    asunto: texto("Indica el asunto de la constancia.", 120),
+    motivo: texto("Indica el motivo.", 500),
+    fechaRecogida: texto("Indica el día en que pasarás a recogerla.", 10),
+  },
+  "Faltan datos de la solicitud.",
+);
+
+/** `administracion.ts` · actionDatosConstanciaPorCurp — Dirección la emite con la CURP. */
+export const esquemaCurpConstancia = v.object(
+  { curp: textoMayusculas("Escribe la CURP del alumno.", 25) },
+  "Escribe la CURP del alumno.",
+);

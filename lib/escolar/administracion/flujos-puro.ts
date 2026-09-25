@@ -68,6 +68,36 @@ export function puedeTransicionarConstancia(
   return (TRANSICIONES_CONSTANCIA[desde] ?? []).includes(hasta);
 }
 
+/**
+ * Día para recoger una constancia de estudios (2026-09-25). Lo propone quien la
+ * pide —alumno o tutor— desde su perfil. Reglas:
+ *   · a partir de MAÑANA: el mismo día no da tiempo a prepararla y firmarla;
+ *   · de lunes a viernes: el plantel no la entrega en fin de semana;
+ *   · como mucho a 60 días: más lejos es una fecha que nadie va a recordar.
+ * `hoy` se recibe, no se lee del reloj, para que la prueba sea estable. La fecha
+ * llega como «YYYY-MM-DD» (un <input type="date">) y se compara sin zona horaria.
+ */
+export const DIAS_MAXIMOS_RECOGIDA = 60;
+
+export function validarFechaRecogida(
+  fecha: string,
+  hoy: Date,
+): { ok: true } | { ok: false; error: string } {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha.trim());
+  if (!m) return { ok: false, error: "Indica el día en que pasarás a recogerla." };
+  const dia = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (dia.getMonth() !== Number(m[2]) - 1) return { ok: false, error: "Esa fecha no existe." };
+  const base = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const diferencia = Math.round((dia.getTime() - base.getTime()) / 86_400_000);
+  if (diferencia < 1) return { ok: false, error: "El día para recogerla tiene que ser a partir de mañana." };
+  if (diferencia > DIAS_MAXIMOS_RECOGIDA) {
+    return { ok: false, error: `El día para recogerla no puede pasar de ${DIAS_MAXIMOS_RECOGIDA} días.` };
+  }
+  const semana = dia.getDay();
+  if (semana === 0 || semana === 6) return { ok: false, error: "Elige un día entre lunes y viernes." };
+  return { ok: true };
+}
+
 /* ── Reportes disciplinarios ───────────────────────────────────────────── */
 
 export const GRAVEDADES = ["leve", "media", "grave"] as const;

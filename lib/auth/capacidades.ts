@@ -108,6 +108,8 @@ export const CAPACIDADES = [
   // Constancias (Recursos administrativos).
   "constancia.solicitar",
   "constancia.gestionar",
+  "constancia.ver_propias", // 2026-09-25: ver el estado de las constancias pedidas (alumno y tutor)
+  "constancia.emitir", // 2026-09-25: generar la constancia de un alumno directamente, por su CURP
   // Buzón: alumnos y tutores escriben, la dirección lee.
   "buzon.enviar",
   "buzon.ver",

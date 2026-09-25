@@ -72,7 +72,18 @@ export type ConstanciaRow = {
   ruta_storage: string | null;
   created_at: string;
   resuelta_at: string | null;
+  /** 2026-09-25 (supabase/agregar-solicitud-constancia-estudios.sql). Nulos en
+   *  las solicitudes anteriores a esa fecha. */
+  asunto: string | null;
+  motivo: string | null;
+  /** Día en que el solicitante pasará a recogerla, «YYYY-MM-DD». */
+  fecha_recogida: string | null;
+  solicitada_por: "alumno" | "tutor" | null;
+  solicitante: string | null;
 };
+
+/** Para la lista de Administración escolar: la solicitud y a quién se le entrega. */
+export type ConstanciaConAlumno = ConstanciaRow & { nombre_alumno: string };
 
 export type BuzonRow = {
   id: string;
@@ -253,7 +264,17 @@ export async function listarConstancias(
 
 export async function solicitarConstancia(
   supabase: SupabaseClient,
-  c: { periodoId: string; curp: string; tipo: string; observaciones: string | null },
+  c: {
+    periodoId: string;
+    curp: string;
+    tipo: string;
+    observaciones: string | null;
+    asunto: string;
+    motivo: string;
+    fechaRecogida: string;
+    solicitadaPor: "alumno" | "tutor";
+    solicitante: string;
+  },
 ): Promise<Resultado<ConstanciaRow>> {
   const { data, error } = await supabase
     .from(TABLA_CONSTANCIAS)
@@ -262,6 +283,11 @@ export async function solicitarConstancia(
       curp: c.curp,
       tipo: c.tipo,
       observaciones: c.observaciones,
+      asunto: c.asunto,
+      motivo: c.motivo,
+      fecha_recogida: c.fechaRecogida,
+      solicitada_por: c.solicitadaPor,
+      solicitante: c.solicitante,
     })
     .select()
     .single();

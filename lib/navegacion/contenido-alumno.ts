@@ -23,6 +23,8 @@ export type PiezaAlumno =
   | "materias-actividades"
   | "materias-recursos"
   | "perfil-sesiones-programadas"
+  // 2026-09-25 — pedir la constancia de estudios, como se pide una cita.
+  | "perfil-constancias"
   | "materias-calificacion"
   | "calendario-horario"
   | "calendario-asistencia"
@@ -45,6 +47,9 @@ const HUECOS: Readonly<Record<string, PiezaAlumno>> = {
   "materias/actividades": "materias-actividades",
   "materias/recursos": "materias-recursos",
   "perfil/sesiones-programadas": "perfil-sesiones-programadas",
+  // Lee la MISMA tabla `solicitudes_constancia` que acepta Administración
+  // escolar: una entidad, dos vistas, igual que las citas.
+  "perfil/constancias": "perfil-constancias",
   "materias/calificacion": "materias-calificacion",
   "calendario/horario-escolar": "calendario-horario",
   "calendario/calendario-escolar": "calendario-asistencia",

@@ -147,6 +147,13 @@ guardar en PDF (`constancia-estudios-vista-previa.tsx`: una sola hoja en unidade
 tamaño carta al imprimir), y las solicitudes— y
 Reportes, que se elaboran sobre el alumno elegido.
 
+**Constancias de estudios** (2026-09-25). Alumno y tutor las piden en **Perfil › Constancias
+de estudios** (`solicitudes-constancia-panel.tsx`), el mismo sistema que «Sesiones
+programadas»: asunto, motivo y día para recogerla. Solo Administración escolar las acepta
+(«Trámites escolares › Constancias › Solicitudes»). Dirección no las atiende: en
+«Administración escolar › Recursos administrativos» genera la constancia directamente con la
+CURP (`constancia-por-curp-panel.tsx`), con la misma hoja oficial.
+
 Dentro de cada pestaña, **los apartados** sí se filtran por **capacidad**
 (`puede()`), no por rol: un apartado visible que el servidor rechaza es un bug
 (`docs/sistema/MATRIZ-PERMISOS.md`).

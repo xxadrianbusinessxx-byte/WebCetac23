@@ -29,7 +29,7 @@ import {
 import type {
   BuzonRow,
   CitaRow,
-  ConstanciaRow,
+  ConstanciaConAlumno,
   ReporteRow,
 } from "@/lib/escolar/administracion/administracion";
 
@@ -334,48 +334,81 @@ function Citas({ modo }: { modo: string | null }) {
 
 /* ── Recursos administrativos (constancias) ────────────────────────────── */
 
+/** «2026-09-30» → «30/09/2026», sin pasar por la zona horaria. */
+const dia = (iso: string | null) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? "");
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "—";
+};
+
+/**
+ * Solicitudes de constancia de estudios. Desde el 2026-09-25 las piden alumno y
+ * tutor desde su perfil (asunto, motivo, día para recogerla) y SOLO Administración
+ * escolar las acepta: el servidor exige `constancia.gestionar`, que ya no tiene
+ * Dirección. Pendientes primero, por día de recogida: es el orden en que se
+ * preparan.
+ */
 function Constancias() {
-  const [lista, setLista] = useState<ConstanciaRow[] | null>(null);
+  const [lista, setLista] = useState<ConstanciaConAlumno[] | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
 
   const cargar = useCallback(() => {
     return Promise.resolve()
       .then(() => actionListarConstancias())
-      .then(setLista);
+      .then(setLista)
+      .catch(() => {
+        setLista([]);
+        setMsg("No se pudieron cargar las solicitudes. Inténtalo de nuevo.");
+      });
   }, []);
   useEffect(() => { void cargar(); }, [cargar]);
 
   const cambiar = (id: string, estado: string) => {
-    void actionCambiarEstadoConstancia(id, estado).then(() => cargar());
+    setMsg(null);
+    void actionCambiarEstadoConstancia(id, estado)
+      .then((r) => {
+        if (!r.ok) setMsg(r.error);
+        return cargar();
+      })
+      .catch(() => setMsg("No se pudo cambiar el estado. Inténtalo de nuevo."));
   };
+
+  const orden = (c: ConstanciaConAlumno) => (c.estado === "pendiente" ? 0 : c.estado === "aceptada" ? 1 : 2);
+  const ordenada = lista
+    ? [...lista].sort((a, b) => orden(a) - orden(b) || (a.fecha_recogida ?? "").localeCompare(b.fecha_recogida ?? ""))
+    : null;
 
   return (
     <>
-      <Titulo>Recursos administrativos</Titulo>
+      <Titulo>Solicitudes de constancia</Titulo>
+      {msg && <Aviso>{msg}</Aviso>}
       <Panel>
-        {lista === null ? (
+        {ordenada === null ? (
           <Aviso>Cargando solicitudes…</Aviso>
-        ) : lista.length === 0 ? (
-          <Aviso>No hay solicitudes de constancia.</Aviso>
+        ) : ordenada.length === 0 ? (
+          <Aviso>No hay solicitudes de constancia en este ciclo.</Aviso>
         ) : (
           <div className="flex flex-col gap-3">
-            {lista.map((c) => (
+            {ordenada.map((c) => (
               <div
                 key={c.id}
                 className="rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] p-4"
               >
-                <Punto tono={c.estado === "entregada" ? "ok" : c.estado === "rechazada" ? "alerta" : "neutro"} />
+                <Punto tono={c.estado === "entregada" || c.estado === "aceptada" ? "ok" : c.estado === "rechazada" || c.estado === "anulada" ? "alerta" : "neutro"} />
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="text-base font-bold text-[var(--oc-text)]">{c.tipo}</p>
+                  <p className="text-base font-bold text-[var(--oc-text)]">{c.nombre_alumno || c.curp}</p>
                   <span className="text-xs font-semibold uppercase tracking-wide text-[var(--oc-muted)]">
                     {c.estado}
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-[var(--oc-muted)]">
-                  {c.curp} · {fecha(c.created_at)}
+                  {c.curp} · pedida {c.solicitada_por ? `por ${c.solicitada_por}` : ""} el {fecha(c.created_at)}
                 </p>
-                {c.observaciones && (
-                  <p className="mt-2 text-sm text-[var(--oc-text)]">{c.observaciones}</p>
-                )}
+                <p className="mt-2 text-sm font-semibold text-[var(--oc-text)]">{c.asunto || c.tipo}</p>
+                {c.motivo && <p className="mt-1 text-sm text-[var(--oc-text)]">{c.motivo}</p>}
+                {c.observaciones && <p className="mt-1 text-sm text-[var(--oc-text)]">{c.observaciones}</p>}
+                <p className="mt-2 text-xs font-semibold text-[var(--oc-muted)]">
+                  Para recoger el {dia(c.fecha_recogida)}
+                </p>
                 <div className="mt-3 flex flex-wrap justify-end gap-2">
                   {c.estado === "pendiente" && (
                     <>

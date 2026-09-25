@@ -207,6 +207,19 @@ const sinGrupo = C.armarConstancia({ ...COMPLETO, grado: "", carrera: "" });
 ok("sin inscripción faltan semestre y carrera", sinGrupo.faltantes.some((f) => f.startsWith("Semestre")) && sinGrupo.faltantes.includes("Carrera"));
 eq(C.PLANTEL.cct, "22DCM0001I", "el C.C.T. del plantel");
 
+/* ── Día para recoger la constancia ────────────────────────────────────── */
+console.log("\ndía para recoger la constancia");
+const HOY = new Date(2026, 8, 25); // jueves 25 de septiembre de 2026
+eq(F.validarFechaRecogida("2026-09-26", HOY), { ok: false, error: "Elige un día entre lunes y viernes." }, "el 26 es sábado: se rechaza");
+eq(F.validarFechaRecogida("2026-09-29", HOY), { ok: true }, "el martes siguiente vale");
+eq(F.validarFechaRecogida("2026-09-25", HOY).ok, false, "el mismo día no da tiempo a prepararla");
+eq(F.validarFechaRecogida("2026-09-20", HOY).ok, false, "una fecha pasada se rechaza");
+eq(F.validarFechaRecogida("2026-11-24", HOY), { ok: true }, "a 60 días, vale");
+eq(F.validarFechaRecogida("2026-12-01", HOY).ok, false, "a más de 60 días, no");
+eq(F.validarFechaRecogida("2026-02-30", HOY), { ok: false, error: "Esa fecha no existe." }, "el 30 de febrero no existe");
+eq(F.validarFechaRecogida("30/09/2026", HOY).ok, false, "solo el formato del selector de fecha");
+eq(F.validarFechaRecogida("", HOY).ok, false, "sin día no hay solicitud");
+
 /* ── Número de control ─────────────────────────────────────────────────── */
 console.log("\nnúmero de control");
 eq(NC.validarNumeroControl(" 2322 2040 2300 09 "), { ok: true, valor: "23222040230009" }, "quita los espacios de en medio (se dictan en grupos)");

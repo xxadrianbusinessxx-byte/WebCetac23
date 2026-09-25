@@ -20,6 +20,7 @@ import {
   type PantallaAdministracion,
 } from "@/app/components/administracion-panel";
 import { PortadaMediosPanel } from "@/app/components/portada-medios-panel";
+import { ConstanciaPorCurpPanel } from "@/app/components/constancia-por-curp-panel";
 import {
   claveDeGrupo,
   etiquetaGrupo,
@@ -132,12 +133,16 @@ export function ContenidoDirectivoOceano({
   const ADMIN: Partial<Record<typeof pieza, PantallaAdministracion>> = {
     "admin-reportes": "reportes",
     "admin-citas": "citas",
-    "admin-constancias": "constancias",
     "admin-buzon": "buzon",
   };
   const pantallaAdmin = ADMIN[pieza];
   if (pantallaAdmin) {
     return <AdministracionPanel pantalla={pantallaAdmin} modo={modo} />;
+  }
+
+  // Recursos administrativos: la constancia de estudios, directa por CURP.
+  if (pieza === "constancia-directa") {
+    return <ConstanciaPorCurpPanel />;
   }
 
   // Configuración → Video e imágenes: la portada pública (PROMPT N), la misma

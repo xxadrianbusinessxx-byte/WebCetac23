@@ -25,7 +25,7 @@
 export type PiezaDirectivo =
   | "admin-reportes"
   | "admin-citas"
-  | "admin-constancias"
+  | "constancia-directa"
   | "admin-buzon"
   | "boleta-grupo"
   | "grupo-visualizador"
@@ -45,7 +45,9 @@ const HUECOS: Readonly<Record<string, PiezaDirectivo>> = {
   // tablas, actions y panel; el diseño no cambió, lo que cambió es que operan.
   "administracion/reportes": "admin-reportes",
   "administracion/citas": "admin-citas",
-  "administracion/recursos-administrativos": "admin-constancias",
+  // 2026-09-25: la constancia por CURP. Las solicitudes las acepta solo
+  // Administración escolar, en su propia pestaña.
+  "administracion/recursos-administrativos": "constancia-directa",
   "administracion/buzon": "admin-buzon",
   "administracion/alumnos-tutores": "alumnos-tutores",
   // Configuración de la portada pública (PROMPT N): la misma pieza que el técnico.

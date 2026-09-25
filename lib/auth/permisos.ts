@@ -43,6 +43,7 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "cita.ver_propias",
     "cita.solicitar",
     "constancia.solicitar",
+    "constancia.ver_propias",
     "buzon.enviar",
   ]),
 
@@ -120,6 +121,7 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "cita.ver_propias",
     "cita.solicitar",
     "constancia.solicitar",
+    "constancia.ver_propias",
     "buzon.enviar",
   ]),
 
@@ -213,7 +215,10 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "reporte.crear",
     "reporte.anular",
     "cita.gestionar",
-    "constancia.gestionar",
+    // 2026-09-25: las SOLICITUDES de constancia las acepta solo Administración
+    // escolar (decisión del responsable). Dirección la genera directamente, por
+    // la CURP del alumno, sin pasar por una solicitud.
+    "constancia.emitir",
     "buzon.ver",
     "mensaje_interno.usar",
   ]),
@@ -250,6 +255,7 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "reporte.crear",
     "reporte.anular",
     "constancia.gestionar",
+    "constancia.emitir",
     // Documentos: las cinco, como directivo y técnico. Con solo ver/subir no
     // vería nada hasta que alguien le asignara carpeta por carpeta.
     "documento.ver",

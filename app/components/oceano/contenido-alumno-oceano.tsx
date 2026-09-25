@@ -39,6 +39,7 @@ import type { VistaRegistroAlumno } from "@/lib/escolar/alumno/registro-alumno";
 import { DocumentosPanel } from "@/app/components/documentos-panel";
 import { ActividadesPanel } from "@/app/components/actividades-panel";
 import { SesionesProgramadasPanel } from "@/app/components/sesiones-programadas-panel";
+import { SolicitudesConstanciaPanel } from "@/app/components/solicitudes-constancia-panel";
 import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
 import type { ComentarioRow, EtiquetasPersonalesRow, MateriaTablaVista } from "@/lib/escolar/types";
 
@@ -329,6 +330,10 @@ export function ContenidoAlumnoOceano({
 
   if (pieza === "perfil-sesiones-programadas") {
     return <SesionesProgramadasPanel curpAlumno={curp} />;
+  }
+
+  if (pieza === "perfil-constancias") {
+    return <SolicitudesConstanciaPanel curpAlumno={curp} />;
   }
 
   if (pieza === "materias-calificacion") {

@@ -64,9 +64,9 @@ pendientes del 17-09):
 | **directivo** | 44 (conserva lectura y operación diaria) | `Permisos = 'Directivo'` |
 | **tecnico** | 47 (configuración: ciclo, catálogo, asignaciones, roster, tutores, credenciales) | `Permisos = 'Tecnico'` |
 | **maestro** | 27 | `Permisos = 'Profesor'` |
-| **tutor** | 17 | Tabla `tutores` |
-| **alumno** | 14 | Tabla `ALUMNOS` |
-| **administracion** | 26 (expediente de cualquier alumno, sus datos y su número de control, tutores, reportes, constancias, documentos, mensajes) | `Permisos = 'Administracion'` |
+| **tutor** | 18 | Tabla `tutores` |
+| **alumno** | 15 | Tabla `ALUMNOS` |
+| **administracion** | 27 (expediente de cualquier alumno, sus datos y su número de control, tutores, reportes, **la única que acepta** solicitudes de constancia, documentos, mensajes) | `Permisos = 'Administracion'` |
 
 Directivo ya no es el rol-comodín de configuración: la §4 (recorte T5) le deja la
 lectura (`materia.ver_catalogo`, `semestre.ver`, `ciclo.ver_operativo`) y la
@@ -182,7 +182,9 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `cita.solicitar` | Pedir una cita. | X | X | X | ✅ | ✅ | X |
 | `cita.gestionar` | Aceptar, rechazar y cerrar citas. | ✅ | X | X | X | X | X |
 | `constancia.solicitar` | Pedir una constancia. | X | X | X | ✅ | ✅ | X |
-| `constancia.gestionar` | Resolver solicitudes de constancia y adjuntar el documento emitido. | ✅ | X | X | X | X | ✅ |
+| `constancia.gestionar` | Resolver solicitudes de constancia y adjuntar el documento emitido. **Desde el 2026-09-25, solo Administración escolar** (Dirección la emite directo con `constancia.emitir`). | X | X | X | X | X | ✅ |
+| `constancia.ver_propias` | **2026-09-25**: ver el estado de las constancias pedidas — el alumno, las suyas; el tutor, las de sus vinculados (el alcance lo resuelve la action). | X | X | X | ✅ | ✅ | X |
+| `constancia.emitir` | **2026-09-25**: generar la constancia de estudios de un alumno directamente, por su CURP, sin solicitud. | ✅ | X | X | X | X | ✅ |
 | `buzon.enviar` | Escribir una queja o comentario a la dirección. | X | X | X | ✅ | ✅ | X |
 | `buzon.ver` | Leer el buzón y marcar atendido. | ✅ | X | X | X | X | X |
 | `mensaje_interno.usar` | Mensajería privada entre personal (directivo, técnico, profesor). NO es el chat global retirado, que era alumno↔profesor. | ✅ | ✅ | ✅ | X | X | ✅ |
@@ -199,7 +201,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 178 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 180 Server Actions.
 
 ### `actividades.ts`
 
@@ -224,7 +226,9 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 178 Server Actions.
 | `actionSolicitarCita` | exigir: cita.solicitar | `cita.solicitar` |
 | `actionCambiarEstadoCita` | exigir: cita.gestionar | `cita.gestionar` |
 | `actionListarConstancias` | exigir: constancia.gestionar | `constancia.gestionar` |
+| `actionListarConstanciasPropias` | exigir: constancia.ver_propias | `constancia.ver_propias` |
 | `actionSolicitarConstancia` | exigir: constancia.solicitar | `constancia.solicitar` |
+| `actionDatosConstanciaPorCurp` | exigir: constancia.emitir | `constancia.emitir` |
 | `actionCambiarEstadoConstancia` | exigir: constancia.gestionar | `constancia.gestionar` |
 | `actionListarBuzon` | exigir: buzon.ver | `buzon.ver` |
 | `actionEnviarAlBuzon` | exigir: buzon.enviar | `buzon.enviar` |

@@ -34,7 +34,16 @@ import { resolverAccesoAlumno } from "@/lib/escolar/alumno/acceso-alumno";
 import { guardarNumeroControl } from "@/lib/escolar/alumno/numero-control";
 import { validarNumeroControl } from "@/lib/escolar/alumno/numero-control-puro";
 import { leerEntrada } from "@/lib/validacion/leer-form-data";
-import { esquemaNumeroControl } from "@/lib/validacion/esquemas-puro";
+import {
+  esquemaCurpConstancia,
+  esquemaNumeroControl,
+  esquemaSolicitudConstancia,
+} from "@/lib/validacion/esquemas-puro";
+import {
+  datosConstanciaPorCurp,
+  nombresDeAlumnos,
+  type DatosConstanciaSinFecha,
+} from "@/lib/escolar/administracion/constancia";
 import {
   anularReporte,
   cambiarEstadoCita,
@@ -50,6 +59,7 @@ import {
   solicitarConstancia,
   type BuzonRow,
   type CitaRow,
+  type ConstanciaConAlumno,
   type ConstanciaRow,
   type ReporteRow,
 } from "@/lib/escolar/administracion/administracion";
@@ -57,6 +67,7 @@ import {
   esGravedadValida,
   esTipoBuzonValido,
   sanearTexto,
+  validarFechaRecogida,
   type EstadoCita,
   type EstadoConstancia,
 } from "@/lib/escolar/administracion/flujos-puro";
@@ -222,41 +233,111 @@ export async function actionCambiarEstadoCita(
 
 /* ── Constancias ───────────────────────────────────────────────────────── */
 
-export async function actionListarConstancias(estado?: string): Promise<ConstanciaRow[]> {
+/**
+ * Las solicitudes del ciclo, para Administración escolar —la ÚNICA que las acepta
+ * (2026-09-25)—, con el nombre del alumno: una lista de CURPs no dice a quién
+ * se le entrega.
+ */
+export async function actionListarConstancias(estado?: string): Promise<ConstanciaConAlumno[]> {
   const g = await exigir("constancia.gestionar");
   if (!g.ok) return [];
-  const periodoId = await cicloActual();
-  if (!periodoId) return [];
-  const supabase = await createClient();
-  return listarConstancias(supabase, periodoId, {
-    estado: estado as EstadoConstancia | undefined,
-  });
+  try {
+    const periodoId = await cicloActual();
+    if (!periodoId) return [];
+    const supabase = await createClient();
+    const filas = await listarConstancias(supabase, periodoId, {
+      estado: estado as EstadoConstancia | undefined,
+    });
+    const nombres = await nombresDeAlumnos(supabase, filas.map((f) => f.curp));
+    return filas.map((f) => ({ ...f, nombre_alumno: nombres.get(f.curp) ?? "" }));
+  } catch (err) {
+    console.error("[administracion] actionListarConstancias", err);
+    return [];
+  }
 }
 
-export async function actionSolicitarConstancia(datos: {
-  curp: string;
-  tipo: string;
-  observaciones?: string;
-}): Promise<{ ok: true } | Fallo> {
+/** Las constancias pedidas por el alumno o por el tutor: SOLO las de su alcance. */
+export async function actionListarConstanciasPropias(): Promise<ConstanciaRow[]> {
+  const g = await exigir("constancia.ver_propias");
+  if (!g.ok) return [];
+  try {
+    const curps = await alcanceCurps();
+    if (curps === null || curps.length === 0) return [];
+    const periodoId = await cicloActual();
+    if (!periodoId) return [];
+    const supabase = await createClient();
+    return await listarConstancias(supabase, periodoId, { curps });
+  } catch (err) {
+    console.error("[administracion] actionListarConstanciasPropias", err);
+    return [];
+  }
+}
+
+/**
+ * Alumno o tutor piden la constancia de estudios desde su perfil, como una cita:
+ * asunto, motivo y día para recogerla (2026-09-25). Queda PENDIENTE hasta que
+ * Administración escolar la acepte. La CURP tiene que estar en el alcance de la
+ * sesión: el alumno, la suya; el tutor, la de un vinculado.
+ */
+export async function actionSolicitarConstancia(entrada: unknown): Promise<{ ok: true } | Fallo> {
   const g = await exigir("constancia.solicitar");
   if (!g.ok) return fallo("No autorizado.");
-  const curps = await alcanceCurps();
-  const curp = datos.curp?.trim().toUpperCase() ?? "";
-  if (curps !== null && !curps.includes(curp)) {
-    return fallo("Esa CURP no está en tu alcance.");
+  const e = leerEntrada(esquemaSolicitudConstancia, entrada);
+  if (!e.ok) return fallo(e.error);
+  const fecha = validarFechaRecogida(e.datos.fechaRecogida, new Date());
+  if (!fecha.ok) return fallo(fecha.error);
+  const asunto = sanearTexto(e.datos.asunto, 120);
+  const motivo = sanearTexto(e.datos.motivo, 500);
+  if (!asunto || !motivo) return fallo("Indica el asunto y el motivo.");
+  try {
+    const sesion = g.sesion!;
+    const curps = await alcanceCurps();
+    if (curps === null || !curps.includes(e.datos.curp)) {
+      return fallo("Esa CURP no está en tu alcance.");
+    }
+    const periodoId = await cicloActual();
+    if (!periodoId) return fallo("No hay ciclo operativo.");
+    const supabase = await createClient();
+    const r = await solicitarConstancia(supabase, {
+      periodoId,
+      curp: e.datos.curp,
+      tipo: "estudios",
+      observaciones: null,
+      asunto,
+      motivo,
+      fechaRecogida: e.datos.fechaRecogida,
+      solicitadaPor: esRol(sesion.rol, "tutor") ? "tutor" : "alumno",
+      solicitante: sesion.matricula,
+    });
+    return r.ok ? { ok: true } : fallo("No se pudo registrar la solicitud. Inténtalo de nuevo.");
+  } catch (err) {
+    console.error("[administracion] actionSolicitarConstancia", err);
+    return fallo("No se pudo registrar la solicitud. Inténtalo de nuevo.");
   }
-  const tipo = sanearTexto(datos.tipo, 120);
-  if (!tipo) return fallo("Indica el tipo de constancia.");
-  const periodoId = await cicloActual();
-  if (!periodoId) return fallo("No hay ciclo operativo.");
-  const supabase = await createClient();
-  const r = await solicitarConstancia(supabase, {
-    periodoId,
-    curp,
-    tipo,
-    observaciones: sanearTexto(datos.observaciones),
-  });
-  return r.ok ? { ok: true } : fallo(r.error);
+}
+
+/**
+ * Dirección genera la constancia DIRECTAMENTE con la CURP del alumno, sin
+ * solicitud (2026-09-25). Devuelve los datos que la hoja necesita; la hoja la
+ * arma y la imprime el navegador. `constancia.emitir` la tienen Dirección y
+ * Administración escolar; sobre qué alumno, `resolverAccesoAlumno`.
+ */
+export async function actionDatosConstanciaPorCurp(
+  entrada: unknown,
+): Promise<{ ok: true; datos: DatosConstanciaSinFecha } | Fallo> {
+  const g = await exigir("constancia.emitir");
+  if (!g.ok) return fallo("No autorizado.");
+  const e = leerEntrada(esquemaCurpConstancia, entrada);
+  if (!e.ok) return fallo(e.error);
+  try {
+    const supabase = await createClient();
+    const acceso = await resolverAccesoAlumno(supabase, g.sesion, e.datos.curp);
+    if (!acceso.ok) return fallo(acceso.error);
+    return await datosConstanciaPorCurp(supabase, acceso.curp);
+  } catch (err) {
+    console.error("[administracion] actionDatosConstanciaPorCurp", err);
+    return fallo("No se pudieron leer los datos del alumno. Inténtalo de nuevo.");
+  }
 }
 
 export async function actionCambiarEstadoConstancia(
