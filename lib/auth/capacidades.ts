@@ -30,6 +30,7 @@ export const CAPACIDADES = [
   "alumno.cargar_roster",
   "alumno.borrar_roster", // PROMPT-4/T3: sacar del roster (previsualizar→confirmar)
   "alumno.ver_expediente", // 2026-09-24: buscar a CUALQUIER alumno y abrir su expediente
+  "alumno.editar_numero_control", // 2026-09-24: capturar el número de control (va en la constancia)
   // Asignaciones profesor → materia
   "asignacion.ver",
   "asignacion.editar",

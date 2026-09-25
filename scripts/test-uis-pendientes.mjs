@@ -5,8 +5,9 @@
  * QUÉ MIDE: `administracion/flujos-puro` (máquinas de estado de citas,
  *           constancias, reportes y buzón), `materia/actividades-puro` (estado
  *           derivado y pesos), el agrupado en hilos de `mensajes-internos` y
- *           la constancia de estudios BETA de Administración escolar
- *           (`administracion/constancia-puro`, 2026-09-24).
+ *           la constancia de estudios de Administración escolar con el formato
+ *           oficial (`administracion/constancia-puro`) y el número de control
+ *           (`alumno/numero-control-puro`), 2026-09-24.
  * QUÉ ESCRIBE: nada. Carga los `.ts` directamente. No toca la base.
  * CÓMO SE EJECUTA: node scripts/test-uis-pendientes.mjs
  *
@@ -23,6 +24,7 @@ const F = await import("../lib/escolar/administracion/flujos-puro.ts");
 const A = await import("../lib/escolar/materia/actividades-puro.ts");
 const M = await import("../lib/escolar/mensajes-internos.ts");
 const C = await import("../lib/escolar/administracion/constancia-puro.ts");
+const NC = await import("../lib/escolar/alumno/numero-control-puro.ts");
 
 let pasadas = 0;
 let fallos = 0;
@@ -169,29 +171,51 @@ const yaLeido = M.agruparEnHilos([m("h5", 2, YO, "2026-09-17T10:00:00Z", "2026-0
 eq(yaLeido[0].sinLeer, 0, "lo leído no cuenta");
 eq(M.agruparEnHilos([], YO), [], "sin mensajes, sin hilos");
 
-/* ── Constancia de estudios (beta) ─────────────────────────────────────── */
-console.log("\nconstancia de estudios — vista previa beta");
+/* ── Constancia de estudios (formato oficial) ──────────────────────────── */
+console.log("\nconstancia de estudios — formato oficial del plantel");
 const COMPLETO = {
-  nombre: "Ana Pérez López", curp: "pela050101mqtrrna1", matricula: "2305001",
-  grado: "3RO", grupo: "A", carrera: "MECATRONICA", ciclo: "AGO 2026 - ENE 2027",
-  fecha: new Date(2026, 8, 24),
+  nombre: "Adrian Uriel Trejo Zárate", curp: "teza080110hqtrrda5", numeroControl: "23222040230009",
+  grado: "6TO", carrera: "MECATRONICA", inicioSemestre: "2026-02-16", finSemestre: "2026-07-30",
+  fecha: new Date(2026, 5, 1),
 };
-const armada = C.armarConstancia(COMPLETO);
-eq(armada.faltantesAlumno, [], "con el expediente completo no falta ningún dato del alumno");
-ok("el cuerpo nombra al alumno en mayúsculas", armada.cuerpo?.includes("ANA PÉREZ LÓPEZ"));
-ok("…con su CURP normalizada", armada.cuerpo?.includes("PELA050101MQTRRNA1"));
-ok("…su matrícula, grado, grupo, carrera y ciclo", ["2305001", "3RO semestre", "grupo A", "MECATRONICA", "AGO 2026 - ENE 2027"].every((x) => armada.cuerpo?.includes(x)));
-eq(armada.lugarYFecha, "El Marqués, Querétaro, a 24 de septiembre de 2026", "fecha en español, sin depender del idioma del equipo");
-eq(C.fechaLarga(new Date(2027, 0, 5)), "5 de enero de 2027", "enero es el mes 0");
-// Lo institucional NUNCA se inventa: siempre se declara pendiente.
-eq([...armada.faltantesInstitucion], ["Folio consecutivo", "Clave del centro de trabajo (CCT)", "Nombre y cargo de quien la expide", "Firma", "Sello del plantel"], "folio, CCT, firma y sello se declaran pendientes");
-const sinGrupo = C.armarConstancia({ ...COMPLETO, grado: "", grupo: "" });
-eq(sinGrupo.cuerpo, null, "sin inscripción no se arma el texto (no se inventa el grado)");
-ok("…y se dice qué falta", sinGrupo.faltantesAlumno.some((f) => f.startsWith("Grado y grupo")));
-const sinCiclo = C.armarConstancia({ ...COMPLETO, ciclo: "  " });
-ok("un ciclo en blanco cuenta como faltante", sinCiclo.faltantesAlumno.includes("Ciclo escolar en curso") && sinCiclo.cuerpo === null);
-const sinMatricula = C.armarConstancia({ ...COMPLETO, matricula: "" });
-ok("sin matrícula el texto se arma igual, sin la frase de matrícula", sinMatricula.cuerpo !== null && !sinMatricula.cuerpo.includes("matrícula"));
+const cons = C.armarConstancia(COMPLETO);
+// El caso real de la constancia que la escuela ya emite: mismo texto, dato por dato.
+eq(cons.faltantes, [], "con el expediente completo no falta nada");
+eq(cons.nombre, "ADRIAN URIEL TREJO ZÁRATE", "el nombre, en mayúsculas");
+eq(cons.curp, "TEZA080110HQTRRDA5", "la CURP normalizada");
+eq(cons.numeroControl, "23222040230009", "el número de control");
+eq(cons.semestre, "SEXTO", "«6TO» → SEXTO");
+eq(cons.carrera, "TÉCNICO EN MECATRÓNICA", "MECATRONICA → TÉCNICO EN MECATRÓNICA, con acento");
+eq(cons.periodo, "16 de Febrero al 30 de Julio de 2026", "el semestre, como lo escribe el formato");
+eq(cons.fechaEnLetras, "uno de Junio del año dos mil veintiséis", "la fecha de expedición en letras");
+eq([cons.tratamiento, cons.inscrito, cons.interesado], ["el alumno", "INSCRITO", "al interesado"], "H en la CURP → el alumno, INSCRITO");
+const alumna = C.armarConstancia({ ...COMPLETO, curp: "GABL050101MQTRRZA1" });
+eq([alumna.tratamiento, alumna.inscrito, alumna.interesado], ["la alumna", "INSCRITA", "a la interesada"], "M en la CURP → la alumna, INSCRITA");
+eq(C.tituloCarrera("RECURSOS HUMANOS"), "TÉCNICO EN RECURSOS HUMANOS", "RECURSOS HUMANOS → TÉCNICO EN RECURSOS HUMANOS");
+eq(C.tituloCarrera("RH"), "TÉCNICO EN RECURSOS HUMANOS", "…también por su clave RH");
+eq(C.tituloCarrera("Mecatrónica"), "TÉCNICO EN MECATRÓNICA", "…y con acento o en minúsculas");
+eq(["1RO", "2DO", "3RO", "4TO", "5TO", "6TO"].map(C.semestreEnLetras), ["PRIMER", "SEGUNDO", "TERCER", "CUARTO", "QUINTO", "SEXTO"], "los seis semestres");
+eq(C.semestreEnLetras("7MO"), null, "un grado fuera de 1–6 no se inventa");
+eq(C.periodoSemestre("2026-08-31", "2027-01-15"), "31 de Agosto de 2026 al 15 de Enero de 2027", "si cruza de año, cada fecha lleva el suyo");
+eq(C.periodoSemestre(null, "2026-12-11"), null, "sin fecha de inicio no hay periodo");
+eq([1, 16, 21, 22, 30, 31].map(C.numeroEnLetras), ["uno", "dieciséis", "veintiuno", "veintidós", "treinta", "treinta y uno"], "días en letras");
+eq([2026, 2030, 2041].map(C.anioEnLetras), ["dos mil veintiséis", "dos mil treinta", "dos mil cuarenta y uno"], "años en letras");
+eq(C.fechaEnLetras(new Date(2026, 11, 31)), "treinta y uno de Diciembre del año dos mil veintiséis", "31 de diciembre");
+const sinNumero = C.armarConstancia({ ...COMPLETO, numeroControl: null });
+ok("sin número de control no se emite", sinNumero.faltantes.includes("Número de control"));
+const sinGrupo = C.armarConstancia({ ...COMPLETO, grado: "", carrera: "" });
+ok("sin inscripción faltan semestre y carrera", sinGrupo.faltantes.some((f) => f.startsWith("Semestre")) && sinGrupo.faltantes.includes("Carrera"));
+eq(C.PLANTEL.cct, "22DCM0001I", "el C.C.T. del plantel");
+
+/* ── Número de control ─────────────────────────────────────────────────── */
+console.log("\nnúmero de control");
+eq(NC.validarNumeroControl(" 2322 2040 2300 09 "), { ok: true, valor: "23222040230009" }, "quita los espacios de en medio (se dictan en grupos)");
+eq(NC.validarNumeroControl("ab-123"), { ok: true, valor: "AB-123" }, "pasa a mayúsculas y admite guion");
+eq(NC.validarNumeroControl("   "), { ok: true, valor: null }, "vacío = quitar el número");
+ok("menos de 4 caracteres se rechaza", !NC.validarNumeroControl("123").ok);
+ok("más de 20 se rechaza", !NC.validarNumeroControl("1".repeat(21)).ok);
+ok("un signo raro se rechaza", !NC.validarNumeroControl("2322/2040").ok);
+ok("la regla es la del CHECK de la base", String(NC.FORMATO_NUMERO_CONTROL) === "/^[A-Z0-9-]{4,20}$/");
 
 console.log(`\nResultado: ${pasadas + fallos} verificaciones · ${pasadas} pasadas, ${fallos} fallidas`);
 if (fallos > 0) process.exit(1);

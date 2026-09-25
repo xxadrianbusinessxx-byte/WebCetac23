@@ -1,5 +1,6 @@
 "use server";
-
+
+import { leerNumeroControl } from "@/lib/escolar/alumno/numero-control";
 import { exigir } from "@/lib/auth/exigir";
 import { esRol } from "@/lib/auth/permisos";
 import {
@@ -143,6 +144,8 @@ export async function actionObtenerPerfilAlumno(
     telefono: string | null;
     correo: string | null;
   } | null;
+  /** 2026-09-24 — número de control (matrícula), el de la constancia. null = sin capturar. */
+  numeroControl: string | null;
 }> {
   const g = await exigir("alumno.ver_perfil");
   if (!g.ok) {
@@ -167,6 +170,7 @@ export async function actionObtenerPerfilAlumno(
       acceso: null,
       etiquetasDinamicas: [],
       tutorContacto: null,
+      numeroControl: null,
     };
   }
   const sesion = g.sesion;
@@ -199,6 +203,7 @@ export async function actionObtenerPerfilAlumno(
       acceso: null,
       etiquetasDinamicas: [],
       tutorContacto: null,
+      numeroControl: null,
     };
   }
   const curp = resolucion.curp;
@@ -336,9 +341,11 @@ export async function actionObtenerPerfilAlumno(
 
   // FASE 2 — etiquetas dinámicas (módulo separado, sin N+1) + contacto del
   // tutor principal (fuente de verdad: tutores + tutor_alumnos).
-  const [etiquetasDinamicas, tutor] = await Promise.all([
+  // 2026-09-24 — y el número de control, en la misma ida (consulta propia: ver numero-control.ts).
+  const [etiquetasDinamicas, tutor, numeroControl] = await Promise.all([
     obtenerEtiquetasDinamicas(supabaseLectura, curp),
     obtenerTutorPrincipalDeAlumno(supabaseLectura, curp),
+    leerNumeroControl(supabaseLectura, curp),
   ]);
   const tutorContacto = tutor
     ? {
@@ -361,6 +368,7 @@ export async function actionObtenerPerfilAlumno(
     acceso,
     etiquetasDinamicas,
     tutorContacto,
+    numeroControl,
   };
 }
 

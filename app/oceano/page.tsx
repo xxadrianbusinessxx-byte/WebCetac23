@@ -89,6 +89,8 @@ export default async function OceanoPage({
           puedeEditarEtiquetas: perfil.acceso.puedeEditarEtiquetas,
           puedeImportarEtiquetas: perfil.acceso.puedeImportarEtiquetas,
           puedeEditarDatosPersonales: perfil.acceso.puedeEditarDatosPersonales,
+          numeroControl: perfil.numeroControl,
+          puedeEditarNumeroControl: puede(rol, "alumno.editar_numero_control"),
           // UIs pendientes (2026-09-17): los dos flags de Actividades se
           // resuelven aquí con la MISMA `puede()` del servidor. La UI los
           // recibe; no pregunta por el rol.
@@ -108,14 +110,17 @@ export default async function OceanoPage({
   // AHORA también el docente, para que `Calendario › Calendario escolar` abra
   // en el ciclo en curso y no en el primero de la lista alfabética. Es la misma
   // lectura de siempre; solo se amplía a quién se le sirve.
-  const nombreCicloOperativo =
+  // Administración escolar además usa sus FECHAS: son el «Semestre del … al …»
+  // de la constancia de estudios. Misma lectura, no una consulta más.
+  const periodoOperativo =
     rol === "tecnico" || esDocente || esAdministracion
       ? await (async () => {
           const supabase = await createClient();
           const ciclo = await obtenerCicloOperativoGlobal(supabase);
-          return ciclo.ok && ciclo.periodo ? String(ciclo.periodo.nombre).trim() : "";
+          return ciclo.ok ? ciclo.periodo : null;
         })()
-      : "";
+      : null;
+  const nombreCicloOperativo = periodoOperativo ? String(periodoOperativo.nombre).trim() : "";
 
   const datosDocente: DatosDocenteOceano | null = esDocente
     ? {
@@ -139,7 +144,12 @@ export default async function OceanoPage({
   // alumno abierto no es quien tiene la sesión, y las piezas del alumno se montan
   // desde su propio emparejamiento (`contenido-administracion.ts`).
   const datosAdministracion: DatosAdministracionOceano | null = esAdministracion
-    ? { alumno: datosAlumno, cicloOperativo: nombreCicloOperativo }
+    ? {
+        alumno: datosAlumno,
+        cicloOperativo: nombreCicloOperativo,
+        cicloInicio: periodoOperativo?.fecha_inicio ?? null,
+        cicloFin: periodoOperativo?.fecha_fin ?? null,
+      }
     : null;
 
   // La carga académica del técnico sigue esperando una lista; se arma con el

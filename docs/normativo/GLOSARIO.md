@@ -72,7 +72,7 @@ Si un prompt usa uno de estos términos de forma ambigua, el prompt está mal es
 >
 > **Rol administración escolar (2026-09-24).** Igual que el técnico: fila normal de
 > `PROFESORES` con `Permisos = 'Administracion'`. Abre el expediente de cualquier
-> alumno y edita sus datos; gestiona tutores, reportes, constancias (beta),
+> alumno y edita sus datos; gestiona tutores, reportes, constancias de estudios,
 > documentos y mensajes. No califica ni configura.
 
 

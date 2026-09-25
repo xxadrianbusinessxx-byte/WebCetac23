@@ -206,6 +206,11 @@ ok(!puede("administracion", "profesor.ver_credenciales_acceso"), "administracion
 // La capacidad nueva no se le da a nadie más: buscar entre TODOS los alumnos es
 // de este rol. Maestro, tutor y alumno tienen `alumno.ver_perfil` con alcance.
 ok(!puede("maestro", "alumno.ver_expediente") && !puede("tutor", "alumno.ver_expediente") && !puede("alumno", "alumno.ver_expediente"), "alumno.ver_expediente no la tienen maestro, tutor ni alumno");
+// El número de control es institucional: lo captura Administración escolar. El
+// tutor edita datos personales, pero NO este (va impreso en la constancia).
+ok(puede("administracion", "alumno.editar_numero_control"), "administracion puede alumno.editar_numero_control");
+ok(!puede("tutor", "alumno.editar_numero_control"), "el tutor NO captura el número de control (aunque edite datos personales)");
+ok(!puede("alumno", "alumno.editar_numero_control"), "el alumno NO captura su número de control");
 
 // Lectura de la §4: cada fila `| capacidad | ... | D | M | Tec | T | A | AE |`.
 // PROMPT-3/T5: el código = §4 completa (directivo recortado). Desde el 2026-09-24,

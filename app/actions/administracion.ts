@@ -30,6 +30,11 @@ import { createClient } from "@/lib/supabase/server";
 import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo/ciclo-estado";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores-relacion";
 import { buscarAlumnosCandidatos, type AlumnoCandidato } from "@/lib/escolar/catalogo/inscripciones-borrador";
+import { resolverAccesoAlumno } from "@/lib/escolar/alumno/acceso-alumno";
+import { guardarNumeroControl } from "@/lib/escolar/alumno/numero-control";
+import { validarNumeroControl } from "@/lib/escolar/alumno/numero-control-puro";
+import { leerEntrada } from "@/lib/validacion/leer-form-data";
+import { esquemaNumeroControl } from "@/lib/validacion/esquemas-puro";
 import {
   anularReporte,
   cambiarEstadoCita,
@@ -338,4 +343,31 @@ export async function actionBuscarAlumnosExpediente(
   const r = await buscarAlumnosCandidatos(supabase, t);
   if (!r.ok) return fallo("No se pudo buscar. Inténtalo de nuevo.");
   return { ok: true, alumnos: r.alumnos ?? [] };
+}
+
+/**
+ * Captura o corrige el número de control del alumno (va en la constancia). Vacío
+ * lo quita. Autorizar → validar → delegar: la capacidad es de Administración
+ * escolar; SOBRE QUIÉN lo decide `resolverAccesoAlumno`, como en el resto del
+ * expediente; el formato, `validarNumeroControl` (la misma regla que el CHECK).
+ */
+export async function actionGuardarNumeroControl(
+  entrada: unknown,
+): Promise<{ ok: true; numeroControl: string | null } | Fallo> {
+  const g = await exigir("alumno.editar_numero_control");
+  if (!g.ok) return fallo("Solo Administración escolar puede capturar el número de control.");
+  const e = leerEntrada(esquemaNumeroControl, entrada);
+  if (!e.ok) return fallo(e.error);
+  const v = validarNumeroControl(e.datos.numeroControl);
+  if (!v.ok) return fallo(v.error);
+  try {
+    const supabase = await createClient();
+    const acceso = await resolverAccesoAlumno(supabase, g.sesion, e.datos.curp);
+    if (!acceso.ok) return fallo(acceso.error);
+    const r = await guardarNumeroControl(supabase, acceso.curp, v.valor);
+    return r.ok ? { ok: true, numeroControl: v.valor } : fallo(r.error);
+  } catch (err) {
+    console.error("[administracion] actionGuardarNumeroControl", err);
+    return fallo("No se pudo guardar el número de control. Inténtalo de nuevo.");
+  }
 }

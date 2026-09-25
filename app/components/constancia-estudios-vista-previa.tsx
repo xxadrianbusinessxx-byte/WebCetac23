@@ -2,93 +2,197 @@
 
 /**
  * constancia-estudios-vista-previa.tsx — «Trámites escolares › Constancias de
- * estudios › Vista previa». BETA (2026-09-24).
+ * estudios». La constancia del alumno elegido con el formato oficial del plantel,
+ * lista para imprimir o guardar como PDF (2026-09-24).
  *
- * Pinta la constancia del alumno elegido con lo que el sistema ya sabe de él. El
- * texto lo arma `constancia-puro.ts`; aquí solo se dibuja. Los datos que todavía
- * no existen (folio, CCT, firma, sello) se ven como HUECOS marcados, no como
- * valores inventados: es una vista previa, no un documento emitido, y tiene que
- * notarse.
+ * ── Una hoja, dos usos ─────────────────────────────────────────────────────
+ * La misma `HojaConstancia` se pinta dos veces: en la pantalla, escalada al ancho
+ * disponible, y en un portal directo en <body> que SOLO existe al imprimir. Todas
+ * las medidas van en `cqw` (unidades del contenedor), así que la hoja es la misma
+ * a cualquier tamaño: en pantalla, proporcional; impresa, tamaño carta exacto.
+ * Imprimir desde el portal evita páginas en blanco por el resto del shell.
+ *
+ * El texto lo arma `constancia-puro.ts`. Aquí no se decide nada: se dibuja.
+ * La firma y el sello se dejan en blanco para el director (ver ese módulo).
  */
-import { useState } from "react";
-import { armarConstancia, PLANTEL, type DatosConstancia } from "@/lib/escolar/administracion/constancia-puro";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { CARPETA_DECORACIONES_PUBLIC } from "@/lib/decoraciones/config";
+import {
+  armarConstancia,
+  PLANTEL,
+  type ConstanciaArmada,
+  type DatosConstancia,
+} from "@/lib/escolar/administracion/constancia-puro";
 
-function Hueco({ children }: { children: React.ReactNode }) {
+const img = (archivo: string) => `${CARPETA_DECORACIONES_PUBLIC}/${encodeURIComponent(archivo)}`;
+
+/** `<img>` y no next/image: al imprimir, una imagen diferida sale en blanco. */
+function ImagenHoja({ archivo, alt, style }: { archivo: string; alt: string; style: React.CSSProperties }) {
+  // eslint-disable-next-line @next/next/no-img-element -- ver comentario de la función
+  return <img src={img(archivo)} alt={alt} loading="eager" decoding="sync" style={style} />;
+}
+
+function HojaConstancia({ c, guias }: { c: ConstanciaArmada; guias: boolean }) {
+  const cuerpo: React.CSSProperties = { fontSize: "1.72cqw", lineHeight: 1.5, textAlign: "justify" };
   return (
-    <span className="inline-block rounded border border-dashed border-amber-600 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">
-      {children}
-    </span>
+    <div
+      style={{
+        position: "relative",
+        aspectRatio: "8.5 / 11",
+        background: "#fff",
+        color: "#111",
+        fontFamily: "Arial, Helvetica, sans-serif",
+        overflow: "hidden",
+        printColorAdjust: "exact",
+        WebkitPrintColorAdjust: "exact",
+      }}
+    >
+      {/* Encabezado: Gobierno de México | Educación · las cuatro líneas · la bandera */}
+      <div style={{ display: "flex", alignItems: "center", padding: "3.2cqw 7.5cqw 0 7.8cqw" }}>
+        <ImagenHoja
+          archivo="GobiernoDeMexicoLogo.png"
+          alt="Gobierno de México"
+          style={{ width: "18cqw", height: "7.4cqw", objectFit: "cover" }}
+        />
+        <ImagenHoja archivo="SepConstanciaLogo.png" alt="Educación, Secretaría de Educación Pública" style={{ width: "15cqw", marginLeft: "-0.8cqw" }} />
+        <div style={{ flex: 1, textAlign: "right", fontSize: "1.55cqw", lineHeight: 1.45, paddingRight: "1.2cqw" }}>
+          {PLANTEL.encabezado.map((l) => (
+            <div key={l}>{l}</div>
+          ))}
+        </div>
+        <ImagenHoja archivo="ChicaBanderaLogoConstancia.jpeg" alt="" style={{ width: "9.8cqw", height: "10cqw", objectFit: "cover" }} />
+      </div>
+
+      <div style={{ padding: "0 15cqw 0 13cqw" }}>
+        <p style={{ marginTop: "4.6cqw", textAlign: "right", fontWeight: 700, fontSize: "1.6cqw", letterSpacing: "0.12em" }}>
+          ASUNTO: C O N S T A N C I A
+        </p>
+
+        <p style={{ marginTop: "6.4cqw", fontWeight: 700, fontSize: "1.6cqw", letterSpacing: "0.45em" }}>
+          A QUIEN CORRESPONDA
+        </p>
+
+        <p style={{ ...cuerpo, marginTop: "4.3cqw" }}>
+          El suscrito director del {PLANTEL.nombre}, C.C.T. {PLANTEL.cct}, ubicado en {PLANTEL.ubicacion}, por medio de
+          la presente
+        </p>
+
+        <p style={{ marginTop: "7cqw", textAlign: "center", fontWeight: 700, fontSize: "1.6cqw" }}>HACE CONSTAR:</p>
+
+        <p style={{ ...cuerpo, marginTop: "5.6cqw" }}>
+          Que {c.tratamiento}&nbsp;&nbsp; <b>{c.nombre}</b>&nbsp;&nbsp; con el número de control {c.numeroControl} CURP{" "}
+          {c.curp}, se encuentra <b>{c.inscrito}</b> actualmente en el <b>{c.semestre}</b> semestre de{" "}
+          {PLANTEL.bachillerato}, en la carrera de <b>{c.carrera}</b>. Semestre del <b>{c.periodo}.</b>
+        </p>
+
+        <p style={{ ...cuerpo, marginTop: "8.4cqw" }}>
+          Para los usos y fines legales que {c.interesado} convengan, se extiende la presente en {PLANTEL.lugarExpedicion},
+          a {c.fechaEnLetras}.
+        </p>
+
+        {/* Firma: el nombre del director y un hueco encima para la firma a mano. */}
+        <div style={{ position: "relative", marginTop: "8cqw", textAlign: "center", fontSize: "1.62cqw" }}>
+          <p style={{ fontWeight: 700 }}>ATENTAMENTE</p>
+          <div style={{ height: "8.6cqw", margin: "0 auto", width: "30cqw", border: guias ? "1px dashed #c9a227" : "none" }}>
+            {guias && <span style={{ fontSize: "1.1cqw", color: "#a07d10" }}>firma del director</span>}
+          </div>
+          <p>{PLANTEL.director.nombre}</p>
+          <p style={{ fontWeight: 700 }}>{PLANTEL.director.cargo}</p>
+          {guias && (
+            <div
+              style={{
+                position: "absolute", right: "-9cqw", top: "1.5cqw", width: "10cqw", height: "14cqw",
+                border: "1px dashed #c9a227", borderRadius: "50%", fontSize: "1.1cqw", color: "#a07d10",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              sello
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Pie: 2026 año de Margarita Maza · domicilio y correo · raya gruesa */}
+      <div style={{ position: "absolute", left: "10.5cqw", right: "14.5cqw", bottom: "8.6cqw", display: "flex", alignItems: "flex-end", gap: "6cqw" }}>
+        <ImagenHoja archivo="2026AñoMragaritaMasaLogo.jpeg" alt="2026, año de Margarita Maza" style={{ width: "15cqw" }} />
+        <div style={{ flex: 1 }}>
+          {PLANTEL.pie.map((l) => (
+            <div key={l} style={{ fontSize: "1.12cqw", lineHeight: 1.45, textAlign: "center" }}>
+              {l}
+            </div>
+          ))}
+          <div style={{ height: "0.55cqw", background: "#111", marginTop: "0.6cqw" }} />
+        </div>
+      </div>
+    </div>
   );
 }
 
 export function ConstanciaEstudiosVistaPrevia({ datos }: { datos: Omit<DatosConstancia, "fecha"> }) {
-  // La fecha se fija al montar: la vista previa no debe cambiar de día a mitad de lectura.
+  // La fecha se fija al montar: la constancia no debe cambiar de día a mitad de lectura.
   const [fecha] = useState(() => new Date());
   const c = armarConstancia({ ...datos, fecha });
+  const lista = c.faltantes.length === 0;
+
+  // El portal de impresión solo existe en el navegador (no en el render del servidor).
+  const [montado, setMontado] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setMontado(true), 0);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  function imprimir() {
+    // El título de la página es el nombre que el navegador propone al guardar el PDF.
+    const antes = document.title;
+    document.title = `Constancia de estudios - ${c.nombre}`;
+    window.print();
+    document.title = antes;
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-2xl border border-[var(--oc-border-active)] bg-[var(--oc-input)] px-4 py-3">
-        <p className="text-xs font-extrabold uppercase tracking-widest text-[var(--oc-mint)]">Beta · vista previa</p>
-        <p className="mt-1 text-sm text-[var(--oc-text)]">
-          Se arma con los datos que ya hay del alumno. Todavía no se emite: para hacerlo de forma
-          automática faltan datos institucionales que el sistema aún no guarda.
-        </p>
-        <ul className="mt-2 flex flex-wrap gap-2">
-          {c.faltantesInstitucion.map((f) => (
-            <li
-              key={f}
-              className="rounded-full border border-[var(--oc-border)] px-3 py-1 text-[11px] font-semibold text-[var(--oc-muted)]"
-            >
-              {f}
-            </li>
-          ))}
-        </ul>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-3">
+        {lista ? (
+          <p className="text-sm text-[var(--oc-text)]">
+            Lista para imprimir. Al imprimirla, déjala para la <strong>firma y el sello</strong> del director.
+          </p>
+        ) : (
+          <p className="text-sm text-[var(--oc-alert-text)]">
+            Faltan datos para emitirla: {c.faltantes.join(", ")}.
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={imprimir}
+          disabled={!lista}
+          className="rounded-full bg-[var(--oc-mint)] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[var(--oc-mint-ink)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Imprimir / guardar PDF
+        </button>
       </div>
 
-      {c.faltantesAlumno.length > 0 && (
-        <p className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-3 text-sm text-[var(--oc-alert-text)]">
-          Faltan datos del alumno para armar el texto: {c.faltantesAlumno.join(", ")}.
-        </p>
-      )}
+      {/* En pantalla: la hoja escalada, con guías de dónde van firma y sello. */}
+      <div className="mx-auto w-full max-w-3xl shadow-lg [container-type:inline-size]">
+        <HojaConstancia c={c} guias />
+      </div>
 
-      {/* La hoja: papel claro a propósito, para que se lea como el documento que será. */}
-      <article
-        aria-label="Vista previa de la constancia de estudios"
-        className="mx-auto w-full max-w-3xl rounded-lg bg-white px-6 py-8 text-slate-900 shadow-lg sm:px-12 sm:py-12"
-      >
-        <header className="flex flex-col items-center gap-1 border-b border-slate-300 pb-4 text-center">
-          <p className="text-sm font-bold uppercase tracking-wide">{PLANTEL}</p>
-          <p className="text-xs text-slate-600">
-            CCT: <Hueco>pendiente</Hueco>
-          </p>
-        </header>
-
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm">
-          <p>
-            Folio: <Hueco>pendiente</Hueco>
-          </p>
-          <p>{c.lugarYFecha}</p>
-        </div>
-
-        <h2 className="mt-8 text-center text-lg font-bold tracking-widest">{c.titulo}</h2>
-
-        <p className="mt-8 text-sm font-bold">{c.destinatario}</p>
-        <p className="mt-4 text-justify text-sm leading-relaxed">
-          {c.cuerpo ?? <Hueco>Faltan datos del alumno</Hueco>}
-        </p>
-        <p className="mt-4 text-justify text-sm leading-relaxed">{c.cierre}</p>
-
-        <footer className="mt-16 flex flex-col items-center gap-2 text-center text-sm">
-          <p className="font-bold">ATENTAMENTE</p>
-          <div className="mt-10 w-64 border-t border-slate-500 pt-2">
-            <Hueco>Nombre, cargo y firma</Hueco>
-          </div>
-          <div className="mt-4">
-            <Hueco>Sello del plantel</Hueco>
-          </div>
-        </footer>
-      </article>
+      {montado &&
+        createPortal(
+          <div id="constancia-impresion" style={{ containerType: "inline-size" }}>
+            <HojaConstancia c={c} guias={false} />
+          </div>,
+          document.body,
+        )}
+      <style>{`
+        #constancia-impresion { display: none; }
+        @media print {
+          @page { size: letter; margin: 0; }
+          body > *:not(#constancia-impresion) { display: none !important; }
+          #constancia-impresion { display: block !important; width: 8.5in; }
+          html, body { background: #fff !important; }
+        }
+      `}</style>
     </div>
   );
 }

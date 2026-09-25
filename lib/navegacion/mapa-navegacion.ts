@@ -364,8 +364,9 @@ const TUTORES_ADMINISTRACION: Pestana = {
 
 /**
  * Trámites escolares. Los dos trabajan SOBRE el alumno elegido en el buscador.
- * Constancias es BETA: la vista previa se arma con los datos que ya hay, y los
- * que faltan para emitirla sola (folio, CCT, firma, sello) se señalan en ella.
+ * Constancias emite la constancia de estudios con el formato oficial del plantel
+ * (desde el 2026-09-24; antes era una vista previa beta). Se imprime o se guarda
+ * como PDF, y el director la firma y sella a mano.
  */
 const TRAMITES: Pestana = {
   id: "tramites",

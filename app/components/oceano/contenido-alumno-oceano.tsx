@@ -21,6 +21,7 @@ import { actionObtenerVistaMateria } from "@/app/actions/escolar";
 import { actionGuardarCamposPersonales } from "@/app/actions/etiquetas-dinamicas";
 import { actionObtenerMapeoColumnasMateria } from "@/app/actions/materias";
 import { MensajesTutorPanel } from "@/app/components/mensajes-tutor-panel";
+import { NumeroControlAlumno } from "./numero-control-alumno";
 import { AsistenciaTabularAlumno } from "./asistencia-tabular-alumno";
 import { NotificacionesAlumno } from "./notificaciones-alumno";
 import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistencia-alumno";
@@ -66,6 +67,10 @@ export type DatosAlumnoOceano = {
   /** Fase 4 — el TUTOR puede editar los campos personales; el alumno no. El
    *  flag lo resuelve la action (`resolverAccesoAlumno`), no la UI. */
   puedeEditarDatosPersonales: boolean;
+  /** 2026-09-24 — número de control (matrícula). Lo ve quien ve la ficha; lo edita
+   *  quien tenga `alumno.editar_numero_control`, resuelto en el servidor. */
+  numeroControl: string | null;
+  puedeEditarNumeroControl: boolean;
   /** UIs pendientes (2026-09-17) — Materias › Actividades.
    *  Los dos flags los resuelve el SERVIDOR con `puede()`; el componente no
    *  pregunta por el rol. Y la materia elegida viaja aquí porque el apartado
@@ -385,10 +390,16 @@ export function ContenidoAlumnoOceano({
         <Tira>
           <div className="flex flex-wrap items-center gap-4">
             <FotoAlumno url={datos.fotoPerfilUrl} nombre={nombre} />
-            <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <DatoIdentidad etiqueta="Nombre" valor={nombre} />
               <DatoIdentidad etiqueta="Clave" valor={datos.clave} />
               <DatoIdentidad etiqueta="CURP" valor={curp} />
+              <NumeroControlAlumno
+                key={curp}
+                curp={curp}
+                valor={datos.numeroControl}
+                puedeEditar={datos.puedeEditarNumeroControl}
+              />
             </div>
           </div>
         </Tira>

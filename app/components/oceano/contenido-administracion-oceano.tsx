@@ -18,12 +18,16 @@ import { MensajesInternosPanel } from "@/app/components/mensajes-internos-panel"
 import { TutoresPanel } from "@/app/components/tutores-panel";
 import { necesitaAlumno, type PiezaAdministracion } from "@/lib/navegacion/contenido-administracion";
 import { ContenidoAlumnoOceano, type DatosAlumnoOceano } from "./contenido-alumno-oceano";
+import { NumeroControlAlumno } from "./numero-control-alumno";
 
 export type DatosAdministracionOceano = {
   /** Expediente del alumno elegido, resuelto por el servidor. null = ninguno abierto. */
   alumno: DatosAlumnoOceano | null;
-  /** Nombre del ciclo operativo, para la constancia. */
+  /** Nombre del ciclo operativo. */
   cicloOperativo: string;
+  /** Fechas del ciclo operativo («YYYY-MM-DD»): el «Semestre del … al …» de la constancia. */
+  cicloInicio: string | null;
+  cicloFin: string | null;
 };
 
 function AvisoBuscarAlumno() {
@@ -56,18 +60,30 @@ export function ContenidoAdministracionOceano({
       if ((modo ?? "").startsWith("Solicitudes")) {
         return <AdministracionPanel pantalla="constancias" modo={modo} />;
       }
+      // El número de control se captura aquí mismo: sin él la constancia no se
+      // emite, y mandar a otra pantalla a buscarlo sería un rodeo.
       return (
-        <ConstanciaEstudiosVistaPrevia
+        <div className="flex flex-col gap-4">
+          <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-3">
+            <NumeroControlAlumno
+              key={alumno!.curp}
+              curp={alumno!.curp}
+              valor={alumno!.numeroControl}
+              puedeEditar={alumno!.puedeEditarNumeroControl}
+            />
+          </div>
+          <ConstanciaEstudiosVistaPrevia
           datos={{
             nombre: alumno!.nombre,
             curp: alumno!.curp,
-            matricula: alumno!.clave,
+            numeroControl: alumno!.numeroControl,
             grado: alumno!.registro.grado,
-            grupo: alumno!.registro.grupo,
             carrera: alumno!.registro.carrera,
-            ciclo: datos.cicloOperativo,
+            inicioSemestre: datos.cicloInicio,
+            finSemestre: datos.cicloFin,
           }}
-        />
+          />
+        </div>
       );
 
     case "reportes":
