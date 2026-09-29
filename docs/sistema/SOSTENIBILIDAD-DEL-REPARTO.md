@@ -106,27 +106,53 @@ código nombra existen.**
 
 ## 4. El plan
 
-### Paso 1 · Una regla de reparto mecánica, no un juicio por tarea
+### Paso 1 · Una escala medible, no «decisión vs implementación»
 
-El problema de «Claude diagnostica, Cline implementa» es que hay que decidirlo
-cada vez, y decidiéndolo cada vez siempre gana el atajo. Propuesta: una
-comprobación de tres preguntas, en `AGENTS.md`, que se responde antes de tocar
-nada:
+La primera versión de este plan partía el trabajo en «Claude decide, Cline
+teclea», y **estaba mal**. Claude Code dentro del repo también implementa, y hay
+cambios que debe implementar él justamente por el razonamiento que exigen. El
+eje no es qué tipo de tarea es: es **cuánto pesa**.
 
+`scripts/diag-peso-cambio.mjs` lo convierte en una cuenta sobre cinco
+dimensiones, y está **calibrado contra 8 commits reales (7 de 8)**:
+
+| Dimensión | Por qué pesa |
+|---|---|
+| **ESQUEMA** | No hay staging: un `.sql` mal pensado no se deshace con un revert |
+| **IDENTIDAD / autorización** | RLS no autoriza nada; un error aquí no tiene red debajo |
+| **DETECTABILIDAD** | Si ninguna suite lo cubre, el error viaja |
+| **NOVEDAD** | Copiar un patrón es barato; inventarlo es caro, aunque toque 3 archivos |
+| **GOBIERNO** | Crear la regla que juzgará al resto no es implementar: es constituir |
+
+Tres salidas, no dos: **Cline**, **«Cline + revisión»** (lo implementa él y
+Claude mira solo el cambio de regla) y **Claude**.
+
+#### Lo que la calibración DESCARTÓ, que es lo más útil
+
+**El tamaño no discrimina.** Los dos commits más grandes del repo son de Cline
+—60 y 49 archivos, 7 845 inserciones— y salieron bien. Varios de los míos tenían
+tres. Contar archivos o líneas daría la respuesta contraria a la correcta.
+
+Y el fallo de producción tenía **13 archivos, cero esquema y cero permisos**:
+ninguna métrica de volumen lo predecía. Lo predecía que el patrón **no tenía
+precedente**, y de ahí salió la cuarta dimensión.
+
+#### El desacuerdo que dejé sin ajustar
+
+La escala falla en un caso de ocho, y lo dejo así a propósito: `e212b0c`, el
+panel del repo, **lo creó Cline y salió mejor que el que yo había hecho y
+retiré**. Una escala afinada para decir «crear una herramienta de medición es de
+Claude» habría impedido el mejor trabajo que hizo Cline. La escala orienta; no
+decide por nadie.
+
+#### Qué cambia hoy
+
+```bash
+node scripts/diag-peso-cambio.mjs <rutas del cambio>
 ```
-¿El cambio exige DECIDIR alguna de estas?
-  · un esquema de base de datos
-  · cuál es la fuente de verdad de un dominio
-  · una capacidad nueva o quién la tiene
-  · retirar legacy
-  · el umbral de un guardián
-      → SÍ a cualquiera: lo diseña Claude (y lo puede implementar Cline).
-      → NO a todas:      lo implementa Cline. Claude solo revisa.
-```
 
-Lo que esto cambia en la práctica: **el Prompt P de hoy es trabajo de Cline
-entero** —mover funciones a `-puro`, escribir suites, poner documentos al día— y
-antes lo habría hecho yo.
+Aplicado al **Prompt P** que escribí hoy: **3/14 → Cline entero.** Antes lo
+habría hecho yo.
 
 ### Paso 2 · Invertir la carga de la prueba
 
