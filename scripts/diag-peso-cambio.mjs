@@ -146,7 +146,7 @@ function novedad(rutas, borrados = new Set()) {
 function gobierno(rutas) {
   // Crear un guardián pesa más que actualizarlo: lo primero es escribir la regla
   // que juzgará al resto, lo segundo es contabilidad.
-  const GOBIERNA = /^scripts\/(test-orden|gen-contexto-cline|verificar-docs|verificar-estado-actual|gen-estado)\.mjs$|^docs\/normativo\/|^AGENTS\.md$|^CLAUDE\.md$|^RUMBO\.md$/;
+  const GOBIERNA = /^scripts\/(test-orden|gen-contexto|verificar-docs|verificar-estado-actual|gen-estado)\.mjs$|^docs\/normativo\/|^AGENTS\.md$|^CLAUDE\.md$|^RUMBO\.md$/;
   const hits = rutas.filter((r) => GOBIERNA.test(r));
   if (hits.length === 0) return { peso: 0, hits, creados: [] };
   const creados = hits.filter((r) => !fs.existsSync(path.join(root, r)));
@@ -310,7 +310,7 @@ if (quien === "Cline + revisión") {
   console.log("  staging, lo que se toca se toca en producción. Cline puede revisarlo.");
 } else {
   console.log("  Va a Cline con un prompt acotado:");
-  console.log(`    node scripts/gen-contexto-cline.mjs ${rutas.slice(0, 4).join(" ")}`);
+  console.log(`    node scripts/gen-contexto.mjs ${rutas.slice(0, 4).join(" ")}`);
   console.log("  Si crees que NO puede, la respuesta va escrita en el prompt. Sin");
   console.log("  respuesta escrita, va a Cline.");
 }

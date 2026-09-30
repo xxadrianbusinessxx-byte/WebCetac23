@@ -14,7 +14,7 @@
 ## ANTES DE NADA
 
 ```bash
-node scripts/gen-contexto-cline.mjs --tarea=crear,arquitectura \
+node scripts/gen-contexto.mjs --tarea=crear,arquitectura \
   lib/escolar/horario/horario-semanal.ts \
   lib/escolar/ciclo/evaluaciones.ts \
   lib/escolar/horario/horario-importar-validacion.ts \

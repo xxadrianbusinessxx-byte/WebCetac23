@@ -6,16 +6,20 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-23 (H-bis: las suites cargan `lib/` sin compilar)
-- **HEAD:** `f68fad6` (2026-09-20) · árbol limpio
+- **Última revisión:** 2026-09-30 (Q: cabecera, familias de `lib/`, reglas de `test-orden` y cuentas de `PROFESORES`)
+- **HEAD:** `6b31e6b` (2026-09-30) · árbol limpio
 
 ---
 
 ## 1. Qué es el proyecto
 
 Portal escolar del CETAC 23. Roles: **alumno**, **profesor** (rol `maestro`),
-**directivo**, **tutor**, **técnico** (PROMPT-3) y **administración escolar** (2026-09-24).
+**directivo**, **tutor**, **técnico** (PROMPT-3) y **administración escolar** (2026-09-24,
+la única que acepta solicitudes de constancia de estudios).
 Next.js 16.2.6 · React 19.2.4 · Supabase (PostgREST + Storage) · Cloudinary · SheetJS.
+
+La raíz `/` es una **portada pública** (no consulta la sesión) y administrable: carrusel,
+videos por carrera y contactos, editables desde «Configuración → Video e imágenes».
 
 **No hay REST API propia.** No existe `app/api/`. Todo el transporte navegador→servidor
 son Server Actions. Detalle completo en `docs/sistema/FLUJO-TECNICO.md`.
@@ -27,8 +31,9 @@ de `periodos.id`. La exclusividad de un solo ciclo operativo la impone PL/pgSQL
 (`activar_ciclo_operativo`), no una convención de código.
 
 Existe **un solo periodo**: `2026-2027` = `7cf5cca7` (`activo=true`,
-`estado=operativo`). Los ciclos duplicados del P0 y `BORRADOR` se eliminaron con la
-RPC `eliminar_ciclo` (relato y cifras → `docs/historial/BITACORA-2026-09.md`).
+`estado=operativo`). Los duplicados del P0 y `BORRADOR` los borró la RPC
+`eliminar_ciclo`; el relato y las cifras, en
+`docs/historial/informes/INFORME-PROMPT-1-ESQUEMA-Y-DATOS.md` §T4.
 
 Fuentes únicas que **no** se duplican (regla R6):
 
@@ -80,7 +85,8 @@ propia migración verificada (R8).
 - Calendario del operativo: **77 filas** por `periodo_id` (73 clase, 3 descanso, 1 festivo).
 - `asistencia_alumnos`: **3 863 filas**, 0 huérfanos en las 9 FK.
 - `clases_impartidas`: 81 filas históricas **intactas** (autoría irrecuperable, T4).
-- **PROFESORES**: 21 filas; la 21 es el rol **técnico** (`Permisos='Tecnico'`).
+- **PROFESORES**: **22** cuentas (2026-09-30, `diag-credenciales-duplicadas.mjs`): la 21 es el
+  rol **técnico** (`Permisos='Tecnico'`) y la 22 **administración escolar** (`Administracion`).
 
 Lo que de aquí es un **pendiente** —68 filas sin `periodo_id`, claves compartidas,
 `asignaciones_profesor` en 0, el SQL de justificación por clase— vive **solo** en
@@ -105,7 +111,7 @@ Dónde va cada cosa: `docs/normativo/ORDEN.md`.
 
 ```
 app/      actions/ · components/ (paneles) · components/ui/ (primitivas) · components/oceano/ (shell)
-lib/      escolar/<7 familias> + transversales en la raíz · auth/ · supabase/
+lib/      escolar/<9 familias> + transversales en la raíz · auth/ · supabase/
 scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
@@ -115,7 +121,8 @@ permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
 **Una de las 41 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
 mitad mecánica de `ORDEN.md` —capas, scripts, raíz, tamaño de archivo, composición de
-UI, entrada validada, extensión explícita en `lib/` y exports de `"use server"`— y existe porque esas reglas eran prosa en un repo que tocan dos
+UI, entrada validada, extensión explícita en `lib/`, exports de `"use server"` y qué
+tablas son de sistema— y existe porque esas reglas eran prosa en un repo que tocan dos
 agentes de IA. Correrlo dice en qué estado está cada regla; el histórico de lo que
 cerró, en `MAPA-DEL-SISTEMA.md` §2b.
 

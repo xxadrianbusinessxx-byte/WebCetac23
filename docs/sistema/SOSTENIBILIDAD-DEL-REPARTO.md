@@ -57,7 +57,7 @@ buena y es lo que ha sostenido 7,8 commits diarios sin romper el sistema:
 |---|---|
 | `test-orden.mjs`, **15 reglas** | Que la arquitectura dependa de que alguien se acuerde |
 | Panel con **histórico** | Que una deuda crezca sin que nadie lo note (los archivos >1 000 líneas pasaron de 4 a 7 así) |
-| `gen-contexto-cline.mjs` | Que Cline reciba «lee el repo» en vez de un paquete acotado |
+| `scripts/gen-contexto.mjs` | Que Cline reciba «lee el repo» en vez de un paquete acotado |
 | `verificar-docs` / `verificar-estado` | Que la documentación se podra en silencio |
 | **41 suites** + CI con puerta de lint | Que un refactor cambie comportamiento sin avisar |
 
