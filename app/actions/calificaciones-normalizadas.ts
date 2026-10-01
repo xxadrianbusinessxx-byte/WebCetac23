@@ -53,6 +53,11 @@ import { exigir } from "@/lib/auth/exigir";
 import { esRol } from "@/lib/auth/permisos";
 import type { PortalSessionPayload } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
+import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo/ciclo-estado";
+import { archivoCsvAFilas } from "@/lib/escolar/csv";
+import { matrizATablaDeEntrada } from "@/lib/escolar/excel-a-registros";
+import { esquemaArchivoMateria } from "@/lib/validacion/esquemas-puro";
+import { leerFormData } from "@/lib/validacion/leer-form-data";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolverAccesoAlumno } from "@/lib/escolar/alumno/acceso-alumno";
 import {
@@ -62,12 +67,15 @@ import {
   calificarActividad,
   cambiarEstadoMateriaEnGrupo,
   curpsDelGrupoMateria,
+  grupoMateriaActiva,
   grupoMateriaDesdeTablaLegacy,
   guardarAlias,
   guardarCalificaciones,
+  listarParejasDelPeriodo,
   materiasDelAlumno,
   type CalificacionRow,
   type MateriaDelAlumno,
+  type ParejaParaGestion,
 } from "@/lib/escolar/materia/calificaciones";
 import {
   convertirTabla,
@@ -75,7 +83,10 @@ import {
   promedioActividades,
   type TablaDeEntrada,
 } from "@/lib/escolar/materia/calificaciones-puro";
-import { obtenerMapeoPorGrupoMateria } from "@/lib/escolar/materia/mapeo-columnas-materia";
+import {
+  canonizarEncabezados,
+  obtenerMapeoPorGrupoMateria,
+} from "@/lib/escolar/materia/mapeo-columnas-materia";
 
 type Fallo = { ok: false; error: string };
 const fallo = (error: string): Fallo => ({ ok: false, error });
@@ -277,14 +288,71 @@ export async function actionCalificacionesDeMateria(
 export async function actionSubirCalificaciones(
   grupoMateriaId: string,
   tabla: TablaDeEntrada,
-): Promise<{ ok: true; escritas: number; avisos: string[] } | Fallo> {
+): Promise<ResultadoSubida> {
   const g = await exigir("calificacion.subir");
   if (!g.ok || !g.sesion) return fallo("No autorizado.");
+  const supabase = await createClient();
+  return subirTabla(supabase, g.sesion.profesorId ?? null, grupoMateriaId, tabla);
+}
+
+/**
+ * La misma subida, desde el ARCHIVO tal como lo manda el formulario.
+ *
+ * Lee el archivo con `archivoCsvAFilas` —el mismo lector que la subida vieja,
+ * CSV o Excel— y lo pasa por `matrizATablaDeEntrada`, que aplica la misma
+ * regla de encabezados: el mapeo se configuró sobre los nombres que produce
+ * esa regla, así que las dos subidas tienen que leer el archivo igual.
+ */
+export async function actionSubirCalificacionesArchivo(
+  grupoMateriaId: string,
+  formData: FormData,
+): Promise<ResultadoSubida> {
+  const g = await exigir("calificacion.subir");
+  if (!g.ok || !g.sesion) return fallo("No autorizado.");
+
+  const entrada = leerFormData(esquemaArchivoMateria, formData);
+  if (!entrada.ok) return fallo(entrada.error);
+
+  let matriz: string[][];
+  try {
+    ({ filas: matriz } = await archivoCsvAFilas(entrada.datos.archivo));
+  } catch (e) {
+    return fallo(e instanceof Error ? e.message : "No se pudo leer el archivo.");
+  }
+
+  const supabase = await createClient();
+  return subirTabla(
+    supabase,
+    g.sesion.profesorId ?? null,
+    grupoMateriaId,
+    matrizATablaDeEntrada(matriz),
+  );
+}
+
+type ResultadoSubida = { ok: true; escritas: number; avisos: string[] } | Fallo;
+
+/**
+ * El cuerpo de las dos subidas. Sin autorización: la resuelve la action que
+ * llama, con `exigir()`, y pasa quién registra. Existe para que la variante con
+ * archivo no vuelva a leer la cookie ni tenga su propia copia del cerrojo del
+ * padrón, que es lo que impide escribir notas a alumnos de otro grupo.
+ */
+async function subirTabla(
+  supabase: SupabaseClient,
+  registradoPor: number | null,
+  grupoMateriaId: string,
+  tabla: TablaDeEntrada,
+): Promise<ResultadoSubida> {
   if (!grupoMateriaId) return fallo("Falta la materia.");
   if (!tabla?.encabezados?.length) return fallo("El archivo llegó vacío.");
   if (!tabla.filas?.length) return fallo("El archivo no tiene ninguna fila de alumnos.");
 
-  const supabase = await createClient();
+  // Como la subida vieja (C4.18): una materia desactivada no admite notas. Si
+  // no, desactivar dejaría de cerrar nada en cuanto se usara el camino nuevo.
+  const activa = await grupoMateriaActiva(supabase, grupoMateriaId);
+  if (activa === null) return fallo("Esa materia no existe en ningún grupo.");
+  if (!activa) return fallo("Esta materia está desactivada en su grupo: no admite calificaciones.");
+
   const mapeo = await obtenerMapeoPorGrupoMateria(supabase, grupoMateriaId);
   if (!mapeo) {
     return fallo(
@@ -292,7 +360,14 @@ export async function actionSubirCalificaciones(
     );
   }
 
-  const conv = convertirTabla(tabla, mapeo);
+  // Los encabezados del archivo, con cada columna reconocida rebautizada con el
+  // nombre que el mapeo guardó. Sin esto, re-subir con una variante del
+  // encabezado («P. De partida 10%» contra «P. De partida↵10%») crearía una
+  // segunda nota para la misma actividad en vez de actualizar la primera.
+  const canon = canonizarEncabezados(tabla.encabezados, mapeo);
+  if (!canon.ok) return fallo(canon.error);
+
+  const conv = convertirTabla({ encabezados: canon.encabezados, filas: tabla.filas }, mapeo);
   if (!conv.ok) return fallo(conv.error);
 
   // El padrón del grupo. Una CURP que no esté en él se descarta: guardarla
@@ -304,7 +379,7 @@ export async function actionSubirCalificaciones(
     return fallo("El grupo de esta materia no tiene alumnos inscritos activos.");
   }
 
-  const avisos = [...conv.avisos];
+  const avisos = [...canon.avisos, ...conv.avisos];
   const ajenas = [...new Set(conv.filas.map((f) => f.curp).filter((c) => !padron.has(c)))];
   const filas = conv.filas.filter((f) => padron.has(f.curp));
 
@@ -323,12 +398,7 @@ export async function actionSubirCalificaciones(
     );
   }
 
-  const r = await guardarCalificaciones(
-    supabase,
-    grupoMateriaId,
-    filas,
-    g.sesion.profesorId ?? null,
-  );
+  const r = await guardarCalificaciones(supabase, grupoMateriaId, filas, registradoPor);
   if (!r.ok) return fallo(r.error);
   // Los avisos van SIEMPRE, aunque haya ido bien: son las filas omitidas y las
   // notas fuera de rango. Un «listo» a secas dejaría al profesor creyendo que
@@ -353,6 +423,10 @@ export async function actionCalificarActividad(datos: {
   const curp = datos.curp.trim().toUpperCase();
   const supabase = await createClient();
 
+  const activa = await grupoMateriaActiva(supabase, datos.grupoMateriaId);
+  if (activa === null) return fallo("Esa materia no existe en ningún grupo.");
+  if (!activa) return fallo("Esta materia está desactivada en su grupo: no admite calificaciones.");
+
   // Mismo cerrojo que la subida: no se califica a quien no está en el grupo.
   const padron = await curpsDelGrupoMateria(supabase, datos.grupoMateriaId);
   if (!padron) return fallo("No se pudo verificar el grupo de esta materia.");
@@ -370,6 +444,31 @@ export async function actionCalificarActividad(datos: {
 }
 
 /* ── Expandir y reducir el volumen de materias (técnico) ────────────────── */
+
+/**
+ * Las parejas (grupo, materia) del ciclo OPERATIVO, activas e inactivas: es lo
+ * que la pantalla del técnico necesita para dar de alta, desactivar, reactivar
+ * y poner alias.
+ *
+ * El ciclo sale de `obtenerCicloOperativoGlobal`, nunca de un parámetro: así el
+ * técnico no puede, por error o a propósito, gestionar las materias de un ciclo
+ * cerrado desde esta pantalla.
+ */
+export async function actionListarParejasParaGestion(): Promise<
+  { ok: true; parejas: ParejaParaGestion[] } | Fallo
+> {
+  const g = await exigir("materia.ver_catalogo");
+  if (!g.ok) return fallo("No autorizado.");
+
+  const supabase = await createClient();
+  const operativo = await obtenerCicloOperativoGlobal(supabase);
+  if (!operativo.ok || !operativo.periodo) {
+    return fallo(operativo.error ?? "No hay un ciclo operativo definido.");
+  }
+  const parejas = await listarParejasDelPeriodo(supabase, String(operativo.periodo.id));
+  if (!parejas) return fallo("No se pudo leer la lista de materias por grupo.");
+  return { ok: true, parejas };
+}
 
 export async function actionAltaMateriaEnGrupo(
   grupoId: string,

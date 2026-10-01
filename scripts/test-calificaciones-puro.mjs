@@ -215,10 +215,78 @@ ok(
   "la tabla exige curp not null, como el módulo",
   /curp\s+text\s+not null/.test(sql),
 );
+// La unicidad vive en el `.sql` CORRECTIVO: el índice de expresión del original
+// no lo infería `ON CONFLICT` y cada escritura devolvía 42P10 (2026-10-01).
+const sqlCorr = fs.readFileSync(path.join(root, "supabase/corregir-unicidad-calificaciones.sql"), "utf8");
 ok(
-  "la unicidad incluye clave_columna, que es lo que distingue dos notas del mismo tipo",
-  /ux_calificaciones_identidad[\s\S]{0,200}clave_columna/.test(sql),
+  "la unicidad es una RESTRICCIÓN que incluye clave_columna, no un índice de expresión",
+  /uq_calificaciones_identidad\s+unique\s*\(\s*grupo_materia_id,\s*curp,\s*tipo,\s*clave_columna\s*\)/.test(sqlCorr),
 );
+ok(
+  "clave_columna es NOT NULL con '' por defecto: dos notas sin clave no se duplican",
+  /clave_columna\s+set\s+default\s+''/.test(sqlCorr) && /clave_columna\s+set\s+not\s+null/.test(sqlCorr),
+);
+
+/* ── 9) La tubería de la subida: canonizar y luego convertir ────────────── */
+// El duplicado silencioso que esto evita: la columna se configuró como
+// «P. De partida↵10%» (con salto de línea, como sale de Excel) y el profesor
+// re-sube un archivo donde dice «P. De partida 10%». Si la clave de la nota
+// fuera el encabezado del archivo, quedarían DOS notas para la misma actividad
+// y el peso, guardado con el nombre configurado, dejaría de aplicarse.
+console.log("\ncanonizar encabezados antes de convertir");
+const Mc = await import("../lib/escolar/materia/mapeo-columnas-materia.ts");
+const conSalto = "P. De partida\n10%";
+const conEspacio = "P. De partida 10%";
+const mapeoSalto = mapeo({ columnasActividades: [conSalto], pesosActividades: { [conSalto]: 10 } });
+
+{
+  const c = Mc.canonizarEncabezados(["CURP", conEspacio], mapeoSalto);
+  ok("una variante del encabezado se reconoce", c.ok, JSON.stringify(c));
+  eq(c.encabezados, ["CURP", conSalto], "…y se rebautiza con el nombre CONFIGURADO, no el del archivo");
+
+  const conv = M.convertirTabla({ encabezados: c.encabezados, filas: [["AAAA000101HDFXXX01", "9"]] }, mapeoSalto);
+  ok("la tubería convierte", conv.ok, JSON.stringify(conv));
+  eq(conv.filas[0].claveColumna, conSalto, "la nota se guarda con la clave configurada: re-subir ACTUALIZA");
+  eq(
+    M.promedioActividades(
+      conv.filas.map((f) => ({ curp: f.curp, tipo: f.tipo, clave_columna: f.claveColumna, valor: f.valor })),
+      mapeoSalto.pesosActividades,
+    ),
+    9,
+    "y el peso, guardado con ese nombre, sigue aplicando",
+  );
+
+  // Sin canonizar, la variante se habría perdido sin aviso: esto documenta por
+  // qué la action NO puede llamar a convertirTabla con el archivo tal cual.
+  const crudo = M.convertirTabla({ encabezados: ["CURP", conEspacio], filas: [["AAAA000101HDFXXX01", "9"]] }, mapeoSalto);
+  ok("sin canonizar, la actividad variante NO se convierte (el fallo que se evita)", !crudo.ok);
+}
+{
+  // Ambiguo de verdad: ninguna coincide EXACTA con «Act 1» y dos normalizan
+  // igual. (Si una coincidiera exacta, `resolverColumnaFisica` la prefiere, y
+  // es lo documentado: no hay ambigüedad que resolver.)
+  const c = Mc.canonizarEncabezados(["CURP", "ACT 1", "act  1"], mapeo());
+  ok("dos columnas del archivo que normalizan igual: falla entero, no elige", !c.ok, JSON.stringify(c));
+}
+{
+  const c = Mc.canonizarEncabezados(["CURP", "Act 1", "act 1"], mapeo());
+  eq(c.ok && c.encabezados, ["CURP", "Act 1", "act 1"], "con una coincidencia EXACTA se usa esa, y la otra queda sin clasificar");
+}
+{
+  const c = Mc.canonizarEncabezados(["CURP", "Act 1", "Act 2", "P1", "Promedio"], mapeo());
+  ok("una columna configurada AUSENTE no tumba la subida", c.ok, JSON.stringify(c));
+  ok("…pero se avisa de ella", c.avisos.some((a) => a.includes("Final")), JSON.stringify(c.avisos));
+}
+{
+  const c = Mc.canonizarEncabezados(["CURP", "Extra", "Act 1"], mapeo());
+  ok("las columnas que el mapeo no menciona quedan como estaban", c.ok && c.encabezados[1] === "Extra");
+}
+{
+  // Dos referencias distintas que caen en la misma columna del archivo.
+  const contradictorio = mapeo({ columnasActividades: ["Act 1"], columnasParciales: ["ACT 1"] });
+  const c = Mc.canonizarEncabezados(["CURP", "Act 1"], contradictorio);
+  ok("un mapeo que asigna una columna a dos cosas falla, no elige en silencio", !c.ok, JSON.stringify(c));
+}
 
 console.log(`\nResultado: ${pasadas + fallos} verificaciones · ${pasadas} pasadas, ${fallos} fallidas`);
 if (fallos > 0) process.exit(1);

@@ -354,7 +354,10 @@ export function esMapeoColumnasMateria(
 
 export type ResolucionColumnaFisica =
   | { ok: true; fisico: string }
-  | { ok: false; error: string };
+  /** `motivo` existe para que quien llama distinga sin leer el mensaje: una
+   *  columna AMBIGUA nunca se puede resolver, una AUSENTE puede ser legítima
+   *  (la columna «Final» de un archivo a mitad de semestre). */
+  | { ok: false; error: string; motivo: "ambigua" | "ausente" };
 
 /**
  * Toggle de una columna en una lista usando NORMALIZACIÓN (BLOQUE 7C.1/7C.2):
@@ -405,9 +408,10 @@ export function resolverColumnaFisica(
     return {
       ok: false,
       error: `Existe más de una columna que coincide con «${ref}» por normalización. Selecciona la columna física exacta.`,
+      motivo: "ambigua",
     };
   }
-  return { ok: false, error: `La columna «${ref}» no existe en el archivo.` };
+  return { ok: false, error: `La columna «${ref}» no existe en el archivo.`, motivo: "ausente" };
 }
 
 export type ResolucionMapeoFisico =
@@ -476,6 +480,73 @@ export function resolverMapeoColumnasAFisico(
       pesosActividades:
         Object.keys(pesosFisicos).length > 0 ? pesosFisicos : null,
     },
+  };
+}
+
+export type EncabezadosCanonicos =
+  | { ok: true; encabezados: string[]; avisos: string[] }
+  | { ok: false; error: string };
+
+/**
+ * Reescribe los encabezados de un archivo con los nombres que el mapeo GUARDÓ.
+ *
+ * Para qué: el modelo normalizado guarda cada nota con `clave_columna`, y esa
+ * clave tiene que ser ESTABLE entre subidas. Si fuera el encabezado del archivo
+ * tal cual, re-subir con la variante «P. De partida 10%» de una columna que se
+ * configuró como «P. De partida↵10%» crearía una SEGUNDA nota para la misma
+ * actividad en vez de actualizar la primera, y los pesos —guardados con el
+ * nombre configurado— dejarían de casar. Nada fallaría: habría dos notas.
+ *
+ * La comparación es la de `resolverColumnaFisica` (exacta, luego normalizada),
+ * no una nueva (R6). Lo que se devuelve son los encabezados del archivo con
+ * cada columna reconocida sustituida por su nombre configurado; las que el
+ * mapeo no menciona quedan como estaban.
+ *
+ * · Una referencia AMBIGUA (dos columnas del archivo que normalizan igual)
+ *   hace fallar todo: no hay forma correcta de elegir.
+ * · Una referencia AUSENTE solo avisa: una columna «Final» que todavía no está
+ *   en el archivo es normal a mitad de semestre. Si la ausente es la de CURP,
+ *   `convertirTabla` ya falla con su propio mensaje.
+ */
+export function canonizarEncabezados(
+  encabezados: readonly string[],
+  mapeo: MapeoColumnasMateria,
+): EncabezadosCanonicos {
+  const referencias = [
+    mapeo.columnaCurp,
+    mapeo.columnaPromedio,
+    mapeo.columnaFinal,
+    ...mapeo.columnasNombreAlumno,
+    ...mapeo.columnasActividades,
+    ...mapeo.columnasParciales,
+    ...mapeo.columnasOcultas,
+  ].filter((r): r is string => typeof r === "string" && r.trim() !== "");
+
+  const fisicoACanonico = new Map<string, string>();
+  const avisos: string[] = [];
+  for (const ref of new Set(referencias)) {
+    const r = resolverColumnaFisica(ref, encabezados);
+    if (!r.ok) {
+      if (r.motivo === "ambigua") return { ok: false, error: r.error };
+      avisos.push(r.error);
+      continue;
+    }
+    // Dos referencias distintas que caen en la MISMA columna del archivo es un
+    // mapeo contradictorio: no se elige una en silencio.
+    const previa = fisicoACanonico.get(r.fisico);
+    if (previa !== undefined && previa !== ref) {
+      return {
+        ok: false,
+        error: `La columna «${r.fisico}» del archivo corresponde a dos columnas configuradas («${previa}» y «${ref}»). Revisa el mapeo.`,
+      };
+    }
+    fisicoACanonico.set(r.fisico, ref);
+  }
+
+  return {
+    ok: true,
+    encabezados: encabezados.map((h) => fisicoACanonico.get(h) ?? h),
+    avisos,
   };
 }
 

@@ -91,6 +91,10 @@ function dobleSupabase(respuestas = {}) {
         reg.filtros.push(["in", k, v]);
         return api;
       },
+      not(k, op, v) {
+        reg.filtros.push(["not", k, op, v]);
+        return api;
+      },
       order(k) {
         reg.orden.push(k);
         return api;
@@ -449,6 +453,8 @@ console.log("\n── materiasDelAlumno: nunca desde las tablas físicas ──\
   eq(r[0].nombre, "Matemáticas", "desenvuelve la relación en array");
   eq(r[0].grupo, "A", "…y la que viene como objeto");
   eq(r[0].nombreVisible, "Mate I", "trae el alias de la pareja");
+  const gmSel = db.llamadas.find((l) => l.tabla === "grupo_materias").select;
+  ok("pide también si el alias está activo", /materias_nombres_visibles\(nombre_visible, activo\)/.test(gmSel), gmSel);
   const insc = db.llamadas.find((l) => l.tabla === "inscripciones_alumno");
   ok(
     "parte de la inscripción del alumno por CURP",
@@ -463,6 +469,19 @@ console.log("\n── materiasDelAlumno: nunca desde las tablas físicas ──\
     gm.filtros.some(([op, k, v]) => op === "eq" && k === "activo" && v === true),
     JSON.stringify(gm.filtros),
   );
+}
+{
+  // Un alias QUITADO se queda en la tabla con activo=false (nunca se borra).
+  // Si se presentara, el alumno vería el nombre viejo después de retirarlo.
+  const db = dobleSupabase({
+    inscripciones_alumno: { data: [{ grupo_id: "G-1" }] },
+    grupo_materias: {
+      data: [{ id: "GM-1", materia_id: "M", activo: true, materias: [{ nombre: "Matemáticas" }],
+        grupos: [{ grado: "1RO", nombre: "A" }], materias_nombres_visibles: [{ nombre_visible: "Mate viejo", activo: false }] }],
+    },
+  });
+  const r = await M.materiasDelAlumno(db, "C");
+  eq(r[0].nombreVisible, null, "un alias quitado NO se presenta");
 }
 {
   const db = dobleSupabase({ inscripciones_alumno: { data: [] } });
@@ -512,6 +531,74 @@ console.log("\n── ninguna lectura toca una tabla física de materia ──\n
     "ninguna tabla con forma de materia legacy (1ROAMAT011)",
     !tablas.some((t) => /[0-9]?[A-Z]{3,}[0-9]{3}/.test(t)),
     tablas.join(","),
+  );
+}
+
+console.log("\n── la lista del técnico: activas E inactivas, alias por pareja ──\n");
+{
+  const db = dobleSupabase({
+    grupo_materias: {
+      data: [
+        { id: "GM-B", grupo_id: "G-1", materia_id: "M-2", activo: false, tabla_legacy: null,
+          grupos: [{ grado: "1RO", nombre: "A" }], materias: [{ nombre: "Robótica", clave: "ROB" }] },
+        { id: "GM-A", grupo_id: "G-1", materia_id: "M-1", activo: true, tabla_legacy: "1ROAMAT011",
+          grupos: { grado: "1RO", nombre: "A" }, materias: { nombre: "Matemáticas", clave: "MAT" } },
+      ],
+    },
+    materias_nombres_visibles: {
+      data: [
+        { grupo_materia_id: "GM-B", nombre_visible: "Robótica I", activo: true },
+        { grupo_materia_id: "GM-A", nombre_visible: "  ", activo: true },
+      ],
+    },
+  });
+  const r = await M.listarParejasDelPeriodo(db, "P-1");
+  eq(r.length, 2, "trae las dos parejas");
+  ok("incluye la INACTIVA: sin ella no se podría reactivar", r.some((p) => p.grupoMateriaId === "GM-B" && p.activo === false));
+  eq(r.find((p) => p.grupoMateriaId === "GM-B").alias, "Robótica I", "el alias de una pareja SIN tabla física se ve");
+  eq(r.find((p) => p.grupoMateriaId === "GM-A").alias, null, "un alias en blanco no cuenta como alias");
+  eq(r.map((p) => p.alias ?? p.materiaNombre), ["Matemáticas", "Robótica I"], "ordena por grado, grupo y nombre presentado");
+  eq(r.map((p) => p.tieneTablaFisica), [true, false], "marca qué parejas tienen tabla física");
+  const gm = db.llamadas.find((l) => l.tabla === "grupo_materias");
+  ok("filtra por el periodo a través del grupo", gm.filtros.some(([op, k, v]) => op === "eq" && k === "grupos.periodo_id" && v === "P-1"),
+    JSON.stringify(gm.filtros));
+  ok("el join con grupos es !inner: sin él el filtro no recorta parejas", /grupos!inner\(/.test(gm.select), gm.select);
+  ok("NO filtra por activo", !gm.filtros.some(([, k]) => k === "activo"), JSON.stringify(gm.filtros));
+  const nv = db.llamadas.find((l) => l.tabla === "materias_nombres_visibles");
+  ok("los alias se piden solo con puente", nv.filtros.some(([op, k]) => op === "not" && k === "grupo_materia_id"), JSON.stringify(nv.filtros));
+}
+{
+  const db = dobleSupabase({ grupo_materias: { error: { message: "x" } } });
+  ok("si no puede leer, null y no una lista vacía", (await M.listarParejasDelPeriodo(db, "P-1")) === null);
+}
+
+console.log("\n── una materia desactivada no admite notas ──\n");
+{
+  ok("activa → true", (await M.grupoMateriaActiva(dobleSupabase({ grupo_materias: { data: { activo: true } } }), "GM")) === true);
+  ok("desactivada → false", (await M.grupoMateriaActiva(dobleSupabase({ grupo_materias: { data: { activo: false } } }), "GM")) === false);
+  ok("inexistente → null, no false", (await M.grupoMateriaActiva(dobleSupabase({ grupo_materias: { data: null } }), "GM")) === null);
+}
+
+console.log("\n── el archivo se lee igual por las dos subidas ──\n");
+{
+  const X = await import("../lib/escolar/excel-a-registros.ts");
+  const t = X.matrizATablaDeEntrada([
+    ["  CURP ", "", "Act 1"],
+    ["AAAA000101HDFXXX01", "x", "9"],
+    ["", "", ""],
+    ["   ", "", ""],
+    ["Juan sin CURP", "", ""],
+  ]);
+  eq(t.encabezados, ["CURP", "Col 2", "Act 1"], "misma regla de encabezados que la subida vieja: recorta y nombra los vacíos");
+  eq(t.filas.length, 2, "descarta las filas completamente vacías…");
+  eq(t.filas[1][0], "Juan sin CURP", "…pero NO la que tiene algo: esa debe llegar y avisar");
+  eq(X.matrizATablaDeEntrada([]), { encabezados: [], filas: [] }, "un archivo vacío no revienta");
+  // La misma regla, de verdad: si `matrizAFilasDirectas` cambiara cómo nombra
+  // las columnas, el mapeo dejaría de casar con una de las dos subidas.
+  eq(
+    X.matrizAFilasDirectas([["  CURP ", "", "Act 1"], ["A", "x", "9"]]).encabezados,
+    t.encabezados,
+    "los encabezados coinciden con los de la subida vieja",
   );
 }
 

@@ -119,6 +119,59 @@ ok("no quedan restos de un ensayo anterior", (nCent ?? 0) === 0);
 const gmPractica = porTabla.get(TABLA_PRACTICA);
 ok(`la materia de práctica ${TABLA_PRACTICA} tiene pareja`, Boolean(gmPractica));
 
+/* ── 1b. Las lecturas, contra PostgREST de verdad ───────────────────────────
+ * El doble de `test-calificaciones-io.mjs` acepta cualquier sintaxis de filtro.
+ * Un `grupos!inner` mal escrito o un filtro sobre relación incrustada que
+ * PostgREST no entiende solo aparece aquí. Se imprimen CUENTAS, nunca datos
+ * de alumnos.
+ */
+console.log("\n1b · las lecturas del modelo B, contra la base\n");
+const N = await import("../lib/escolar/materia/nombres-visibles.ts");
+const Ce = await import("../lib/escolar/ciclo/ciclo-estado.ts");
+
+const aliasPorPareja = await N.listarAliasPorGrupoMateria(supabase);
+const { count: aliasActivos } = await supabase
+  .from("materias_nombres_visibles")
+  .select("id", { count: "exact", head: true })
+  .eq("activo", true);
+ok(
+  `listarAliasPorGrupoMateria ve todos los alias activos (${aliasPorPareja.size} de ${aliasActivos})`,
+  aliasPorPareja.size === aliasActivos,
+);
+
+const operativo = await Ce.obtenerCicloOperativoGlobal(supabase);
+if (operativo.ok && operativo.periodo) {
+  const parejas = await C.listarParejasDelPeriodo(supabase, String(operativo.periodo.id));
+  ok(`listarParejasDelPeriodo lee el ciclo operativo (${parejas?.length ?? "null"} parejas)`, Array.isArray(parejas) && parejas.length > 0);
+  if (parejas) {
+    const conAlias = parejas.filter((p) => p.alias).length;
+    const inactivas = parejas.filter((p) => !p.activo).length;
+    console.log(`        ${conAlias} con alias · ${inactivas} inactivas · ${parejas.filter((p) => !p.tieneTablaFisica).length} sin tabla física`);
+  }
+} else {
+  console.log(`  (sin ciclo operativo: ${operativo.error ?? "ninguno"}; no se ensaya la lista del técnico)`);
+}
+
+if (gmPractica) {
+  const padron = await C.curpsDelGrupoMateria(supabase, gmPractica);
+  ok(`curpsDelGrupoMateria lee el padrón de la práctica (${padron?.size ?? "null"} alumnos)`, padron instanceof Set);
+  ok("la pareja de práctica se reconoce activa o inactiva", (await C.grupoMateriaActiva(supabase, gmPractica)) !== null);
+}
+
+// Un alumno inscrito cualquiera: la consulta incrustada de `materiasDelAlumno`
+// (materias, grupos y alias con su `activo`) solo se valida contra la base.
+const { data: unaInsc } = await supabase
+  .from("inscripciones_alumno")
+  .select("curp")
+  .eq("activo", true)
+  .limit(1)
+  .maybeSingle();
+if (unaInsc?.curp) {
+  const ms = await C.materiasDelAlumno(supabase, unaInsc.curp);
+  ok(`materiasDelAlumno resuelve la carga de un alumno inscrito (${ms.length} materias)`, ms.length > 0);
+  ok("…con el nombre de cada materia resuelto", ms.every((m) => m.nombre.length > 0));
+}
+
 if (!APPLY) {
   console.log(
     "\nEn seco: no se escribió nada. El plan con --apply:\n" +

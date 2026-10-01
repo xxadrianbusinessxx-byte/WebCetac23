@@ -244,3 +244,35 @@ export async function quitarNombreVisibleMateria(
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+/**
+ * Alias activos por PAREJA: Map<grupo_materia_id, nombre_visible>.
+ *
+ * Es la lectura del modelo nuevo y la que debe usar todo lector que ya tenga
+ * el `grupo_materia_id` en la mano. `listarNombresVisiblesMaterias` (por
+ * `materia_id`, el nombre de la tabla física) sigue sirviendo a las pantallas
+ * que manejan `idInterno`, pero NO ve el alias de una pareja sin tabla física:
+ * para ella no hay `materia_id` con el que buscar.
+ *
+ * No necesita respaldo por `materia_id`: los dos escritores ponen las dos
+ * claves cuando la pareja tiene tabla física (`puente-grupo-materia.ts`), y
+ * `migrar-ensayo-modelo-b.mjs` comprueba en seco que no quede ninguna fila sin
+ * puente.
+ */
+export async function listarAliasPorGrupoMateria(
+  supabase: SupabaseClient,
+): Promise<Map<string, string>> {
+  const { data, error } = await supabase
+    .from(TABLA_NOMBRES_VISIBLES)
+    .select("grupo_materia_id, nombre_visible, activo")
+    .not("grupo_materia_id", "is", null);
+  if (error || !data) return new Map();
+
+  const mapa = new Map<string, string>();
+  for (const f of data as { grupo_materia_id: string; nombre_visible: string | null; activo: boolean | null }[]) {
+    if (f.activo === false) continue;
+    const nombre = (f.nombre_visible ?? "").trim();
+    if (nombre) mapa.set(f.grupo_materia_id, nombre);
+  }
+  return mapa;
+}

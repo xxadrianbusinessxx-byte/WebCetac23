@@ -174,3 +174,31 @@ export async function prepararYConstruirFilas(
 }
 
 export { listarColumnasTabla };
+
+/**
+ * La matriz del archivo tal como la lee la subida NORMALIZADA (modelo B).
+ *
+ * Misma regla de encabezados que `matrizAFilasDirectas` —fila 0, recortados,
+ * los vacíos como «Col N»— y a propósito: el mapeo de columnas se configuró
+ * sobre los nombres que produce ESA regla, así que las dos subidas tienen que
+ * leer el archivo igual para que el mismo mapeo case con las dos.
+ *
+ * Las filas COMPLETAMENTE vacías se descartan aquí. Excel deja decenas al
+ * final de la hoja, y cada una llegaría a `convertirTabla` como un aviso «sin
+ * CURP legible» que enterraría los avisos que sí importan. Una fila con nombre
+ * pero sin CURP NO es vacía y sigue avisando, que es lo útil.
+ */
+export function matrizATablaDeEntrada(matriz: string[][]): {
+  encabezados: string[];
+  filas: string[][];
+} {
+  const norm = normalizarAnchoFilas(matriz);
+  if (norm.length === 0) return { encabezados: [], filas: [] };
+  const [rawHead, ...rawDatos] = norm;
+  return {
+    encabezados: (rawHead ?? []).map((h, i) => nombreColumnaDesdeEncabezado(String(h ?? ""), i)),
+    filas: rawDatos
+      .map((f) => f.map((c) => String(c ?? "")))
+      .filter((f) => !f.every((c) => celdaVacia(c))),
+  };
+}

@@ -24,6 +24,7 @@ import {
 } from "../tables.ts";
 import type { FilaCalificacion, TipoCalificacion } from "./calificaciones-puro.ts";
 import { tablaLegacyDeGrupoMateria } from "./puente-grupo-materia.ts";
+import { listarAliasPorGrupoMateria } from "./nombres-visibles.ts";
 
 export type CalificacionRow = {
   id: string;
@@ -212,7 +213,7 @@ export async function materiasDelAlumno(
   let q = supabase
     .from(TABLA_GRUPO_MATERIAS)
     .select(
-      "id, materia_id, activo, materias(nombre), grupos(grado, nombre), materias_nombres_visibles(nombre_visible)",
+      "id, materia_id, activo, materias(nombre), grupos(grado, nombre), materias_nombres_visibles(nombre_visible, activo)",
     )
     .in("grupo_id", grupos);
   if (soloActivas) q = q.eq("activo", true);
@@ -232,7 +233,7 @@ export async function materiasDelAlumno(
     activo: boolean;
     materias: Incrustado<{ nombre: string }>;
     grupos: Incrustado<{ grado: string; nombre: string }>;
-    materias_nombres_visibles: Incrustado<{ nombre_visible: string }>;
+    materias_nombres_visibles: Incrustado<{ nombre_visible: string; activo: boolean | null }>;
   };
   return (data ?? []).map((f) => {
     const r = f as unknown as Fila;
@@ -243,7 +244,10 @@ export async function materiasDelAlumno(
       grupoMateriaId: r.id,
       materiaId: r.materia_id,
       nombre: materia?.nombre ?? "",
-      nombreVisible: nv?.nombre_visible ?? null,
+      // Un alias QUITADO (`activo=false`, que es como se quita: nunca se borra)
+      // no se presenta. Sin esta condición, el alumno seguiría viendo el nombre
+      // viejo de una materia después de que el técnico se lo retirara.
+      nombreVisible: nv && nv.activo !== false && nv.nombre_visible?.trim() ? nv.nombre_visible.trim() : null,
       grado: grupo?.grado ?? "",
       grupo: grupo?.nombre ?? "",
       activo: r.activo,
@@ -385,4 +389,104 @@ export async function curpsDelGrupoMateria(
       .map((f) => (f.curp ?? "").trim().toUpperCase())
       .filter((c) => c.length > 0),
   );
+}
+
+/**
+ * ¿Admite calificaciones esta pareja? `null` si no existe o no se pudo leer.
+ *
+ * La subida vieja ya rechaza materias desactivadas (C4.18, `motivoMateriaNoCargable`);
+ * la nueva tiene que rechazarlas igual, o desactivar una materia dejaría de
+ * cerrar nada en cuanto el profesor usara el camino nuevo.
+ */
+export async function grupoMateriaActiva(
+  supabase: SupabaseClient,
+  grupoMateriaId: string,
+): Promise<boolean | null> {
+  const { data, error } = await supabase
+    .from(TABLA_GRUPO_MATERIAS)
+    .select("activo")
+    .eq("id", grupoMateriaId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return (data as { activo: boolean }).activo !== false;
+}
+
+/* ── La lista del técnico: qué materias tiene cada grupo ────────────────── */
+
+export type ParejaParaGestion = {
+  grupoMateriaId: string;
+  grupoId: string;
+  grado: string;
+  grupo: string;
+  materiaId: string;
+  materiaNombre: string;
+  materiaClave: string;
+  /** Alias de ESTA pareja, o null. Se presenta en lugar del nombre si existe. */
+  alias: string | null;
+  activo: boolean;
+  /** Si la pareja tiene tabla física. Solo informativo: la UI no lo expone
+   *  como identidad (C4.28), pero explica por qué una pareja nueva no aparece
+   *  en las pantallas viejas. */
+  tieneTablaFisica: boolean;
+};
+
+/**
+ * Todas las parejas (grupo, materia) de un periodo, ACTIVAS E INACTIVAS.
+ *
+ * Las inactivas entran a propósito: «reducir el volumen» es desactivar, y una
+ * lista que solo mostrara las activas no dejaría reactivar nada. Por eso no se
+ * reutiliza `listarGruposMateriasParaAsignacion`, que solo trae las activas y
+ * resuelve el alias por la tabla física.
+ *
+ * El alias se resuelve por pareja (`listarAliasPorGrupoMateria`): una alta del
+ * modelo nuevo no tiene tabla física, y por la clave vieja no se vería.
+ */
+export async function listarParejasDelPeriodo(
+  supabase: SupabaseClient,
+  periodoId: string,
+): Promise<ParejaParaGestion[] | null> {
+  const [{ data, error }, alias] = await Promise.all([
+    supabase
+      .from(TABLA_GRUPO_MATERIAS)
+      .select("id, grupo_id, materia_id, activo, tabla_legacy, grupos!inner(grado, nombre, periodo_id), materias(nombre, clave)")
+      .eq("grupos.periodo_id", periodoId),
+    listarAliasPorGrupoMateria(supabase),
+  ]);
+  if (error || !data) return null;
+
+  type Incrustado<T> = T[] | T | null | undefined;
+  const uno = <T,>(v: Incrustado<T>): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
+  type Fila = {
+    id: string;
+    grupo_id: string;
+    materia_id: string;
+    activo: boolean;
+    tabla_legacy: string | null;
+    grupos: Incrustado<{ grado: string; nombre: string }>;
+    materias: Incrustado<{ nombre: string | null; clave: string | null }>;
+  };
+
+  return (data as unknown as Fila[])
+    .map((r) => {
+      const g = uno(r.grupos);
+      const m = uno(r.materias);
+      return {
+        grupoMateriaId: r.id,
+        grupoId: r.grupo_id,
+        grado: g?.grado ?? "",
+        grupo: g?.nombre ?? "",
+        materiaId: r.materia_id,
+        materiaNombre: m?.nombre ?? m?.clave ?? "",
+        materiaClave: m?.clave ?? "",
+        alias: alias.get(r.id) ?? null,
+        activo: r.activo !== false,
+        tieneTablaFisica: Boolean(r.tabla_legacy && r.tabla_legacy.trim()),
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.grado.localeCompare(b.grado) ||
+        a.grupo.localeCompare(b.grupo) ||
+        (a.alias ?? a.materiaNombre).localeCompare(b.alias ?? b.materiaNombre),
+    );
 }

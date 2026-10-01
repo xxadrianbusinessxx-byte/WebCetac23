@@ -201,7 +201,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 180 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 191 Server Actions.
 
 ### `actividades.ts`
 
@@ -283,6 +283,22 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 180 Server Actions.
 | `actionEstablecerCalendarioBaseDePeriodo` | exigir: calendario.editar | `calendario.editar` |
 | `actionGuardarDiaCalendarioDePeriodo` | exigir: calendario.editar | `calendario.editar` |
 | `actionEliminarDiaCalendarioDePeriodo` | exigir: calendario.editar | `calendario.editar` |
+
+### `calificaciones-normalizadas.ts`
+
+| Action | Guardia hoy | Capacidad |
+|---|---|---|
+| `actionMisCalificaciones` | exigir: calificacion.ver | `calificacion.ver` |
+| `actionCalificacionesDeAlumno` | exigir: calificacion.ver | `calificacion.ver` |
+| `actionCalificacionesDeMateria` | exigir: calificacion.ver | `calificacion.ver` |
+| `actionSubirCalificaciones` | exigir: calificacion.subir | `calificacion.subir` |
+| `actionSubirCalificacionesArchivo` | exigir: calificacion.subir | `calificacion.subir` |
+| `actionCalificarActividad` | exigir: calificacion.subir | `calificacion.subir` |
+| `actionListarParejasParaGestion` | exigir: materia.ver_catalogo | `materia.ver_catalogo` |
+| `actionAltaMateriaEnGrupo` | exigir: materia.activar_desactivar | `materia.activar_desactivar` |
+| `actionCambiarEstadoMateriaEnGrupo` | exigir: materia.activar_desactivar | `materia.activar_desactivar` |
+| `actionGuardarAliasPorPareja` | exigir: materia.editar_alias | `materia.editar_alias` |
+| `actionResolverGrupoMateria` | exigir: materia.ver_catalogo | `materia.ver_catalogo` |
 
 ### `calificaciones.ts`
 
