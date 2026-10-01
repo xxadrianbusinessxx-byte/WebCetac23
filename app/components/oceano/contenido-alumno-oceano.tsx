@@ -313,22 +313,38 @@ export function ContenidoAlumnoOceano({
 
   // Estado de la pieza Materias: la lista sale del modelo nuevo (una materia =
   // un `grupoMateriaId`), y las notas de la materia elegida se piden al cambiar.
-  const [vistaAlumno, setVistaAlumno] = useState<VistaCalificacionesAlumno | null>(null);
+  //
+  // Cada respuesta se guarda CON la CURP (y la materia) a la que pertenece, y
+  // solo se pinta si coincide con lo que se está mostrando. Sin eso, al cambiar
+  // de materia el título cambiaba al instante y debajo seguían las notas de la
+  // anterior hasta que llegaba la respuesta —o para siempre, si fallaba—; y
+  // Administración, al pasar de un alumno a otro, veía un momento las materias
+  // y notas del anterior bajo el expediente del nuevo.
+  const [vistaAlumno, setVistaAlumno] = useState<{
+    curp: string;
+    vista: VistaCalificacionesAlumno | null;
+  } | null>(null);
   const [materiaActiva, setMateriaActiva] = useState("");
-  const [notasMateria, setNotasMateria] = useState<VistaCalificacionesAlumno | null>(null);
+  const [notasMateria, setNotasMateria] = useState<{
+    curp: string;
+    grupoMateriaId: string;
+    vista: VistaCalificacionesAlumno | null;
+  } | null>(null);
+
+  // `null` = todavía no ha llegado la lista de ESTE alumno.
+  const listaCargada =
+    vistaAlumno && vistaAlumno.curp === curp ? (vistaAlumno.vista?.materias ?? []) : null;
+  // La materia que se muestra: la elegida si sigue en la lista, si no la primera.
+  const materiaEfectiva =
+    listaCargada?.find((m) => m.grupoMateriaId === materiaActiva)?.grupoMateriaId ??
+    listaCargada?.[0]?.grupoMateriaId ??
+    "";
 
   useEffect(() => {
     if (pieza !== "materias-calificacion") return;
     let activo = true;
     void actionVistaCalificacionesAlumno(curp).then((v) => {
-      if (!activo) return;
-      setVistaAlumno(v);
-      const lista = v?.materias ?? [];
-      setMateriaActiva((prev) =>
-        prev && lista.some((m) => m.grupoMateriaId === prev)
-          ? prev
-          : lista[0]?.grupoMateriaId ?? "",
-      );
+      if (activo) setVistaAlumno({ curp, vista: v });
     });
     return () => {
       activo = false;
@@ -336,15 +352,15 @@ export function ContenidoAlumnoOceano({
   }, [pieza, curp]);
 
   useEffect(() => {
-    if (pieza !== "materias-calificacion" || !materiaActiva) return;
+    if (pieza !== "materias-calificacion" || !materiaEfectiva) return;
     let activo = true;
-    void actionVistaCalificacionesAlumno(curp, materiaActiva).then((v) => {
-      if (activo) setNotasMateria(v);
+    void actionVistaCalificacionesAlumno(curp, materiaEfectiva).then((v) => {
+      if (activo) setNotasMateria({ curp, grupoMateriaId: materiaEfectiva, vista: v });
     });
     return () => {
       activo = false;
     };
-  }, [pieza, curp, materiaActiva]);
+  }, [pieza, curp, materiaEfectiva]);
 
   // ENCENDIDAS el 2026-09-17. Antes eran maqueta (actividades) y apagado
   // (sesiones programadas).
@@ -374,7 +390,15 @@ export function ContenidoAlumnoOceano({
   }
 
   if (pieza === "materias-calificacion") {
-    const lista = vistaAlumno?.materias ?? [];
+    // Mientras carga se dice que carga: «no hay materias» sería falso.
+    if (listaCargada === null) {
+      return (
+        <Tira>
+          <Aviso>Cargando materias…</Aviso>
+        </Tira>
+      );
+    }
+    const lista = listaCargada;
     if (lista.length === 0) {
       return (
         <Tira>
@@ -385,8 +409,16 @@ export function ContenidoAlumnoOceano({
       );
     }
 
-    const materiaActual = lista.find((m) => m.grupoMateriaId === materiaActiva) ?? lista[0];
-    const notas = notasMateria;
+    const materiaActual = lista.find((m) => m.grupoMateriaId === materiaEfectiva) ?? lista[0];
+    // Solo las notas de ESTE alumno en ESTA materia; si aún no han llegado, se
+    // dice que cargan (y no «tu profesor aún no ha subido», que sería falso).
+    const notasCargadas =
+      notasMateria &&
+      notasMateria.curp === curp &&
+      notasMateria.grupoMateriaId === materiaActual.grupoMateriaId
+        ? notasMateria
+        : null;
+    const notas = notasCargadas?.vista ?? null;
     const actividades = notas?.actividades ?? [];
     const parciales = notas?.parciales ?? [];
     const resultado: { clave: string | null; valor: number | null }[] = [
@@ -410,6 +442,7 @@ export function ContenidoAlumnoOceano({
                 <button
                   type="button"
                   onClick={() => setMateriaActiva(m.grupoMateriaId)}
+                  aria-pressed={activa}
                   className={`flex w-full flex-col gap-0.5 rounded-xl border bg-[var(--oc-input)] px-3 py-2 text-left transition-colors ${
                     activa
                       ? "border-[var(--oc-border-active)]"
@@ -434,7 +467,11 @@ export function ContenidoAlumnoOceano({
           <p className="mb-3 text-center text-sm font-extrabold uppercase tracking-widest text-[var(--oc-text)]">
             {materiaActual.nombreVisible ?? materiaActual.nombre}
           </p>
-          {hayNotas ? (
+          {notasCargadas === null ? (
+            <p className="w-full text-center text-sm font-semibold text-[var(--oc-muted)]">
+              Cargando calificaciones…
+            </p>
+          ) : hayNotas ? (
             <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
               {listaNotas({ titulo: "Actividades", items: actividades })}
               {listaNotas({ titulo: "Evaluaciones", items: parciales })}
