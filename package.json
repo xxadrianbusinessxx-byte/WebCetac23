@@ -18,7 +18,7 @@
     "gen:rumbo": "node scripts/gen-rumbo.mjs",
     "test:suites": "node scripts/correr-todas-las-suites.mjs",
     "test:permisos": "node scripts/test-permisos.mjs && node scripts/test-auditoria-permisos.mjs",
-    "test:ci": "node scripts/correr-todas-las-suites.mjs && node scripts/gen-invariantes.mjs --check && node scripts/gen-rumbo.mjs --check && npm run verificar:estado && npm run verificar:docs",
+    "test:ci": "npx tsc --noEmit && npm run lint && npm run test:suites && npm run test:permisos && node scripts/gen-matriz-permisos.mjs --check && node scripts/gen-invariantes.mjs --check && node scripts/gen-rumbo.mjs --check && npm run verificar:estado && npm run verificar:docs && npm run build",
     "verificar:estado": "node scripts/verificar-estado-actual.mjs",
     "verificar:docs": "node scripts/verificar-docs.mjs",
     "panel": "node scripts/gen-estado.mjs && node scripts/gen-panel.mjs",

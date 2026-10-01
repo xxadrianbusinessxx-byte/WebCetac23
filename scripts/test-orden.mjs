@@ -414,6 +414,120 @@ comprobar("C15", "toda tabla que nace en supabase/*.sql o tables.ts está clasif
     .map((x) => ({ archivo: x.archivo, detalle: `«${x.tabla}» no está en materia/tablas-sistema.ts: saldría como materia` }));
 });
 
+// ── C16 · cada onConflict literal es una restricción que la base infiere ────
+// El fallo del 2026-10-01: los upserts del modelo B apuntaban con `onConflict`
+// a un índice único PARCIAL (`where … is not null`) y a uno de EXPRESIÓN
+// (`coalesce(clave, '')`). PostgreSQL no infiere ninguno de los dos desde el
+// `ON CONFLICT (cols)` que genera PostgREST, así que cada escritura devolvía
+// 42P10 y no escribía nada —mientras las suites pasaban en verde, porque su
+// doble de Supabase acepta cualquier `onConflict`.
+//
+// La lógica nació en el último bloque de `test-calificaciones-io.mjs`, mirando
+// solo a los tres escritores del modelo B. Aquí se generaliza a todo `lib/`:
+// cada `onConflict: "a,b"` literal tiene que coincidir (mismas columnas, en
+// cualquier orden) con una restricción declarada en `supabase/*.sql`:
+//   · `unique (a, b)` que no sea parte de un `create unique index`;
+//   · `create unique index … (a, b)` sin `where` ni expresiones;
+//   · una columna `primary key`.
+// Se lee el fuente CRUDO, no `codigoDesnudo()`: lo que se mide ES la cadena
+// literal, y desnudarla la borraría. Línea base medida: 23 claves literales,
+// 0 sin declarar; umbral 0 (DURA).
+const normalizarColumnas = (cols) =>
+  cols.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean).sort().join(",");
+
+const sinComentariosSql = (t) => t.replace(/--[^\n]*/g, "");
+
+function restriccionesInferibles() {
+  const declaradas = new Set();
+  for (const f of listar("supabase", (x) => x.endsWith(".sql"))) {
+    const sql = sinComentariosSql(leer(f));
+    for (const m of sql.matchAll(/(create\s+unique\s+index[^;]*?)?\bunique\s*\(([^)]*)\)/gi)) {
+      if (m[1]) continue;
+      declaradas.add(normalizarColumnas(m[2]));
+    }
+    for (const m of sql.matchAll(/create\s+unique\s+index[^;(]*\(([^;]*?)\)([^;]*);/gi)) {
+      if (/\bwhere\b/i.test(m[2]) || /\(/.test(m[1])) continue;
+      declaradas.add(normalizarColumnas(m[1]));
+    }
+    for (const m of sql.matchAll(/\b([a-z_][a-z0-9_]*)\s+[a-z_][a-z0-9_]*(?:\s*\([^)]*\))?\s+primary\s+key/gi)) {
+      declaradas.add(normalizarColumnas(m[1]));
+    }
+    for (const m of sql.matchAll(/(?:constraint\s+[a-z_][a-z0-9_]*\s+)?primary\s+key\s*\(([^)]*)\)/gi)) {
+      declaradas.add(normalizarColumnas(m[1]));
+    }
+  }
+  return declaradas;
+}
+
+// Las dos claves NO literales de `asistencia-plantillas.ts` salen de constantes
+// de `atribucion-profesor.ts` y sus índices se crean con SQL dinámico
+// (`CREATE UNIQUE INDEX %I ON … (%s)`): índices simples e inferibles, que
+// asistencias ya usa en producción. Van en esta lista con su motivo, como hace
+// `test-auditoria-permisos` con las suyas.
+const ONCONFLICT_NO_LITERAL_PERMITIDO = new Set([
+  "atribuido.conflictoClases", // índice simple creado con SQL dinámico en agregar-atribucion-profesor-asistencia.sql
+  "atribuido.conflictoAsistencia", // ídem
+]);
+
+comprobar("C16", "cada onConflict literal en lib/ apunta a una restricción que la base infiere", 0, () => {
+  const declaradas = restriccionesInferibles();
+  const hallazgos = [];
+  for (const f of listar("lib", ES_TS)) {
+    const src = leer(f);
+    for (const m of src.matchAll(/onConflict:\s*"([^"]+)"/g)) {
+      if (!declaradas.has(normalizarColumnas(m[1]))) {
+        hallazgos.push({ archivo: f, detalle: `onConflict «${m[1]}» no es una restricción inferible en supabase/` });
+      }
+    }
+    for (const m of src.matchAll(/onConflict:\s*([A-Za-z_$][A-Za-z0-9_$.]*)\s*[},]/g)) {
+      if (!ONCONFLICT_NO_LITERAL_PERMITIDO.has(m[1])) {
+        hallazgos.push({ archivo: f, detalle: `onConflict no literal «${m[1]}» sin excepción declarada` });
+      }
+    }
+  }
+  return hallazgos;
+});
+
+// ── C17 · npm run test:ci reproduce el workflow de GitHub ──────────────────
+// `test:ci` corría suites, gen-invariantes, gen-rumbo, verificar:estado y
+// verificar:docs. El workflow (`.github/workflows/verificacion.yml`) corre
+// ADEMÁS tsc, lint, test:permisos, gen-matriz-permisos --check y build. Son
+// dos listas de lo mismo y ya divergieron (R6): con `test:ci` en verde,
+// `gen-matriz` estuvo desfasado dos commits seguidos.
+//
+// La regla lee los `run:` del workflow y el `test:ci` de `package.json`, y
+// falla si un paso del workflow (salvo `npm ci`) no está en `test:ci`. Compara
+// por comando normalizado: `npm run x` y el script al que `x` apunta cuentan
+// como el mismo. Umbral 0 (DURA).
+const PKG = JSON.parse(leer("package.json"));
+const RUN_DEL_WORKFLOW = [...leer(".github/workflows/verificacion.yml").matchAll(/^\s*run:\s*(.+?)\s*$/gm)].map((m) =>
+  m[1].trim(),
+);
+
+function comandosDeScript(script) {
+  const fuera = [];
+  for (const parte of script.split("&&")) {
+    const c = parte.trim();
+    if (!c) continue;
+    const m = /^npm\s+run\s+([A-Za-z0-9:_-]+)/.exec(c);
+    if (m && PKG.scripts[m[1]]) fuera.push(...comandosDeScript(PKG.scripts[m[1]]));
+    else fuera.push(c);
+  }
+  return fuera;
+}
+
+comprobar("C17", "npm run test:ci corre los mismos pasos que el workflow (salvo npm ci)", 0, () => {
+  const enTestCi = new Set(comandosDeScript(PKG.scripts["test:ci"]));
+  const hallazgos = [];
+  for (const c of RUN_DEL_WORKFLOW) {
+    if (c === "npm ci") continue;
+    for (const atomico of comandosDeScript(c)) {
+      if (!enTestCi.has(atomico)) hallazgos.push({ archivo: ".github/workflows/verificacion.yml", detalle: `«${c}» falta en test:ci` });
+    }
+  }
+  return hallazgos;
+});
+
 // ── Informe ────────────────────────────────────────────────────────────────
 
 if (JSON_OUT) {

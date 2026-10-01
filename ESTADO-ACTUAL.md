@@ -6,8 +6,8 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-30 (Q: cabecera, familias de `lib/`, reglas de `test-orden`, cuentas de `PROFESORES` y suites)
-- **HEAD:** `c2a285c` (2026-09-30) · árbol limpio
+- **Última revisión:** 2026-10-01 (R: dos guardianes nuevos en `test-orden` — C16 unicidad de `onConflict`, C17 `test:ci` fiel al workflow)
+- **HEAD:** `291af39` (2026-10-01) · árbol limpio
 
 ---
 
@@ -121,8 +121,9 @@ permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
 **Una de las 47 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
 mitad mecánica de `ORDEN.md` —capas, scripts, raíz, tamaño de archivo, composición de
-UI, entrada validada, extensión explícita en `lib/`, exports de `"use server"` y qué
-tablas son de sistema— y existe porque esas reglas eran prosa en un repo que tocan dos
+UI, entrada validada, extensión explícita en `lib/`, exports de `"use server"`, qué
+tablas son de sistema, la unicidad de `onConflict` y `test:ci` fiel al workflow— y
+existe porque esas reglas eran prosa en un repo que tocan dos
 agentes de IA. Correrlo dice en qué estado está cada regla; el histórico de lo que
 cerró, en `MAPA-DEL-SISTEMA.md` §2b.
 
