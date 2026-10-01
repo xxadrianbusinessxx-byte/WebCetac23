@@ -60,6 +60,7 @@ import {
   TABLA_TUTOR_ALUMNOS,
   TABLA_TUTOR_CREDENCIALES_INICIALES,
   TABLA_TUTORES,
+  TABLA_CALIFICACIONES,
 } from "../tables.ts";
 
 export const TABLAS_SISTEMA: readonly string[] = [
@@ -112,6 +113,9 @@ export const TABLAS_SISTEMA: readonly string[] = [
   // Portada pública (PROMPT L).
   TABLA_PORTADA_MEDIOS,
   TABLA_PORTADA_AJUSTES,
+  // Migración Opción B (2026-09-30). C15 la cazó en cuanto nació el .sql, que
+  // es exactamente para lo que esa regla existe.
+  TABLA_CALIFICACIONES,
 ];
 
 /** Registros de calificaciones finales por grupo: tampoco son materias. */

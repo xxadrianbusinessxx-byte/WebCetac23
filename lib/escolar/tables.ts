@@ -35,6 +35,10 @@ export const TABLA_CARRERAS = "carreras";
 export const TABLA_PORTADA_MEDIOS = "portada_medios";
 /** Portada pública: enlaces y datos de contacto configurables (PROMPT L). */
 export const TABLA_PORTADA_AJUSTES = "portada_ajustes";
+
+/** Calificaciones normalizadas (migración Opción B, 2026-09-30). Sustituye a
+ *  las tablas físicas por materia: una fila = una nota de un alumno. */
+export const TABLA_CALIFICACIONES = "calificaciones";
 export const TABLA_MATERIAS = "materias";
 export const TABLA_GRUPOS = "grupos";
 export const TABLA_GRUPO_MATERIAS = "grupo_materias";
