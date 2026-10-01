@@ -57,3 +57,9 @@ dev-server.log
 # panel local del repo (regenerar: npm run panel). Es una FOTO, no fuente:
 # versionarlo metería un diff en cada commit y volvería a discutirse en cada PR.
 /.panel/
+
+# Salida compilada de las suites puras: `npm run test:compilar` y cada suite que
+# transpila con ts.transpileModule dejan aquí su JS. ORDEN.md §4 ya declaraba
+# que esto va ignorado; la regla faltaba, y el 2026-09-30 se coló un artefacto
+# en un commit.
+scripts/.tmp-*/
