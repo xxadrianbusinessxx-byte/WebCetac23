@@ -4,7 +4,7 @@
  *
  * QUÉ MIDE: la conversión del Excel del profesor a filas normalizadas, y la
  *           lectura que ve el alumno.
- * QUÉ ESCRIBE: nada. Transpila a `.tmp-calif/`. No toca la base.
+ * QUÉ ESCRIBE: nada. Importa el fuente `.ts` directo; no toca la base.
  * CÓMO SE EJECUTA: node scripts/test-calificaciones-puro.mjs
  *
  * ── Por qué esta suite es la que decide ────────────────────────────────────
@@ -17,28 +17,18 @@
  * celda vacía contra cero, CURP repetida, mapeo de otro archivo, y el filtro
  * por alumno.
  */
+// Se importa el FUENTE `.ts` directo: Node 24 quita los tipos, y el único
+// import del módulo es `import type`, que TypeScript borra. No se transpila a
+// una carpeta temporal porque `eslint.config.mjs` retiró el ignore de
+// `scripts/.tmp-*/**` el 2026-09-23 advirtiendo que necesitarlo otra vez
+// significaría haber reintroducido un paso de compilación.
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
-const ts = require("typescript");
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.join(__dirname, "..");
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const tmp = path.join(__dirname, ".tmp-calif");
-fs.rmSync(tmp, { recursive: true, force: true });
-fs.mkdirSync(tmp, { recursive: true });
-
-const { outputText } = ts.transpileModule(
-  fs.readFileSync(path.join(root, "lib/escolar/materia/calificaciones-puro.ts"), "utf8"),
-  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true } },
-);
-// El único import del módulo es `import type`, que TypeScript borra: por eso no
-// hay que transpilar `mapeo-columnas-materia.ts` para que esto cargue.
-fs.writeFileSync(path.join(tmp, "calificaciones-puro.js"), outputText, "utf8");
-const M = require(path.join(tmp, "calificaciones-puro.js"));
+const M = await import("../lib/escolar/materia/calificaciones-puro.ts");
 
 let pasadas = 0;
 let fallos = 0;

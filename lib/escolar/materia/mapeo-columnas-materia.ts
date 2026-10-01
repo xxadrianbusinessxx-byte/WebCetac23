@@ -574,6 +574,35 @@ export async function obtenerMapeoColumnasMateria(
 }
 
 /**
+ * Lee el mapeo por `grupo_materia_id` — la identidad correcta (migración B).
+ *
+ * Es la MISMA tabla y el MISMO parser que `obtenerMapeoColumnasMateria`; lo
+ * único que cambia es la columna por la que se busca. Duplicar `mapeoDesdeFila`
+ * aquí habría creado una segunda lectura de la misma fila que podría divergir
+ * (R6), así que se reutiliza.
+ *
+ * Conviven a propósito: el lector por `idInterno` sigue sirviendo a las
+ * pantallas que todavía manejan el nombre de la tabla física (R8). Cuando todas
+ * lean por aquí, aquel se retira en su propio cambio.
+ */
+export async function obtenerMapeoPorGrupoMateria(
+  supabase: SupabaseClient,
+  grupoMateriaId: string,
+): Promise<MapeoColumnasMateria | null> {
+  const id = grupoMateriaId.trim();
+  if (!id) return null;
+
+  const { data, error } = await supabase
+    .from(TABLA_MAPEO_COLUMNAS)
+    .select("*")
+    .eq("grupo_materia_id", id)
+    .maybeSingle();
+
+  if (error || !data || data.activo === false) return null;
+  return mapeoDesdeFila(data as Record<string, unknown>);
+}
+
+/**
  * Guarda (UPSERT) la configuración de mapeo de una materia por `materia_id`.
  * Re-guardar actualiza, nunca duplica. NO modifica la tabla de la materia.
  */

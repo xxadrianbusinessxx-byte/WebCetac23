@@ -71,6 +71,7 @@ Correr las que apliquen **antes y después** de cualquier cambio de dominio.
 | `test-justificaciones-puro.mjs` | `lib/escolar/asistencia/justificaciones-puro.ts` — núcleo puro de justificación por clase (PROMPT Q) |
 | `test-reparar-tabla-legacy.mjs` | `lib/escolar/ciclo/contexto-ciclo.ts` |
 | `test-traspaso-materia.mjs` | `lib/escolar/materia/traspaso-materia.ts` |
+| `test-calificaciones-io.mjs` | `lib/escolar/materia/calificaciones.ts` — el CONTRATO con PostgREST contra un doble del cliente: clave de `upsert` (re-subir actualiza, no duplica), filtro por CURP en la consulta y no en memoria, desactivar en vez de borrar. No abre conexión |
 | `test-materia-identidad.mjs` · `test-materia-avance.mjs` · `test-columnas-calificaciones.mjs` | identidad y columnas de materia |
 | `test-importar-etiquetas.mjs` · `test-inscripciones-f3.mjs` · `test-ciclo-f3-pipeline.mjs` | importación y pipeline de ciclo |
 | `test-validacion.mjs` | `lib/validacion/esquemas-puro.ts` y `leer-form-data.ts` (PROMPT K): 70 comprobaciones de que la entrada se acepta o se rechaza con el mensaje de siempre, y de que el helper devuelve la MISMA forma que las actions (`{ok, datos}` / `{ok, error}`). Importa el FUENTE `.ts` directo: son módulos puros que solo importan `valibot` |
