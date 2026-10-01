@@ -435,7 +435,9 @@ comprobar("C15", "toda tabla que nace en supabase/*.sql o tables.ts está clasif
 const normalizarColumnas = (cols) =>
   cols.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean).sort().join(",");
 
-const sinComentariosSql = (t) => t.replace(/--[^\n]*/g, "");
+// Quita los dos tipos de comentario de SQL. Solo con `--`, una UNIQUE escrita
+// dentro de un `/* … */` contaba como declarada (comprobado en la revisión).
+const sinComentariosSql = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--[^\n]*/g, "");
 
 function restriccionesInferibles() {
   const declaradas = new Set();
@@ -469,7 +471,13 @@ const ONCONFLICT_NO_LITERAL_PERMITIDO = new Set([
   "atribuido.conflictoAsistencia", // ídem
 ]);
 
-comprobar("C16", "cada onConflict literal en lib/ apunta a una restricción que la base infiere", 0, () => {
+// LO QUE NO PUEDE SABER: si esa restricción está APLICADA en la base. Mide el
+// repo, no Supabase. El 2026-10-01 estuvo en verde con
+// `corregir-unicidad-calificaciones.sql` escrito y todavía sin aplicar, es
+// decir, con todas las escrituras del modelo B devolviendo 42P10. Verde aquí
+// significa «la clave está bien declarada»; «funciona» lo dice
+// `node scripts/migrar-ensayo-modelo-b.mjs --apply` o `diag-sql-aplicado.mjs`.
+comprobar("C16", "cada onConflict literal en lib/ apunta a una restricción inferible DECLARADA en supabase/", 0, () => {
   const declaradas = restriccionesInferibles();
   const hallazgos = [];
   for (const f of listar("lib", ES_TS)) {

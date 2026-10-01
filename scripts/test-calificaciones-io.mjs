@@ -627,7 +627,7 @@ console.log("\n── cada onConflict del modelo B existe como restricción en l
   // Esto lo caza en el texto: cada `onConflict` de los escritores del modelo B
   // tiene que ser una UNIQUE sobre columnas declarada en `supabase/*.sql`. Un
   // `create unique index ... where` o con `coalesce(` NO cuenta.
-  const sinComentariosSql = (t) => t.replace(/--[^\n]*/g, "");
+  const sinComentariosSql = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--[^\n]*/g, "");
   const norm = (cols) =>
     cols.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean).sort().join(",");
   const declaradas = new Set();

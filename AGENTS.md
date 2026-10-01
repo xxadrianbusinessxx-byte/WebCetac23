@@ -49,7 +49,7 @@ Hay scripts que borran tablas en producción y no lo dice su nombre.
 ```bash
 node scripts/test-orden.mjs        # capas, nombres, scripts, raíz
 node scripts/verificar-docs.mjs    # rutas vivas y coste de arranque
-npm run test:ci                    # suites + ESTADO-ACTUAL al día
+npm run test:ci                    # lo mismo que el CI de GitHub (C17 lo vigila)
 ```
 
 `docs/normativo/CONTRATO-DE-CAMBIO.md` — checklist de aceptación, y en su §1 el bloque
