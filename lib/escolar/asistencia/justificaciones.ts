@@ -15,6 +15,21 @@ import {
   consultarHorarioAlumno,
 } from "../horario/horario-semanal.ts";
 
+// Re-export del módulo puro (PROMPT Q · R-1). Se importan aparte los que este
+// archivo sigue usando.
+import {
+  calcularClasesJustificadasPorDia,
+  rutaStorageJustificacion,
+} from "./justificaciones-puro.ts";
+export {
+  JUSTIFICACION_EXTENSIONES_PERMITIDAS,
+  calcularClasesJustificadasPorDia,
+  esNombreArchivoJustificacionSeguro,
+  materiaTieneClaseEnDia,
+  rutaStorageJustificacion,
+} from "./justificaciones-puro.ts";
+export type { ClasesJustificadasPorDiaInput } from "./justificaciones-puro.ts";
+
 /**
  * C4.25 — DOMINIO DE JUSTIFICACIONES DE ASISTENCIA (estructura backend).
  *
@@ -38,12 +53,6 @@ export const PROFESOR_JUSTIFICACION = "__JUSTIFICACION__";
 export const JUSTIFICACION_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 export const JUSTIFICACION_MOTIVO_MAX = 500;
 
-export const JUSTIFICACION_EXTENSIONES_PERMITIDAS = [
-  "pdf",
-  "png",
-  "jpg",
-  "jpeg",
-] as const;
 
 export const JUSTIFICACION_MIME_PERMITIDOS = new Set([
   "application/pdf",
@@ -80,86 +89,10 @@ export type FilaJustificacion = {
   materia_clave?: string | null;
 };
 
-/**
- * JUSTIFICACIÓN POR CLASE — núcleo puro.
- *
- * - `bloquesPorMateria`: bloques del grupo ESE día agrupados por materia_clave
- *   (origen: horario_semanal oficial, no la configuración del profesor).
- * - `materias`: materias justificadas y APROBADAS del día (`null`/"" significa
- *   justificación de día completo, que conserva el comportamiento actual).
- * - El total NUNCA supera el faltante (esperadas − asistidas).
- */
-export type ClasesJustificadasPorDiaInput = {
-  bloquesPorMateria: Record<string, number>;
-  materias: Array<string | null>;
-  faltante: number;
-};
-
-/** ¿La materia tiene al menos un bloque programado ESE día? (validación server). */
-export function materiaTieneClaseEnDia(
-  bloquesPorMateria: Record<string, number>,
-  materiaClave: string | null | undefined,
-): boolean {
-  const k = String(materiaClave ?? "").trim();
-  if (!k) return false;
-  return (Number(bloquesPorMateria[k]) || 0) > 0;
-}
-
-/**
- * Total de clases justificadas para un día (derivado, nunca almacenado).
- *  - día completo (alguna entrada null/"") → el faltante entero;
- *  - por clase → suma de bloques de cada materia aprobada, con tope en faltante;
- *  - una materia sin bloques ese día aporta 0 (se rechaza antes en el servidor).
- */
-export function calcularClasesJustificadasPorDia(
-  input: ClasesJustificadasPorDiaInput,
-): number {
-  const faltante = Math.max(Number(input.faltante) || 0, 0);
-  const materias = Array.isArray(input.materias) ? input.materias : [];
-  // Día completo (null/""): cualquier entrada de día completo domina y aplica
-  // el faltante entero (comportamiento actual preservado).
-  if (materias.some((m) => m == null || String(m).trim() === "")) {
-    return faltante;
-  }
-  // Dedupe por materia: reaplicar la misma justificación NO acumula (idempotente).
-  const claves = new Set<string>();
-  for (const m of materias) {
-    const k = String(m ?? "").trim();
-    if (!k) continue;
-    claves.add(k);
-  }
-  let total = 0;
-  for (const k of claves) {
-    total += Number(input.bloquesPorMateria[k]) || 0;
-  }
-  return Math.min(total, faltante);
-}
 
 export const ERROR_ESQUEMA_JUSTIFICACIONES_PENDIENTE =
   "Estructura C4.25 pendiente: ejecuta supabase/migrar-justificaciones-v2.sql en Supabase (SQL Editor) antes de usar adjuntos, aprobación/rechazo y mensajes.";
 
-/** ¿Nombre de archivo seguro (sin rutas, sin separadores, extensión permitida)? */
-export function esNombreArchivoJustificacionSeguro(
-  nombre: string,
-): boolean {
-  const n = nombre.trim();
-  if (!n || n.length > 120) return false;
-  if (/[\\/]/.test(n) || n.includes("..") || n.startsWith(".")) return false;
-  const ext = n.split(".").pop()?.toLowerCase() ?? "";
-  return (JUSTIFICACION_EXTENSIONES_PERMITIDAS as readonly string[]).includes(ext);
-}
-
-/** Ruta segura dentro del bucket: justificaciones/{curp}/{fecha}-{ts}.{ext} */
-export function rutaStorageJustificacion(
-  curp: string,
-  fecha: string,
-  nombreOriginal: string,
-): string {
-  const ext =
-    nombreOriginal.split(".").pop()?.toLowerCase() || "pdf";
-  const ts = Date.now();
-  return `justificaciones/${curp}/${fecha}-${ts}.${ext}`;
-}
 
 /** Verifica que el esquema C4.25 esté aplicado (columnas y tabla de mensajes). */
 export async function verificarEsquemaJustificaciones(
@@ -895,3 +828,4 @@ export async function guardarJustificacionDiaCompleto(
 
 /** Nombres completos de ALUMNOS por CURP (re-exportado para el panel directivo). */
 export { listarNombresCompletosPorCurp };
+

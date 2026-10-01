@@ -65,6 +65,10 @@ Correr las que apliquen **antes y después** de cualquier cambio de dominio.
 | `test-roster-validacion.mjs` | `lib/escolar/catalogo/roster-validacion.ts` |
 | `test-evaluaciones.mjs` | `lib/escolar/ciclo/evaluaciones.ts` |
 | `test-justificacion-por-clase.mjs` | `lib/escolar/asistencia/justificaciones.ts` |
+| `test-horario-semanal-puro.mjs` | `lib/escolar/horario/horario-semanal-puro.ts` — horas, días, materias y atribución profesor→bloques (PROMPT Q) |
+| `test-evaluaciones-puro.mjs` | `lib/escolar/ciclo/evaluaciones-puro.ts` — fechas, rangos, solapamientos y resolución local (PROMPT Q) |
+| `test-horario-importar-validacion-puro.mjs` | `lib/escolar/horario/horario-importar-validacion-puro.ts` — forma, duplicados y solapamientos del archivo de horario (PROMPT Q) |
+| `test-justificaciones-puro.mjs` | `lib/escolar/asistencia/justificaciones-puro.ts` — núcleo puro de justificación por clase (PROMPT Q) |
 | `test-reparar-tabla-legacy.mjs` | `lib/escolar/ciclo/contexto-ciclo.ts` |
 | `test-traspaso-materia.mjs` | `lib/escolar/materia/traspaso-materia.ts` |
 | `test-materia-identidad.mjs` · `test-materia-avance.mjs` · `test-columnas-calificaciones.mjs` | identidad y columnas de materia |
