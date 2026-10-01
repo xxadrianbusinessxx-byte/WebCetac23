@@ -29,13 +29,13 @@
     },
     {
       "id": "claves-compartidas-profesores",
-      "titulo": "15 de 21 profesores comparten contraseña",
-      "detalle": "debe_cambiar_credenciales está marcado en 19, pero el cambio real solo ocurre cuando cada profesor entra. Hasta entonces, quien sepa el nombre de un colega puede entrar como él.",
+      "titulo": "15 de 22 profesores comparten contraseña",
+      "detalle": "debe_cambiar_credenciales está marcado en 15, pero el cambio real solo ocurre cuando cada profesor entra. Hasta entonces, quien sepa el nombre de un colega puede entrar como él.",
       "riesgo": "alto",
       "quien": "persona — hay que hacer entrar a cada profesor",
       "verificar": "node scripts/diag-credenciales-duplicadas.mjs",
       "doc": "ESTADO-ACTUAL.md",
-      "revisado": "2026-09-16",
+      "revisado": "2026-09-30",
       "estado": "abierto"
     },
     {
@@ -156,18 +156,19 @@
       "quien": "agente — es medicion sobre el codigo, la hace un prompt",
       "verificar": "node scripts/verificar-docs.mjs",
       "doc": "docs/sistema/MATRIZ-UX.md",
-      "revisado": "2026-09-19",
-      "estado": "abierto"
+      "revisado": "2026-09-30",
+      "estado": "cerrado",
+      "cierre": "2026-09-30: MATRIZ-UX §§2, 3, 5 y 6 reescritas contra el shell (mapa-navegacion.ts). Fuera las piezas retiradas (MainTabButton, BubblePill, GlossyNavPill, barra-navegacion, glossy-nav-pill); §5.2 apunta a C11."
     },
     {
       "id": "tipos-db-sin-generar",
       "titulo": "database.types.ts no se ha podido generar: falta Docker o un token de la CLI",
-      "detalle": "El PROMPT J dejó el generador (scripts/gen-tipos-db.mjs, con --check y la versión de la CLI clavada) pero NO el archivo. `supabase gen types --db-url` exige Docker en las tres versiones probadas (2.117.0, 2.39.2, 1.207.9: arranca la imagen postgres-meta) y esta máquina no tiene demonio de Docker; `--project-id` y `--linked` exigen una sesión de la CLI (access token) que tampoco existe. Es una decisión de una persona: instalar Docker Desktop, o emitir un token y exportar SUPABASE_ACCESS_TOKEN. Después: correr el generador y, ANTES de enchufar el genérico al cliente, comprobar `npx tsc --noEmit` y el tamaño del archivo (C9: ningún archivo de app/ o lib/ pasa de 1000 líneas, y un database.types.ts real lo supera, así que necesita su excepción decidida). NO se generó desde el OpenAPI de PostgREST a propósito: es una fuente derivada y con pérdida (no distingue uuid de text, aproxima la nulabilidad) y habría producido una lista de errores de tsc en parte ficticia, que es justo el artefacto que ese prompt venía a medir.",
+      "detalle": "El PROMPT J dejó el generador (scripts/gen-tipos-db.mjs, con --check y la versión de la CLI clavada) pero NO el archivo. `supabase gen types --db-url` exige Docker (arranca la imagen postgres-meta). Revisado el 2026-09-30: Docker Desktop YA está instalado (cliente 29.6.2) pero el demonio NO está arrancado — el generador falla en «failed to connect to the docker API … daemon is running» (`node scripts/gen-tipos-db.mjs --check`) —; `--project-id` y `--linked` exigen una sesión de la CLI (access token) que tampoco existe. Es una decisión de una persona: arrancar Docker Desktop, o emitir un token y exportar SUPABASE_ACCESS_TOKEN. Después: correr el generador y, ANTES de enchufar el genérico al cliente, comprobar `npx tsc --noEmit` y el tamaño del archivo (C9: ningún archivo de app/ o lib/ pasa de 1000 líneas, y un database.types.ts real lo supera, así que necesita su excepción decidida). NO se generó desde el OpenAPI de PostgREST a propósito: es una fuente derivada y con pérdida (no distingue uuid de text, aproxima la nulabilidad) y habría producido una lista de errores de tsc en parte ficticia, que es justo el artefacto que ese prompt venía a medir.",
       "riesgo": "medio",
       "quien": "persona — instalar Docker o emitir un token; el resto lo hace un agente",
       "verificar": "node scripts/gen-tipos-db.mjs --check",
       "doc": "docs/historial/informes/INFORME-PROMPT-J-TIPOS-DESDE-LA-BASE.md",
-      "revisado": "2026-09-20",
+      "revisado": "2026-09-30",
       "estado": "abierto"
     },
     {

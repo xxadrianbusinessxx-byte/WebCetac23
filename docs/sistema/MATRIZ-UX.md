@@ -23,7 +23,7 @@ toco y a qué más afecta?»**
 | Quiero… | Voy a |
 |---|---|
 | Pedir un cambio de apariencia | §6 — copio la fila y el `grep` de alcance al prompt |
-| Saber dónde está una zona de la pantalla | §3 — mapa de rutas |
+| Saber dónde está una zona de la pantalla | §3 — mapa de navegación |
 | Saber qué valor usa hoy un color / radio / sombra | §4 — tokens medidos |
 | Reutilizar una pieza en vez de inventarla | §5 — catálogo de piezas |
 | Entender por qué un cambio «no se aplica en todos lados» | §7 — deuda medida |
@@ -86,19 +86,24 @@ no hay barra en `/` ni en `/login`.
 
 > **Retirado en `8d17188`:** `ui/barra-navegacion.tsx` y `ui/glossy-nav-pill.tsx`
 > ya no existen; `.app-nav-bar*` sigue en `app/globals.css` (8 reglas) sin nadie
-> que lo use. Las §§2, 3, 5 y 6 de este documento son anteriores a ese commit y
-> **están pendientes de reauditar** (`docs/sistema/pendientes.json`,
-> `matriz-ux-anterior-al-shell`).
+> que lo use. §§3, 5 y 6 se reauditaron contra el shell el 2026-09-30
+> (`PROMPT Q · Parte 2 · D-1`); las cifras compuestas de §1 y §5.2 se re-miden
+> con los greps de §9, no a ojo.
 
 ---
 
-## 3. Mapa de rutas — cómo está dividida la UX
+## 3. Mapa de navegación — cómo está dividida la UX
 
 Contenedor **estándar** (7 de 8 rutas, idéntico carácter por carácter):
 
 ```
 relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 lg:max-w-6xl lg:px-8 lg:pt-8
 ```
+
+> **La tabla siguiente es legado (R8).** Las rutas `/perfil`…`/tutor` siguen existiendo
+> como fallback, pero ya no son la navegación: esa es el shell (descrito en «Quién ve
+> qué» y en el árbol, abajo). Las piezas retiradas (`MainTabButton`, `BubblePill`,
+> `barra-navegacion`, `glossy-nav-pill`) ya no existen.
 
 | Ruta | Server | Client (líneas) | Contenedor | Zonas / piezas propias |
 |---|---|---|---|---|
@@ -158,33 +163,21 @@ Dentro de cada pestaña, **los apartados** sí se filtran por **capacidad**
 (`puede()`), no por rol: un apartado visible que el servidor rechaza es un bug
 (`docs/sistema/MATRIZ-PERMISOS.md`).
 
-> El resto de esta §3 —la tabla de rutas y el árbol de componentes— es anterior
-> al mismo commit y **no se ha reauditado**. No apoyarse en ella sin comprobar
-> contra el código.
+> La tabla de rutas de arriba es **legado (R8)**: las rutas siguen existiendo como
+> fallback, pero ya no son la navegación. El árbol de abajo describe el shell, que es
+> lo que de verdad se monta.
 
 ### Árbol de uso de componentes
 
 ```
-layout.tsx ─ decoracion-fondo · barra-navegacion ─ glossy-nav-pill · cambio-clave-forzado · web-vitals
+layout.tsx ─ decoracion-fondo · frutiger-backdrop · cambio-clave-forzado · web-vitals
 page.tsx (/) ─ portada-carrusel
-perfil ─ materia-selector · materia-tabla-vista · materia-calificaciones-alumno
-        · calendario-asistencia-alumno · horario-alumno-resumen · etiquetas-dinamicas-panel
-profesor ─ buscador-alumno-profesor ─ (calendario-asistencia-alumno · horario-alumno-resumen)
-          · asistencias-panel · materia-mapeo-columnas ─ materia-calificaciones-alumno
-directivo ─ justificaciones-admin · materias-config-panel ─ aliases-volumen-panel
-           · profesores-credenciales-panel · materia-*
-configuracion ─ ciclo-configurador/ ─ paso-{datos,academico,alumnos,horario,calendario,evaluacion,validacion}
-                                       └ paso-horario ─ horario-escolar-panel
-                                       └ paso-calendario ─ calendario-escolar-panel
-               · tutores-panel · asignaciones-admin · baja-roster-panel · deshacer-paso-panel
-documentos ─ documentos-panel
-tutor ─ calendario-asistencia-alumno · horario-alumno-resumen
-oceano (Fases 1-3) ─ shell-oceano ─ nav-superior-oceano · sidebar-oceano · barra-modo-oceano
-                                  └ contenido-alumno-oceano ─ materia-selector · materia-calificaciones-alumno
-                                                             · horario-alumno-resumen · calendario-asistencia-alumno
-                                                             · etiquetas-dinamicas-panel · materia-tabla-vista
-                                                             · asistencia-tabular-alumno · notificaciones-alumno
-                                  └ contenido-marcador-oceano (huecos sin pieza)
+oceano ─ shell-oceano ─ nav-superior-oceano (pestañas por rol) · sidebar-oceano (apartados)
+                       · barra-modo-oceano (sub-vistas) · selector-alumno-oceano (tutor)
+                       · buscador-expediente-oceano (administración escolar)
+        └ contenido-{alumno,directivo,docente,tecnico,administracion}-oceano
+          · contenido-marcador-oceano (huecos sin pieza)
+          · asistencia-tabular-alumno · notificaciones-alumno · numero-control-alumno
 ```
 
 `frutiger-backdrop` y `glossy-person-icon` los usan **8 archivos cada uno**: son las
@@ -360,7 +353,7 @@ componente reabre la deuda D11.
 
 ## 5. Catálogo de piezas
 
-Estado real: **`app/components/ui/` solo contiene 6 archivos**, y ninguno es un botón,
+Estado real: **`app/components/ui/` solo contiene 4 archivos**, y ninguno es un botón,
 un panel ni un campo. Las piezas de interfaz están **definidas dentro de los archivos
 que las usan** y copiadas a mano.
 
@@ -373,28 +366,14 @@ que las usan** y copiadas a mano.
 | `GlossyPersonIcon` | `ui/glossy-person-icon.tsx` | 8 archivos | SVG con `PALETAS` por género |
 | `WebVitals` | `ui/web-vitals.tsx` | `layout.tsx` | sin render |
 
-### 5.2 Piezas duplicadas a mano (5 nombres, 25 copias)
+### 5.2 Piezas duplicadas a mano (fuente actual: C11)
 
-| Pieza | Copias | Variantes | Dónde |
-|---|---|---|---|
-| `GreyActionPill` | **10** | 3 | `calendario-asistencia-alumno`, `calendario-escolar-panel`, `cambio-clave-forzado`, `documentos-panel`, `justificaciones-admin`, `tutores-panel`, `configuracion-client`, `directivo-client`, `profesor-client`, `tutor-client` |
-| `PanelTab` | **8** | 3 | `calendario-asistencia-alumno`, `calendario-escolar-panel`, `documentos-panel`, `justificaciones-admin`, `tutores-panel`, `configuracion-client`, `directivo-client`, `page.tsx` |
-| `PillButton` | **3** | 3 | `asistencias-panel`, `etiquetas-dinamicas-panel`, `horario-escolar-panel` |
-| `MainTabButton` | **2** | 1 | `perfil-client`, `tutor-client` |
-| `BubblePill` | **2** | 1 | `perfil-client`, `tutor-client` |
-
-Las variantes ya divergieron:
-
-- `GreyActionPill` — 8 copias idénticas; `profesor-client` solo cambia el orden de los
-  atributos; **`cambio-clave-forzado` perdió la sombra exterior**
-  (`,0_3px_10px_rgba(2,6,23,0.12)`): ese botón está visualmente más plano que los otros
-  nueve.
-- `PanelTab` — 6 idénticas, `documentos-panel` difiere solo en formato, y la de
-  `app/page.tsx` **es otra cosa**: una barra decorativa azul sin `children`.
-- `PillButton` — las tres divergen: `asistencias-panel` no acepta `type`,
-  `horario-escolar-panel` usa `disabled:opacity-50` (las otras `60`), y
-  `etiquetas-dinamicas-panel` añade una prop `tone: "sky" | "grey"` que las otras no
-  tienen.
+> **Reauditado el 2026-09-30.** La fuente ya no es esta tabla (medición del 2026-09-08
+> sobre 53 archivos): es la regla **C11** de `scripts/test-orden.mjs`, que cuenta las
+> definiciones sobrantes (copias menos una) y hoy marca **21**; el desglose está en §7.
+> De los cinco nombres que listaba esta sección, **dos se retiraron con la UI antigua**
+> —`MainTabButton` y `BubblePill` (0 archivos)— y quedan **tres**: `GreyActionPill`
+> (7 copias), `PanelTab` (6) y `PillButton` (3).
 
 ### 5.3 Recetas (el CSS literal de cada pieza)
 
@@ -404,9 +383,7 @@ Las variantes ya divergieron:
 | **Botón primario** (`PillButton`) | igual, cambiando el gradiente por `from-sky-500 via-sky-600 to-sky-700` |
 | **Rótulo de sección** (`PanelTab`) | `rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] sm:text-[11px]` |
 | **Rótulo destacado** (`SectionPill`, solo `/`) | `rounded-full border border-white/70 bg-linear-to-b from-sky-200/90 via-sky-100/80 to-white/70 px-6 py-2 text-xs font-extrabold uppercase tracking-widest text-sky-900 shadow-[0_4px_16px_rgba(14,165,233,0.2),inset_0_1px_0_rgba(255,255,255,0.95)]` |
-| **Dato en burbuja** (`BubblePill`) | `inline-flex items-center justify-center rounded-full border border-white/70 bg-white/88 px-3 py-2 text-[10px] font-bold uppercase leading-tight text-sky-900 shadow-[inset_0_2px_0_rgba(255,255,255,0.95),0_2px_8px_rgba(14,165,233,0.12)] sm:text-xs` |
-| **Pestaña** (`MainTabButton`) | base `min-w-0 flex-1 rounded-t-2xl border border-b-0 px-2 py-3 text-[10px] font-extrabold uppercase tracking-wide sm:px-4 sm:text-xs`; activa `border-sky-800/25 bg-white/92 text-sky-800`; inactiva `bg-slate-400/75 text-slate-700 translate-y-px` |
-| **Pill de navegación** (`GlossyNavPill`) | `rounded-full border border-white/40 px-4 py-2.5 text-sm font-extrabold uppercase tracking-wider ring-1 ring-white/20 shadow-[inset_0_2px_0_rgba(255,255,255,0.4),inset_0_-2px_0_rgba(0,0,0,0.28),0_6px_18px_rgba(2,6,23,0.35)] sm:px-10` |
+| *(retirado con la UI antigua: `BubblePill`, `MainTabButton` y `GlossyNavPill` — 0 archivos)* | — |
 | **Campo compacto** (select/input) | `rounded-xl border border-white/70 bg-white/85 px-2 py-1.5 text-[10px] font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none focus:ring-2 focus:ring-sky-400/50` |
 | **Campo ancho** | `w-full min-w-[7rem] rounded-xl border border-white/70 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-inner outline-none focus:border-sky-600 disabled:bg-white/50 disabled:text-slate-600` |
 | **Sub-panel** | `rounded-2xl border border-white/55 bg-white/50 p-3` |
@@ -427,8 +404,8 @@ sitios toca. Todos son de solo lectura.
 | **Barra superior (aspecto)** | `app/components/oceano/nav-superior-oceano.tsx` | 1 archivo — presentación pura | bajo |
 | **Qué pestañas salen y para quién** | `lib/navegacion/mapa-navegacion.ts` (`MAPA_POR_ROL`) | 1 archivo — los apartados siguen a `puede()` | **alto**: un apartado que el servidor rechaza es un bug |
 | **Color de los botones primarios** | 3 copias de `PillButton` + gradientes sueltos | `grep -rn "from-sky-500 via-sky-600 to-sky-700" app --include=*.tsx` (7) | medio |
-| **Color de los botones neutros** | 10 copias de `GreyActionPill` + rótulos `PanelTab` | `grep -rn "from-slate-400 via-slate-500 to-slate-600" app --include=*.tsx` (77) | medio |
-| **Forma de los botones** (dejar de ser cápsula) | las 5 piezas de §5.2 | `grep -rn "rounded-full" app --include=*.tsx` (192; incluye avatares y chips) | medio |
+| **Color de los botones neutros** | 7 copias de `GreyActionPill` + rótulos `PanelTab` | `grep -rn "from-slate-400 via-slate-500 to-slate-600" app --include=*.tsx` (77) | medio |
+| **Forma de los botones** (dejar de ser cápsula) | las 3 piezas de §5.2 | `grep -rn "rounded-full" app --include=*.tsx` (192; incluye avatares y chips) | medio |
 | **Tamaño de la letra de los botones** | `text-[11px]` en las piezas de §5.2 | `grep -rn "text-\[11px\]" app --include=*.tsx` (170) | medio |
 | **Legibilidad general del texto** | `text-[10px]`/`[9px]`/`[8px]` repartidos | `grep -rn "text-\[10px\]" app --include=*.tsx` (269) | **alto**: cambia todas las rejillas |
 | **La fuente** | `Nunito` en `app/layout.tsx` + `--font-sans` en `globals.css` | 2 archivos, global | bajo |
@@ -439,7 +416,7 @@ sitios toca. Todos son de solo lectura.
 | **Reordenar zonas dentro de una ruta** | el `*-client.tsx` de esa ruta (§3) | 1 archivo | bajo |
 | **Mover un panel de una ruta a otra** | quitar el import de un cliente, añadirlo en otro | 2 archivos (+ `ORDEN.md` §1 si cambia de carpeta) | medio |
 | **Aspecto de los campos de formulario** | receta repetida en cada panel | `grep -rn "focus:ring-sky-400/50" app --include=*.tsx` | medio |
-| **Aspecto de las pestañas** | `MainTabButton` ×2 (`perfil`, `tutor`) | 2 archivos | bajo |
+| **Aspecto de las pestañas** | `app/components/oceano/nav-superior-oceano.tsx` (las pestañas del shell) | 1 archivo | bajo |
 | **La pantalla de cambio forzado de clave** | `components/cambio-clave-forzado.tsx` | 1 archivo | bajo |
 | **La portada `/`** | `app/page.tsx` + `portada-carrusel.tsx`; el contenido, en «Configuración → Video e imágenes» | 2 archivos | bajo |
 | **Icono de persona / avatares** | `PALETAS` en `ui/glossy-person-icon.tsx` | 1 archivo, 8 consumidores | bajo |

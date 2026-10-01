@@ -6,8 +6,8 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-09-30 (Q: cabecera, familias de `lib/`, reglas de `test-orden` y cuentas de `PROFESORES`)
-- **HEAD:** `6b31e6b` (2026-09-30) · árbol limpio
+- **Última revisión:** 2026-09-30 (Q: cabecera, familias de `lib/`, reglas de `test-orden`, cuentas de `PROFESORES` y suites)
+- **HEAD:** `c2a285c` (2026-09-30) · árbol limpio
 
 ---
 
