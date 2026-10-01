@@ -23,6 +23,7 @@ import {
   type MateriaIdentidad,
 } from "./materia-identidad.ts";
 import { normalizarNombre } from "../nombres.ts";
+import { grupoMateriaDesdeTablaLegacy } from "./puente-grupo-materia.ts";
 
 /** Nombre de la tabla ligera de configuración (no es una tabla de materia). */
 export const TABLA_NOMBRES_VISIBLES = "materias_nombres_visibles";
@@ -193,9 +194,13 @@ export async function guardarNombreVisibleMateria(
   const errorVal = validarNombreVisible(nombreVisible);
   if (errorVal) return { ok: false, error: errorVal };
 
+  // `grupo_materia_id` mantiene vivo el puente (ver `guardarMapeoColumnasMateria`
+  // para el porqué). Solo si se resolvió: un null aquí borraría uno ya puesto.
+  const pareja = await grupoMateriaDesdeTablaLegacy(supabase, id);
   const { error } = await supabase.from(TABLA_NOMBRES_VISIBLES).upsert(
     {
       materia_id: id,
+      ...(pareja ? { grupo_materia_id: pareja.id } : {}),
       nombre_visible: nombreVisible.trim(),
       activo: true,
       actualizado_por: actualizadoPor,

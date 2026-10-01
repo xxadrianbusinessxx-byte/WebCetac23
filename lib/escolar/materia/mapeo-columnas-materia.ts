@@ -28,6 +28,10 @@ import {
   type RolVistaCalificaciones,
 } from "./columnas-calificaciones.ts";
 import { normalizarNombre } from "../nombres.ts";
+import {
+  grupoMateriaDesdeTablaLegacy,
+  tablaLegacyDeGrupoMateria,
+} from "./puente-grupo-materia.ts";
 import type { MateriaTablaVista } from "../types.ts";
 
 export type MapeoColumnasMateria = {
@@ -602,9 +606,34 @@ export async function obtenerMapeoPorGrupoMateria(
   return mapeoDesdeFila(data as Record<string, unknown>);
 }
 
+/** La fila de `materias_mapeo_columnas` a partir del mapeo, SIN sus claves.
+ *  Una sola definición para los dos escritores: si cada uno armara la suya,
+ *  una columna nueva acabaría guardándose por un camino y no por el otro. */
+function filaDesdeMapeo(mapeo: MapeoColumnasMateria, actualizadoPor: string) {
+  return {
+    columnas_nombre_alumno: limpiarLista(mapeo.columnasNombreAlumno),
+    columna_curp: mapeo.columnaCurp?.trim() || null,
+    columnas_actividades: limpiarLista(mapeo.columnasActividades),
+    columnas_parciales: limpiarLista(mapeo.columnasParciales),
+    columna_promedio: mapeo.columnaPromedio?.trim() || null,
+    columna_final: mapeo.columnaFinal?.trim() || null,
+    columnas_ocultas: limpiarLista(mapeo.columnasOcultas),
+    // BLOQUE 9 (PIEZA 1): null = feature apagada (sin promedio ponderado).
+    pesos_actividades: mapeo.pesosActividades ?? null,
+    activo: true,
+    actualizado_por: actualizadoPor,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 /**
  * Guarda (UPSERT) la configuración de mapeo de una materia por `materia_id`.
  * Re-guardar actualiza, nunca duplica. NO modifica la tabla de la materia.
+ *
+ * Escribe además `grupo_materia_id` cuando la tabla física tiene pareja: es
+ * lo que mantiene vivo el puente. El backfill de la migración se hizo una sola
+ * vez; sin esto, todo mapeo guardado desde las pantallas viejas a partir de
+ * entonces nacería sin puente y el modelo nuevo no lo encontraría.
  */
 export async function guardarMapeoColumnasMateria(
   supabase: SupabaseClient,
@@ -615,23 +644,45 @@ export async function guardarMapeoColumnasMateria(
   const id = idInterno.trim();
   if (!id) return { ok: false, error: "Materia no válida." };
 
+  const pareja = await grupoMateriaDesdeTablaLegacy(supabase, id);
   const { error } = await supabase.from(TABLA_MAPEO_COLUMNAS).upsert(
     {
       materia_id: id,
-      columnas_nombre_alumno: limpiarLista(mapeo.columnasNombreAlumno),
-      columna_curp: mapeo.columnaCurp?.trim() || null,
-      columnas_actividades: limpiarLista(mapeo.columnasActividades),
-      columnas_parciales: limpiarLista(mapeo.columnasParciales),
-      columna_promedio: mapeo.columnaPromedio?.trim() || null,
-      columna_final: mapeo.columnaFinal?.trim() || null,
-      columnas_ocultas: limpiarLista(mapeo.columnasOcultas),
-      // BLOQUE 9 (PIEZA 1): null = feature apagada (sin promedio ponderado).
-      pesos_actividades: mapeo.pesosActividades ?? null,
-      activo: true,
-      actualizado_por: actualizadoPor,
-      updated_at: new Date().toISOString(),
+      // Solo se pone si se resolvió: escribir null aquí BORRARÍA un puente que
+      // ya estuviera puesto, si la resolución fallara por red.
+      ...(pareja ? { grupo_materia_id: pareja.id } : {}),
+      ...filaDesdeMapeo(mapeo, actualizadoPor),
     },
     { onConflict: "materia_id" },
+  );
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Guarda el mapeo por `grupo_materia_id` — la identidad del modelo nuevo.
+ *
+ * Es el único camino para una pareja SIN tabla física (las altas nuevas): las
+ * pantallas viejas no tienen cómo nombrarla. Si la pareja sí tiene tabla,
+ * escribe también `materia_id`, por el mismo invariante que `guardarAlias`.
+ */
+export async function guardarMapeoPorGrupoMateria(
+  supabase: SupabaseClient,
+  grupoMateriaId: string,
+  mapeo: MapeoColumnasMateria,
+  actualizadoPor: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const legacy = await tablaLegacyDeGrupoMateria(supabase, grupoMateriaId);
+  if (!legacy.ok) return legacy;
+
+  const { error } = await supabase.from(TABLA_MAPEO_COLUMNAS).upsert(
+    {
+      grupo_materia_id: grupoMateriaId.trim(),
+      materia_id: legacy.tablaLegacy,
+      ...filaDesdeMapeo(mapeo, actualizadoPor),
+    },
+    { onConflict: "grupo_materia_id" },
   );
 
   if (error) return { ok: false, error: error.message };

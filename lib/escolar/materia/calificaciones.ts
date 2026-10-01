@@ -23,6 +23,7 @@ import {
   TABLA_INSCRIPCIONES_ALUMNO,
 } from "../tables.ts";
 import type { FilaCalificacion, TipoCalificacion } from "./calificaciones-puro.ts";
+import { tablaLegacyDeGrupoMateria } from "./puente-grupo-materia.ts";
 
 export type CalificacionRow = {
   id: string;
@@ -167,38 +168,12 @@ export async function calificacionesDeGrupoMateria(
 
 /* ── El puente con la identidad vieja ───────────────────────────────────── */
 
-export type GrupoMateriaResuelto = {
-  id: string;
-  grupo_id: string;
-  materia_id: string;
-  tabla_legacy: string | null;
-  activo: boolean;
-};
-
-/**
- * De un `idInterno` (el nombre de la tabla física) al `grupo_materia_id`.
- *
- * Es el puente que permite migrar sin romper: las pantallas que todavía
- * manejan `idInterno` pueden resolverlo aquí y pasar al modelo nuevo, en vez de
- * tener que cambiarlas todas de golpe.
- *
- * NO es el camino deseable y no debe multiplicarse: existe para la transición.
- * Lo correcto es que la UI maneje `grupo_materia_id` desde el principio.
- */
-export async function grupoMateriaDesdeTablaLegacy(
-  supabase: SupabaseClient,
-  tablaLegacy: string,
-): Promise<GrupoMateriaResuelto | null> {
-  const { data, error } = await supabase
-    .from(TABLA_GRUPO_MATERIAS)
-    .select("id, grupo_id, materia_id, tabla_legacy, activo")
-    .eq("tabla_legacy", tablaLegacy)
-    .maybeSingle();
-  if (error || !data) return null;
-  return data as GrupoMateriaResuelto;
-}
-
-/* ── El catálogo que ve cada quien ──────────────────────────────────────── */
+// Vive en su propio módulo porque alias y mapeo también lo usan; se reexporta
+// aquí para que quien ya lo importaba de este archivo no tenga que cambiar.
+export {
+  grupoMateriaDesdeTablaLegacy,
+  type GrupoMateriaResuelto,
+} from "./puente-grupo-materia.ts";
 
 export type MateriaDelAlumno = {
   grupoMateriaId: string;
@@ -338,8 +313,11 @@ export async function cambiarEstadoMateriaEnGrupo(
  * El alias de una materia EN UN GRUPO. Es un `upsert` por `grupo_materia_id`,
  * que es la clave única del puente.
  *
- * `materia_id` (texto) se deja como está: es la columna legacy que guardaba el
- * nombre de la tabla física, y se conserva sin escribirse (R8).
+ * `materia_id` (texto, el nombre de la tabla física) se escribe TAMBIÉN cuando
+ * la pareja tiene tabla, y queda nulo cuando no —las altas del modelo nuevo—.
+ * Escribirlo vacío habría dejado el alias invisible para las pantallas viejas,
+ * y omitirlo chocaba con su NOT NULL (retirado en
+ * `corregir-unicidad-calificaciones.sql`).
  */
 export async function guardarAlias(
   supabase: SupabaseClient,
@@ -347,9 +325,16 @@ export async function guardarAlias(
   nombreVisible: string,
   actualizadoPor: string | null,
 ): Promise<Resultado<true>> {
+  // Las dos claves, si la pareja tiene tabla física: así el alias puesto desde
+  // aquí lo ven también las pantallas viejas, y si una de ellas lo cambia luego
+  // cae en ESTA fila y no en una segunda (ver `puente-grupo-materia.ts`).
+  const legacy = await tablaLegacyDeGrupoMateria(supabase, grupoMateriaId);
+  if (!legacy.ok) return legacy;
+
   const { error } = await supabase.from("materias_nombres_visibles").upsert(
     {
       grupo_materia_id: grupoMateriaId,
+      materia_id: legacy.tablaLegacy,
       nombre_visible: nombreVisible,
       activo: true,
       actualizado_por: actualizadoPor,

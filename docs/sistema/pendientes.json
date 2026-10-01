@@ -17,6 +17,17 @@
   ],
   "pendientes": [
     {
+      "id": "sql-unicidad-calificaciones",
+      "titulo": "corregir-unicidad-calificaciones.sql sin aplicar: el modelo B no puede escribir",
+      "detalle": "Las tres escrituras del modelo B (guardarCalificaciones, calificarActividad, guardarAlias) y el nuevo guardarMapeoPorGrupoMateria devuelven 42P10 en la base: sus onConflict apuntaban a índices parcial y de expresión, que PostgreSQL no infiere. Medido el 2026-10-01 con el código de la app: 8 fallos, 0 filas escritas. Este SQL los cambia por restricciones UNIQUE normales, deja materia_id nulable en alias y mapeo (las altas nuevas no tienen tabla física) y hace única tabla_legacy. calificaciones tiene 0 filas: aplicarlo ahora es lo más barato que va a ser. Hasta entonces nada del modelo B escribe; lo viejo sigue funcionando igual.",
+      "riesgo": "alto",
+      "quien": "persona — pegar el archivo entero en el SQL Editor (idempotente)",
+      "verificar": "node scripts/migrar-ensayo-modelo-b.mjs --apply",
+      "doc": "supabase/corregir-unicidad-calificaciones.sql",
+      "revisado": "2026-10-01",
+      "estado": "abierto"
+    },
+    {
       "id": "traspaso-sin-estrenar",
       "titulo": "asignaciones_profesor sigue con 0 filas",
       "detalle": "La consola del técnico está lista (PROMPT-3/T3) y el traspaso probado con 26 casos puros, pero nadie ha subido una plantilla. Es código entero sin estrenar en producción: el riesgo más alto del sistema.",

@@ -142,7 +142,7 @@ console.log("\n── guardarCalificaciones: la clave que evita duplicar ──\
   eq(
     db.llamadas[0].opts.onConflict,
     "grupo_materia_id,curp,tipo,clave_columna",
-    "el onConflict es la identidad exacta del índice único del .sql",
+    "el onConflict es la de siempre (que exista en la base lo comprueba el bloque final)",
   );
   const p = db.llamadas[0].payload[0];
   eq(p.grupo_materia_id, "GM-1", "lleva el grupo_materia_id del parámetro");
@@ -325,17 +325,87 @@ console.log("\n── altaMateriaEnGrupo: idempotente, y sin tabla física ─�
   );
 }
 
-console.log("\n── guardarAlias: un alias por PAREJA ──\n");
+console.log("\n── guardarAlias: un alias por PAREJA, con las dos claves ──\n");
 {
-  const db = dobleSupabase();
-  await M.guardarAlias(db, "GM-1", "Mate I", "tecnico01");
-  const l = db.llamadas[0];
+  // Pareja CON tabla física: escribe las dos claves. Si escribiera solo la
+  // nueva, el alias sería invisible para las pantallas viejas, y la siguiente
+  // vez que una lo guardara crearía una SEGUNDA fila para la misma pareja.
+  const db = dobleSupabase({ "grupo_materias:select": { data: { tabla_legacy: "1ROAMAT011" } } });
+  const r = await M.guardarAlias(db, "GM-1", "Mate I", "tecnico01");
+  ok("devuelve ok", r.ok === true, JSON.stringify(r));
+  const l = db.llamadas.find((x) => x.op === "upsert");
   eq(l.tabla, "materias_nombres_visibles", "va a la tabla de alias");
-  eq(l.opts.onConflict, "grupo_materia_id", "la clave es la pareja, no la materia");
+  eq(l.opts.onConflict, "grupo_materia_id", "la clave de conflicto es la pareja");
   eq(l.payload.grupo_materia_id, "GM-1", "escribe el puente");
-  // Escribir `materia_id` aquí volvería a meter el nombre de la tabla física
-  // como identidad: es exactamente la deuda que la migración cierra.
-  ok("NO escribe el `materia_id` legacy", !("materia_id" in l.payload), JSON.stringify(l.payload));
+  eq(l.payload.materia_id, "1ROAMAT011", "…y la clave vieja, para converger con las pantallas viejas");
+}
+{
+  // Pareja SIN tabla física (alta del modelo nuevo): `materia_id` nulo, que es
+  // lo que `corregir-unicidad-calificaciones.sql` permitió al quitar el NOT NULL.
+  const db = dobleSupabase({ "grupo_materias:select": { data: { tabla_legacy: null } } });
+  await M.guardarAlias(db, "GM-NUEVA", "Robótica", "tecnico01");
+  const l = db.llamadas.find((x) => x.op === "upsert");
+  eq(l.payload.materia_id, null, "sin tabla física, materia_id va nulo y explícito");
+}
+{
+  // No poder leer la pareja NO es «no tiene tabla»: si lo fuera, un fallo de
+  // red escribiría el alias sin su clave vieja.
+  const db = dobleSupabase({ "grupo_materias:select": { error: { message: "red" } } });
+  const r = await M.guardarAlias(db, "GM-1", "Mate I", "t");
+  ok(
+    "si no puede leer la pareja, no escribe",
+    r.ok === false && db.llamadas.every((x) => x.op !== "upsert"),
+    JSON.stringify(db.llamadas.map((x) => x.op)),
+  );
+}
+{
+  const db = dobleSupabase({ "grupo_materias:select": { data: null } });
+  const r = await M.guardarAlias(db, "GM-FANTASMA", "x", "t");
+  ok("pareja inexistente: error explícito, sin escribir", r.ok === false && /no existe/.test(r.error), JSON.stringify(r));
+}
+
+console.log("\n── el mapeo de columnas mantiene el puente por los dos caminos ──\n");
+{
+  const Mp = await import("../lib/escolar/materia/mapeo-columnas-materia.ts");
+  const mapeoEj = {
+    columnasNombreAlumno: ["Nombre"],
+    columnaCurp: "CURP",
+    columnasActividades: ["A1"],
+    columnasParciales: [],
+    columnaPromedio: null,
+    columnaFinal: null,
+    columnasOcultas: [],
+    pesosActividades: null,
+  };
+
+  // Camino viejo, por idInterno: añade el puente si la tabla tiene pareja.
+  const dbV = dobleSupabase({ "grupo_materias:select": { data: { id: "GM-1", tabla_legacy: "1ROAMAT011" } } });
+  await Mp.guardarMapeoColumnasMateria(dbV, "1ROAMAT011", mapeoEj, "prof");
+  const v = dbV.llamadas.find((x) => x.op === "upsert");
+  eq(v.opts.onConflict, "materia_id", "el camino viejo sigue resolviendo por materia_id");
+  eq(v.payload.grupo_materia_id, "GM-1", "…pero escribe el puente: el backfill fue de una sola vez");
+
+  // Si no resuelve la pareja, NO escribe grupo_materia_id: un null borraría un
+  // puente ya puesto.
+  const dbV2 = dobleSupabase({ "grupo_materias:select": { data: null } });
+  await Mp.guardarMapeoColumnasMateria(dbV2, "HUERFANA", mapeoEj, "prof");
+  const v2 = dbV2.llamadas.find((x) => x.op === "upsert");
+  ok("sin pareja no toca grupo_materia_id", !("grupo_materia_id" in v2.payload), JSON.stringify(v2.payload));
+
+  // Camino nuevo, por pareja: el único posible para un alta sin tabla física.
+  const dbN = dobleSupabase({ "grupo_materias:select": { data: { tabla_legacy: "1ROAMAT011" } } });
+  const rN = await Mp.guardarMapeoPorGrupoMateria(dbN, "GM-1", mapeoEj, "prof");
+  ok("el camino nuevo devuelve ok", rN.ok === true, JSON.stringify(rN));
+  const n = dbN.llamadas.find((x) => x.op === "upsert");
+  eq(n.opts.onConflict, "grupo_materia_id", "el camino nuevo resuelve por la pareja");
+  eq(n.payload.materia_id, "1ROAMAT011", "…y escribe también la clave vieja");
+
+  // La MISMA fila por los dos caminos, salvo las claves y la hora: si cada
+  // escritor armara la suya, una columna nueva se guardaría por uno solo.
+  const CLAVES = new Set(["materia_id", "grupo_materia_id", "updated_at"]);
+  const sinClaves = (o) => Object.keys(o).filter((k) => !CLAVES.has(k)).sort();
+  eq(sinClaves(v.payload), sinClaves(n.payload), "los dos caminos escriben exactamente las mismas columnas");
+  eq(n.payload.columna_curp, "CURP", "la columna de CURP llega a la fila");
 }
 
 console.log("\n── el puente legacy, que existe pero no se extiende ──\n");
@@ -443,6 +513,65 @@ console.log("\n── ninguna lectura toca una tabla física de materia ──\n
     !tablas.some((t) => /[0-9]?[A-Z]{3,}[0-9]{3}/.test(t)),
     tablas.join(","),
   );
+}
+
+console.log("\n── cada onConflict del modelo B existe como restricción en la base ──\n");
+{
+  // El fallo del 2026-10-01: los upserts apuntaban a un índice PARCIAL y a uno
+  // de EXPRESIÓN, que `ON CONFLICT (cols)` no sabe inferir. El doble de esta
+  // suite no lo podía ver —acepta cualquier cosa—, y en la base cada escritura
+  // devolvía 42P10 sin escribir nada.
+  //
+  // Esto lo caza en el texto: cada `onConflict` de los escritores del modelo B
+  // tiene que ser una UNIQUE sobre columnas declarada en `supabase/*.sql`. Un
+  // `create unique index ... where` o con `coalesce(` NO cuenta.
+  const sinComentariosSql = (t) => t.replace(/--[^\n]*/g, "");
+  const norm = (cols) =>
+    cols.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean).sort().join(",");
+  const declaradas = new Set();
+  for (const f of fs.readdirSync(path.join(root, "supabase")).filter((x) => x.endsWith(".sql"))) {
+    const sql = sinComentariosSql(fs.readFileSync(path.join(root, "supabase", f), "utf8"));
+    // Restricciones: `unique (a, b)` que NO sea parte de `create unique index`.
+    for (const m of sql.matchAll(/(create\s+unique\s+index[^;]*?)?\bunique\s*\(([^)]*)\)/gi)) {
+      if (m[1]) continue;
+      declaradas.add(norm(m[2]));
+    }
+    // Índices únicos simples (sin WHERE ni expresiones) también se infieren.
+    for (const m of sql.matchAll(/create\s+unique\s+index[^;(]*\(([^;]*?)\)([^;]*);/gi)) {
+      if (/\bwhere\b/i.test(m[2]) || /\(/.test(m[1])) continue;
+      declaradas.add(norm(m[1]));
+    }
+  }
+  // Los índices que el `.sql` correctivo retira no cuentan aunque sigan
+  // escritos en el `.sql` original: los dos son historia del mismo esquema.
+  const archivos = [
+    "lib/escolar/materia/calificaciones.ts",
+    "lib/escolar/materia/mapeo-columnas-materia.ts",
+    "lib/escolar/materia/nombres-visibles.ts",
+  ];
+  for (const a of archivos) {
+    const src = fs.readFileSync(path.join(root, a), "utf8");
+    for (const m of src.matchAll(/onConflict:\s*"([^"]+)"/g)) {
+      ok(
+        `${path.basename(a)} · onConflict "${m[1]}" es una UNIQUE inferible declarada en supabase/`,
+        declaradas.has(norm(m[1])),
+        `declaradas parecidas: ${[...declaradas].filter((d) => d.includes(norm(m[1]).split(",")[0])).join(" | ")}`,
+      );
+    }
+  }
+
+  // Y la contraprueba: el guardián tiene que RECHAZAR justo lo que falló. Si
+  // estas dos formas pasaran, el bloque de arriba no estaría probando nada.
+  const deFalla = [
+    "create unique index if not exists ux_a on public.t(gm) where gm is not null;",
+    "create unique index if not exists ux_b on public.t(gm, curp, coalesce(clave, ''));",
+  ].join("\n");
+  const atrapadas = new Set();
+  for (const m of deFalla.matchAll(/create\s+unique\s+index[^;(]*\(([^;]*?)\)([^;]*);/gi)) {
+    if (/\bwhere\b/i.test(m[2]) || /\(/.test(m[1])) continue;
+    atrapadas.add(norm(m[1]));
+  }
+  eq([...atrapadas], [], "un índice parcial o de expresión NO cuenta como clave de conflicto");
 }
 
 console.log(
