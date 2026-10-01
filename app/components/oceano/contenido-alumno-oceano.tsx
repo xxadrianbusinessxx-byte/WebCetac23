@@ -17,9 +17,9 @@
  */
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { actionObtenerVistaMateria } from "@/app/actions/escolar";
+import { actionVistaCalificacionesAlumno } from "@/app/actions/calificaciones-normalizadas";
+import type { VistaCalificacionesAlumno } from "@/app/actions/calificaciones-normalizadas";
 import { actionGuardarCamposPersonales } from "@/app/actions/etiquetas-dinamicas";
-import { actionObtenerMapeoColumnasMateria } from "@/app/actions/materias";
 import { MensajesTutorPanel } from "@/app/components/mensajes-tutor-panel";
 import { NumeroControlAlumno } from "./numero-control-alumno";
 import { AsistenciaTabularAlumno } from "./asistencia-tabular-alumno";
@@ -27,8 +27,6 @@ import { NotificacionesAlumno } from "./notificaciones-alumno";
 import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistencia-alumno";
 import { EtiquetasDinamicasPanel } from "@/app/components/etiquetas-dinamicas-panel";
 import { HorarioAlumnoResumen } from "@/app/components/horario-alumno-resumen";
-import { MateriaCalificacionesAlumno } from "@/app/components/materia-calificaciones-alumno";
-import { MateriaSelector } from "@/app/components/materia-selector";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
 import { camposDeGrupo, type GrupoCampoPersonal } from "@/lib/escolar/alumno/grupos-campos-personales";
 import { comentarioPersonalDesdeFila, type CampoPersonalPrimario } from "@/lib/escolar/alumno/etiquetas";
@@ -41,7 +39,7 @@ import { ActividadesPanel } from "@/app/components/actividades-panel";
 import { SesionesProgramadasPanel } from "@/app/components/sesiones-programadas-panel";
 import { SolicitudesConstanciaPanel } from "@/app/components/solicitudes-constancia-panel";
 import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
-import type { ComentarioRow, EtiquetasPersonalesRow, MateriaTablaVista } from "@/lib/escolar/types";
+import type { ComentarioRow, EtiquetasPersonalesRow } from "@/lib/escolar/types";
 
 
 /** Datos que ya resolvió `actionObtenerPerfilAlumno` (la misma de /perfil). */
@@ -133,6 +131,43 @@ function Tira({ children }: { children: ReactNode }) {
 function Aviso({ children }: { children: ReactNode }) {
   return (
     <p className="text-center text-xs font-semibold text-[var(--oc-muted)]">{children}</p>
+  );
+}
+
+/**
+ * Un grupo de notas (actividades, parciales, resultado) en la forma de lista
+ * que ya usaba la pieza. `clave` es el encabezado del Excel; `valor` null es
+ * «no hay nota» y se pinta «—», nunca `0` (que es «sacó cero»).
+ */
+function listaNotas({
+  titulo,
+  items,
+}: {
+  titulo: string;
+  items: { clave: string | null; valor: number | null }[];
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="rounded-3xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-3 sm:p-4">
+      <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-muted)]">
+        {titulo}
+      </p>
+      <ul className="flex flex-col gap-1.5">
+        {items.map((it, i) => (
+          <li
+            key={`${it.clave ?? "sin-clave"}-${i}`}
+            className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] px-3 py-2"
+          >
+            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--oc-muted)]">
+              {it.clave ?? "—"}
+            </span>
+            <span className="text-sm font-extrabold text-[var(--oc-text)]">
+              {it.valor ?? "—"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -276,38 +311,40 @@ export function ContenidoAlumnoOceano({
 }) {
   const { curp, nombre, materias, registro, etiquetas, comentarios, etiquetasDinamicas } = datos;
 
-  // Estado de la pieza Materias (idéntico al de perfil-client.tsx: la selección
-  // y la vista de la materia se piden al cambiar de materia).
-  const [materiaSeleccionada, setMateriaSeleccionada] = useState("");
-  const [vistaMateria, setVistaMateria] = useState<MateriaTablaVista | null>(null);
-  const [pesosMateria, setPesosMateria] = useState<Record<string, number> | null>(null);
+  // Estado de la pieza Materias: la lista sale del modelo nuevo (una materia =
+  // un `grupoMateriaId`), y las notas de la materia elegida se piden al cambiar.
+  const [vistaAlumno, setVistaAlumno] = useState<VistaCalificacionesAlumno | null>(null);
+  const [materiaActiva, setMateriaActiva] = useState("");
+  const [notasMateria, setNotasMateria] = useState<VistaCalificacionesAlumno | null>(null);
 
   useEffect(() => {
     if (pieza !== "materias-calificacion") return;
-    const primera = materias[0]?.idInterno ?? "";
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMateriaSeleccionada((prev) =>
-      prev && materias.some((m) => m.idInterno === prev) ? prev : primera,
-    );
-  }, [pieza, materias]);
-
-  useEffect(() => {
-    if (pieza !== "materias-calificacion" || !materiaSeleccionada) return;
     let activo = true;
-    void actionObtenerVistaMateria(materiaSeleccionada, curp).then((v) => {
-      if (activo) setVistaMateria(v);
-    });
-    void actionObtenerMapeoColumnasMateria(materiaSeleccionada).then((m) => {
-      if (activo) setPesosMateria(m?.pesosActividades ?? null);
+    void actionVistaCalificacionesAlumno(curp).then((v) => {
+      if (!activo) return;
+      setVistaAlumno(v);
+      const lista = v?.materias ?? [];
+      setMateriaActiva((prev) =>
+        prev && lista.some((m) => m.grupoMateriaId === prev)
+          ? prev
+          : lista[0]?.grupoMateriaId ?? "",
+      );
     });
     return () => {
       activo = false;
     };
-  }, [pieza, materiaSeleccionada, curp]);
+  }, [pieza, curp]);
 
-  const nombreVisibleSeleccionada =
-    materias.find((m) => m.idInterno === materiaSeleccionada)?.nombreVisible ??
-    materiaSeleccionada;
+  useEffect(() => {
+    if (pieza !== "materias-calificacion" || !materiaActiva) return;
+    let activo = true;
+    void actionVistaCalificacionesAlumno(curp, materiaActiva).then((v) => {
+      if (activo) setNotasMateria(v);
+    });
+    return () => {
+      activo = false;
+    };
+  }, [pieza, curp, materiaActiva]);
 
   // ENCENDIDAS el 2026-09-17. Antes eran maqueta (actividades) y apagado
   // (sesiones programadas).
@@ -337,7 +374,8 @@ export function ContenidoAlumnoOceano({
   }
 
   if (pieza === "materias-calificacion") {
-    if (materias.length === 0) {
+    const lista = vistaAlumno?.materias ?? [];
+    if (lista.length === 0) {
       return (
         <Tira>
           <Aviso>
@@ -346,21 +384,79 @@ export function ContenidoAlumnoOceano({
         </Tira>
       );
     }
+
+    const materiaActual = lista.find((m) => m.grupoMateriaId === materiaActiva) ?? lista[0];
+    const notas = notasMateria;
+    const actividades = notas?.actividades ?? [];
+    const parciales = notas?.parciales ?? [];
+    const resultado: { clave: string | null; valor: number | null }[] = [
+      ...(notas?.promedio != null ? [{ clave: "Promedio", valor: notas.promedio }] : []),
+      ...(notas?.final != null ? [{ clave: "Final", valor: notas.final }] : []),
+    ];
+    const hayNotas =
+      actividades.length > 0 ||
+      parciales.length > 0 ||
+      resultado.length > 0 ||
+      notas?.promedioActividades != null;
+
     return (
       <div className="flex flex-col gap-4 lg:flex-row">
-        <MateriaSelector
-          materias={materias}
-          seleccionada={materiaSeleccionada}
-          onSeleccionar={setMateriaSeleccionada}
-          iniciarColapsado={materias.length > 30}
-          className="lg:w-80 lg:shrink-0"
-        />
+        <ul className="flex flex-col gap-1.5 lg:w-80 lg:shrink-0">
+          {lista.map((m) => {
+            const activa = m.grupoMateriaId === materiaActual.grupoMateriaId;
+            const facetas = [m.grado, m.grupo].filter(Boolean).join(" · ");
+            return (
+              <li key={m.grupoMateriaId}>
+                <button
+                  type="button"
+                  onClick={() => setMateriaActiva(m.grupoMateriaId)}
+                  className={`flex w-full flex-col gap-0.5 rounded-xl border bg-[var(--oc-input)] px-3 py-2 text-left transition-colors ${
+                    activa
+                      ? "border-[var(--oc-border-active)]"
+                      : "border-[var(--oc-border)] hover:border-[var(--oc-border-active)]"
+                  }`}
+                >
+                  <span className="text-sm font-semibold text-[var(--oc-text)]">
+                    {m.nombreVisible ?? m.nombre}
+                  </span>
+                  {facetas && (
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--oc-muted)]">
+                      {facetas}
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
         <div className="flex min-h-[220px] flex-1 flex-col rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-6 sm:min-h-[280px]">
-          <MateriaCalificacionesAlumno
-            vista={vistaMateria}
-            materiaNombre={nombreVisibleSeleccionada}
-            pesosActividades={pesosMateria}
-          />
+          <p className="mb-3 text-center text-sm font-extrabold uppercase tracking-widest text-[var(--oc-text)]">
+            {materiaActual.nombreVisible ?? materiaActual.nombre}
+          </p>
+          {hayNotas ? (
+            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+              {listaNotas({ titulo: "Actividades", items: actividades })}
+              {listaNotas({ titulo: "Evaluaciones", items: parciales })}
+              {listaNotas({ titulo: "Resultado", items: resultado })}
+              {notas?.promedioActividades != null && (
+                <div className="sm:col-span-2">
+                  <div className="rounded-3xl border border-[var(--oc-border-active)] bg-[var(--oc-input)] p-3 sm:p-4">
+                    <p className="mb-1 text-center text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-muted)]">
+                      Promedio calculado
+                    </p>
+                    <p className="text-center text-2xl font-extrabold text-[var(--oc-text)]">
+                      {notas?.promedioActividades}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="w-full text-center text-sm font-semibold text-[var(--oc-muted)]">
+              Tu profesor aún no ha subido calificaciones de esta materia.
+            </p>
+          )}
         </div>
       </div>
     );
