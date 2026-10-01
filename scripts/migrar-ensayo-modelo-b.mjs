@@ -153,6 +153,18 @@ if (operativo.ok && operativo.periodo) {
     `catalogoParaAlta lee grupos y materias activas (${cat?.grupos.length ?? "null"} grupos · ${cat?.materias.length ?? "null"} materias)`,
     Boolean(cat && cat.grupos.length > 0 && cat.materias.length > 0),
   );
+  // Con la carrera, ninguna etiqueta debe repetirse entre grupos distintos: sin
+  // ella, 10 de las 24 del ciclo 2026-2027 se repetían («2DO A» de Mecatrónica
+  // y de RH) y el técnico podía dar de alta en el grupo equivocado.
+  if (cat) {
+    const etiquetas = cat.grupos.map((g) => `${g.grado} ${g.nombre} ${g.carrera ?? ""}`);
+    const repetidas = etiquetas.filter((e, i) => etiquetas.indexOf(e) !== i);
+    ok(
+      `grado + grupo + carrera distingue a todos los grupos (${new Set(etiquetas).size} etiquetas para ${etiquetas.length} grupos)`,
+      repetidas.length === 0,
+      `repetidas: ${[...new Set(repetidas)].join(", ")}`,
+    );
+  }
 } else {
   console.log(`  (sin ciclo operativo: ${operativo.error ?? "ninguno"}; no se ensaya la lista del técnico)`);
 }

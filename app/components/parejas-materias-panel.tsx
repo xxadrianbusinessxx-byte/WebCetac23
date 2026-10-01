@@ -23,6 +23,11 @@ import type {
  * clases, no un `function Aviso`; `materiaClave` y `tieneTablaFisica` no se
  * muestran (C4.28); y no se pide periodo (la action usa el ciclo operativo).
  */
+/** «2DO A · RH». La carrera es lo que distingue a los grupos que comparten
+ *  grado y nombre; 1RO no tiene y queda «1RO A». Solo presentación. */
+const etiquetaGrupo = (grado: string, nombre: string, carrera: string | null) =>
+  [[grado, nombre].filter(Boolean).join(" "), carrera].filter(Boolean).join(" · ");
+
 export function ParejasMateriasPanel() {
   const [datos, setDatos] = useState<{
     parejas: ParejaParaGestion[];
@@ -120,13 +125,19 @@ export function ParejasMateriasPanel() {
     }
   }
 
-  const agrupadas = new Map<string, ParejaParaGestion[]>();
+  // Se agrupa por la IDENTIDAD del grupo (`grupoId`), no por su nombre: «2DO A»
+  // existe en Mecatrónica y en RH (10 de las 24 etiquetas del ciclo 2026-2027
+  // se repiten así), y agrupar por el texto mezclaba las materias de dos grupos
+  // distintos en una sola sección.
+  const agrupadas = new Map<string, { etiqueta: string; items: ParejaParaGestion[] }>();
   if (datos) {
     for (const p of datos.parejas) {
-      const clave = [p.grado, p.grupo].filter(Boolean).join(" ");
-      const arr = agrupadas.get(clave) ?? [];
-      arr.push(p);
-      agrupadas.set(clave, arr);
+      const g = agrupadas.get(p.grupoId) ?? {
+        etiqueta: etiquetaGrupo(p.grado, p.grupo, p.carrera),
+        items: [],
+      };
+      g.items.push(p);
+      agrupadas.set(p.grupoId, g);
     }
   }
 
@@ -149,9 +160,24 @@ export function ParejasMateriasPanel() {
       )}
 
       {datos === null ? (
-        <p className="text-xs font-semibold text-[var(--oc-muted)]">
-          Cargando materias…
-        </p>
+        // Si la primera carga falló, «Cargando…» sería falso para siempre: se
+        // ofrece reintentar, y el motivo ya está en el aviso de arriba.
+        error ? (
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              void cargar();
+            }}
+            className={btn}
+          >
+            Reintentar
+          </button>
+        ) : (
+          <p className="text-xs font-semibold text-[var(--oc-muted)]">
+            Cargando materias…
+          </p>
+        )
       ) : (
         <>
           <div className="mb-4 flex flex-wrap items-end gap-2 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-3">
@@ -166,7 +192,7 @@ export function ParejasMateriasPanel() {
                 <option value="">Elegir grupo…</option>
                 {datos.catalogo.grupos.map((g) => (
                   <option key={g.id} value={g.id}>
-                    {[g.grado, g.nombre].filter(Boolean).join(" ")}
+                    {etiquetaGrupo(g.grado, g.nombre, g.carrera)}
                   </option>
                 ))}
               </select>
@@ -205,10 +231,10 @@ export function ParejasMateriasPanel() {
             </p>
           ) : (
             <div className="flex flex-col gap-4">
-              {[...agrupadas.entries()].map(([clave, items]) => (
-                <section key={clave} className="flex flex-col gap-1.5">
+              {[...agrupadas.entries()].map(([grupoId, { etiqueta, items }]) => (
+                <section key={grupoId} className="flex flex-col gap-1.5">
                   <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-[var(--oc-muted)]">
-                    {clave}
+                    {etiqueta}
                   </h3>
                   <ul className="flex flex-col gap-1.5">
                     {items.map((p) => {

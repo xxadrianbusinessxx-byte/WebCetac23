@@ -571,6 +571,39 @@ console.log("\n── la lista del técnico: activas E inactivas, alias por pare
   const db = dobleSupabase({ grupo_materias: { error: { message: "x" } } });
   ok("si no puede leer, null y no una lista vacía", (await M.listarParejasDelPeriodo(db, "P-1")) === null);
 }
+{
+  // «2DO A» existe en Mecatrónica y en RH: sin la carrera, la pantalla del
+  // técnico mezclaba las materias de los dos grupos y ofrecía dos «2DO A»
+  // idénticos para dar de alta.
+  const db = dobleSupabase({
+    grupo_materias: {
+      data: [
+        { id: "GM-RH", grupo_id: "G-RH", materia_id: "M", activo: true, tabla_legacy: null,
+          grupos: { grado: "2DO", nombre: "A", carreras: { clave: "RH" } }, materias: { nombre: "Ética", clave: "ET" } },
+        { id: "GM-MEC", grupo_id: "G-MEC", materia_id: "M", activo: true, tabla_legacy: null,
+          grupos: [{ grado: "2DO", nombre: "A", carreras: [{ clave: "MECATRONICA" }] }], materias: { nombre: "Ética", clave: "ET" } },
+        { id: "GM-1", grupo_id: "G-1", materia_id: "M", activo: true, tabla_legacy: null,
+          grupos: { grado: "1RO", nombre: "A", carreras: null }, materias: { nombre: "Ética", clave: "ET" } },
+      ],
+    },
+    materias_nombres_visibles: { data: [] },
+  });
+  const r = await M.listarParejasDelPeriodo(db, "P-1");
+  eq(r.map((p) => p.carrera), [null, "MECATRONICA", "RH"], "trae la carrera (objeto o array) y la ordena; 1RO sin carrera es null");
+  ok("pide la carrera dentro del grupo", /grupos!inner\([^)]*carreras\(clave\)/.test(db.llamadas.find((l) => l.tabla === "grupo_materias").select));
+}
+
+{
+  const db = dobleSupabase({
+    grupos: { data: [
+      { id: "G-RH", grado: "2DO", nombre: "A", carreras: { clave: "RH" } },
+      { id: "G-MEC", grado: "2DO", nombre: "A", carreras: [{ clave: "MECATRONICA" }] },
+    ] },
+    materias: { data: [] },
+  });
+  const c = await M.catalogoParaAlta(db, "P-1");
+  eq(c.grupos.map((g) => g.carrera), ["MECATRONICA", "RH"], "el catálogo del alta distingue los dos «2DO A» por carrera");
+}
 
 {
   const db = dobleSupabase({

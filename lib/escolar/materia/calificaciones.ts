@@ -420,6 +420,11 @@ export type ParejaParaGestion = {
   grupoId: string;
   grado: string;
   grupo: string;
+  /** Clave de la carrera del grupo, o null (1RO no tiene). Sin ella, «2DO A»
+   *  de Mecatrónica y «2DO A» de RH se presentan igual: 10 de las 24
+   *  etiquetas del ciclo 2026-2027 están repetidas así (medido 2026-10-01).
+   *  La identidad del grupo es `grupoId`; esto es solo para presentarlo. */
+  carrera: string | null;
   materiaId: string;
   materiaNombre: string;
   materiaClave: string;
@@ -450,7 +455,7 @@ export async function listarParejasDelPeriodo(
   const [{ data, error }, alias] = await Promise.all([
     supabase
       .from(TABLA_GRUPO_MATERIAS)
-      .select("id, grupo_id, materia_id, activo, tabla_legacy, grupos!inner(grado, nombre, periodo_id), materias(nombre, clave)")
+      .select("id, grupo_id, materia_id, activo, tabla_legacy, grupos!inner(grado, nombre, periodo_id, carreras(clave)), materias(nombre, clave)")
       .eq("grupos.periodo_id", periodoId),
     listarAliasPorGrupoMateria(supabase),
   ]);
@@ -464,7 +469,7 @@ export async function listarParejasDelPeriodo(
     materia_id: string;
     activo: boolean;
     tabla_legacy: string | null;
-    grupos: Incrustado<{ grado: string; nombre: string }>;
+    grupos: Incrustado<{ grado: string; nombre: string; carreras: Incrustado<{ clave: string | null }> }>;
     materias: Incrustado<{ nombre: string | null; clave: string | null }>;
   };
 
@@ -477,6 +482,7 @@ export async function listarParejasDelPeriodo(
         grupoId: r.grupo_id,
         grado: g?.grado ?? "",
         grupo: g?.nombre ?? "",
+        carrera: uno(g?.carreras)?.clave ?? null,
         materiaId: r.materia_id,
         materiaNombre: m?.nombre ?? m?.clave ?? "",
         materiaClave: m?.clave ?? "",
@@ -489,6 +495,7 @@ export async function listarParejasDelPeriodo(
       (a, b) =>
         a.grado.localeCompare(b.grado) ||
         a.grupo.localeCompare(b.grupo) ||
+        (a.carrera ?? "").localeCompare(b.carrera ?? "") ||
         (a.alias ?? a.materiaNombre).localeCompare(b.alias ?? b.materiaNombre),
     );
 }
@@ -496,7 +503,7 @@ export async function listarParejasDelPeriodo(
 export type CatalogoParaAlta = {
   /** Los grupos del periodo, TAMBIÉN los que aún no tienen ninguna materia:
    *  sacarlos de las parejas los dejaría fuera justo cuando más hace falta. */
-  grupos: { id: string; grado: string; nombre: string }[];
+  grupos: { id: string; grado: string; nombre: string; carrera: string | null }[];
   /** Las materias ACTIVAS del catálogo: dar de alta una inactiva sería
    *  ofrecer en un grupo algo que el catálogo ya retiró. */
   materias: { id: string; nombre: string; clave: string }[];
@@ -508,14 +515,29 @@ export async function catalogoParaAlta(
   periodoId: string,
 ): Promise<CatalogoParaAlta | null> {
   const [g, m] = await Promise.all([
-    supabase.from(TABLA_GRUPOS).select("id, grado, nombre").eq("periodo_id", periodoId).eq("activo", true),
+    supabase.from(TABLA_GRUPOS).select("id, grado, nombre, carreras(clave)").eq("periodo_id", periodoId).eq("activo", true),
     supabase.from(TABLA_MATERIAS).select("id, nombre, clave").eq("activo", true),
   ]);
   if (g.error || m.error || !g.data || !m.data) return null;
   return {
-    grupos: (g.data as { id: string; grado: string | null; nombre: string | null }[])
-      .map((x) => ({ id: x.id, grado: x.grado ?? "", nombre: x.nombre ?? "" }))
-      .sort((a, b) => a.grado.localeCompare(b.grado) || a.nombre.localeCompare(b.nombre)),
+    grupos: (
+      g.data as {
+        id: string;
+        grado: string | null;
+        nombre: string | null;
+        carreras: { clave: string | null }[] | { clave: string | null } | null;
+      }[]
+    )
+      .map((x) => {
+        const c = Array.isArray(x.carreras) ? x.carreras[0] : x.carreras;
+        return { id: x.id, grado: x.grado ?? "", nombre: x.nombre ?? "", carrera: c?.clave ?? null };
+      })
+      .sort(
+        (a, b) =>
+          a.grado.localeCompare(b.grado) ||
+          a.nombre.localeCompare(b.nombre) ||
+          (a.carrera ?? "").localeCompare(b.carrera ?? ""),
+      ),
     materias: (m.data as { id: string; nombre: string | null; clave: string | null }[])
       .map((x) => ({ id: x.id, nombre: x.nombre ?? x.clave ?? "", clave: x.clave ?? "" }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre)),
