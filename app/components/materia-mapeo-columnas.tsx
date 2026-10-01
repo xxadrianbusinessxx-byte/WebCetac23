@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   actionGuardarMapeoColumnasMateria,
   actionObtenerMapeoColumnasMateria,
@@ -9,6 +9,10 @@ import {
   actionActualizarMateriaExcel,
   actionSubirMateriaExcel,
 } from "@/app/actions/escolar";
+import {
+  actionResolverGrupoMateria,
+  actionSubirCalificacionesArchivo,
+} from "@/app/actions/calificaciones-normalizadas";
 import { archivoCsvAFilas } from "@/lib/escolar/csv";
 import { identificarColumnaCalificacion } from "@/lib/escolar/materia/columnas-calificaciones";
 import { normalizarNombre } from "@/lib/escolar/nombres";
@@ -65,6 +69,11 @@ export function useMateriaMapeo() {
 }
 
 type Mensaje = { ok: boolean; texto: string } | null;
+
+type ResultadoModeloNuevo =
+  | { idInterno: string; subida: number; tipo: "sin-pareja" }
+  | { idInterno: string; subida: number; tipo: "ok"; escritas: number; avisos: string[] }
+  | { idInterno: string; subida: number; tipo: "error"; error: string };
 
 /** Rejilla de checkboxes para seleccionar columnas dentro de una categoría. */
 function GrupoCheckboxes({
@@ -194,6 +203,9 @@ export function MateriaMapeoColumnas({
   const [modo, setModo] = useState<"actualizar" | "reemplazar">("actualizar");
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<Mensaje>(null);
+  const subidaRef = useRef(0);
+  const [subidaActual, setSubidaActual] = useState(0);
+  const [resultadoModelo, setResultadoModelo] = useState<ResultadoModeloNuevo | null>(null);
 
   const validacion = useMemo(
     () => validarMapeoColumnasMateria(mapeo, asistente.encabezados),
@@ -275,6 +287,27 @@ export function MateriaMapeoColumnas({
     });
   }
 
+  // Sube el mismo archivo al modelo normalizado (calificaciones por alumno).
+  // La pareja se resuelve por la tabla legacy; sin pareja (materia no catalogada)
+  // no hay nada que escribir y se avisa. El resultado queda atado a la materia y
+  // a esta subida para no pintarlo bajo una materia o subida distinta.
+  async function subirModeloNuevo(formData: FormData) {
+    subidaRef.current += 1;
+    const subida = subidaRef.current;
+    setSubidaActual(subida);
+    const pareja = await actionResolverGrupoMateria(asistente.idInterno);
+    if (!pareja) {
+      setResultadoModelo({ idInterno: asistente.idInterno, subida, tipo: "sin-pareja" });
+      return;
+    }
+    const r = await actionSubirCalificacionesArchivo(pareja.grupoMateriaId, formData);
+    setResultadoModelo(
+      r.ok
+        ? { idInterno: asistente.idInterno, subida, tipo: "ok", escritas: r.escritas, avisos: r.avisos }
+        : { idInterno: asistente.idInterno, subida, tipo: "error", error: r.error },
+    );
+  }
+
   async function confirmar() {
     if (!validacion.ok) {
       setMensaje({ ok: false, texto: "Revisa la configuración." });
@@ -282,6 +315,7 @@ export function MateriaMapeoColumnas({
     }
     setGuardando(true);
     setMensaje(null);
+    setResultadoModelo(null);
 
     // 1) Guardar configuración (metadatos, UPSERT).
     const r = await actionGuardarMapeoColumnasMateria(
@@ -304,28 +338,37 @@ export function MateriaMapeoColumnas({
         asistente.idInterno,
         formData,
       );
-      setGuardando(false);
-      if (s.ok) {
-        onCompletado?.(
-          `Avance guardado: ${s.actualizados} actualizado(s), ${s.nuevos} nuevo(s), ${s.columnasAgregadas} columna(s) agregada(s).`,
-        );
-      } else {
+      if (!s.ok) {
+        setGuardando(false);
         setMensaje({ ok: false, texto: s.error });
+        return;
       }
+      // 3) La misma subida, también al modelo nuevo. Su resultado va aparte.
+      await subirModeloNuevo(formData);
+      setGuardando(false);
+      setMensaje({
+        ok: true,
+        texto: `Avance guardado: ${s.actualizados} actualizado(s), ${s.nuevos} nuevo(s), ${s.columnasAgregadas} columna(s) agregada(s).`,
+      });
       return;
     }
 
     const s = await actionSubirMateriaExcel(asistente.idInterno, formData);
-    setGuardando(false);
-
-    if (s.ok) {
-      onCompletado?.(
-        `Contenido reemplazado: ${s.filas} filas cargadas.`,
-      );
-    } else {
+    if (!s.ok) {
+      setGuardando(false);
       setMensaje({ ok: false, texto: s.error });
+      return;
     }
+    await subirModeloNuevo(formData);
+    setGuardando(false);
+    setMensaje({ ok: true, texto: `Contenido reemplazado: ${s.filas} filas cargadas.` });
   }
+
+  // Solo se pinta si corresponde a ESTA materia y a ESTA subida.
+  const resultadoVisible =
+    resultadoModelo !== null &&
+    resultadoModelo.idInterno === asistente.idInterno &&
+    resultadoModelo.subida === subidaActual;
 
   return (
     <div className="flex w-full flex-col gap-4 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4 sm:p-6">
@@ -425,12 +468,20 @@ export function MateriaMapeoColumnas({
             deshabilitarSiUsada={(c) => columnaUsadaEn(c, "Nombre del alumno")}
             usadaEn="otra categoría"
           />
-          <SelectColumna
-            titulo="CURP"
-            valor={mapeo.columnaCurp}
-            opciones={columnasLibres("CURP")}
-            onChange={(v) => setMapeo((m) => ({ ...m, columnaCurp: v }))}
-          />
+          <div className="flex flex-col gap-1">
+            <SelectColumna
+              titulo="CURP"
+              valor={mapeo.columnaCurp}
+              opciones={columnasLibres("CURP")}
+              onChange={(v) => setMapeo((m) => ({ ...m, columnaCurp: v }))}
+            />
+            {!mapeo.columnaCurp && (
+              <p className="text-[10px] font-semibold text-[var(--oc-alert-text)]">
+                Sin columna de CURP, estas calificaciones no llegan a la vista
+                del alumno.
+              </p>
+            )}
+          </div>
         </div>
         <p className="mt-2 text-[10px] font-semibold text-[var(--oc-muted)]">
           Se unirán en el orden seleccionado para identificar al alumno. Puedes
@@ -592,25 +643,69 @@ export function MateriaMapeoColumnas({
         </p>
       )}
 
+      {resultadoVisible && resultadoModelo && (
+        <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-3 text-xs font-semibold text-[var(--oc-text)]">
+          {resultadoModelo.tipo === "sin-pareja" && (
+            <p>
+              Esta materia no está en el catálogo de grupos: sus notas solo se
+              guardaron en la tabla de la materia.
+            </p>
+          )}
+          {resultadoModelo.tipo === "ok" && (
+            <>
+              <p className="mb-1">
+                Modelo nuevo: {resultadoModelo.escritas} calificaciones
+                guardadas.
+              </p>
+              {resultadoModelo.avisos.length > 0 && (
+                <ul className="mt-1 flex flex-col gap-1">
+                  {resultadoModelo.avisos.slice(0, 10).map((a, i) => (
+                    <li key={i}>· {a}</li>
+                  ))}
+                  {resultadoModelo.avisos.length > 10 && (
+                    <li>… y {resultadoModelo.avisos.length - 10} más</li>
+                  )}
+                </ul>
+              )}
+            </>
+          )}
+          {resultadoModelo.tipo === "error" && (
+            <p className="text-[var(--oc-muted)]">{resultadoModelo.error}</p>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={onCancelar}
-          disabled={guardando}
-          className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110 disabled:opacity-60"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          onClick={() => void confirmar()}
-          disabled={!validacion.ok || guardando}
-          className="rounded-full border border-transparent bg-[var(--oc-mint)] px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-mint-ink)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {guardando
-            ? "Guardando y subiendo…"
-            : "Guardar configuración y subir archivo"}
-        </button>
+        {resultadoVisible ? (
+          <button
+            type="button"
+            onClick={() => onCompletado?.(mensaje?.texto ?? "")}
+            className="rounded-full border border-transparent bg-[var(--oc-mint)] px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-mint-ink)] transition hover:brightness-110"
+          >
+            Cerrar
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onCancelar}
+              disabled={guardando}
+              className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110 disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => void confirmar()}
+              disabled={!validacion.ok || guardando}
+              className="rounded-full border border-transparent bg-[var(--oc-mint)] px-5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-mint-ink)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {guardando
+                ? "Guardando y subiendo…"
+                : "Guardar configuración y subir archivo"}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
