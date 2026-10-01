@@ -295,17 +295,31 @@ export function MateriaMapeoColumnas({
     subidaRef.current += 1;
     const subida = subidaRef.current;
     setSubidaActual(subida);
-    const pareja = await actionResolverGrupoMateria(asistente.idInterno);
-    if (!pareja) {
-      setResultadoModelo({ idInterno: asistente.idInterno, subida, tipo: "sin-pareja" });
-      return;
+    // Nunca lanza: si la petición se cae (red, servidor), se cuenta como un
+    // error de ESTA subida. Una excepción aquí dejaba el asistente en
+    // «Guardando y subiendo…» para siempre y ocultaba que la subida vieja SÍ se
+    // guardó, con lo que el profesor la repetía.
+    try {
+      const pareja = await actionResolverGrupoMateria(asistente.idInterno);
+      if (!pareja) {
+        setResultadoModelo({ idInterno: asistente.idInterno, subida, tipo: "sin-pareja" });
+        return;
+      }
+      const r = await actionSubirCalificacionesArchivo(pareja.grupoMateriaId, formData);
+      setResultadoModelo(
+        r.ok
+          ? { idInterno: asistente.idInterno, subida, tipo: "ok", escritas: r.escritas, avisos: r.avisos }
+          : { idInterno: asistente.idInterno, subida, tipo: "error", error: r.error },
+      );
+    } catch {
+      setResultadoModelo({
+        idInterno: asistente.idInterno,
+        subida,
+        tipo: "error",
+        error:
+          "No se pudo completar la subida al modelo nuevo (se perdió la conexión). La subida a la tabla de la materia sí se guardó.",
+      });
     }
-    const r = await actionSubirCalificacionesArchivo(pareja.grupoMateriaId, formData);
-    setResultadoModelo(
-      r.ok
-        ? { idInterno: asistente.idInterno, subida, tipo: "ok", escritas: r.escritas, avisos: r.avisos }
-        : { idInterno: asistente.idInterno, subida, tipo: "error", error: r.error },
-    );
   }
 
   async function confirmar() {
@@ -343,13 +357,15 @@ export function MateriaMapeoColumnas({
         setMensaje({ ok: false, texto: s.error });
         return;
       }
-      // 3) La misma subida, también al modelo nuevo. Su resultado va aparte.
-      await subirModeloNuevo(formData);
-      setGuardando(false);
+      // El resultado de la subida vieja se muestra YA: ya ocurrió, y lo que
+      // pase después en el modelo nuevo no puede taparlo ni retrasarlo.
       setMensaje({
         ok: true,
         texto: `Avance guardado: ${s.actualizados} actualizado(s), ${s.nuevos} nuevo(s), ${s.columnasAgregadas} columna(s) agregada(s).`,
       });
+      // 3) La misma subida, también al modelo nuevo. Su resultado va aparte.
+      await subirModeloNuevo(formData);
+      setGuardando(false);
       return;
     }
 
@@ -359,9 +375,9 @@ export function MateriaMapeoColumnas({
       setMensaje({ ok: false, texto: s.error });
       return;
     }
+    setMensaje({ ok: true, texto: `Contenido reemplazado: ${s.filas} filas cargadas.` });
     await subirModeloNuevo(formData);
     setGuardando(false);
-    setMensaje({ ok: true, texto: `Contenido reemplazado: ${s.filas} filas cargadas.` });
   }
 
   // Solo se pinta si corresponde a ESTA materia y a ESTA subida.
