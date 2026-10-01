@@ -18,14 +18,14 @@
   "pendientes": [
     {
       "id": "sql-unicidad-calificaciones",
-      "titulo": "corregir-unicidad-calificaciones.sql sin aplicar: el modelo B no puede escribir",
-      "detalle": "Las tres escrituras del modelo B (guardarCalificaciones, calificarActividad, guardarAlias) y el nuevo guardarMapeoPorGrupoMateria devuelven 42P10 en la base: sus onConflict apuntaban a índices parcial y de expresión, que PostgreSQL no infiere. Medido el 2026-10-01 con el código de la app: 8 fallos, 0 filas escritas. Este SQL los cambia por restricciones UNIQUE normales, deja materia_id nulable en alias y mapeo (las altas nuevas no tienen tabla física) y hace única tabla_legacy. calificaciones tiene 0 filas: aplicarlo ahora es lo más barato que va a ser. Hasta entonces nada del modelo B escribe; lo viejo sigue funcionando igual.",
-      "riesgo": "alto",
-      "quien": "persona — pegar el archivo entero en el SQL Editor (idempotente)",
+      "titulo": "corregir-unicidad-calificaciones.sql (cerrado: aplicado y verificado, 2026-10-01)",
+      "detalle": "Cerrado. Aplicado por persona en el SQL Editor el 2026-10-01. Verificado el mismo día de dos formas: (1) `migrar-ensayo-modelo-b.mjs --apply` con el código de la app: las cuatro escrituras del modelo B escriben sin 42P10, re-subir ACTUALIZA (3 filas, no 4), calificar a mano y subir Excel caen en la misma fila, la lectura por CURP no trae a nadie más, y la limpieza dejó 0 filas; (2) catálogo de PostgreSQL en transacción READ ONLY: las 4 restricciones UNIQUE nuevas existen, los 3 índices parcial/expresión viejos ya no, clave_columna es NOT NULL DEFAULT '', materia_id admite NULL en alias y mapeo, la unicidad legacy por materia_id se conserva, FKs y CHECK de tipo como se declararon, RLS activada con su política. 30 de 30 piezas.",
+      "riesgo": "bajo",
+      "quien": "cerrado",
       "verificar": "node scripts/migrar-ensayo-modelo-b.mjs --apply",
       "doc": "supabase/corregir-unicidad-calificaciones.sql",
       "revisado": "2026-10-01",
-      "estado": "abierto"
+      "estado": "cerrado"
     },
     {
       "id": "traspaso-sin-estrenar",
