@@ -27,6 +27,7 @@ import { HorarioEscolarPanel } from "@/app/components/horario-escolar-panel";
 import { ImportarEtiquetasPanel } from "@/app/components/importar-etiquetas-panel";
 import { RosterAlumnosPanel } from "@/app/components/roster-alumnos-panel";
 import { MateriasConfigPanel } from "@/app/components/materias-config-panel";
+import { ParejasMateriasPanel } from "@/app/components/parejas-materias-panel";
 import { ProfesoresCredencialesPanel } from "@/app/components/profesores-credenciales-panel";
 import { TutoresPanel } from "@/app/components/tutores-panel";
 import type { PiezaTecnico } from "@/lib/navegacion/contenido-tecnico";
@@ -95,15 +96,21 @@ export function ContenidoTecnicoOceano({
     case "deshacer-paso":
       return <DeshacerPasoPanel />;
 
-    case "materias-config":
+    case "materias-config": {
       // Dos piezas en el mismo apartado, como en `/configuracion`: el catálogo
-      // con sus aliases individuales y el panel de volumen.
+      // con sus aliases individuales y el panel de volumen. «Por grupo» muestra
+      // SOLO el panel nuevo (las materias que tiene cada grupo del ciclo).
+      const m = (modo ?? "").toLowerCase();
+      if (m.includes("por grupo")) {
+        return <ParejasMateriasPanel />;
+      }
       return (
         <div className="flex flex-col gap-4">
           <MateriasConfigPanel materias={[]} />
-          {(modo ?? "").toLowerCase().includes("volumen") ? <AliasesVolumenPanel /> : null}
+          {m.includes("volumen") ? <AliasesVolumenPanel /> : null}
         </div>
       );
+    }
 
     case "asignaciones-profesor":
       return <AsignacionesProfesorAdmin />;

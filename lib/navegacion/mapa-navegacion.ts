@@ -270,7 +270,7 @@ const CATALOGO: Pestana = {
   id: "catalogo",
   label: "Catálogo",
   apartados: [
-    act("materias", "Materias", ["Catálogo", "Aliases en volumen", "Visibilidad"]),
+    act("materias", "Materias", ["Catálogo", "Aliases en volumen", "Visibilidad", "Por grupo"]),
     act("asignaciones", "Asignaciones", ["Profesor → materia", "Desactivadas"]),
   ],
 };
