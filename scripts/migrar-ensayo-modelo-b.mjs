@@ -148,6 +148,11 @@ if (operativo.ok && operativo.periodo) {
     const inactivas = parejas.filter((p) => !p.activo).length;
     console.log(`        ${conAlias} con alias · ${inactivas} inactivas · ${parejas.filter((p) => !p.tieneTablaFisica).length} sin tabla física`);
   }
+  const cat = await C.catalogoParaAlta(supabase, String(operativo.periodo.id));
+  ok(
+    `catalogoParaAlta lee grupos y materias activas (${cat?.grupos.length ?? "null"} grupos · ${cat?.materias.length ?? "null"} materias)`,
+    Boolean(cat && cat.grupos.length > 0 && cat.materias.length > 0),
+  );
 } else {
   console.log(`  (sin ciclo operativo: ${operativo.error ?? "ninguno"}; no se ensaya la lista del técnico)`);
 }

@@ -572,6 +572,21 @@ console.log("\n── la lista del técnico: activas E inactivas, alias por pare
   ok("si no puede leer, null y no una lista vacía", (await M.listarParejasDelPeriodo(db, "P-1")) === null);
 }
 
+{
+  const db = dobleSupabase({
+    grupos: { data: [{ id: "G-2", grado: "2DO", nombre: "B" }, { id: "G-1", grado: "1RO", nombre: "A" }] },
+    materias: { data: [{ id: "M-2", nombre: "Robótica", clave: "ROB" }, { id: "M-1", nombre: null, clave: "MAT" }] },
+  });
+  const c = await M.catalogoParaAlta(db, "P-1");
+  eq(c.grupos.map((g) => g.id), ["G-1", "G-2"], "grupos ordenados por grado y nombre");
+  eq(c.materias.map((m) => m.nombre), ["MAT", "Robótica"], "una materia sin nombre se presenta por su clave");
+  const g = db.llamadas.find((l) => l.tabla === "grupos");
+  ok("grupos del periodo pedido", g.filtros.some(([op, k, v]) => op === "eq" && k === "periodo_id" && v === "P-1"), JSON.stringify(g.filtros));
+  const m = db.llamadas.find((l) => l.tabla === "materias");
+  ok("solo materias activas del catálogo", m.filtros.some(([op, k, v]) => op === "eq" && k === "activo" && v === true), JSON.stringify(m.filtros));
+  ok("si una lectura falla, null", (await M.catalogoParaAlta(dobleSupabase({ grupos: { error: { message: "x" } } }), "P")) === null);
+}
+
 console.log("\n── una materia desactivada no admite notas ──\n");
 {
   ok("activa → true", (await M.grupoMateriaActiva(dobleSupabase({ grupo_materias: { data: { activo: true } } }), "GM")) === true);

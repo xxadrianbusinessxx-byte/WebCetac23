@@ -201,7 +201,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 191 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 190 Server Actions.
 
 ### `actividades.ts`
 
@@ -288,8 +288,7 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 191 Server Actions.
 
 | Action | Guardia hoy | Capacidad |
 |---|---|---|
-| `actionMisCalificaciones` | exigir: calificacion.ver | `calificacion.ver` |
-| `actionCalificacionesDeAlumno` | exigir: calificacion.ver | `calificacion.ver` |
+| `actionVistaCalificacionesAlumno` | exigir: calificacion.ver | `calificacion.ver` |
 | `actionCalificacionesDeMateria` | exigir: calificacion.ver | `calificacion.ver` |
 | `actionSubirCalificaciones` | exigir: calificacion.subir | `calificacion.subir` |
 | `actionSubirCalificacionesArchivo` | exigir: calificacion.subir | `calificacion.subir` |

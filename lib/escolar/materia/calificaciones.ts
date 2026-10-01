@@ -20,7 +20,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   TABLA_CALIFICACIONES,
   TABLA_GRUPO_MATERIAS,
+  TABLA_GRUPOS,
   TABLA_INSCRIPCIONES_ALUMNO,
+  TABLA_MATERIAS,
 } from "../tables.ts";
 import type { FilaCalificacion, TipoCalificacion } from "./calificaciones-puro.ts";
 import { tablaLegacyDeGrupoMateria } from "./puente-grupo-materia.ts";
@@ -489,4 +491,33 @@ export async function listarParejasDelPeriodo(
         a.grupo.localeCompare(b.grupo) ||
         (a.alias ?? a.materiaNombre).localeCompare(b.alias ?? b.materiaNombre),
     );
+}
+
+export type CatalogoParaAlta = {
+  /** Los grupos del periodo, TAMBIÉN los que aún no tienen ninguna materia:
+   *  sacarlos de las parejas los dejaría fuera justo cuando más hace falta. */
+  grupos: { id: string; grado: string; nombre: string }[];
+  /** Las materias ACTIVAS del catálogo: dar de alta una inactiva sería
+   *  ofrecer en un grupo algo que el catálogo ya retiró. */
+  materias: { id: string; nombre: string; clave: string }[];
+};
+
+/** Lo que la pantalla del técnico necesita para ofrecer un alta. */
+export async function catalogoParaAlta(
+  supabase: SupabaseClient,
+  periodoId: string,
+): Promise<CatalogoParaAlta | null> {
+  const [g, m] = await Promise.all([
+    supabase.from(TABLA_GRUPOS).select("id, grado, nombre").eq("periodo_id", periodoId).eq("activo", true),
+    supabase.from(TABLA_MATERIAS).select("id, nombre, clave").eq("activo", true),
+  ]);
+  if (g.error || m.error || !g.data || !m.data) return null;
+  return {
+    grupos: (g.data as { id: string; grado: string | null; nombre: string | null }[])
+      .map((x) => ({ id: x.id, grado: x.grado ?? "", nombre: x.nombre ?? "" }))
+      .sort((a, b) => a.grado.localeCompare(b.grado) || a.nombre.localeCompare(b.nombre)),
+    materias: (m.data as { id: string; nombre: string | null; clave: string | null }[])
+      .map((x) => ({ id: x.id, nombre: x.nombre ?? x.clave ?? "", clave: x.clave ?? "" }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+  };
 }

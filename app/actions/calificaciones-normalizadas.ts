@@ -15,8 +15,8 @@
  *                    única de «¿puede esta sesión leer a este alumno?» (R6).
  *                    Resuelve además la CURP del alumno cuya cookie no la
  *                    trae, que este archivo por su cuenta no sabría hacer.
- *   maestro, directivo, administración → el alumno tiene que estar inscrito en
- *                    el grupo de la materia que se consulta.
+ *   maestro, directivo, administración → dicen de qué alumno (CURP obligatoria),
+ *                    y la materia pedida tiene que ser una de las suyas.
  *   cualquier otro rol → nada.
  *
  * El último renglón es lo que hace que esto sea una lista BLANCA: un rol nuevo
@@ -63,6 +63,7 @@ import { resolverAccesoAlumno } from "@/lib/escolar/alumno/acceso-alumno";
 import {
   altaMateriaEnGrupo,
   calificacionesDeAlumno,
+  catalogoParaAlta,
   calificacionesDeGrupoMateria,
   calificarActividad,
   cambiarEstadoMateriaEnGrupo,
@@ -74,6 +75,7 @@ import {
   listarParejasDelPeriodo,
   materiasDelAlumno,
   type CalificacionRow,
+  type CatalogoParaAlta,
   type MateriaDelAlumno,
   type ParejaParaGestion,
 } from "@/lib/escolar/materia/calificaciones";
@@ -100,45 +102,38 @@ const esPersonal = (rol: PortalSessionPayload["rol"]): boolean =>
 type Autorizacion = { ok: true; curp: string } | { ok: false; error: string };
 
 /**
- * ¿Puede esta sesión leer las notas de `curpObjetivo` en `grupoMateriaId`?
+ * ¿Puede esta sesión ver a ESTE alumno? Devuelve su CURP ya resuelta y
+ * normalizada, que es la que debe usarse para consultar —nunca la que llegó
+ * por parámetro tal cual—.
  *
- * Devuelve la CURP ya resuelta y normalizada, que es lo que debe usarse para
- * consultar — no la que llegó por parámetro.
+ *   personal      → tiene que decir de quién (la CURP es obligatoria)
+ *   alumno, tutor → lo decide `resolverAccesoAlumno`: el alumno solo a sí
+ *                   mismo (y se resuelve su CURP aunque la cookie no la traiga),
+ *                   el tutor solo a sus vinculados.
+ *   otro rol      → nada: `resolverAccesoAlumno` lo niega por omisión.
  *
  * Recibe la sesión en vez de pedirla: `exigir()` ya leyó la cookie, y volver a
  * leerla era el round-trip de más que medí en `app/actions/administracion.ts`.
  */
-async function autorizarLectura(
+async function autorizarAlumno(
   supabase: SupabaseClient,
   sesion: PortalSessionPayload,
-  grupoMateriaId: string,
   curpObjetivo?: string | null,
 ): Promise<Autorizacion> {
   if (esPersonal(sesion.rol)) {
     const curp = (curpObjetivo ?? "").trim().toUpperCase();
     if (!curp) return { ok: false, error: "Indica la CURP del alumno." };
-    // La materia tiene que ser una de las del alumno. Sin esto, el id de una
-    // materia de otro grupo devolvería sus notas: el filtro por CURP de la
-    // consulta no impide leer una materia que no le toca a ese alumno.
-    const suyas = await materiasDelAlumno(supabase, curp);
-    if (!suyas.some((m) => m.grupoMateriaId === grupoMateriaId)) {
-      return { ok: false, error: "Ese alumno no está inscrito en esta materia." };
-    }
     return { ok: true, curp };
   }
-
-  // alumno y tutor: la decisión ya existe y vive en un solo sitio.
   const acc = await resolverAccesoAlumno(supabase, sesion, curpObjetivo ?? null);
   if (!acc.ok) return { ok: false, error: acc.error };
   if (!acc.acceso.puedeLeer) return { ok: false, error: "No tienes permiso." };
   return { ok: true, curp: acc.curp };
 }
 
-/* ── Lo que ve el alumno (y el tutor de su vinculado) ───────────────────── */
+/* ── La vista de calificaciones de UN alumno ────────────────────────────── */
 
-/** Las notas de un alumno en UNA materia. No incluye la lista de materias: un
- *  profesor que consulta a un alumno no necesita el resto de su carga, y
- *  devolverla vacía habría sido mentir sobre que no tiene ninguna. */
+/** Las notas de un alumno en UNA materia. */
 export type NotasDeMateria = {
   curp: string;
   actividades: { clave: string | null; valor: number | null }[];
@@ -152,8 +147,8 @@ export type NotasDeMateria = {
   promedioActividades: number | null;
 };
 
-/** Lo que ve el alumno en su pantalla: su carga completa y, si entró a una
- *  materia, sus notas de esa materia. */
+/** La pantalla: la carga completa del alumno y, si se entró a una materia,
+ *  sus notas de esa materia. */
 export type VistaCalificacionesAlumno = NotasDeMateria & {
   materias: MateriaDelAlumno[];
 };
@@ -169,35 +164,36 @@ const vistaVacia = (curp: string, materias: MateriaDelAlumno[]): VistaCalificaci
 });
 
 /**
- * La pantalla del alumno: su carga completa y, si entró a una materia, sus
- * notas de esa materia.
+ * La vista de calificaciones de un alumno, para cualquiera que pueda verlo.
  *
- * `curpPedida` solo le sirve al TUTOR, que tiene que decir a qué vinculado se
- * refiere. Para un alumno es inoperante: `resolverAccesoAlumno` rechaza una
- * CURP que no sea la suya y resuelve la propia cuando no manda ninguna.
+ * Una sola action para las tres pantallas que la muestran —la del alumno, la
+ * del tutor y la de Administración escolar consultando un expediente—, porque
+ * las tres montan la MISMA pieza (`ContenidoAlumnoOceano`). Antes había una
+ * para el alumno que devolvía null al personal y otra para el personal: la
+ * pieza no habría sabido cuál llamar, y Administración la habría visto vacía.
+ *
+ * `curpAlumno` es la del alumno que la pantalla está mostrando. Para un alumno
+ * es inoperante —`resolverAccesoAlumno` rechaza otra que no sea la suya—; para
+ * el tutor se valida contra sus vinculados; para el personal es obligatoria.
  */
-export async function actionMisCalificaciones(
-  grupoMateriaId?: string,
-  curpPedida?: string,
+export async function actionVistaCalificacionesAlumno(
+  curpAlumno: string | null,
+  grupoMateriaId?: string | null,
 ): Promise<VistaCalificacionesAlumno | null> {
   const g = await exigir("calificacion.ver");
   if (!g.ok || !g.sesion) return null;
 
-  // Esta pantalla es «las notas de un alumno». El personal no es un alumno:
-  // usa `actionCalificacionesDeAlumno`, que exige la CURP explícitamente.
-  if (esPersonal(g.sesion.rol)) return null;
-
   const supabase = await createClient();
-  const acc = await resolverAccesoAlumno(supabase, g.sesion, curpPedida ?? null);
-  if (!acc.ok || !acc.acceso.puedeLeer) return null;
-  const curp = acc.curp;
+  const aut = await autorizarAlumno(supabase, g.sesion, curpAlumno);
+  if (!aut.ok) return null;
+  const curp = aut.curp;
 
   const materias = await materiasDelAlumno(supabase, curp);
   if (!grupoMateriaId) return vistaVacia(curp, materias);
 
   // Que la materia pedida sea una de las SUYAS. Sin esta línea, pasar el id de
   // una materia de otro grupo devolvería sus notas: el filtro por CURP de la
-  // consulta no impide leer una materia que no te toca.
+  // consulta no impide leer una materia que a ese alumno no le toca.
   if (!materias.some((m) => m.grupoMateriaId === grupoMateriaId)) {
     return vistaVacia(curp, materias);
   }
@@ -232,28 +228,6 @@ async function armarVista(
     final: n.final,
     promedioActividades: promedioActividades(n.actividades, mapeo?.pesosActividades ?? null),
   };
-}
-
-/**
- * Las notas de UN alumno pedido por CURP, en una materia.
- *
- * Para el personal es la vista «este alumno en esta materia». Un tutor llega
- * solo a sus vinculados y un alumno solo a sí mismo, porque el alcance lo
- * resuelve `autorizarLectura` y no el rol de quien llama.
- */
-export async function actionCalificacionesDeAlumno(
-  curpPedida: string,
-  grupoMateriaId: string,
-): Promise<NotasDeMateria | null> {
-  const g = await exigir("calificacion.ver");
-  if (!g.ok || !g.sesion) return null;
-  if (!grupoMateriaId) return null;
-
-  const supabase = await createClient();
-  const aut = await autorizarLectura(supabase, g.sesion, grupoMateriaId, curpPedida);
-  if (!aut.ok) return null;
-
-  return armarVista(supabase, aut.curp, grupoMateriaId);
 }
 
 /* ── Lo que ve y escribe el profesor ────────────────────────────────────── */
@@ -455,7 +429,7 @@ export async function actionCalificarActividad(datos: {
  * cerrado desde esta pantalla.
  */
 export async function actionListarParejasParaGestion(): Promise<
-  { ok: true; parejas: ParejaParaGestion[] } | Fallo
+  { ok: true; parejas: ParejaParaGestion[]; catalogo: CatalogoParaAlta } | Fallo
 > {
   const g = await exigir("materia.ver_catalogo");
   if (!g.ok) return fallo("No autorizado.");
@@ -465,9 +439,13 @@ export async function actionListarParejasParaGestion(): Promise<
   if (!operativo.ok || !operativo.periodo) {
     return fallo(operativo.error ?? "No hay un ciclo operativo definido.");
   }
-  const parejas = await listarParejasDelPeriodo(supabase, String(operativo.periodo.id));
-  if (!parejas) return fallo("No se pudo leer la lista de materias por grupo.");
-  return { ok: true, parejas };
+  const periodoId = String(operativo.periodo.id);
+  const [parejas, catalogo] = await Promise.all([
+    listarParejasDelPeriodo(supabase, periodoId),
+    catalogoParaAlta(supabase, periodoId),
+  ]);
+  if (!parejas || !catalogo) return fallo("No se pudo leer la lista de materias por grupo.");
+  return { ok: true, parejas, catalogo };
 }
 
 export async function actionAltaMateriaEnGrupo(
