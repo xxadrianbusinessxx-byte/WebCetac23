@@ -6,6 +6,11 @@ import {
   TABLA_JUSTIFICACIONES_ASISTENCIA,
 } from "../tables.ts";
 import { materiasDelAlumno } from "../materia/calificaciones.ts";
+import { listarJustificacionesConDetalle } from "./justificaciones.ts";
+import {
+  decidirHistorialProfesor,
+  type MateriaJustificadaHistorial,
+} from "./justificaciones-puro.ts";
 import {
   justificacionesPorFecha,
   resolverDiaMateria,
@@ -224,4 +229,87 @@ export async function listarJustificacionesAprobadasDeCurp(
     .eq("estado", "aprobada");
   if (error || !data) return [];
   return data as { fecha: string; grupo_materia_id: string | null; estado: string }[];
+}
+
+/** Una entrada del historial del profesor (presentación). */
+export type JustificacionHistorialProfesor = {
+  id: string;
+  curp: string;
+  alumnoNombre: string;
+  fecha: string;
+  grado: string;
+  grupo: string;
+  motivo: string;
+  /** Estado de la solicitud del día: lo que resolvió la dirección. */
+  estado: string;
+  motivoRechazo: string | null;
+  /** Cuándo la envió el padre (o el directivo). */
+  enviadaEn: string;
+  /** Cuándo la resolvió la dirección; null si sigue pendiente. */
+  resueltaEn: string | null;
+  /** Materias que le corresponden y ya están justificadas, con su hora. */
+  materias: { nombre: string; justificadaEn: string; porTi: boolean }[];
+};
+
+/**
+ * Historial del profesor: las mismas últimas 100 filas que ve el directivo
+ * (`listarJustificacionesConDetalle`), acotadas por `decidirHistorialProfesor`.
+ * Consultas FIJAS: 1 para las justificaciones (con nombres) + las de
+ * `cargarDiasAJustificar` para saber el dueño de cada falta. Sin N+1.
+ */
+export async function historialJustificacionesProfesor(
+  supabase: SupabaseClient,
+  profesorId: number,
+): Promise<
+  { ok: true; historial: JustificacionHistorialProfesor[] } | { ok: false; error: string }
+> {
+  const todas = await listarJustificacionesConDetalle(supabase, {});
+  if (!todas.ok) return todas;
+  const solicitudes = todas.justificaciones.filter((j) => !j.grupo_materia_id);
+  const hijas: MateriaJustificadaHistorial[] = todas.justificaciones
+    .filter((j) => Boolean(j.grupo_materia_id))
+    .map((j) => ({
+      curp_alumno: j.curp_alumno,
+      fecha: j.fecha,
+      grupo_materia_id: j.grupo_materia_id as string,
+      solicitante_id: j.solicitante_id,
+      created_at: j.created_at,
+    }));
+
+  const dias = await cargarDiasAJustificar(
+    supabase,
+    solicitudes.map((j) => ({ curp: j.curp_alumno, grado: j.grado, grupo: j.grupo, fecha: j.fecha })),
+  );
+
+  const propio = String(profesorId);
+  const historial: JustificacionHistorialProfesor[] = [];
+  for (const j of solicitudes) {
+    const lineas = dias.get(claveDia(j.curp_alumno, j.fecha)) ?? [];
+    const decision = decidirHistorialProfesor(j, hijas, lineas, profesorId);
+    if (!decision.visible) continue;
+    const nombrePorMateria = new Map(
+      lineas
+        .filter((l) => l.grupoMateriaId !== null)
+        .map((l) => [l.grupoMateriaId as string, l.nombre]),
+    );
+    historial.push({
+      id: j.id,
+      curp: j.curp_alumno,
+      alumnoNombre: j.alumnoNombre,
+      fecha: j.fecha,
+      grado: j.grado,
+      grupo: j.grupo,
+      motivo: j.motivo,
+      estado: j.estado,
+      motivoRechazo: j.motivo_rechazo ?? null,
+      enviadaEn: j.created_at,
+      resueltaEn: j.estado === "pendiente" ? null : j.updated_at,
+      materias: decision.materias.map((m) => ({
+        nombre: nombrePorMateria.get(m.grupo_materia_id) ?? "Materia",
+        justificadaEn: m.created_at,
+        porTi: m.solicitante_id === propio,
+      })),
+    });
+  }
+  return { ok: true, historial };
 }

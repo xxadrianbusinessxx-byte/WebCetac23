@@ -175,3 +175,85 @@ export function validarSeleccionProfesor(
   }
   return { ok: true, materias: pedidas };
 }
+
+/* ---------------------------------------------------------------------------
+ * HISTORIAL DEL PROFESOR (2026-10-01)
+ * ---------------------------------------------------------------------------
+ * El mismo historial que ve el directivo, acotado a lo que le toca a ESTE
+ * profesor con la misma regla de alcance: las faltas que él registró, y las
+ * que no tienen a quién atribuirse (esas las ven todos).
+ */
+
+/** Solicitud del día (fila con `grupo_materia_id` NULL), lo mínimo. */
+export type SolicitudHistorial = {
+  id: string;
+  curp_alumno: string;
+  fecha: string;
+  estado: string;
+};
+
+/** Justificación de UNA materia (fila hija, `grupo_materia_id` con valor). */
+export type MateriaJustificadaHistorial = {
+  curp_alumno: string;
+  fecha: string;
+  grupo_materia_id: string;
+  solicitante_id: string;
+  created_at: string;
+};
+
+/** Qué le corresponde al profesor de una solicitud ya resuelta o atendida. */
+export type DecisionHistorialProfesor = {
+  visible: boolean;
+  /** Materias hijas que le corresponden (suyas o sin dueño), en orden. */
+  materias: MateriaJustificadaHistorial[];
+};
+
+/**
+ * ¿Esta solicitud va en el historial del profesor, y con qué materias?
+ *
+ * - `lineas`: el desglose del día (`resolverDiaMateria`), que trae el dueño de
+ *   cada falta en `profesorId`.
+ * - Le corresponden las materias con falta registrada cuyo dueño es él o no
+ *   tiene dueño; y siempre las que él mismo justificó.
+ * - Un día en el que NINGUNA falta tiene dueño (registro anterior, sin materia)
+ *   se muestra a todos los profesores.
+ * - Las pendientes sin nada resuelto no van aquí: están en su lista activa.
+ */
+export function decidirHistorialProfesor(
+  solicitud: SolicitudHistorial,
+  hijas: readonly MateriaJustificadaHistorial[],
+  lineas: readonly LineaJustificable[],
+  profesorId: number,
+): DecisionHistorialProfesor {
+  const conFalta = lineas.filter(
+    (l) =>
+      l.tipo !== "justificacion" &&
+      l.asistidas !== null &&
+      l.clases > 0 &&
+      l.asistidas < l.clases,
+  );
+  const suyas = new Set(
+    conFalta
+      .filter(
+        (l) =>
+          l.tipo === "materia" &&
+          l.grupoMateriaId !== null &&
+          (l.profesorId === null || l.profesorId === profesorId),
+      )
+      .map((l) => l.grupoMateriaId as string),
+  );
+  const sinDuenos = conFalta.every((l) => l.profesorId === null);
+  const propio = String(profesorId);
+  const materias = hijas
+    .filter(
+      (h) =>
+        h.curp_alumno === solicitud.curp_alumno &&
+        h.fecha === solicitud.fecha &&
+        (suyas.has(h.grupo_materia_id) || h.solicitante_id === propio),
+    )
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+
+  const leCorresponde = materias.length > 0 || suyas.size > 0 || sinDuenos;
+  const atendida = solicitud.estado !== "pendiente" || materias.length > 0;
+  return { visible: leCorresponde && atendida, materias };
+}

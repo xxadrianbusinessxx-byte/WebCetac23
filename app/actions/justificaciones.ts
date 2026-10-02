@@ -60,7 +60,9 @@ import {
 import {
   cargarDiasAJustificar,
   claveDia,
+  historialJustificacionesProfesor,
   registrarJustificacionesDeMateria,
+  type JustificacionHistorialProfesor,
   type JustificacionParaProfesor,
 } from "@/lib/escolar/asistencia/justificacion-dias";
 import { esUuid } from "@/lib/escolar/asistencia/atribucion-profesor";
@@ -618,6 +620,32 @@ export async function actionJustificarMateriasProfesor(input: {
   });
 
   return { ok: true, mensaje: `Justificado: ${detalle}.` };
+}
+
+/**
+ * Profesor: historial de justificaciones que le corresponden —las de sus
+ * materias, y las que no tienen a quién atribuirse—, con la hora de envío, la
+ * de resolución y la de cada materia justificada. Mismas 100 filas recientes
+ * que el historial del directivo.
+ */
+export async function actionListarHistorialJustificacionesProfesor(): Promise<
+  | { ok: true; historial: JustificacionHistorialProfesor[] }
+  | { ok: false; error: string }
+> {
+  const g = await exigir("justificacion.justificar_clase");
+  if (!g.ok) return NO_AUTORIZADO;
+  const profesorId = Number(g.sesion!.profesorId);
+  if (!Number.isInteger(profesorId) || profesorId <= 0) {
+    return {
+      ok: false,
+      error:
+        "Tu sesión no incluye la identidad de profesor (PROFESORES.ID). Vuelve a iniciar sesión.",
+    };
+  }
+  const supabase = await createClient();
+  const esquema = await verificarEsquemaJustificaciones(supabase);
+  if (!esquema.ok) return { ok: false, error: esquema.error };
+  return historialJustificacionesProfesor(supabase, profesorId);
 }
 
 /* FIN */

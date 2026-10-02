@@ -201,7 +201,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 190 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 191 Server Actions.
 
 ### `actividades.ts`
 
@@ -444,6 +444,7 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 190 Server Actions.
 | `actionListarHistorialJustificaciones` | exigir: justificacion.ver_todas | `justificacion.ver_todas` |
 | `actionListarJustificacionesParaProfesor` | exigir: justificacion.justificar_clase | `justificacion.justificar_clase` |
 | `actionJustificarMateriasProfesor` | exigir: justificacion.justificar_clase | `justificacion.justificar_clase` |
+| `actionListarHistorialJustificacionesProfesor` | exigir: justificacion.justificar_clase | `justificacion.justificar_clase` |
 
 ### `login.ts`
 

@@ -11,13 +11,25 @@ import {
   actionAprobarJustificacion,
   actionJustificarMateriasProfesor,
   actionListarHistorialJustificaciones,
+  actionListarHistorialJustificacionesProfesor,
   actionListarJustificacionesParaProfesor,
   actionListarJustificacionesPendientesConDetalle,
   actionObtenerUrlArchivoJustificacion,
   actionRechazarJustificacion,
 } from "@/app/actions/justificaciones";
 import type { JustificacionConDetalle } from "@/lib/escolar/asistencia/justificaciones";
-import type { JustificacionParaProfesor } from "@/lib/escolar/asistencia/justificacion-dias";
+import type {
+  JustificacionHistorialProfesor,
+  JustificacionParaProfesor,
+} from "@/lib/escolar/asistencia/justificacion-dias";
+
+/** Fecha y hora local de un `timestamptz` (misma forma que «Mis mensajes»). */
+function fechaHora(iso: string): string {
+  return new Date(iso).toLocaleString("es-MX", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
 function PanelTab({
   children,
@@ -340,6 +352,7 @@ export function JustificacionesAdmin() {
  */
 export function JustificacionesProfesor() {
   const [lista, setLista] = useState<JustificacionParaProfesor[]>([]);
+  const [historial, setHistorial] = useState<JustificacionHistorialProfesor[]>([]);
   const [cargando, setCargando] = useState(true);
   const [operando, setOperando] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: "ok" | "error" } | null>(null);
@@ -351,8 +364,14 @@ export function JustificacionesProfesor() {
     // `react-hooks/set-state-in-effect`), igual que el panel del directivo.
     return Promise.resolve()
       .then(() => setCargando(true))
-      .then(() => actionListarJustificacionesParaProfesor())
-      .then((res) => {
+      // Pendientes e historial en PARALELO: no dependen entre sí.
+      .then(() =>
+        Promise.all([
+          actionListarJustificacionesParaProfesor(),
+          actionListarHistorialJustificacionesProfesor(),
+        ]),
+      )
+      .then(([res, hist]) => {
         setCargando(false);
         if (res.ok) {
           setLista(res.justificaciones);
@@ -360,6 +379,7 @@ export function JustificacionesProfesor() {
           setLista([]);
           setMensaje({ texto: res.error, tipo: "error" });
         }
+        setHistorial(hist.ok ? hist.historial : []);
       });
   }, []);
 
@@ -489,6 +509,57 @@ export function JustificacionesProfesor() {
             );
           })}
         </ul>
+      )}
+
+      {historial.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <PanelTab className="mx-auto w-fit">Historial reciente</PanelTab>
+          <ul className="flex flex-col gap-2">
+            {historial.map((h) => (
+              <li
+                key={h.id}
+                className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-3 text-xs font-semibold text-[var(--oc-muted)]"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    {h.alumnoNombre || h.curp} · falta del {h.fecha} · {h.grado}{" "}
+                    {h.grupo}
+                  </span>
+                  <span
+                    className={`rounded-full px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide ${
+                      h.estado === "aprobada"
+                        ? "bg-[var(--oc-ok)]/15 text-[var(--oc-ok)]"
+                        : h.estado === "rechazada"
+                          ? "bg-[var(--oc-alert)]/15 text-[var(--oc-alert-text)]"
+                          : "bg-[var(--oc-surface)] text-[var(--oc-text)]"
+                    }`}
+                  >
+                    {h.estado === "aprobada"
+                      ? "Dirección: día completo"
+                      : h.estado === "rechazada"
+                        ? "Dirección: rechazada"
+                        : "Dirección: pendiente"}
+                  </span>
+                </div>
+                <p className="mt-1">
+                  Enviada: {fechaHora(h.enviadaEn)}
+                  {h.resueltaEn ? ` · Resuelta: ${fechaHora(h.resueltaEn)}` : ""}
+                </p>
+                {h.materias.map((m) => (
+                  <p key={`${h.id}-${m.nombre}-${m.justificadaEn}`} className="mt-1 text-[var(--oc-text)]">
+                    {m.nombre} justificada {m.porTi ? "por ti" : "por su profesor"} ·{" "}
+                    {fechaHora(m.justificadaEn)}
+                  </p>
+                ))}
+                {h.motivoRechazo && (
+                  <p className="mt-1 text-xs text-[var(--oc-alert-text)]">
+                    Motivo: {h.motivoRechazo}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

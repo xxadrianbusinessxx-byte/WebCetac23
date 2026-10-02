@@ -183,5 +183,37 @@ console.log("11) Validación de la selección del profesor");
   ok("la suya → ok, sin duplicados", bien.ok && bien.materias.length === 1 && bien.materias[0] === MAT, JSON.stringify(bien));
 }
 
+console.log("12) Historial del profesor: lo suyo y lo que no tiene dueño");
+{
+  const lineas = dia(undefined).materias; // Mat → 7 · Fís → 9 · Quí completa, sin dueño
+  const sol = (estado) => ({ id: "s1", curp_alumno: "C1", fecha: "2026-10-05", estado });
+  const hija = (gm, quien, hora) => ({
+    curp_alumno: "C1", fecha: "2026-10-05", grupo_materia_id: gm, solicitante_id: String(quien), created_at: hora,
+  });
+  const hijas = [hija(FIS, PROF_FIS, "2026-10-05T10:00:00Z"), hija(MAT, PROF_MAT, "2026-10-05T09:00:00Z")];
+
+  const del7 = J.decidirHistorialProfesor(sol("aprobada"), hijas, lineas, PROF_MAT);
+  ok("el 7 la ve", del7.visible);
+  ok("el 7 ve solo Matemáticas (no Física, que es del 9)",
+    del7.materias.length === 1 && del7.materias[0].grupo_materia_id === MAT, JSON.stringify(del7.materias));
+
+  const de99 = J.decidirHistorialProfesor(sol("aprobada"), hijas, lineas, 99);
+  ok("un profesor ajeno no la ve (todas las faltas tienen dueño)", !de99.visible);
+
+  const pendienteSinNada = J.decidirHistorialProfesor(sol("pendiente"), [], lineas, PROF_MAT);
+  ok("pendiente sin nada resuelto: no va al historial (está en su lista activa)", !pendienteSinNada.visible);
+
+  const pendienteConLaSuya = J.decidirHistorialProfesor(sol("pendiente"), hijas, lineas, PROF_MAT);
+  ok("pendiente pero ya justificó su materia: sí va", pendienteConLaSuya.visible);
+
+  const rechazada = J.decidirHistorialProfesor(sol("rechazada"), [], lineas, PROF_FIS);
+  ok("rechazada por dirección con falta suya: la ve", rechazada.visible && rechazada.materias.length === 0);
+
+  const legacy = D.resolverDiaMateria("clase", [{ grupo_materia_id: null, clases: 1 }],
+    [{ grupo_materia_id: null, clases_asistidas: 0, profesor_clave: "4321", profesor_id: null }], NOMBRES).materias;
+  ok("día sin dueño (registro anterior): la ven todos",
+    J.decidirHistorialProfesor(sol("aprobada"), [], legacy, 99).visible);
+}
+
 console.log(`Resultado: ${pasadas} pasadas, ${fallidas} fallidas`);
 if (fallidas > 0) process.exit(1);
