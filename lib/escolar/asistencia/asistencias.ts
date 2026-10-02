@@ -116,6 +116,8 @@ async function listarGruposAsistenciaLegacy(
 
 /** Identidad académica de un alumno resuelta desde su inscripción ACTIVA. */
 export type IdentidadAlumnoInscripcion = {
+  /** `grupos.id` de la inscripción ACTIVA (PROMPT S · B). */
+  grupoId: string;
   grado: string;
   grupo: string;
   /** Clave de la carrera (`carreras.clave`); "" si el grupo no tiene carrera. */
@@ -179,6 +181,7 @@ export async function resolverIdentidadAlumnoInscripcion(
   return {
     ok: true,
     identidad: {
+      grupoId: inscripciones[0].grupo_id,
       grado: String(detalleGrupo.grado ?? ""),
       grupo: String(detalleGrupo.nombre ?? ""),
       carrera,
@@ -281,3 +284,4 @@ export * from "./asistencia-configuracion.ts";
 export * from "./asistencia-plantillas.ts";
 export * from "./asistencia-estados.ts";
 export * from "./asistencia-marcador.ts";
+export * from "./asistencia-dia-materia.ts";

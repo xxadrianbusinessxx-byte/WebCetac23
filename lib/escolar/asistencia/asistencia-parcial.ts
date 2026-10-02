@@ -18,6 +18,16 @@
  *    `calcularPorcentajeAsistencia` de asistencias.ts.
  */
 
+import {
+  totalesEnClases,
+  type ColorDia,
+} from "./asistencia-dia-materia.ts";
+
+/** Conteo de días por color, en cero (una entrada por cada `ColorDia`). */
+export function diasPorColorVacio(): Record<ColorDia, number> {
+  return { verde: 0, naranja: 0, rojo: 0, pendiente: 0, sin_clase: 0 };
+}
+
 /** Subconjunto mínimo de `periodos_evaluacion` que este módulo necesita. */
 export type ParcialAsistencia = {
   id: string;
@@ -35,6 +45,21 @@ export type DiaResumenAsistencia = {
   tipo: string;
   /** 'asistio' | 'falta' | 'pendiente' | 'sin_clase'. */
   estado: string;
+  /** PROMPT S (B) — desglose por materia del día, para el % EN CLASES. */
+  materias?: AporteMateriaDia[];
+  /** PROMPT S (B) — color del día, para contar días con el mismo criterio
+   *  con el que se pintan. */
+  color?: ColorDia;
+};
+
+/** Aporte de UNA materia/legacy/justificación en un día (para el resumen). */
+export type AporteMateriaDia = {
+  grupoMateriaId: string | null;
+  nombre: string;
+  clases: number;
+  asistidas: number | null;
+  /** Distingue legacy y justificación (ambas con `grupoMateriaId` null). */
+  tipo: "materia" | "legacy" | "justificacion";
 };
 
 /** Identidad mínima de un parcial para mensajes y agrupación. */
@@ -125,8 +150,21 @@ export type ResumenPorParcial = {
   faltas: number;
   pendientes: number;
   sinClase: number;
-  /** % de asistencia solo sobre clases registradas; pendientes fuera del denominador. */
+  /** PROMPT S (decisión 4) — % EN CLASES: Σ asistidas / Σ clases registradas. */
   porcentaje: number;
+  /** PROMPT S (B) — clases registradas del parcial (denominador). */
+  clasesRegistradas: number;
+  /** PROMPT S (B) — clases asistidas del parcial (numerador). */
+  clasesAsistidas: number;
+  /** PROMPT S (B) — días del parcial por color, el mismo con que se pintan. */
+  diasPorColor: Record<ColorDia, number>;
+  /** PROMPT S (B) — desglose por materia del parcial (solo clases con celda). */
+  porMateria: {
+    grupoMateriaId: string | null;
+    nombre: string;
+    clases: number;
+    asistidas: number;
+  }[];
 };
 
 export type ResultadoResumenPorParcial = {
@@ -165,6 +203,10 @@ export function resumenAsistenciaPorParcial(
       pendientes: 0,
       sinClase: 0,
       porcentaje: 0,
+      clasesRegistradas: 0,
+      clasesAsistidas: 0,
+      diasPorColor: diasPorColorVacio(),
+      porMateria: [],
     });
   }
 
@@ -186,13 +228,50 @@ export function resumenAsistenciaPorParcial(
     else if (d.estado === "falta") r.faltas++;
     else if (d.estado === "pendiente") r.pendientes++;
     else r.sinClase++;
+
+    // PROMPT S (B) — conteo EN CLASES desde el desglose por materia del día,
+    // con la MISMA regla que el color del día (`totalesEnClases`).
+    const materiasDia = d.materias ?? [];
+    const totales = totalesEnClases(materiasDia);
+    r.clasesRegistradas += totales.clases;
+    r.clasesAsistidas += totales.asistidas;
+    if (d.color) r.diasPorColor[d.color]++;
+
+    // Desglose por materia: misma regla, línea a línea. Una materia PENDIENTE
+    // (sin celda) no suma clases: si sumara, su % por materia contaría como
+    // falta lo que aún no se ha subido (decisión 2).
+    for (const m of materiasDia) {
+      const t = totalesEnClases([m]);
+      if (t.clases === 0 && t.asistidas === 0) continue;
+      // Clave de agrupación: materia real (uuid + nombre estable) o, para
+      // legacy/justificación (ambas con `grupoMateriaId` null), por `nombre`.
+      const nombre = m.tipo === "justificacion" ? "Justificado" : m.nombre;
+      const previa = r.porMateria.find(
+        (x) => x.grupoMateriaId === m.grupoMateriaId && x.nombre === nombre,
+      );
+      if (previa) {
+        previa.clases += t.clases;
+        previa.asistidas += t.asistidas;
+      } else {
+        r.porMateria.push({
+          grupoMateriaId: m.grupoMateriaId,
+          nombre,
+          clases: t.clases,
+          asistidas: t.asistidas,
+        });
+      }
+    }
   }
 
   const resumenes = [...mapa.values()].map((r) => {
-    const total = r.asistencias + r.faltas;
+    const registradas = r.clasesRegistradas;
     return {
       ...r,
-      porcentaje: total === 0 ? 0 : Math.round((r.asistencias / total) * 100),
+      // PROMPT S (decisión 4) — % EN CLASES (Σ asistidas / Σ clases registradas).
+      porcentaje:
+        registradas === 0
+          ? 0
+          : Math.round((r.clasesAsistidas / registradas) * 100),
     };
   });
 

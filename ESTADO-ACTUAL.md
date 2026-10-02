@@ -6,8 +6,8 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-10-01 (R: dos guardianes nuevos en `test-orden` — C16 unicidad de `onConflict`, C17 `test:ci` fiel al workflow)
-- **HEAD:** `291af39` (2026-10-01) · árbol limpio
+- **Última revisión:** 2026-10-01 (S · Parte B: asistencia por materia — calendario por materia y % en clases)
+- **HEAD:** `1397ae8` (2026-10-01) · árbol limpio
 
 ---
 
@@ -116,10 +116,10 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **48 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **49 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
-**Una de las 48 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
+**Una de las 49 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
 mitad mecánica de `ORDEN.md` —capas, scripts, raíz, tamaño de archivo, composición de
 UI, entrada validada, extensión explícita en `lib/`, exports de `"use server"`, qué
 tablas son de sistema, la unicidad de `onConflict` y `test:ci` fiel al workflow— y

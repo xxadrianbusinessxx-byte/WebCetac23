@@ -24,6 +24,15 @@ import {
 import type {
   ContextoAsistencia,
 } from "./asistencia-comun.ts";
+import {
+  resolverDiaMateria,
+  totalesEnClases,
+  type FilaAsistenciaDia,
+  type FilaClaseDia,
+} from "./asistencia-dia-materia.ts";
+import {
+  materiasDelAlumno,
+} from "../materia/calificaciones.ts";
 /**
  * Deriva el estado de asistencia de un alumno para una fecha concreta.
  * Pura (sin I/O): recibe los datos ya cargados y resuelve el estado.
@@ -103,6 +112,9 @@ export async function obtenerEstadosAsistenciaAlumno(
     /** PROMPT C (R-2) — identidad estructural del profesor: se prefiere
      *  `profesor_id` cuando existe; `profesor_clave` solo si es NULL. */
     profesorId?: number | null;
+    /** PROMPT S (B) — id del grupo ya resuelto por la action; evita que
+     *  `materiasDelAlumno` repita la consulta a `inscripciones_alumno`. */
+    grupoId?: string | null;
   },
 ): Promise<DiaEstadoAsistencia[]> {
   const g = norm(input.grado);
@@ -139,42 +151,81 @@ export async function obtenerEstadosAsistenciaAlumno(
   }
   if (profesorId && !scopePorId) return [];
 
-  // 2) Clases impartidas del grupo (SUM por fecha). Alcance por profesor si
+  // 2) Clases impartidas del grupo, con su materia. Alcance por profesor si
   //    corresponde; si no, el total del grupo.
   let qClases = supabase
     .from(TABLA_CLASES_IMPARTIDAS)
-    .select("fecha, clases")
+    .select("fecha, grupo_materia_id, clases")
     .eq("grado", g)
     .eq("grupo", gr);
   if (scopePorId && profesorId) qClases = qClases.eq("profesor_id", profesorId);
-  const { data: clasesData } = await qClases;
-  const clasesPorFecha = new Map<string, number>();
-  for (const r of (clasesData ?? []) as { fecha: string; clases: number }[]) {
-    clasesPorFecha.set(r.fecha, (clasesPorFecha.get(r.fecha) ?? 0) + r.clases);
-  }
 
-  // 3) Asistencia del alumno (SUM por fecha). Mismo filtro de profesor.
+  // 3) Asistencia del alumno, con su materia y el marcador de justificación.
   let qAsist = supabase
     .from(TABLA_ASISTENCIA_ALUMNOS)
-    .select("fecha, clases_asistidas")
+    .select("fecha, grupo_materia_id, profesor_clave, clases_asistidas")
     .eq("curp", input.curp)
     .eq("grado", g)
     .eq("grupo", gr);
   if (scopePorId && profesorId) qAsist = qAsist.eq("profesor_id", profesorId);
-  const { data: asistData } = await qAsist;
-  const asistPorFecha = new Map<string, number>();
-  for (const r of (asistData ?? []) as { fecha: string; clases_asistidas: number }[]) {
-    asistPorFecha.set(r.fecha, (asistPorFecha.get(r.fecha) ?? 0) + r.clases_asistidas);
+
+  // PROMPT S (B) — las dos consultas corren en paralelo con el roster de
+  // materias del alumno. `grupoIds` evita repetir la consulta a inscripciones.
+  const grupoIds = input.grupoId ? [input.grupoId] : undefined;
+  const [resClases, resAsist, roster] = await Promise.all([
+    qClases,
+    qAsist,
+    materiasDelAlumno(supabase, input.curp, false, grupoIds),
+  ]);
+
+  const nombres = new Map<string, string>();
+  for (const m of roster) {
+    nombres.set(m.grupoMateriaId, m.nombreVisible ?? m.nombre);
   }
 
-  // 4) Resolver estados en memoria.
+  const clasesPorFecha = new Map<string, FilaClaseDia[]>();
+  for (const r of (resClases.data ?? []) as {
+    fecha: string;
+    grupo_materia_id: string | null;
+    clases: number;
+  }[]) {
+    const lista = clasesPorFecha.get(r.fecha) ?? [];
+    lista.push({ grupo_materia_id: r.grupo_materia_id ?? null, clases: r.clases });
+    clasesPorFecha.set(r.fecha, lista);
+  }
+
+  const asistPorFecha = new Map<string, FilaAsistenciaDia[]>();
+  for (const r of (resAsist.data ?? []) as {
+    fecha: string;
+    grupo_materia_id: string | null;
+    profesor_clave: string | null;
+    clases_asistidas: number;
+  }[]) {
+    const lista = asistPorFecha.get(r.fecha) ?? [];
+    lista.push({
+      grupo_materia_id: r.grupo_materia_id ?? null,
+      profesor_clave: r.profesor_clave ?? null,
+      clases_asistidas: r.clases_asistidas,
+    });
+    asistPorFecha.set(r.fecha, lista);
+  }
+
+  // 4) Resolver estados y desglose por materia en memoria.
   const dias: DiaEstadoAsistencia[] = [];
   for (const d of calendario) {
     const fecha = d.fecha;
-    const clasesEsperadas = clasesPorFecha.get(fecha) ?? 0;
-    const clasesAsistidas = asistPorFecha.has(fecha)
-      ? asistPorFecha.get(fecha)!
+    const filasClases = clasesPorFecha.get(fecha) ?? [];
+    const filasAsist = asistPorFecha.get(fecha) ?? [];
+    const clasesEsperadas = filasClases.reduce((s, c) => s + c.clases, 0);
+    const clasesAsistidas = filasAsist.length
+      ? filasAsist.reduce((s, a) => s + a.clases_asistidas, 0)
       : null;
+    const porMateria = resolverDiaMateria(
+      d.tipo,
+      filasClases,
+      filasAsist,
+      nombres,
+    );
     dias.push({
       fecha,
       diaSemana: diaSemanaDesdeFecha(fecha),
@@ -186,6 +237,8 @@ export async function obtenerEstadosAsistenciaAlumno(
       }),
       clasesEsperadas,
       clasesAsistidas,
+      materias: porMateria.materias,
+      color: porMateria.color,
     });
   }
 
@@ -194,26 +247,27 @@ export async function obtenerEstadosAsistenciaAlumno(
 }
 
 /**
- * Calcula el porcentaje de asistencia SOLO sobre las clases registradas
- * (asistencias + faltas). Los dÃ­as pendientes NO entran al denominador.
+ * Porcentaje de asistencia EN CLASES (PROMPT S, decisión 4):
  *
- *   porcentaje = asistencias / (asistencias + faltas)
+ *   porcentaje = Σ clases asistidas / Σ clases registradas
  *
- * Ejemplo: 18 asistencias + 2 faltas + 5 pendientes â†’ 18/20 = 90%.
+ * Con la regla única de `totalesEnClases`: las materias pendientes (sin celda)
+ * no entran ni al numerador ni al denominador, y la justificación suma al
+ * numerador. Ejemplo: 2/2 Matemáticas + 0/1 Física + Química pendiente → 2/3.
  * Es un valor DERIVADO: NO se almacena.
  */
 export function calcularPorcentajeAsistencia(
   dias: DiaEstadoAsistencia[],
 ): number {
-  let asistencias = 0;
-  let faltas = 0;
+  let clases = 0;
+  let asistidas = 0;
   for (const d of dias) {
-    if (d.estado === "asistio") asistencias++;
-    else if (d.estado === "falta") faltas++;
+    const t = totalesEnClases(d.materias);
+    clases += t.clases;
+    asistidas += t.asistidas;
   }
-  const total = asistencias + faltas;
-  if (total === 0) return 0;
-  return Math.round((asistencias / total) * 100);
+  if (clases === 0) return 0;
+  return Math.round((asistidas / clases) * 100);
 }
 
 // ============================================================================

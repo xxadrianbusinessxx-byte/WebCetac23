@@ -357,7 +357,7 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
   // La consulta vive en lib/escolar/asistencia/asistencias.ts.
   const resuelta = await resolverIdentidadAlumnoInscripcion(supabase, curp);
   if (!resuelta.ok) return { ok: false, error: resuelta.error };
-  const { grado, grupo, carrera, periodoId } = resuelta.identidad;
+  const { grado, grupo, carrera, periodoId, grupoId } = resuelta.identidad;
   if (periodoId && periodoId !== operativo.periodoId) {
     return {
       ok: false,
@@ -401,10 +401,17 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
     ciclo: operativo.periodoNombre,
     periodoId: operativo.periodoId,
     profesorId: esRol(sesion.rol, "maestro") ? sesion.profesorId : null,
+    grupoId,
   });
 
   const resumen = resumenAsistenciaPorParcial(
-    dias.map((d) => ({ fecha: d.fecha, tipo: d.tipo, estado: d.estado })),
+    dias.map((d) => ({
+      fecha: d.fecha,
+      tipo: d.tipo,
+      estado: d.estado,
+      materias: d.materias,
+      color: d.color,
+    })),
     operativo.parciales,
   );
 

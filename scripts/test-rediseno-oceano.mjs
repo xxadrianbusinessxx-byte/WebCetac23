@@ -236,6 +236,11 @@ const p = (numero, nombre, asistencias, faltas, pendientes = 0) => ({
   faltas,
   pendientes,
   sinClase: 0,
+  // PROMPT S — % EN CLASES. Aquí se reutilizan los conteos de días como clases
+  // (1 día asistido = 1 clase asistida) para no reescribir las expectativas.
+  clasesRegistradas: asistencias + faltas,
+  clasesAsistidas: asistencias,
+  porMateria: [],
   porcentaje: asistencias + faltas === 0 ? 0 : Math.round((asistencias / (asistencias + faltas)) * 100),
 });
 

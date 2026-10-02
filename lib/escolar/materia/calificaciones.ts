@@ -203,13 +203,27 @@ export async function materiasDelAlumno(
   supabase: SupabaseClient,
   curp: string,
   soloActivas = true,
+  /** PROMPT S (B) — ids de grupo ya resueltos (p. ej. desde la inscripción).
+   *  Si vienen, se salta la consulta a `inscripciones_alumno`. */
+  grupoIds?: string[],
 ): Promise<MateriaDelAlumno[]> {
-  const { data: insc } = await supabase
-    .from("inscripciones_alumno")
-    .select("grupo_id")
-    .eq("curp", curp)
-    .eq("activo", true);
-  const grupos = [...new Set((insc ?? []).map((r) => (r as { grupo_id: string }).grupo_id).filter(Boolean))];
+  let grupos: string[];
+  if (grupoIds && grupoIds.length > 0) {
+    grupos = [...new Set(grupoIds.filter(Boolean))];
+  } else {
+    const { data: insc } = await supabase
+      .from("inscripciones_alumno")
+      .select("grupo_id")
+      .eq("curp", curp)
+      .eq("activo", true);
+    grupos = [
+      ...new Set(
+        (insc ?? [])
+          .map((r) => (r as { grupo_id: string }).grupo_id)
+          .filter(Boolean),
+      ),
+    ];
+  }
   if (grupos.length === 0) return [];
 
   let q = supabase

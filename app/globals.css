@@ -64,6 +64,8 @@
   --oc-ok:            #09C374;  /* (m) actividad vigente                */
   --oc-alert:         #BB111B;  /* (m) SOLO punto. Ver regla 1 arriba.  */
   --oc-alert-text:    #F2686F;  /* (d) el mismo estado EN TEXTO         */
+  --oc-warn:          #F5A524;  /* (d) advertencia (asistencia naranja) */
+  --oc-warn-text:     #F5A524;  /* (d) ídem EN TEXTO; 7.19:1 s/ surface */
 
   /* ── Bordes ── */
   --oc-border:        rgba(158, 181, 199, 0.16); /* (d) separadores     */

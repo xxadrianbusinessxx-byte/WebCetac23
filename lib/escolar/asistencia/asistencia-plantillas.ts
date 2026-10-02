@@ -74,6 +74,10 @@ import type {
   ResultadoAnalisis,
   ResultadoPlantilla,
 } from "./asistencia-comun.ts";
+import type {
+  ColorDia,
+  MateriaDelDia,
+} from "./asistencia-dia-materia.ts";
 /**
  * C4.3 â€” Obtiene los alumnos de un grado/grupo/carrera.
  * Fuente primaria: inscripciones_alumno (activas) del grupo del catÃ¡logo,
@@ -937,5 +941,9 @@ export type DiaEstadoAsistencia = {
   clasesEsperadas: number;
   /** Clases a las que asistiÃ³ el alumno (null si no hay registro). */
   clasesAsistidas: number | null;
+  /** PROMPT S (B) — desglose por materia del día (materias + legacy + justificación). */
+  materias: MateriaDelDia[];
+  /** PROMPT S (B) — color del día (verde/naranja/rojo/pendiente/sin_clase). */
+  color: ColorDia;
 };
 

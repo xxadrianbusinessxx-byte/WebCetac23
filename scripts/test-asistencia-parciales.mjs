@@ -35,8 +35,12 @@ function parcial(id, numero, nombre, inicio, fin, activo = true) {
   return { id, numero, nombre, fecha_inicio: inicio, fecha_fin: fin, activo };
 }
 
-function dia(fecha, tipo = "clase", estado = "pendiente") {
-  return { fecha, tipo, estado };
+function dia(fecha, tipo = "clase", estado = "pendiente", materias = []) {
+  return { fecha, tipo, estado, materias };
+}
+
+function aporte(grupoMateriaId, nombre, clases, asistidas) {
+  return { grupoMateriaId, nombre, clases, asistidas };
 }
 
 const P1 = parcial("ev1", 1, "Parcial 1", "2026-08-31", "2026-09-25");
@@ -67,25 +71,60 @@ console.log("2) Fecha sin parcial: etiqueta null, nunca se asigna");
 
 }
 
-console.log("3) resumenAsistenciaPorParcial: pendientes fuera del denominador");
+console.log("3) resumenAsistenciaPorParcial: % EN CLASES y pendientes fuera del denominador");
 {
   const dias = [];
-  for (let i = 0; i < 18; i++) dias.push(dia("2026-10-05", "clase", "asistio"));
-  for (let i = 0; i < 2; i++) dias.push(dia("2026-10-06", "clase", "falta"));
-  for (let i = 0; i < 5; i++) dias.push(dia("2026-10-07", "clase", "pendiente"));
+  for (let i = 0; i < 18; i++) dias.push(dia("2026-10-05", "clase", "asistio", [aporte("m1", "Matemáticas", 2, 2)]));
+  for (let i = 0; i < 2; i++) dias.push(dia("2026-10-06", "clase", "falta", [aporte("m1", "Matemáticas", 2, 0)]));
+  for (let i = 0; i < 5; i++) dias.push(dia("2026-10-07", "clase", "pendiente", [aporte("m1", "Matemáticas", 2, null)]));
   dias.push(dia("2026-10-10", "festivo", "sin_clase"));
-  dias.push(dia("2026-09-10", "clase", "falta"));
+  dias.push(dia("2026-09-10", "clase", "falta", [aporte("m1", "Matemáticas", 2, 0)]));
   const r = M.resumenAsistenciaPorParcial(dias, [P1, P2, P3]);
   const r2 = r.resumenes.find((x) => x.parcial.id === "ev2");
   ok("existe entrada del parcial 2", Boolean(r2), JSON.stringify(r));
-  ok("parcial 2: 18 asistencias", r2 && r2.asistencias === 18, JSON.stringify(r2));
-  ok("parcial 2: 2 faltas", r2 && r2.faltas === 2, JSON.stringify(r2));
-  ok("parcial 2: 5 pendientes", r2 && r2.pendientes === 5, JSON.stringify(r2));
-  ok("parcial 2: 1 sin clase", r2 && r2.sinClase === 1, JSON.stringify(r2));
-  ok("parcial 2: 90% (pendientes fuera del denominador)", r2 && r2.porcentaje === 90, JSON.stringify(r2));
+  // Conteos de DÍAS (se conservan).
+  ok("parcial 2: 18 asistencias (días)", r2 && r2.asistencias === 18, JSON.stringify(r2));
+  ok("parcial 2: 2 faltas (días)", r2 && r2.faltas === 2, JSON.stringify(r2));
+  ok("parcial 2: 5 pendientes (días)", r2 && r2.pendientes === 5, JSON.stringify(r2));
+  ok("parcial 2: 1 sin clase (días)", r2 && r2.sinClase === 1, JSON.stringify(r2));
+  // Conteos en CLASES: (18 asistio + 2 falta) × 2 clases = 40; pendiente excluida.
+  ok("parcial 2: 40 clases registradas", r2 && r2.clasesRegistradas === 40, JSON.stringify(r2));
+  ok("parcial 2: 36 clases asistidas", r2 && r2.clasesAsistidas === 36, JSON.stringify(r2));
+  ok("parcial 2: 90% en clases (36/40)", r2 && r2.porcentaje === 90, JSON.stringify(r2));
   const r1 = r.resumenes.find((x) => x.parcial.id === "ev1");
   ok("dias de otro parcial no contaminan el resumen", r1 && r1.faltas === 1 && r2 && r2.faltas === 2,
     "r1=" + JSON.stringify(r1) + " r2=" + JSON.stringify(r2));
+}
+
+console.log("3b) El % en CLASES difiere del % en DÍAS (decisión 4)");
+{
+  // Un solo día «asistio» pero asistió a 1 de 2 clases → días 100%, clases 50%.
+  const dias = [dia("2026-10-05", "clase", "asistio", [aporte("m1", "Matemáticas", 2, 1)])];
+  const r = M.resumenAsistenciaPorParcial(dias, [P1, P2, P3]);
+  const r2 = r.resumenes.find((x) => x.parcial.id === "ev2");
+  ok("en días sería 100% (1 asistio, 0 falta)", r2 && r2.asistencias === 1 && r2.faltas === 0);
+  ok("en clases es 50% (1 de 2)", r2 && r2.porcentaje === 50, JSON.stringify(r2));
+}
+
+console.log("3c) Una materia PENDIENTE no entra al desglose por materia");
+{
+  const pendiente = { grupoMateriaId: "m2", nombre: "Física", clases: 1, asistidas: null, tipo: "materia" };
+  const dias = [dia("2026-10-06", "clase", "asistio", [aporte("m1", "Matemáticas", 2, 2), pendiente])];
+  const r = M.resumenAsistenciaPorParcial(dias, [P1, P2, P3]);
+  const r2 = r.resumenes.find((x) => x.parcial.id === "ev2");
+  ok("Física pendiente no aparece con clases (no cuenta como falta)",
+    r2 && !r2.porMateria.some((m) => m.nombre === "Física" && m.clases > 0),
+    JSON.stringify(r2 && r2.porMateria));
+  ok("el % sigue siendo 100 (2 de 2)", r2 && r2.porcentaje === 100, JSON.stringify(r2));
+}
+
+console.log("3d) Los días se cuentan por el color con que se pintan");
+{
+  const d1 = { ...dia("2026-10-07", "clase", "asistio", [aporte("m1", "Matemáticas", 2, 1)]), color: "naranja" };
+  const d2 = { ...dia("2026-10-08", "clase", "asistio", [aporte("m1", "Matemáticas", 2, 2)]), color: "verde" };
+  const r = M.resumenAsistenciaPorParcial([d1, d2], [P1, P2, P3]);
+  const r2 = r.resumenes.find((x) => x.parcial.id === "ev2");
+  ok("1 verde y 1 naranja", r2 && r2.diasPorColor.verde === 1 && r2.diasPorColor.naranja === 1, JSON.stringify(r2 && r2.diasPorColor));
 }
 
 console.log("4) Parciales solapados: conflicto reportado, no eleccion al azar");

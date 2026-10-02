@@ -40,24 +40,23 @@ export type OpcionesVistaAsistencia = {
   incluirParcialesVacios?: boolean;
 };
 
-/** Un parcial sin asistencias ni faltas registradas no aporta porcentaje: su
- *  denominador es cero y mostrar «0 %» mentiría (no es que faltara, es que no
- *  hubo clase registrada). */
+/** Un parcial sin clases REGISTRADAS no aporta porcentaje: su denominador es
+ *  cero y mostrar «0 %» mentiría (no es que faltara, es que no hubo clase). */
 export function parcialTieneRegistro(r: ResumenPorParcial): boolean {
-  return r.asistencias + r.faltas > 0;
+  return r.clasesRegistradas > 0;
 }
 
-/** Porcentaje global sobre TODOS los parciales: se recalcula desde los conteos,
- *  no se promedian los porcentajes de cada parcial. Promediar porcentajes de
- *  denominadores distintos da un número que no significa nada. */
+/** Porcentaje global sobre TODOS los parciales, EN CLASES (PROMPT S, decisión 4):
+ *  Σ clasesAsistidas / Σ clasesRegistradas. Se recalcula desde los conteos, no
+ *  se promedian los porcentajes de cada parcial. */
 export function porcentajeGlobal(resumen: readonly ResumenPorParcial[]): number {
-  let asistencias = 0;
+  let asistidas = 0;
   let registradas = 0;
   for (const r of resumen) {
-    asistencias += r.asistencias;
-    registradas += r.asistencias + r.faltas;
+    asistidas += r.clasesAsistidas;
+    registradas += r.clasesRegistradas;
   }
-  return registradas === 0 ? 0 : Math.round((asistencias / registradas) * 100);
+  return registradas === 0 ? 0 : Math.round((asistidas / registradas) * 100);
 }
 
 const GUION = "—";
