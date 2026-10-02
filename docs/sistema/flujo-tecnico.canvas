@@ -452,7 +452,7 @@
    "width": 520,
    "height": 238,
    "color": "3",
-   "text": "**lib/escolar/asistencia/justificaciones.ts**\n- `esNombreArchivoJustificacionSeguro`, `rutaStorageJustificacion`\n- `calcularClasesJustificadasPorDia` (pura, usa horario)\n- `aplicarAsistenciaJustificada` → reescribe asistencia\n- `resolverTutorDeAlumno`, `crearMensajeJustificacion`\nlimites: `JUSTIFICACION_MAX_BYTES`, MIME permitidos"
+   "text": "**lib/escolar/asistencia/justificaciones.ts**\n- `esNombreArchivoJustificacionSeguro`, `rutaStorageJustificacion`\n- solicitud del día (padre o directivo) y aprobación del día completo\n- efecto derivado al leer (`justificacion-dias.ts`, `resolverDiaMateria`)\n- `resolverTutorDeAlumno`, `crearMensajeJustificacion`\nlimites: `JUSTIFICACION_MAX_BYTES`, MIME permitidos"
   },
   {
    "id": "n34",

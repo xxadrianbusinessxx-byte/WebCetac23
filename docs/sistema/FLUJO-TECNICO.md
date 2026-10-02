@@ -110,8 +110,11 @@ alumnos y etiquetas. Es la forma del repo.
 - `asistencia-parcial.ts`, `fechas.ts` (`serialExcelAFechaISO`).
 
 ### Justificaciones
-- `justificaciones.ts` — `calcularClasesJustificadasPorDia` (cruza con horario),
-  `aplicarAsistenciaJustificada`, mensajería directivo↔tutor, validación de archivo.
+- `justificaciones.ts` — solicitud del día (padre o directivo) con adjunto, aprobación del
+  día completo, mensajería directivo↔tutor, validación de archivo.
+- `justificacion-dias.ts` — desglose por materia de los días a justificar y las
+  justificaciones por materia del profesor. Reglas puras en `justificaciones-puro.ts`.
+  El efecto en la asistencia es derivado: lo cuenta `resolverDiaMateria` al leer.
 
 ### Materias y calificaciones
 - `mapeo-columnas-materia.ts` (612 L) — `calcularPromedioPonderado`, `validarPesosActividades`,

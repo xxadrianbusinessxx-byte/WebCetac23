@@ -33,7 +33,8 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "calificacion.ver",
     "ciclo.ver",
     "horario.ver_alumno",
-    "justificacion.solicitar",
+    // 2026-10-01 (decisión del directivo): el alumno ya NO envía justificantes;
+    // los envía su padre o tutor. Sigue viendo los suyos.
     "justificacion.ver_propias",
     "portada.ver",
     // UIs pendientes (2026-09-17): el alumno ve sus actividades y las
@@ -144,7 +145,11 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "horario.ver_grupo",
     "horario.ver_alumno",
     "horario.descargar_plantilla",
-    "justificacion.solicitar",
+    // 2026-10-01 (decisión del directivo): el profesor ya NO envía justificantes
+    // por el alumno; RECIBE los del padre y justifica solo materias de ese día.
+    // Cuáles —las suyas, o las que no tienen a quién atribuirse— lo decide
+    // `materiasJustificablesPorProfesor`, no la matriz.
+    "justificacion.justificar_clase",
     "justificacion.ver_propias",
     "materia.ver_catalogo",
     "materia.mapear_columnas",

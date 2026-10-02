@@ -200,6 +200,19 @@ ok(!puede("administracion", "asistencia.subir"), "administracion NO puede asiste
 ok(!puede("administracion", "ciclo.crear"), "administracion NO puede ciclo.crear");
 ok(!puede("administracion", "justificacion.resolver"), "administracion NO puede justificacion.resolver");
 ok(!puede("administracion", "justificacion.solicitar"), "administracion NO puede justificacion.solicitar");
+// 2026-10-01 — circuito de justificantes: ENVÍAN el padre y el directivo; el
+// profesor RECIBE y justifica materias; el directivo resuelve el día completo.
+ok(puede("tutor", "justificacion.solicitar"), "tutor (padre) envía justificantes");
+ok(puede("directivo", "justificacion.solicitar"), "directivo envía justificantes");
+ok(!puede("alumno", "justificacion.solicitar"), "alumno ya NO envía justificantes");
+ok(!puede("maestro", "justificacion.solicitar"), "profesor ya NO envía justificantes por el alumno");
+ok(puede("maestro", "justificacion.justificar_clase"), "profesor justifica materias de la solicitud del padre");
+ok(!puede("maestro", "justificacion.resolver"), "profesor NO resuelve el día completo");
+ok(puede("directivo", "justificacion.resolver"), "directivo resuelve el día completo");
+ok(
+  rolesDe("justificacion.justificar_clase").join(",") === "maestro",
+  "justificar_clase es SOLO del profesor",
+);
 ok(!puede("administracion", "cita.solicitar"), "administracion NO puede cita.solicitar");
 ok(!puede("administracion", "alumno.importar_estatus"), "administracion NO puede alumno.importar_estatus (importación masiva)");
 ok(!puede("administracion", "profesor.ver_credenciales_acceso"), "administracion NO ve credenciales de profesores");

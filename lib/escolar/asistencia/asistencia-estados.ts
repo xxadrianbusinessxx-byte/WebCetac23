@@ -25,11 +25,13 @@ import type {
   ContextoAsistencia,
 } from "./asistencia-comun.ts";
 import {
+  justificacionesPorFecha,
   resolverDiaMateria,
   totalesEnClases,
   type FilaAsistenciaDia,
   type FilaClaseDia,
 } from "./asistencia-dia-materia.ts";
+import { listarJustificacionesAprobadasDeCurp } from "./justificacion-dias.ts";
 import {
   materiasDelAlumno,
 } from "../materia/calificaciones.ts";
@@ -90,9 +92,9 @@ export async function profesorImparteEnGrupo(
 /**
  * Obtiene el calendario de asistencia de un alumno (por CURP) para un ciclo.
  *
- * Realiza SOLO 3 consultas (calendario + clases_impartidas + asistencia_alumnos)
-
- * y resuelve los estados en memoria (sin N+1). Reutilizable para el perfil del
+ * Consultas FIJAS: el calendario y, en paralelo, clases_impartidas,
+ * asistencia_alumnos, el roster de materias y las justificaciones aprobadas.
+ * Resuelve los estados en memoria (sin N+1). Reutilizable para el perfil del
  * alumno, el perfil del padre y el calendario visual futuro.
  *
  * Si se pasa `profesorClave`, se limita a ese profesor (estado por profesor).
@@ -163,7 +165,7 @@ export async function obtenerEstadosAsistenciaAlumno(
   // 3) Asistencia del alumno, con su materia y el marcador de justificación.
   let qAsist = supabase
     .from(TABLA_ASISTENCIA_ALUMNOS)
-    .select("fecha, grupo_materia_id, profesor_clave, clases_asistidas")
+    .select("fecha, grupo_materia_id, profesor_clave, profesor_id, clases_asistidas")
     .eq("curp", input.curp)
     .eq("grado", g)
     .eq("grupo", gr);
@@ -172,11 +174,15 @@ export async function obtenerEstadosAsistenciaAlumno(
   // PROMPT S (B) — las dos consultas corren en paralelo con el roster de
   // materias del alumno. `grupoIds` evita repetir la consulta a inscripciones.
   const grupoIds = input.grupoId ? [input.grupoId] : undefined;
-  const [resClases, resAsist, roster] = await Promise.all([
+  // Las justificaciones APROBADAS también van en paralelo: su efecto es
+  // derivado (se cuentan al leer, nunca se escriben en asistencia_alumnos).
+  const [resClases, resAsist, roster, aprobadas] = await Promise.all([
     qClases,
     qAsist,
     materiasDelAlumno(supabase, input.curp, false, grupoIds),
+    listarJustificacionesAprobadasDeCurp(supabase, input.curp),
   ]);
+  const justificadasPorFecha = justificacionesPorFecha(aprobadas);
 
   const nombres = new Map<string, string>();
   for (const m of roster) {
@@ -199,12 +205,14 @@ export async function obtenerEstadosAsistenciaAlumno(
     fecha: string;
     grupo_materia_id: string | null;
     profesor_clave: string | null;
+    profesor_id: number | null;
     clases_asistidas: number;
   }[]) {
     const lista = asistPorFecha.get(r.fecha) ?? [];
     lista.push({
       grupo_materia_id: r.grupo_materia_id ?? null,
       profesor_clave: r.profesor_clave ?? null,
+      profesor_id: r.profesor_id ?? null,
       clases_asistidas: r.clases_asistidas,
     });
     asistPorFecha.set(r.fecha, lista);
@@ -225,6 +233,7 @@ export async function obtenerEstadosAsistenciaAlumno(
       filasClases,
       filasAsist,
       nombres,
+      justificadasPorFecha.get(fecha),
     );
     dias.push({
       fecha,

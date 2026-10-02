@@ -140,9 +140,10 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `asistencia.anular` | Anular asistencia ya subida | ✅ | ✅ | X | X | X | X |
 | `asistencia.ver_grupo` | Ver asistencia de un grupo | ✅ | ✅ | X | X | X | X |
 | `asistencia.ver_alumno` | Ver asistencia de un alumno | ✅ | ✅ | X | ✅ | ✅ | ✅ |
-| `justificacion.solicitar` | Pedir justificación (3 actions) | ✅ | ✅ | X | ✅ | ✅ | X |
+| `justificacion.solicitar` | Enviar la solicitud de justificación de UN DÍA, con motivo y adjunto. **Desde el 2026-10-01, solo el padre y el directivo** (el alumno y el profesor ya no envían) | ✅ | X | X | ✅ | X | X |
 | `justificacion.ver_propias` | Ver las propias y su hilo (5 actions) | ✅ | ✅ | X | ✅ | ✅ | ✅ |
-| `justificacion.resolver` | Aprobar o rechazar | ✅ | X | X | X | X | X |
+| `justificacion.resolver` | Aprobar (día completo y todas sus materias) o rechazar la solicitud del día | ✅ | X | X | X | X | X |
+| `justificacion.justificar_clase` | **2026-10-01**: recibir las solicitudes del padre y justificar solo MATERIAS de ese día. Cuáles —las que el profesor registró, o las que no tienen a quién atribuirse— lo decide `materiasJustificablesPorProfesor`, no la matriz | X | ✅ | X | X | X | X |
 | `justificacion.ver_todas` | Pendientes e historial completo | ✅ | X | X | X | X | X |
 | `alumno.ver_perfil` | Ver perfil y buscar alumno | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `alumno.editar_datos_personales` | Campos personales, comentario, foto | ✅ | X | ✅ | ✅ | X | ✅ |
@@ -193,7 +194,6 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 
 | Capacidad | Para qué |
 |---|---|
-| `justificacion.justificar_clase` | Que el profesor justifique **una clase** con motivo, no el día completo, y la vea reflejada (pendiente A1). |
 | `profesor.ver_credenciales_acceso` | Implementada en PROMPT-3/T4: el técnico ve y repone la **clave de inicio de sesión** de profesores (rol maestro); la frontera (nunca `PROFESORES.ID` en la consola del técnico ni credenciales de Supabase) se aplica en `actionReponerClaveAccesoProfesor` y en el panel con `ocultarId`. |
 
 ---
@@ -256,7 +256,6 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 190 Server Actions.
 | `actionConfirmarAsistencias` | exigir: asistencia.subir | `asistencia.subir` |
 | `actionObtenerEstadosAsistenciaAlumno` | exigir: asistencia.ver_alumno | `asistencia.ver_alumno` |
 | `actionObtenerContextoAlumnoParaTutor` | exigir: asistencia.ver_alumno | `asistencia.ver_alumno` |
-| `actionSolicitarJustificacionAsistencia` | exigir: justificacion.solicitar | `justificacion.solicitar` |
 | `actionAnularAsistenciaProfesor` | exigir: asistencia.anular | `asistencia.anular` |
 | `actionListarAlumnosGruposProfesor` | exigir: asistencia.ver_grupo | `asistencia.ver_grupo` |
 | `actionObtenerMateriasHorarioGrupo` | exigir: horario.ver_grupo | `horario.ver_grupo` |
@@ -433,7 +432,6 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 190 Server Actions.
 | Action | Guardia hoy | Capacidad |
 |---|---|---|
 | `actionSolicitarJustificacionConArchivo` | exigir: justificacion.solicitar | `justificacion.solicitar` |
-| `actionObtenerMateriasJustificables` | exigir: justificacion.solicitar | `justificacion.solicitar` |
 | `actionListarJustificacionesTutor` | exigir: justificacion.ver_propias | `justificacion.ver_propias` |
 | `actionListarJustificacionesPendientes` | exigir: justificacion.ver_todas | `justificacion.ver_todas` |
 | `actionAprobarJustificacion` | exigir: justificacion.resolver | `justificacion.resolver` |
@@ -444,6 +442,8 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 190 Server Actions.
 | `actionListarMensajesDelTutor` | exigir: justificacion.ver_propias | `justificacion.ver_propias` |
 | `actionListarJustificacionesPendientesConDetalle` | exigir: justificacion.ver_todas | `justificacion.ver_todas` |
 | `actionListarHistorialJustificaciones` | exigir: justificacion.ver_todas | `justificacion.ver_todas` |
+| `actionListarJustificacionesParaProfesor` | exigir: justificacion.justificar_clase | `justificacion.justificar_clase` |
+| `actionJustificarMateriasProfesor` | exigir: justificacion.justificar_clase | `justificacion.justificar_clase` |
 
 ### `login.ts`
 

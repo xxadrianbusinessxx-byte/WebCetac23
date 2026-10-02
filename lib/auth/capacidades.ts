@@ -81,6 +81,9 @@ export const CAPACIDADES = [
   "justificacion.ver_propias",
   "justificacion.ver_todas",
   "justificacion.resolver",
+  // 2026-10-01: el profesor justifica MATERIAS de un día a partir de la
+  // solicitud del padre (no el día completo, que es `resolver`, del directivo).
+  "justificacion.justificar_clase",
   // Materias
   "materia.ver_catalogo",
   "materia.editar_alias",

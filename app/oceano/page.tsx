@@ -96,6 +96,8 @@ export default async function OceanoPage({
           // recibe; no pregunta por el rol.
           puedeEditarActividades: puede(rol, "actividad.editar"),
           puedeEntregarActividades: puede(rol, "actividad.entregar"),
+          // 2026-10-01: el padre envía justificantes; el alumno ya no.
+          puedeSolicitarJustificaciones: puede(rol, "justificacion.solicitar"),
         }
       : null;
 
@@ -131,6 +133,11 @@ export default async function OceanoPage({
         // La capacidad la resuelve el SERVIDOR con la misma `puede()` de la
         // matriz. La UI no pregunta por el rol: recibe la respuesta.
         puedeResolverJustificaciones: puede(rol, "justificacion.resolver"),
+        // 2026-10-01: envía justificantes quien tiene `solicitar` (padre y
+        // directivo; el profesor ya no). El profesor RECIBE los del padre y
+        // justifica materias: `justificar_clase`.
+        puedeSolicitarJustificaciones: puede(rol, "justificacion.solicitar"),
+        puedeJustificarClase: puede(rol, "justificacion.justificar_clase"),
       }
     : null;
 

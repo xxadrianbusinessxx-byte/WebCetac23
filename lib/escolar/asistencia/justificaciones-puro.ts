@@ -11,6 +11,8 @@
  * cual.
  */
 
+import type { MateriaDelDia } from "./asistencia-dia-materia.ts";
+
 export const JUSTIFICACION_EXTENSIONES_PERMITIDAS = [
   "pdf",
   "png",
@@ -92,4 +94,84 @@ export function rutaStorageJustificacion(
     nombreOriginal.split(".").pop()?.toLowerCase() || "pdf";
   const ts = Date.now();
   return `justificaciones/${curp}/${fecha}-${ts}.${ext}`;
+}
+
+/* ---------------------------------------------------------------------------
+ * CIRCUITO PADRE → PROFESOR / DIRECTIVO (2026-10-01)
+ * ---------------------------------------------------------------------------
+ * El padre (o el directivo) envía UNA solicitud por día. El profesor la recibe
+ * y justifica solo materias de ese día; el directivo la acepta y justifica el
+ * día entero. Estas decisiones son puras: reciben el desglose del día que ya
+ * calcula `resolverDiaMateria` y no consultan nada.
+ */
+/** Lo que una decisión de justificación necesita de una línea del día. */
+export type LineaJustificable = Pick<
+  MateriaDelDia,
+  "grupoMateriaId" | "tipo" | "clases" | "asistidas" | "profesorId" | "clasesJustificadas"
+>;
+
+/** ¿La línea tiene falta registrada que aún no está cubierta? */
+function faltaSinCubrir(m: LineaJustificable): boolean {
+  if (m.tipo === "justificacion") return false;
+  if (m.asistidas === null || m.clases <= 0) return false;
+  return m.asistidas + (m.clasesJustificadas ?? 0) < m.clases;
+}
+
+/**
+ * ¿Hay algo que justificar ese día? Una falta REGISTRADA (0 o parcial) en
+ * alguna materia —o en el registro anterior sin materia— que ninguna
+ * justificación aprobada cubra. Una materia pendiente (sin celda) no es falta.
+ */
+export function diaTieneFaltaJustificable(
+  materias: readonly LineaJustificable[],
+): boolean {
+  return materias.some(faltaSinCubrir);
+}
+
+/**
+ * Materias de ese día que ESTE profesor puede justificar.
+ *
+ * Regla del directivo (2026-10-01): si la falta tiene dueño —el `profesor_id`
+ * que la registró— solo la ve y la justifica ese profesor; si no hay a quién
+ * atribuirla, la ve cualquier profesor. El registro anterior sin materia no se
+ * puede justificar por materia: solo el directivo, con el día completo.
+ */
+export function materiasJustificablesPorProfesor<T extends LineaJustificable>(
+  materias: readonly T[],
+  profesorId: number,
+): T[] {
+  return materias.filter(
+    (m) =>
+      m.tipo === "materia" &&
+      m.grupoMateriaId !== null &&
+      faltaSinCubrir(m) &&
+      (m.profesorId === null || m.profesorId === profesorId),
+  );
+}
+
+/**
+ * Valida la selección del profesor contra lo que el servidor recalculó: cada
+ * materia pedida tiene que estar entre las justificables. Sin selección, o con
+ * una sola materia fuera de su alcance, no se escribe nada.
+ */
+export function validarSeleccionProfesor(
+  justificables: readonly LineaJustificable[],
+  seleccion: readonly string[],
+): { ok: true; materias: string[] } | { ok: false; error: string } {
+  const pedidas = [...new Set(seleccion.map((s) => s.trim()).filter(Boolean))];
+  if (pedidas.length === 0) {
+    return { ok: false, error: "Elige al menos una materia para justificar." };
+  }
+  const permitidas = new Set(
+    justificables.map((m) => m.grupoMateriaId).filter((g): g is string => g !== null),
+  );
+  const fuera = pedidas.filter((g) => !permitidas.has(g));
+  if (fuera.length > 0) {
+    return {
+      ok: false,
+      error:
+        "Alguna materia elegida ya no tiene falta que justificar o no te corresponde. Recarga la lista.",
+    };
+  }
+  return { ok: true, materias: pedidas };
 }

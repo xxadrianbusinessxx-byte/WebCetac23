@@ -47,7 +47,39 @@ export type MateriaDelDia = {
   asistidas: number | null;
   estado: EstadoMateria;
   tipo: TipoLineaDia;
+  /** Dueño de la falta: el `profesor_id` que registró la fila. null = no hay
+   *  a quién atribuirla (legacy, o filas de varios profesores). Decide qué
+   *  profesor puede justificar esta materia (justificaciones-puro.ts). */
+  profesorId: number | null;
+  /** Clases de esta línea que una justificación APROBADA cubre (derivado,
+   *  nunca almacenado): el faltante de la materia si está justificada. */
+  clasesJustificadas: number;
 };
+
+/**
+ * Justificaciones APROBADAS de un día, ya agrupadas: el día completo (la
+ * resolvió el directivo) o materias concretas (las resolvió su profesor).
+ */
+export type JustificacionDia = {
+  diaCompleto: boolean;
+  materias: ReadonlySet<string>;
+};
+
+/** Agrupa por fecha las justificaciones APROBADAS (`grupo_materia_id` null =
+ *  día completo). Las pendientes y rechazadas no justifican nada. */
+export function justificacionesPorFecha(
+  filas: readonly { fecha: string; grupo_materia_id: string | null; estado: string }[],
+): Map<string, JustificacionDia> {
+  const mapa = new Map<string, { diaCompleto: boolean; materias: Set<string> }>();
+  for (const f of filas) {
+    if (f.estado !== "aprobada") continue;
+    const dia = mapa.get(f.fecha) ?? { diaCompleto: false, materias: new Set<string>() };
+    if (f.grupo_materia_id) dia.materias.add(f.grupo_materia_id);
+    else dia.diaCompleto = true;
+    mapa.set(f.fecha, dia);
+  }
+  return mapa;
+}
 
 export type FilaClaseDia = {
   grupo_materia_id: string | null;
@@ -58,6 +90,8 @@ export type FilaAsistenciaDia = {
   grupo_materia_id: string | null;
   clases_asistidas: number;
   profesor_clave: string | null;
+  /** Quién registró la fila (`PROFESORES.ID`); null en filas legacy. */
+  profesor_id?: number | null;
 };
 
 const CLAVE_LEGACY = "__legacy__";
@@ -77,12 +111,15 @@ export function estadoMateria(
 /**
  * Agrupa las filas de un día por materia y pinta el día.
  * `nombres` es `Map<grupoMateriaId, nombreVisible>` (alias ?? nombre).
+ * `justificacion`: lo aprobado ese día. Una materia justificada cuenta su
+ * faltante como asistido; el día completo justifica todas las líneas con celda.
  */
 export function resolverDiaMateria(
   tipo: TipoDiaCalendario,
   clases: FilaClaseDia[],
   asistencias: FilaAsistenciaDia[],
   nombres: Map<string, string>,
+  justificacion?: JustificacionDia,
 ): { materias: MateriaDelDia[]; color: ColorDia } {
   if (tipo !== "clase") return { materias: [], color: "sin_clase" };
 
@@ -93,17 +130,22 @@ export function resolverDiaMateria(
   }
 
   const asistPorClave = new Map<string, number>();
-  let justificacion = 0;
+  // Dueños por línea: los `profesor_id` distintos que registraron filas.
+  const duenosPorClave = new Map<string, Set<number>>();
+  let marcadorJustificacion = 0;
   for (const a of asistencias) {
     if (
       a.grupo_materia_id == null &&
       a.profesor_clave === MARCADOR_JUSTIFICACION
     ) {
-      justificacion += a.clases_asistidas;
+      marcadorJustificacion += a.clases_asistidas;
       continue;
     }
     const clave = a.grupo_materia_id ?? CLAVE_LEGACY;
     asistPorClave.set(clave, (asistPorClave.get(clave) ?? 0) + a.clases_asistidas);
+    const duenos = duenosPorClave.get(clave) ?? new Set<number>();
+    if (a.profesor_id != null) duenos.add(Number(a.profesor_id));
+    duenosPorClave.set(clave, duenos);
   }
 
   const claves = new Set([...clasesPorClave.keys(), ...asistPorClave.keys()]);
@@ -121,6 +163,17 @@ export function resolverDiaMateria(
     const nombre = esLegacy
       ? NOMBRE_LEGACY
       : (nombres.get(clave) ?? NOMBRE_FUERA_GRUPO);
+    const duenos = duenosPorClave.get(clave);
+    const justificada =
+      justificacion !== undefined &&
+      (justificacion.diaCompleto ||
+        (grupoMateriaId !== null && justificacion.materias.has(grupoMateriaId)));
+    // Solo se justifica lo que de verdad faltó: una materia pendiente (sin
+    // celda) o completa no gana clases.
+    const clasesJustificadas =
+      justificada && asistidas !== null && clasesM > asistidas
+        ? clasesM - asistidas
+        : 0;
     materias.push({
       grupoMateriaId,
       nombre,
@@ -128,18 +181,22 @@ export function resolverDiaMateria(
       asistidas,
       estado: estadoMateria(clasesM, asistidas),
       tipo: esLegacy ? "legacy" : "materia",
+      profesorId: duenos && duenos.size === 1 ? [...duenos][0]! : null,
+      clasesJustificadas,
     });
     if (tieneCelda && clasesM > 0) {
       hayCelda = true;
       totalClases += clasesM;
-      totalAsistidas += asistidas ?? 0;
+      totalAsistidas += (asistidas ?? 0) + clasesJustificadas;
     }
   }
 
-  // Justificación: línea propia, suma al numerador con tope en el faltante.
-  if (justificacion > 0) {
+  // Marcador legacy `__JUSTIFICACION__` (hoy 0 filas; las aprobaciones nuevas
+  // ya no lo escriben): línea propia, con tope en el faltante que quede.
+  const justificacionMarcador = marcadorJustificacion;
+  if (justificacionMarcador > 0) {
     const faltante = Math.max(0, totalClases - totalAsistidas);
-    const cap = Math.min(justificacion, faltante);
+    const cap = Math.min(justificacionMarcador, faltante);
     if (cap > 0) {
       materias.push({
         grupoMateriaId: null,
@@ -148,6 +205,8 @@ export function resolverDiaMateria(
         asistidas: cap,
         estado: "completa",
         tipo: "justificacion",
+        profesorId: null,
+        clasesJustificadas: 0,
       });
       totalAsistidas += cap;
       hayCelda = true;
@@ -179,6 +238,8 @@ export type LineaConteoClases = {
   clases: number;
   asistidas: number | null;
   tipo: TipoLineaDia;
+  /** Faltante cubierto por una justificación aprobada (cuenta como asistido). */
+  clasesJustificadas?: number;
 };
 
 /**
@@ -202,7 +263,7 @@ export function totalesEnClases(
       asistidas += m.asistidas;
     } else if (m.clases > 0) {
       clases += m.clases;
-      asistidas += m.asistidas;
+      asistidas += m.asistidas + (m.clasesJustificadas ?? 0);
     }
   }
   return { clases, asistidas };

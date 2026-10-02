@@ -228,7 +228,10 @@ export function ShellOceano({
             <ContenidoAlumnoOceano
               pieza={piezaDe(activa.id, activo.id)!}
               modo={sel.modo}
-              permitirJustificacion={opcionesDePieza(activa.id, activo.id).permitirJustificacion}
+              permitirJustificacion={
+                opcionesDePieza(activa.id, activo.id).permitirJustificacion &&
+                datosAlumno.puedeSolicitarJustificaciones
+              }
               datos={datosAlumno}
             />
           ) : activa && activo && datosAdministracion && piezaAdministracionDe(activa.id, activo.id) ? (

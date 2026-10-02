@@ -6,8 +6,8 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-10-01 (S · Parte B: asistencia por materia — calendario por materia y % en clases)
-- **HEAD:** `1397ae8` (2026-10-01) · árbol limpio
+- **Última revisión:** 2026-10-01 (circuito de justificantes: padre → profesor por materia / directivo día completo)
+- **HEAD:** `9f171cd` (2026-10-01) · árbol limpio
 
 ---
 
@@ -72,6 +72,8 @@ propia migración verificada (R8).
 - **`directivo` es un supervisor global**: tiene `asistencia.subir`, `ciclo.ver` y
   `justificacion.solicitar` para operar sin depender de asignaciones (R-4). Consecuencia
   intencionada: puede **solicitar y aprobar** la misma justificación.
+- **Justificantes (2026-10-01)**: envían padre y directivo; el profesor justifica solo materias (`justificar_clase`:
+  las suyas o sin dueño) y el directivo el día completo. Efecto derivado al leer (`justificacion-dias.ts`).
 - Todo `scripts/` corre con `service_role` y salta RLS. No hay entorno de staging.
 
 ## 5. Estado de datos — última medición conocida
@@ -89,7 +91,7 @@ propia migración verificada (R8).
   rol **técnico** (`Permisos='Tecnico'`) y la 22 **administración escolar** (`Administracion`).
 
 Lo que de aquí es un **pendiente** —68 filas sin `periodo_id`, claves compartidas,
-`asignaciones_profesor` en 0, el SQL de justificación por clase— vive **solo** en
+`asignaciones_profesor` en 0— vive **solo** en
 `docs/sistema/pendientes.json`, con su comando de verificación.
 
 ## 5b. Inscripciones y credenciales — decisiones cerradas
@@ -116,10 +118,10 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **49 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **50 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
-**Una de las 49 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
+**Una de las 50 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
 mitad mecánica de `ORDEN.md` —capas, scripts, raíz, tamaño de archivo, composición de
 UI, entrada validada, extensión explícita en `lib/`, exports de `"use server"`, qué
 tablas son de sistema, la unicidad de `onConflict` y `test:ci` fiel al workflow— y

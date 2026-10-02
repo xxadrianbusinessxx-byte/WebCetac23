@@ -150,14 +150,14 @@
     },
     {
       "id": "sql-justificaciones-por-clase",
-      "titulo": "agregar-grupo-materia-justificaciones.sql sin aplicar",
-      "detalle": "Vivía SOLO en ESTADO-ACTUAL §5 y no aquí, que es la fuente declarada desde el PROMPT F. Se movió al recortar ese archivo para no perderlo. El SQL da a justificaciones_asistencia la columna grupo_materia_id que necesita la justificacion POR CLASE; sin el, esa justificacion no puede acotarse a una materia. ESTADO puede estar desactualizado: correr el verificar antes de fiarse.",
+      "titulo": "agregar-grupo-materia-justificaciones.sql (cerrado: ya estaba aplicado, verificado 2026-10-01)",
+      "detalle": "Cerrado. El SQL ya estaba aplicado: justificaciones_asistencia tiene grupo_materia_id y periodo_id (spec OpenAPI) y la UNIQUE plana (curp_alumno, fecha) ya NO existe (sonda UPSERT con cuerpo vacío → 42P10), reemplazada por los dos índices parciales. Consecuencia que esto ocultaba: la solicitud del padre hacía upsert con onConflict curp_alumno,fecha y FALLABA en producción con 42P10. Corregido el 2026-10-01 con select → update/insert (justificaciones.ts) en el rediseño del circuito padre → profesor / directivo. diag-sql-aplicado marca este archivo con «?» porque su artefacto es un índice, que el spec no expone.",
       "riesgo": "medio",
       "quien": "persona — una sentencia en el SQL Editor",
       "verificar": "node scripts/diag-sql-aplicado.mjs",
       "doc": "supabase/agregar-grupo-materia-justificaciones.sql",
-      "revisado": "2026-09-17",
-      "estado": "abierto"
+      "revisado": "2026-10-01",
+      "estado": "cerrado"
     },
     {
       "id": "matriz-ux-anterior-al-shell",

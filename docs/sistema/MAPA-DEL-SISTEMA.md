@@ -96,7 +96,7 @@ Excepciones (dominios cuya lógica está repartida):
 
 | Síntoma | Abrir | Medir con |
 |---|---|---|
-| «La justificación no descuenta las faltas correctas» | `lib/escolar/asistencia/justificaciones.ts::calcularClasesJustificadasPorDia` (cruza con horario) y `aplicarAsistenciaJustificada` (FIJA el total, es idempotente) | `test-justificacion-por-clase.mjs` |
+| «La justificación no descuenta las faltas correctas» | `lib/escolar/asistencia/asistencia-dia-materia.ts::resolverDiaMateria` (cuenta el faltante de lo APROBADO: materia del profesor o día completo del directivo) y `justificaciones-puro.ts::materiasJustificablesPorProfesor` (qué ve cada profesor) | `test-justificacion-circuito.mjs` |
 | «No sube el archivo» | Supabase Storage, 3 buckets · `lib/escolar/documentos.ts` · validación de archivo en `justificaciones.ts` | `probe-documentos.mjs` |
 | «Las imágenes no cargan» | Cloudinary es la única API externa: `lib/cloudinary/**` | — |
 

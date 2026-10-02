@@ -34,11 +34,16 @@ type AlumnoSeleccionado = {
  * Al elegir un alumno renderiza <CalendarioAsistenciaAlumno> con
  * `profesorClave` + `permitirJustificacion` + `permitirAnulacion` — TODO
  * reutilizado, cero lógica de calendario nueva.
+ *
+ * `permitirJustificacion` lo decide quien monta el buscador con la capacidad
+ * `justificacion.solicitar` (2026-10-01: el directivo sí, el profesor no).
  */
 export function BuscadorAlumnoProfesor({
   profesorClave,
+  permitirJustificacion = false,
 }: {
   profesorClave: string;
+  permitirJustificacion?: boolean;
 }) {
   const [grupos, setGrupos] = useState<GrupoConAlumnos[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -226,7 +231,7 @@ export function BuscadorAlumnoProfesor({
               curp={alumnoSel.curp}
               nombreAlumno={alumnoSel.nombre}
               profesorClave={profesorClave}
-              permitirJustificacion
+              permitirJustificacion={permitirJustificacion}
               permitirAnulacion
             />
           </div>

@@ -9,12 +9,15 @@ import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import {
   actionAprobarJustificacion,
+  actionJustificarMateriasProfesor,
   actionListarHistorialJustificaciones,
+  actionListarJustificacionesParaProfesor,
   actionListarJustificacionesPendientesConDetalle,
   actionObtenerUrlArchivoJustificacion,
   actionRechazarJustificacion,
 } from "@/app/actions/justificaciones";
 import type { JustificacionConDetalle } from "@/lib/escolar/asistencia/justificaciones";
+import type { JustificacionParaProfesor } from "@/lib/escolar/asistencia/justificacion-dias";
 
 function PanelTab({
   children,
@@ -114,10 +117,7 @@ export function JustificacionesAdmin() {
     setOperando(false);
     if (res.ok) {
       setConfirmandoAprobar(null);
-      setMensaje({
-        texto: `Justificación aprobada: ${res.clasesAplicadas} clase(s) aplicada(s).`,
-        tipo: "ok",
-      });
+      setMensaje({ texto: res.mensaje, tipo: "ok" });
       await cargar();
     } else {
       setMensaje({ texto: res.error, tipo: "error" });
@@ -227,8 +227,8 @@ export function JustificacionesAdmin() {
               {confirmandoAprobar === j.id && (
                 <div className="mt-3 rounded-2xl border border-[var(--oc-alert)]/40 bg-[var(--oc-alert)]/15 p-3">
                   <p className="mb-2 text-center text-xs font-extrabold text-[var(--oc-alert-text)]">
-                    ¿Confirmar la aprobación? La falta se convertirá en
-                    asistencia y no se podrá deshacer.
+                    ¿Confirmar la aprobación? Se justifica el DÍA COMPLETO y
+                    todas sus materias, y no se podrá deshacer.
                   </p>
                   <div className="flex flex-wrap justify-center gap-2">
                     <GreyActionPill
@@ -307,7 +307,11 @@ export function JustificacionesAdmin() {
                         : "bg-[var(--oc-alert)]/15 text-[var(--oc-alert-text)]"
                     }`}
                   >
-                    {j.estado === "aprobada" ? "Aprobada" : "Rechazada"}
+                    {j.estado === "aprobada"
+                      ? j.grupo_materia_id
+                        ? "Materia justificada por su profesor"
+                        : "Aprobada (día completo)"
+                      : "Rechazada"}
                   </span>
                 </div>
                 {j.motivo_rechazo && (
@@ -324,3 +328,168 @@ export function JustificacionesAdmin() {
   );
 }
 
+/**
+ * Panel del PROFESOR (2026-10-01): las solicitudes de día que envió el padre y
+ * que le tocan. Elige qué materias de ese día justificar; solo esas clases
+ * quedan justificadas. El día completo lo resuelve la dirección.
+ *
+ * Qué materias aparecen lo decide el servidor
+ * (`materiasJustificablesPorProfesor`): las que él registró, o las que no
+ * tienen a quién atribuirse. Vive en este archivo para reutilizar `PanelTab` y
+ * `GreyActionPill` sin copiarlas (C11).
+ */
+export function JustificacionesProfesor() {
+  const [lista, setLista] = useState<JustificacionParaProfesor[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [operando, setOperando] = useState<string | null>(null);
+  const [mensaje, setMensaje] = useState<{ texto: string; tipo: "ok" | "error" } | null>(null);
+  // Materias marcadas por solicitud: id de solicitud → ids de grupo_materias.
+  const [marcadas, setMarcadas] = useState<Record<string, string[]>>({});
+
+  const cargar = useCallback(() => {
+    // Los `setState` van en el callback de la promesa (regla
+    // `react-hooks/set-state-in-effect`), igual que el panel del directivo.
+    return Promise.resolve()
+      .then(() => setCargando(true))
+      .then(() => actionListarJustificacionesParaProfesor())
+      .then((res) => {
+        setCargando(false);
+        if (res.ok) {
+          setLista(res.justificaciones);
+        } else {
+          setLista([]);
+          setMensaje({ texto: res.error, tipo: "error" });
+        }
+      });
+  }, []);
+
+  useEffect(() => {
+    void cargar();
+  }, [cargar]);
+
+  function alternar(solicitudId: string, grupoMateriaId: string) {
+    setMarcadas((prev) => {
+      const actuales = prev[solicitudId] ?? [];
+      const siguientes = actuales.includes(grupoMateriaId)
+        ? actuales.filter((g) => g !== grupoMateriaId)
+        : [...actuales, grupoMateriaId];
+      return { ...prev, [solicitudId]: siguientes };
+    });
+  }
+
+  async function onVerArchivo(id: string) {
+    const res = await actionObtenerUrlArchivoJustificacion(id);
+    if (res.ok) window.open(res.url, "_blank", "noopener,noreferrer");
+    else setMensaje({ texto: res.error, tipo: "error" });
+  }
+
+  async function onJustificar(solicitudId: string) {
+    const grupoMateriaIds = marcadas[solicitudId] ?? [];
+    if (grupoMateriaIds.length === 0) return;
+    setOperando(solicitudId);
+    setMensaje(null);
+    const res = await actionJustificarMateriasProfesor({ justificacionId: solicitudId, grupoMateriaIds });
+    setOperando(null);
+    if (res.ok) {
+      setMensaje({ texto: res.mensaje, tipo: "ok" });
+      setMarcadas((prev) => ({ ...prev, [solicitudId]: [] }));
+      await cargar();
+    } else {
+      setMensaje({ texto: res.error, tipo: "error" });
+    }
+  }
+
+  return (
+    <div className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-3 sm:p-4">
+      <PanelTab className="mx-auto w-fit">
+        Justificaciones de padres ({lista.length})
+      </PanelTab>
+      <p className="text-center text-xs font-semibold text-[var(--oc-muted)]">
+        Elige qué materias de ese día justificar: solo se justifican sus clases.
+        El día completo lo resuelve la dirección.
+      </p>
+
+      {mensaje && (
+        <p
+          role="status"
+          className={`rounded-xl border px-4 py-2 text-center text-xs font-bold ${
+            mensaje.tipo === "ok"
+              ? "border-[var(--oc-ok)]/50 bg-[var(--oc-ok)]/15 text-[var(--oc-ok)]"
+              : "border-[var(--oc-alert)]/50 bg-[var(--oc-alert)]/15 text-[var(--oc-alert-text)]"
+          }`}
+        >
+          {mensaje.texto}
+        </p>
+      )}
+
+      {cargando ? (
+        <p className="text-center text-sm font-semibold text-[var(--oc-muted)]">
+          Cargando solicitudes…
+        </p>
+      ) : lista.length === 0 ? (
+        <p className="text-center text-xs font-semibold text-[var(--oc-muted)]">
+          No hay justificaciones de padres pendientes para tus materias.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {lista.map((j) => {
+            const elegidas = marcadas[j.id] ?? [];
+            return (
+              <li
+                key={j.id}
+                className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-4"
+              >
+                <p className="text-sm font-extrabold text-[var(--oc-text)]">
+                  {j.alumnoNombre || j.curp}
+                </p>
+                <div className="mt-1 flex flex-col gap-1 text-xs font-semibold text-[var(--oc-muted)] sm:flex-row sm:flex-wrap sm:gap-x-4">
+                  <span>
+                    Grupo: {j.grado} {j.grupo}
+                  </span>
+                  <span>Fecha: {j.fecha}</span>
+                  <span>Motivo: {j.motivo}</span>
+                </div>
+                <fieldset className="mt-3 flex flex-col gap-2">
+                  <legend className="mb-1 text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
+                    Materias que puedes justificar
+                  </legend>
+                  {j.materias.map((m) => (
+                    <label
+                      key={m.grupoMateriaId}
+                      className="flex items-center gap-2 text-xs font-semibold text-[var(--oc-text)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={elegidas.includes(m.grupoMateriaId)}
+                        onChange={() => alternar(j.id, m.grupoMateriaId)}
+                        disabled={operando !== null}
+                      />
+                      {m.nombre} · asistió a {m.asistidas} de {m.clases}{" "}
+                      {m.clases === 1 ? "clase" : "clases"}
+                    </label>
+                  ))}
+                </fieldset>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  {j.tieneArchivo ? (
+                    <GreyActionPill onClick={() => void onVerArchivo(j.id)}>
+                      Ver archivo adjunto
+                    </GreyActionPill>
+                  ) : (
+                    <span />
+                  )}
+                  <GreyActionPill
+                    onClick={() => void onJustificar(j.id)}
+                    disabled={operando !== null || elegidas.length === 0}
+                    className="text-[var(--oc-ok)]"
+                  >
+                    {operando === j.id ? "Justificando…" : "Justificar materias elegidas"}
+                  </GreyActionPill>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}

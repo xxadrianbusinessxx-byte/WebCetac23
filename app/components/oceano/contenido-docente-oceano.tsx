@@ -20,7 +20,10 @@ import { MensajesInternosPanel } from "@/app/components/mensajes-internos-panel"
 import { AsistenciasPanel } from "@/app/components/asistencias-panel";
 import { BuscadorAlumnoProfesor } from "@/app/components/buscador-alumno-profesor";
 import { CalendarioEscolarPanel } from "@/app/components/calendario-escolar-panel";
-import { JustificacionesAdmin } from "@/app/components/justificaciones-admin";
+import {
+  JustificacionesAdmin,
+  JustificacionesProfesor,
+} from "@/app/components/justificaciones-admin";
 import {
   MateriaMapeoColumnas,
   useMateriaMapeo,
@@ -49,6 +52,12 @@ export type DatosDocenteOceano = {
    * aprobar.
    */
   puedeResolverJustificaciones: boolean;
+  /** ¿Puede ENVIAR un justificante desde el calendario del alumno? Hoy solo el
+   *  directivo de este frame (`justificacion.solicitar`); el profesor no. */
+  puedeSolicitarJustificaciones: boolean;
+  /** ¿Recibe las justificaciones del padre y justifica materias de ese día?
+   *  (`justificacion.justificar_clase`, el profesor). */
+  puedeJustificarClase: boolean;
   /** Nombre del ciclo en curso, para que el calendario abra donde toca. Puede
    *  venir vacío si no hay operativo: el panel cae entonces al primero de la
    *  lista, que es lo que ya hacía. */
@@ -104,11 +113,15 @@ export function ContenidoDocenteOceano({
   if (pieza === "asistencia-alumnos") {
     return (
       <div className="flex flex-col gap-6">
-        <BuscadorAlumnoProfesor profesorClave={datos.profesorClave} />
-        {/* El frame del directivo muestra aquí las solicitudes de justificación
-            con Aceptar y Rechazar. El maestro ve el mismo hueco sin ese panel:
-            no tiene `justificacion.resolver`. */}
+        <BuscadorAlumnoProfesor
+          profesorClave={datos.profesorClave}
+          permitirJustificacion={datos.puedeSolicitarJustificaciones}
+        />
+        {/* Solicitudes de justificación del padre. El directivo las acepta
+            (día completo) o rechaza; el profesor justifica solo materias de
+            ese día. Cada panel sale de su capacidad, no del rol. */}
         {datos.puedeResolverJustificaciones ? <JustificacionesAdmin /> : null}
+        {datos.puedeJustificarClase ? <JustificacionesProfesor /> : null}
       </div>
     );
   }

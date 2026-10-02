@@ -70,6 +70,9 @@ export type DatosAlumnoOceano = {
    *  quien tenga `alumno.editar_numero_control`, resuelto en el servidor. */
   numeroControl: string | null;
   puedeEditarNumeroControl: boolean;
+  /** 2026-10-01 — ¿Puede ENVIAR un justificante desde el calendario? El padre
+   *  sí, el alumno no (`justificacion.solicitar`, resuelto en el servidor). */
+  puedeSolicitarJustificaciones: boolean;
   /** UIs pendientes (2026-09-17) — Materias › Actividades.
    *  Los dos flags los resuelve el SERVIDOR con `puede()`; el componente no
    *  pregunta por el rol. Y la materia elegida viaja aquí porque el apartado

@@ -8,9 +8,7 @@ import {
 } from "@/app/actions/asistencias";
 import {
   actionObtenerJustificacionesDeAlumno,
-  actionObtenerMateriasJustificables,
   actionSolicitarJustificacionConArchivo,
-  type MateriaJustificableUI,
 } from "@/app/actions/justificaciones";
 import type {
   ColorDia,
@@ -19,6 +17,7 @@ import type {
   ResumenPorParcial,
 } from "@/lib/escolar/asistencia/asistencias";
 import { totalesEnClases } from "@/lib/escolar/asistencia/asistencia-dia-materia";
+import { diaTieneFaltaJustificable } from "@/lib/escolar/asistencia/justificaciones-puro";
 import { diasPorColorVacio } from "@/lib/escolar/asistencia/asistencia-parcial";
 import type { FilaJustificacion } from "@/lib/escolar/asistencia/justificaciones";
 import { fechaISO } from "@/lib/escolar/ciclo/calendario";
@@ -175,6 +174,9 @@ function lineaMateria(m: MateriaDelDia): string {
   if (m.tipo === "justificacion") return m.nombre;
   if (m.estado === "pendiente") return `${m.nombre} · pendiente`;
   const asistidas = m.asistidas ?? 0;
+  if (m.clasesJustificadas > 0) {
+    return `${m.nombre} · ${asistidas} de ${m.clases} — justificada`;
+  }
   if (m.estado === "completa") return `${m.nombre} · ${asistidas} de ${m.clases} ✓`;
   if (m.estado === "falta") return `${m.nombre} · ${asistidas} de ${m.clases} — faltó`;
   return `${m.nombre} · ${asistidas} de ${m.clases}`;
@@ -232,11 +234,6 @@ export function CalendarioAsistenciaAlumno({
     Record<string, FilaJustificacion>
   >({});
 
-  // Prompt B — justificación POR CLASE: materias del grupo ESE día (horario
-  // oficial). Solo aplica cuando un profesor usa el panel.
-  const [materiasDia, setMateriasDia] = useState<MateriaJustificableUI[]>([]);
-  const [materiaJust, setMateriaJust] = useState("");
-
   const cargar = useCallback(() => {
     // Los `setState` van dentro de los callbacks de la promesa, nunca en la fase
     // síncrona del efecto: ahí fuerzan un render en cascada antes del dato
@@ -278,8 +275,12 @@ export function CalendarioAsistenciaAlumno({
       .then(() => actionObtenerJustificacionesDeAlumno(curp))
       .then((res) => {
         if (!res.ok) return;
+        // Solo la SOLICITUD del día (sin materia): las filas por materia son
+        // resoluciones del profesor y se ven en el desglose del día.
         const mapa: Record<string, FilaJustificacion> = {};
-        for (const j of res.justificaciones) mapa[j.fecha] = j;
+        for (const j of res.justificaciones) {
+          if (!j.grupo_materia_id) mapa[j.fecha] = j;
+        }
         setJustificaciones(mapa);
       });
   }, [curp]);
@@ -291,38 +292,6 @@ export function CalendarioAsistenciaAlumno({
   useEffect(() => {
     void cargarJustificaciones();
   }, [cargarJustificaciones]);
-
-  // Al elegir un día, el profesor (si aplica) carga las materias de ESE día.
-  useEffect(() => {
-    let activo = true;
-    if (!seleccionado || !profesorClave || !permitirJustificacion) {
-      void Promise.resolve().then(() => {
-        if (!activo) return;
-        setMateriasDia([]);
-        setMateriaJust("");
-      });
-      return () => {
-        activo = false;
-      };
-    }
-    void actionObtenerMateriasJustificables({
-      curp,
-      fecha: seleccionado,
-    }).then((r) => {
-      if (!activo) return;
-      if (r.ok && r.materias.length > 0) {
-        setMateriasDia(r.materias);
-        setMateriaJust((prev) => prev || r.materias[0]!.materiaClave);
-      } else {
-        setMateriasDia([]);
-        setMateriaJust("");
-      }
-    });
-    return () => {
-      activo = false;
-    };
-  }, [seleccionado, curp, profesorClave, permitirJustificacion]);
-
 
   const diasPorFecha = useMemo(() => {
     const mapa = new Map<string, DiaEstadoAsistencia>();
@@ -391,7 +360,6 @@ export function CalendarioAsistenciaAlumno({
     formData.append("curp", curp);
     formData.append("fecha", seleccionado);
     formData.append("motivo", motivo.trim());
-    formData.append("materia_clave", materiaJust);
     formData.append("archivo", archivo);
     const res = await actionSolicitarJustificacionConArchivo(formData);
     setGuardandoJustificacion(false);
@@ -623,8 +591,13 @@ export function CalendarioAsistenciaAlumno({
                 </div>
               )}
 
+              {/* Envían el padre y el directivo (`justificacion.solicitar`).
+                  Se puede pedir en cualquier día con falta REGISTRADA sin
+                  cubrir —rojo o naranja—; qué materias se justifican lo
+                  decide el profesor (las suyas) o la dirección (todas). */}
               {permitirJustificacion &&
-                diaSeleccionado.estado === "falta" && (
+                (justificacionDia ||
+                  diaTieneFaltaJustificable(diaSeleccionado.materias)) && (
                   <div className="mt-3 flex flex-col gap-2">
                     <p className="text-center text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
                       Justificación de la falta
@@ -641,45 +614,16 @@ export function CalendarioAsistenciaAlumno({
                         }`}
                       >
                         {justificacionDia.estado === "pendiente"
-                          ? "Justificación enviada — pendiente de revisión."
+                          ? "Justificación enviada — la revisan el profesor de cada materia y la dirección."
                           : justificacionDia.estado === "rechazada"
                             ? `Justificación rechazada: ${
                                 justificacionDia.motivo_rechazo ||
                                 "sin motivo registrado"
                               }`
-                            : "Justificación aprobada."}
+                            : "Justificación aprobada: se justificó el día completo."}
                       </p>
                     ) : (
                       <>
-                        {profesorClave && (
-                          <label className="flex flex-col gap-1 rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-muted)]">
-                              Clase a justificar (del horario del día)
-                            </span>
-                            <select
-                              value={materiaJust}
-                              onChange={(e) => setMateriaJust(e.target.value)}
-                              className="rounded-full border border-[var(--oc-border)] bg-[var(--oc-surface)] px-3 py-1.5 text-xs font-bold text-[var(--oc-text)] outline-none"
-                            >
-                              <option value="">Día completo</option>
-                              {materiasDia.map((m) => (
-                                <option
-                                  key={m.materiaClave}
-                                  value={m.materiaClave}
-                                >
-                                  {m.nombre} · {m.bloques} clase(s)
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        )}
-                        {profesorClave && materiasDia.length === 0 && (
-                          <p className="text-center text-[10px] font-semibold text-[var(--oc-alert-text)]">
-                            No se pudo leer el horario del grupo para ese día
-                            (aplica supabase/agregar-materia-justificaciones.sql
-                            para justificar por clase).
-                          </p>
-                        )}
                         <textarea
                           value={motivo}
                           onChange={(e) => setMotivo(e.target.value)}

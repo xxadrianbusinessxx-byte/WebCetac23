@@ -1,8 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  TABLA_ASISTENCIA_ALUMNOS,
   TABLA_CARRERAS,
-  TABLA_CLASES_IMPARTIDAS,
   TABLA_GRUPOS,
   TABLA_INSCRIPCIONES_ALUMNO,
   TABLA_JUSTIFICACIONES_ASISTENCIA,
@@ -10,35 +8,41 @@ import {
   TABLA_TUTOR_ALUMNOS,
 } from "../tables.ts";
 import { listarNombresCompletosPorCurp } from "../alumno/alumnos.ts";
-import {
-  bloquesDeGrupoEnFecha,
-  consultarHorarioAlumno,
-} from "../horario/horario-semanal.ts";
 
 // Re-export del módulo puro (PROMPT Q · R-1). Se importan aparte los que este
 // archivo sigue usando.
-import {
-  calcularClasesJustificadasPorDia,
-  rutaStorageJustificacion,
-} from "./justificaciones-puro.ts";
+import { rutaStorageJustificacion } from "./justificaciones-puro.ts";
 export {
   JUSTIFICACION_EXTENSIONES_PERMITIDAS,
   calcularClasesJustificadasPorDia,
   esNombreArchivoJustificacionSeguro,
   materiaTieneClaseEnDia,
   rutaStorageJustificacion,
+  diaTieneFaltaJustificable,
+  materiasJustificablesPorProfesor,
+  validarSeleccionProfesor,
 } from "./justificaciones-puro.ts";
-export type { ClasesJustificadasPorDiaInput } from "./justificaciones-puro.ts";
+export type {
+  ClasesJustificadasPorDiaInput,
+  LineaJustificable,
+} from "./justificaciones-puro.ts";
 
 /**
  * C4.25 — DOMINIO DE JUSTIFICACIONES DE ASISTENCIA (estructura backend).
  *
- * Reutiliza la tabla existente `justificaciones_asistencia` y el mecanismo
- * real de asistencia (`asistencia_alumnos` con SUM por profesor). La
- * aprobación NO pinta la interfaz: agrega el faltante de clases en
- * `asistencia_alumnos` bajo un marcador administrativo de profesor
- * (`__JUSTIFICACION__`), de modo que el cálculo existente
- * (`obtenerEstadosAsistenciaAlumno` → SUM) reconoce el día como asistido.
+ * Circuito (decisión del directivo, 2026-10-01):
+ *   · el PADRE —o el directivo— envía UNA solicitud por día (fila con
+ *     `grupo_materia_id` NULL), con motivo y adjunto;
+ *   · el PROFESOR la recibe y justifica solo materias de ese día: cada una es
+ *     una fila propia, ya `aprobada`, con su `grupo_materia_id`;
+ *   · el DIRECTIVO la acepta (día completo) o la rechaza.
+ *
+ * El efecto sobre la asistencia es DERIVADO, nunca almacenado: la lectura
+ * (`obtenerEstadosAsistenciaAlumno` → `resolverDiaMateria`) cruza las
+ * justificaciones APROBADAS y cuenta como asistido el faltante de lo
+ * justificado. Ya no se escribe el marcador `__JUSTIFICACION__` en
+ * `asistencia_alumnos` (había 0 filas al retirarlo; la lectura lo sigue
+ * entendiendo por compatibilidad).
  *
  * La identidad académica del alumno se resuelve SOLO desde la inscripción
  * (CURP → inscripciones_alumno → grupos → carreras). Sin fallbacks legacy.
@@ -151,139 +155,6 @@ export async function resolverContextoAlumnoDesdeInscripcion(
   };
 }
 
-/** Resumen de clases esperadas/asistidas de un alumno en una fecha (grupo). */
-export async function resumenClasesYAsistencia(
-  supabase: SupabaseClient,
-  input: { curp: string; grado: string; grupo: string; fecha: string },
-): Promise<{ esperadas: number; asistidas: number }> {
-  const [clasesRes, asistRes] = await Promise.all([
-    supabase
-      .from(TABLA_CLASES_IMPARTIDAS)
-      .select("clases")
-      .eq("grado", input.grado.trim())
-      .eq("grupo", input.grupo.trim())
-      .eq("fecha", input.fecha.trim()),
-    supabase
-      .from(TABLA_ASISTENCIA_ALUMNOS)
-      .select("clases_asistidas")
-      .eq("curp", input.curp.trim().toUpperCase())
-      .eq("grado", input.grado.trim())
-      .eq("grupo", input.grupo.trim())
-      .eq("fecha", input.fecha.trim()),
-  ]);
-  const esperadas = (clasesRes.data ?? []).reduce(
-    (s, r) => s + (Number(r.clases) || 0),
-    0,
-  );
-  const asistidas = (asistRes.data ?? []).reduce(
-    (s, r) => s + (Number(r.clases_asistidas) || 0),
-    0,
-  );
-  return { esperadas, asistidas };
-}
-
-/**
- * Aplica la justificación a la asistencia REAL: suma el faltante de clases en
- * `asistencia_alumnos` bajo el marcador `__JUSTIFICACION__`. El total del día
- * (SUM) pasa a ser igual a las clases esperadas → el estado existente lo
- * reconoce como "asistio". Idempotente: si ya está justificado (faltante ≤ 0)
- * no escribe.
- */
-/**
- * Aplica la justificación a la asistencia REAL: FIJA (UPSERT bajo el marcador
- * `__JUSTIFICACION__`) el total de clases justificadas del día = suma de bloques
- * de cada materia APROBADA (día completo = faltante entero), con tope en el
- * faltante. El onConflict reemplaza la fila, así que el valor es SIEMPRE el
- * total recalculado: reaprobar/re-ejecutar es idempotente (no acumula).
- */
-export async function aplicarAsistenciaJustificada(
-  supabase: SupabaseClient,
-  input: {
-    curp: string;
-    grado: string;
-    grupo: string;
-    fecha: string;
-    /** Bloques del grupo ESE día por materia (origen: horario_semanal). */
-    bloquesPorMateriaDia?: Record<string, number>;
-    /** Materia de la justificación que se está aprobando (si aún no figura aprobada). */
-    incluirMateria?: string | null;
-  },
-): Promise<{ ok: true; clasesAplicadas: number } | { ok: false; error: string }> {
-  const { esperadas, asistidas } = await resumenClasesYAsistencia(supabase, input);
-  if (esperadas <= 0) {
-    return { ok: false, error: "No existe clase registrada para esa fecha; no se puede aprobar." };
-  }
-  if (asistidas >= esperadas) {
-    return { ok: false, error: "El alumno ya tiene asistencia completa ese día." };
-  }
-  const faltante = esperadas - asistidas;
-
-  // Justificaciones APROBADAS del día (el UPSERT del marcador siempre es el
-  // total recalculado; nunca un incremento).
-  // Compatibilidad aditiva (PROMPT-1/T1): la identidad de la clase es
-  // `grupo_materia_id` (uuid). Mientras el SQL
-  // `supabase/agregar-grupo-materia-justificaciones.sql` no esté aplicado, la
-  // columna no existe y toda justificación se trata como de día completo.
-  let materias: Array<string | null> = [];
-  try {
-    const { data: aprobadas, error: eA } = await supabase
-      .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-      .select("grupo_materia_id")
-      .eq("curp_alumno", input.curp.trim().toUpperCase())
-      .eq("fecha", input.fecha.trim())
-      .eq("estado", "aprobada");
-    if (eA) {
-      if (/grupo_materia_id/i.test(String(eA.message ?? ""))) {
-        materias = [null];
-      } else {
-        return { ok: false, error: `No se pudieron leer las justificaciones: ${eA.message}` };
-      }
-    } else {
-      materias = (aprobadas ?? []).map((j) =>
-        j.grupo_materia_id ? String(j.grupo_materia_id) : null,
-      );
-    }
-  } catch {
-    materias = [null];
-  }
-  if (input.incluirMateria !== undefined) {
-    const k = input.incluirMateria == null ? null : String(input.incluirMateria);
-    const ya = materias.some((m) =>
-      k === null ? m === null : m !== null && m === k,
-    );
-    if (!ya) materias.push(k);
-  }
-
-  const total = calcularClasesJustificadasPorDia({
-    bloquesPorMateria: input.bloquesPorMateriaDia ?? {},
-    materias,
-    faltante,
-  });
-  if (total <= 0) {
-    return {
-      ok: false,
-      error:
-        "La justificación no aporta clases a ese día. Revisa el horario del grupo (materia no programada) o la falta registrada.",
-    };
-  }
-
-  const { error } = await supabase.from(TABLA_ASISTENCIA_ALUMNOS).upsert(
-    {
-      profesor_clave: PROFESOR_JUSTIFICACION,
-      curp: input.curp.trim().toUpperCase(),
-      grado: input.grado.trim(),
-      grupo: input.grupo.trim(),
-      fecha: input.fecha.trim(),
-      clases_asistidas: total,
-    },
-    { onConflict: "profesor_clave,curp,grado,grupo,fecha" },
-  );
-  if (error) {
-    return { ok: false, error: `No se pudo actualizar la asistencia: ${error.message}` };
-  }
-  return { ok: true, clasesAplicadas: total };
-}
-
 /** Destinatario tutor del alumno (tutor principal) o null. */
 export async function resolverTutorDeAlumno(
   supabase: SupabaseClient,
@@ -368,17 +239,6 @@ export { TABLA_JUSTIFICACIONES_ASISTENCIA };
  * parámetro, que es la convención de `lib/escolar/`.
  */
 
-/** ¿La tabla ya tiene la columna `materia_clave` (SQL del Prompt B aplicado)? */
-export async function justificacionesTienenColumnaMateria(
-  supabase: SupabaseClient,
-): Promise<boolean> {
-  const { error } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .select("materia_clave")
-    .limit(1);
-  return !error;
-}
-
 /**
  * Crea el bucket de adjuntos si no existe (best-effort). Recibe el cliente de
  * servicio ya construido: crear clientes es responsabilidad de la action.
@@ -455,59 +315,23 @@ export async function obtenerJustificacion(
 }
 
 /**
- * Estado de la justificación PREVIA con la misma clave: día completo o la
- * materia concreta. `null` si no existe. Con el esquema legacy (sin la columna
- * `materia_clave`) la clave es solo (curp, fecha).
+ * Estado de la SOLICITUD del día (`grupo_materia_id` NULL) para esa CURP y
+ * fecha; `null` si no existe. Las filas por materia que crea el profesor no
+ * cuentan: son resoluciones, no solicitudes.
  */
 export async function estadoJustificacionPrevia(
   supabase: SupabaseClient,
-  input: {
-    curp: string;
-    fecha: string;
-    materiaClave: string;
-    conColumnaMateria: boolean;
-  },
-): Promise<{ estado: EstadoJustificacion } | null> {
-  let q = supabase
+  input: { curp: string; fecha: string },
+): Promise<{ id: string; estado: EstadoJustificacion } | null> {
+  const { data } = await supabase
     .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
     .select("id, estado")
     .eq("curp_alumno", input.curp)
-    .eq("fecha", input.fecha);
-  if (input.conColumnaMateria) {
-    q = input.materiaClave
-      ? q.eq("materia_clave", input.materiaClave)
-      : q.is("materia_clave", null);
-  }
-  const { data } = await q.maybeSingle();
+    .eq("fecha", input.fecha)
+    .is("grupo_materia_id", null)
+    .maybeSingle();
   if (!data) return null;
-  return { estado: data.estado as EstadoJustificacion };
-}
-
-/**
- * Bloques del grupo del alumno ESE día, agrupados por `materia_clave` oficial
- * (origen: horario_semanal, no la configuración del profesor).
- * Devuelve null cuando no hay horario/inscripción consultable.
- */
-export async function bloquesPorMateriaDiaDe(
-  supabase: SupabaseClient,
-  curp: string,
-  fecha: string,
-): Promise<
-  | { bloquesPorMateria: Record<string, number>; nombres: Record<string, string> }
-  | null
-> {
-  const consulta = await consultarHorarioAlumno(supabase, curp);
-  if (!consulta) return null;
-  const delDia = bloquesDeGrupoEnFecha(consulta.bloques, fecha);
-  const bloquesPorMateria: Record<string, number> = {};
-  const nombres: Record<string, string> = {};
-  for (const b of delDia) {
-    const k = String(b.materia_clave ?? "").trim();
-    if (!k) continue;
-    bloquesPorMateria[k] = (bloquesPorMateria[k] ?? 0) + 1;
-    if (!nombres[k]) nombres[k] = String(b.materia_nombre ?? k);
-  }
-  return { bloquesPorMateria, nombres };
+  return { id: String(data.id), estado: data.estado as EstadoJustificacion };
 }
 
 /** Datos de una solicitud de justificación con adjunto (ya validados). */
@@ -516,23 +340,20 @@ export type EntradaJustificacionConArchivo = {
   fecha: string;
   contexto: { grado: string; grupo: string; carrera: string };
   motivo: string;
-  /** "" = día completo (comportamiento actual); con valor = justificación por clase. */
-  materiaClave: string;
   solicitanteTipo: "tutor" | "alumno" | "profesor";
   solicitanteId: string;
-  /** ¿Existe la columna `materia_clave`? (SQL del Prompt B aplicado). */
-  conColumnaMateria: boolean;
 };
 
 /**
- * Guarda la justificación con su adjunto: sube el archivo, escribe la fila y,
- * si el guardado falla, borra el archivo recién subido (sin huérfanos).
+ * Guarda la SOLICITUD del día con su adjunto: sube el archivo, escribe la fila
+ * y, si el guardado falla, borra el archivo recién subido (sin huérfanos).
  *
- * Con el esquema legacy (sin `materia_clave`) la clave es (curp_alumno, fecha) y
- * se resuelve con `upsert` + `onConflict`. Con el esquema nuevo la UNIQUE se
- * recrea sobre (curp_alumno, fecha, COALESCE(materia_clave,'')), que PostgREST
- * no acepta como `on_conflict` por ser un índice de expresión: se resuelve con
- * select → update/insert, idempotente por la misma clave.
+ * La unicidad la imponen dos índices únicos PARCIALES
+ * (`agregar-grupo-materia-justificaciones.sql`, aplicado): uno por
+ * (curp_alumno, fecha) WHERE grupo_materia_id IS NULL y otro por materia.
+ * PostgreSQL no infiere un índice parcial desde el `on_conflict` de PostgREST
+ * (es el fallo que C16 vigila: devolvía 42P10 y la solicitud no se guardaba),
+ * así que se resuelve con select → update / insert sobre la misma clave.
  */
 export async function guardarJustificacionConArchivo(
   supabase: SupabaseClient,
@@ -544,9 +365,7 @@ export async function guardarJustificacionConArchivo(
   const subida = await subirArchivoJustificacion(almacen, ruta, archivo);
   if (!subida.ok) return subida;
 
-  const limpiarArchivo = () => eliminarArchivoJustificacion(almacen, ruta);
-
-  const datosComunes = {
+  const datos = {
     curp_alumno: input.curp,
     fecha: input.fecha,
     grado: input.contexto.grado,
@@ -561,53 +380,27 @@ export async function guardarJustificacionConArchivo(
     archivo_mime: archivo.type || null,
     archivo_size: archivo.size,
     motivo_rechazo: null,
+    grupo_materia_id: null,
   };
 
-  if (!input.conColumnaMateria) {
-    // Esquema legacy: una justificación por (curp, fecha).
-    const { data, error } = await supabase
-      .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-      .upsert(datosComunes, { onConflict: "curp_alumno,fecha" })
-      .select("id")
-      .maybeSingle();
-    if (error || !data) {
-      await limpiarArchivo();
-      return { ok: false, error: "No se pudo guardar la justificación." };
-    }
-    return { ok: true, id: String(data.id) };
-  }
-
-  const valorMateria = input.materiaClave ? input.materiaClave : null;
-  let qExistente = supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .select("id")
-    .eq("curp_alumno", input.curp)
-    .eq("fecha", input.fecha);
-  qExistente = valorMateria
-    ? qExistente.eq("materia_clave", valorMateria)
-    : qExistente.is("materia_clave", null);
-  const { data: existente } = await qExistente.maybeSingle();
-  if (existente) {
-    const { error } = await supabase
-      .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-      .update({ ...datosComunes, materia_clave: valorMateria })
-      .eq("id", String(existente.id));
-    if (error) {
-      await limpiarArchivo();
-      return { ok: false, error: "No se pudo guardar la justificación." };
-    }
-    return { ok: true, id: String(existente.id) };
-  }
-  const { data: nueva, error: errNueva } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .insert({ ...datosComunes, materia_clave: valorMateria })
-    .select("id")
-    .maybeSingle();
-  if (errNueva || !nueva) {
-    await limpiarArchivo();
+  const previa = await estadoJustificacionPrevia(supabase, input);
+  const escritura = previa
+    ? await supabase
+        .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+        .update(datos)
+        .eq("id", previa.id)
+        .select("id")
+        .maybeSingle()
+    : await supabase
+        .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
+        .insert(datos)
+        .select("id")
+        .maybeSingle();
+  if (escritura.error || !escritura.data) {
+    await eliminarArchivoJustificacion(almacen, ruta);
     return { ok: false, error: "No se pudo guardar la justificación." };
   }
-  return { ok: true, id: String(nueva.id) };
+  return { ok: true, id: String(escritura.data.id) };
 }
 
 /**
@@ -784,46 +577,6 @@ export async function listarMensajesDeTutorConDetalle(
       };
     }),
   };
-}
-
-/**
- * UPSERT de la justificación de DÍA COMPLETO (sin adjunto) por la clave natural
- * (curp_alumno, fecha): re-solicitar la misma fecha actualiza el motivo.
- *
- * Es el camino que usa el panel de asistencias (`actionSolicitarJustificacionAsistencia`),
- * bajado de `app/actions/asistencias.ts` (PROMPT E · R-1).
- */
-export async function guardarJustificacionDiaCompleto(
-  supabase: SupabaseClient,
-  datos: {
-    curp: string;
-    fecha: string;
-    contexto: { grado: string; grupo: string; carrera: string };
-    motivo: string;
-    solicitanteTipo: "tutor" | "alumno" | "profesor";
-    solicitanteId: string;
-  },
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { error } = await supabase
-    .from(TABLA_JUSTIFICACIONES_ASISTENCIA)
-    .upsert(
-      {
-        curp_alumno: datos.curp,
-        fecha: datos.fecha,
-        grado: datos.contexto.grado,
-        grupo: datos.contexto.grupo,
-        carrera: datos.contexto.carrera,
-        motivo: datos.motivo,
-        estado: "pendiente",
-        solicitante_tipo: datos.solicitanteTipo,
-        solicitante_id: datos.solicitanteId,
-      },
-      { onConflict: "curp_alumno,fecha" },
-    );
-  if (error) {
-    return { ok: false, error: "No se pudo guardar la justificación." };
-  }
-  return { ok: true };
 }
 
 /** Nombres completos de ALUMNOS por CURP (re-exportado para el panel directivo). */

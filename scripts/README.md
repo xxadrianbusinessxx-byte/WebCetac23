@@ -70,6 +70,7 @@ Correr las que apliquen **antes y después** de cualquier cambio de dominio.
 | `test-horario-semanal-puro.mjs` | `lib/escolar/horario/horario-semanal-puro.ts` — horas, días, materias y atribución profesor→bloques (PROMPT Q) |
 | `test-evaluaciones-puro.mjs` | `lib/escolar/ciclo/evaluaciones-puro.ts` — fechas, rangos, solapamientos y resolución local (PROMPT Q) |
 | `test-horario-importar-validacion-puro.mjs` | `lib/escolar/horario/horario-importar-validacion-puro.ts` — forma, duplicados y solapamientos del archivo de horario (PROMPT Q) |
+| `test-justificacion-circuito.mjs` | Circuito padre → profesor / directivo (2026-10-01): el profesor justifica solo materias, el directivo el día completo, qué materias ve cada profesor y cuándo hay algo que justificar |
 | `test-justificaciones-puro.mjs` | `lib/escolar/asistencia/justificaciones-puro.ts` — núcleo puro de justificación por clase (PROMPT Q) |
 | `test-reparar-tabla-legacy.mjs` | `lib/escolar/ciclo/contexto-ciclo.ts` |
 | `test-traspaso-materia.mjs` | `lib/escolar/materia/traspaso-materia.ts` |

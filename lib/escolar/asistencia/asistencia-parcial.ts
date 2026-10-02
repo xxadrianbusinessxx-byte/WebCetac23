@@ -60,6 +60,8 @@ export type AporteMateriaDia = {
   asistidas: number | null;
   /** Distingue legacy y justificación (ambas con `grupoMateriaId` null). */
   tipo: "materia" | "legacy" | "justificacion";
+  /** Faltante cubierto por una justificación aprobada (cuenta como asistido). */
+  clasesJustificadas?: number;
 };
 
 /** Identidad mínima de un parcial para mensajes y agrupación. */
