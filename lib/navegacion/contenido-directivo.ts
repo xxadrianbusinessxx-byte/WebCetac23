@@ -9,17 +9,16 @@
  * Duplicarlas en este archivo crearía dos fuentes para el mismo hueco, que es
  * justo lo que estos módulos existen para evitar (R6).
  *
- * Aquí viven solo `grupos-boleta/*` y `administracion/*`.
+ * Aquí viven solo `grupos-boleta/*`, `administracion/*` y `configuracion/*`.
  *
- * ── Por qué casi todo Administración escolar está vacío ────────────────────
- * Citas, Reportes, Recursos administrativos y Buzón son cuatro entidades que
- * el diseño define por completo y que Supabase NO tiene. Están apagadas en el
- * mapa, con su barra de modo visible: es la «piel» que documenta la forma
- * final sin prometer datos. Por eso no figuran aquí — un hueco apagado no
- * tiene pieza, y el shell dibuja su estado.
- *
- * El único apartado activo de esa pestaña es Alumnos / Tutores.
+ * ── Administración escolar ─────────────────────────────────────────────────
+ * Los cinco apartados operan. Citas, Reportes y Buzón tienen tablas propias
+ * desde el 2026-09-17; Recursos administrativos es la constancia directa por
+ * CURP; y Alumnos / Tutores (PROMPT U, 2026-10-01) es el perfil de cualquier
+ * alumno, con las MISMAS piezas que ven el alumno y Administración escolar:
+ * qué pieza va en cada modo lo decide `vistaAlumnosTutores`, abajo.
  */
+import type { PiezaAlumno } from "./contenido-alumno.ts";
 
 /** Piezas reales que ya existen como componente y se reubican en el shell. */
 export type PiezaDirectivo =
@@ -39,22 +38,20 @@ const HUECOS: Readonly<Record<string, PiezaDirectivo>> = {
   "grupos-boleta/boleta": "boleta-grupo",
   "grupos-boleta/grupo": "grupo-visualizador",
 
-  // Administración escolar — el único activo. Selector de ámbito
-  // (grado · grupo · carrera) + lista + ficha con su tutor + «Entrar al perfil».
-  // Las cuatro pantallas que eran MAQUETA hasta el 2026-09-17. Ahora tienen
-  // tablas, actions y panel; el diseño no cambió, lo que cambió es que operan.
+  // Administración escolar. Las cuatro pantallas que eran MAQUETA hasta el
+  // 2026-09-17. Ahora tienen tablas, actions y panel; el diseño no cambió, lo
+  // que cambió es que operan.
   "administracion/reportes": "admin-reportes",
   "administracion/citas": "admin-citas",
   // 2026-09-25: la constancia por CURP. Las solicitudes las acepta solo
   // Administración escolar, en su propia pestaña.
   "administracion/recursos-administrativos": "constancia-directa",
   "administracion/buzon": "admin-buzon",
+  // PROMPT U (2026-10-01): el perfil de cualquier alumno, elegido en el buscador
+  // del sidebar; qué monta cada modo lo decide `vistaAlumnosTutores`.
   "administracion/alumnos-tutores": "alumnos-tutores",
   // Configuración de la portada pública (PROMPT N): la misma pieza que el técnico.
   "configuracion/video-imagenes": "portada-medios",
-
-  // Citas, Reportes, Recursos administrativos y Buzón: SIN entrada a propósito.
-  // Apagados en el mapa por falta de modelo de datos.
 };
 
 /**
@@ -74,6 +71,35 @@ export function vistaCitas(modo: string | null): VistaCitas {
   if (modo === MODO_CONFIGURAR_CITAS) return "configurar";
   if (modo === MODO_CITAS_PENDIENTES) return "pendientes";
   return "programadas";
+}
+
+/**
+ * Administración escolar › Alumnos / Tutores (PROMPT U, 2026-10-01): el perfil
+ * del alumno elegido en el buscador, un modo por sección. Solo lo de PERFIL:
+ * ningún modo lleva a asistencias ni a calificaciones (la suite recorre los
+ * cuatro). Los rótulos son los del mapa; se decide por IGUALDAD, como en Citas.
+ *
+ * Información personal y Seguimiento médico son las piezas del alumno tal cual
+ * (el tutor principal va dentro de Información personal). Reportes y Citas son
+ * los paneles de Administración escolar acotados a ese alumno: el directivo los
+ * resuelve, no los pide.
+ */
+export const MODO_INFO_PERSONAL = "Información personal";
+export const MODO_SEGUIMIENTO_MEDICO = "Seguimiento médico";
+export const MODO_REPORTES_ALUMNO = "Reportes";
+export const MODO_CITAS_ALUMNO = "Citas";
+
+export type VistaAlumnosTutores =
+  | { tipo: "alumno"; pieza: Extract<PiezaAlumno, "perfil-informacion-personal" | "perfil-seguimiento-medico"> }
+  | { tipo: "reportes" }
+  | { tipo: "citas" };
+
+/** Sin modo, o con uno desconocido, se abre la información personal. */
+export function vistaAlumnosTutores(modo: string | null): VistaAlumnosTutores {
+  if (modo === MODO_SEGUIMIENTO_MEDICO) return { tipo: "alumno", pieza: "perfil-seguimiento-medico" };
+  if (modo === MODO_REPORTES_ALUMNO) return { tipo: "reportes" };
+  if (modo === MODO_CITAS_ALUMNO) return { tipo: "citas" };
+  return { tipo: "alumno", pieza: "perfil-informacion-personal" };
 }
 
 /** Pieza que corresponde a un hueco, o `null` si ese hueco no tiene pieza. */

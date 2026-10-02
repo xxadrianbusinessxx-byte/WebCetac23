@@ -153,7 +153,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `alumno.importar_estatus` | Importar promedios/reprobadas masivo | X | X | ✅ | X | X | X |
 | `alumno.cargar_roster` | Sincronizar alumnos desde archivo | X | X | ✅ | X | X | X |
 | `alumno.borrar_roster` | **PROMPT-4/T3**: sacar a un alumno del roster del ciclo (previsualizar→confirmar; no borra de `ALUMNOS`) | X | X | ✅ | X | X | X |
-| `alumno.ver_expediente` | **2026-09-24**: buscar a CUALQUIER alumno por nombre o CURP y abrir su expediente (Administración escolar) | X | X | X | X | X | ✅ |
+| `alumno.ver_expediente` | **2026-09-24**: buscar a CUALQUIER alumno por nombre o CURP y abrir su expediente (Administración escolar). **PROMPT U, 2026-10-01**: también Dirección, en Alumnos / Tutores | ✅ | X | X | X | X | ✅ |
 | `alumno.editar_numero_control` | **2026-09-24**: capturar o corregir el número de control (matrícula) del alumno, el que va en la constancia de estudios | X | X | X | X | X | ✅ |
 | `profesor.cambiar_clave_propia` | Cambiar la propia clave de acceso | ✅ | ✅ | ✅ | X | X | ✅ |
 | `profesor.ver_credenciales_acceso` | Ver/reponer claves de **inicio de sesión** | X | X | ✅ | X | X | X |
@@ -202,7 +202,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 200 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 201 Server Actions.
 
 ### `actividades.ts`
 
@@ -224,6 +224,7 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 200 Server Actions.
 | `actionCrearReporte` | exigir: reporte.crear | `reporte.crear` |
 | `actionAnularReporte` | exigir: reporte.anular | `reporte.anular` |
 | `actionListarCitas` | exigir: cita.gestionar | `cita.gestionar` |
+| `actionListarCitasDeAlumno` | exigir: cita.gestionar | `cita.gestionar` |
 | `actionListarCitasPropias` | exigir: cita.ver_propias | `cita.ver_propias` |
 | `actionSolicitarCita` | exigir: cita.solicitar | `cita.solicitar` |
 | `actionListarHuecosCita` | exigir: cita.solicitar | `cita.solicitar` |

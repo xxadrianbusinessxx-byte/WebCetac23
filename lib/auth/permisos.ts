@@ -175,6 +175,10 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "alumno.editar_etiquetas",
     "alumno.editar_estatus",
     "alumno.ver_perfil",
+    // PROMPT U (2026-10-01): buscar a cualquier alumno en Administración escolar ›
+    // Alumnos / Tutores. SOBRE QUIÉN ya lo decidía `resolverAccesoAlumno` (a todos);
+    // esto solo abre el buscador, el mismo de Administración escolar.
+    "alumno.ver_expediente",
     "asistencia.anular",
     // Fase 0 (rediseño Océano, 2026-09-10): AMPLIACIÓN decidida por el
     // responsable, no reparación de un descuido — antes la §4 decía X aquí.

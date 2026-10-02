@@ -214,6 +214,31 @@ export async function actionListarCitas(estado?: string): Promise<CitaRow[]> {
 }
 
 /**
+ * Las citas de UN alumno, en cualquier estado, para Administración escolar ›
+ * Alumnos / Tutores del directivo (PROMPT U, 2026-10-01). La CURP llega del
+ * navegador: SOBRE QUIÉN lo decide `resolverAccesoAlumno` (para el directivo,
+ * cualquiera; la normaliza y exige que venga). El filtro por CURP es el mismo
+ * de `listarCitas`: una CURP sin citas devuelve la lista vacía.
+ */
+export async function actionListarCitasDeAlumno(
+  curp: string,
+): Promise<{ ok: true; citas: CitaRow[] } | Fallo> {
+  const g = await exigir("cita.gestionar");
+  if (!g.ok) return fallo("No autorizado.");
+  try {
+    const supabase = await createClient();
+    const acceso = await resolverAccesoAlumno(supabase, g.sesion, curp);
+    if (!acceso.ok) return fallo(acceso.error);
+    const periodoId = await cicloActual();
+    if (!periodoId) return { ok: true, citas: [] };
+    return { ok: true, citas: await listarCitas(supabase, periodoId, { curps: [acceso.curp] }) };
+  } catch (err) {
+    console.error("[administracion] actionListarCitasDeAlumno", err);
+    return fallo("No se pudieron leer las citas.");
+  }
+}
+
+/**
  * Las del alumno o su tutor: SOLO las de su alcance, resuelto en servidor. Con
  * `curp` (2026-10-01), las de ESE alumno —el hijo elegido en el selector del
  * tutor—, siempre que esté dentro del alcance; fuera de él, ninguna.

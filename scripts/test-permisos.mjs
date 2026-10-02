@@ -187,6 +187,7 @@ ok(!puede("tecnico", "materia.mapear_columnas"), "tecnico NO puede materia.mapea
 
 seccion("Administración escolar (2026-09-24) — personas y trámites, no contenido académico");
 ok(puede("administracion", "alumno.ver_expediente"), "administracion puede alumno.ver_expediente (buscar a cualquier alumno)");
+ok(puede("directivo", "alumno.ver_expediente"), "directivo puede alumno.ver_expediente (PROMPT U: Alumnos / Tutores)");
 ok(puede("administracion", "alumno.editar_datos_personales"), "administracion puede alumno.editar_datos_personales");
 ok(puede("administracion", "calificacion.ver"), "administracion puede calificacion.ver (boleta del expediente)");
 ok(puede("administracion", "reporte.crear"), "administracion puede reporte.crear");

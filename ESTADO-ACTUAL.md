@@ -74,7 +74,7 @@ propia migración verificada (R8).
   intencionada: puede **solicitar y aprobar** la misma justificación.
 - **Justificantes (2026-10-01)**: envían padre y directivo; el profesor justifica solo materias (`justificar_clase`:
   las suyas o sin dueño) y el directivo el día completo. Efecto derivado al leer (`justificacion-dias.ts`).
-- **Reportes, citas, historial médico (2026-10-01)**: reportes no anulados en Notificaciones (`reporte.ver_propios`); citas solo en la agenda del directivo (`agenda-citas-puro.ts`); el historial médico solo se añade.
+- **Reportes, citas, historial médico (2026-10-01)**: reportes no anulados en Notificaciones (`reporte.ver_propios`); citas solo en la agenda del directivo (`agenda-citas-puro.ts`); el historial médico solo se añade. Dirección los consulta por alumno en Alumnos / Tutores (`alumno.ver_expediente`, PROMPT U).
 - Todo `scripts/` corre con `service_role` y salta RLS. No hay entorno de staging.
 
 ## 5. Estado de datos — última medición conocida

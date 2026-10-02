@@ -29,6 +29,7 @@ import {
   actionLeerAgendaCitas,
   actionListarBuzon,
   actionListarCitas,
+  actionListarCitasDeAlumno,
   actionListarConstancias,
   actionListarReportes,
   actionMarcarBuzonLeido,
@@ -282,11 +283,96 @@ function Reportes({ modo, alumno }: { modo: string | null; alumno?: AlumnoElegid
 
 /* ── Citas ─────────────────────────────────────────────────────────────── */
 
-/** Tres vistas sobre el mismo hueco; cuál, lo decide `vistaCitas` con el rótulo. */
-function Citas({ modo }: { modo: string | null }) {
+/**
+ * Tres vistas sobre el mismo hueco; cuál, lo decide `vistaCitas` con el rótulo.
+ * Con un alumno elegido (Alumnos / Tutores del directivo, PROMPT U) no hay modos
+ * de cita: se enseñan TODAS las suyas.
+ */
+function Citas({ modo, alumno }: { modo: string | null; alumno?: AlumnoElegido }) {
+  if (alumno) return <CitasDeAlumno key={alumno.curp} alumno={alumno} />;
   const vista = vistaCitas(modo);
   if (vista === "configurar") return <AgendaCitas />;
   return <ListaCitas pendientes={vista === "pendientes"} />;
+}
+
+/**
+ * Una cita con los botones que su estado permite. La comparten la lista del
+ * ciclo y la de un alumno: un botón distinto en cada una sería la misma máquina
+ * de estados dibujada dos veces.
+ */
+function TarjetaCita({ c, onCambiar }: { c: CitaRow; onCambiar: (id: string, estado: string) => void }) {
+  return (
+    <div className="rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] p-4">
+      <Punto tono={c.estado === "aceptada" ? "ok" : c.estado === "rechazada" ? "alerta" : "neutro"} />
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-base font-bold text-[var(--oc-text)]">{c.curp}</p>
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--oc-muted)]">
+          {c.estado} · pide {c.solicitada_por}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-[var(--oc-muted)]">{fecha(c.propuesta_at)}</p>
+      {c.motivo && <p className="mt-2 text-sm text-[var(--oc-text)]">{c.motivo}</p>}
+      <div className="mt-3 flex flex-wrap justify-end gap-2">
+        {/* Solo se ofrece lo que la máquina de estados permite desde
+            aquí. Las transiciones las valida el servidor igualmente. */}
+        {c.estado === "pendiente" && (
+          <>
+            <Boton primario onClick={() => onCambiar(c.id, "aceptada")}>Aceptar</Boton>
+            <Boton onClick={() => onCambiar(c.id, "rechazada")}>Rechazar</Boton>
+          </>
+        )}
+        {c.estado === "aceptada" && (
+          <Boton onClick={() => onCambiar(c.id, "finalizada")}>Marcar como finalizada</Boton>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Las citas de UN alumno, en cualquier estado (PROMPT U). La CURP la valida el servidor. */
+function CitasDeAlumno({ alumno }: { alumno: { curp: string; nombre: string } }) {
+  const [lista, setLista] = useState<CitaRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const cargar = useCallback(() => {
+    return Promise.resolve()
+      .then(() => actionListarCitasDeAlumno(alumno.curp))
+      .then((r) => {
+        if (r.ok) {
+          setLista(r.citas);
+          setError(null);
+        } else {
+          setError(r.error);
+        }
+      })
+      .catch(() => setError("No se pudieron leer las citas."));
+  }, [alumno.curp]);
+  useEffect(() => { void cargar(); }, [cargar]);
+
+  const cambiar = (id: string, estado: string) => {
+    void actionCambiarEstadoCita(id, estado).then(() => cargar());
+  };
+
+  return (
+    <>
+      <Titulo>Citas de {alumno.nombre || alumno.curp}</Titulo>
+      <Panel>
+        {error ? (
+          <Aviso>{error}</Aviso>
+        ) : lista === null ? (
+          <Aviso>Cargando citas…</Aviso>
+        ) : lista.length === 0 ? (
+          <Aviso>Este alumno no tiene citas en el ciclo.</Aviso>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {lista.map((c) => (
+              <TarjetaCita key={c.id} c={c} onCambiar={cambiar} />
+            ))}
+          </div>
+        )}
+      </Panel>
+    </>
+  );
 }
 
 function ListaCitas({ pendientes }: { pendientes: boolean }) {
@@ -318,33 +404,7 @@ function ListaCitas({ pendientes }: { pendientes: boolean }) {
         ) : (
           <div className="flex flex-col gap-3">
             {visibles.map((c) => (
-              <div
-                key={c.id}
-                className="rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] p-4"
-              >
-                <Punto tono={c.estado === "aceptada" ? "ok" : c.estado === "rechazada" ? "alerta" : "neutro"} />
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="text-base font-bold text-[var(--oc-text)]">{c.curp}</p>
-                  <span className="text-xs font-semibold uppercase tracking-wide text-[var(--oc-muted)]">
-                    {c.estado} · pide {c.solicitada_por}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-[var(--oc-muted)]">{fecha(c.propuesta_at)}</p>
-                {c.motivo && <p className="mt-2 text-sm text-[var(--oc-text)]">{c.motivo}</p>}
-                <div className="mt-3 flex flex-wrap justify-end gap-2">
-                  {/* Solo se ofrece lo que la máquina de estados permite desde
-                      aquí. Las transiciones las valida el servidor igualmente. */}
-                  {c.estado === "pendiente" && (
-                    <>
-                      <Boton primario onClick={() => cambiar(c.id, "aceptada")}>Aceptar</Boton>
-                      <Boton onClick={() => cambiar(c.id, "rechazada")}>Rechazar</Boton>
-                    </>
-                  )}
-                  {c.estado === "aceptada" && (
-                    <Boton onClick={() => cambiar(c.id, "finalizada")}>Marcar como finalizada</Boton>
-                  )}
-                </div>
-              </div>
+              <TarjetaCita key={c.id} c={c} onCambiar={cambiar} />
             ))}
           </div>
         )}
@@ -715,14 +775,18 @@ export function AdministracionPanel({
 }: {
   pantalla: PantallaAdministracion;
   modo: string | null;
-  /** Solo Administración escolar: el alumno elegido en su buscador (o null). */
+  /**
+   * El alumno elegido en el buscador (o null): Administración escolar en sus
+   * Trámites y, desde el PROMPT U, el directivo en Alumnos / Tutores. Sin la
+   * prop, la pantalla del ciclo entero.
+   */
   alumno?: AlumnoElegido;
 }) {
   switch (pantalla) {
     case "reportes":
       return <Reportes modo={modo} alumno={alumno} />;
     case "citas":
-      return <Citas modo={modo} />;
+      return <Citas modo={modo} alumno={alumno} />;
     case "constancias":
       return <Constancias />;
     case "buzon":

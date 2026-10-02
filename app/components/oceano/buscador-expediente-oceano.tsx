@@ -17,6 +17,19 @@ import { actionBuscarAlumnosExpediente } from "@/app/actions/administracion";
 
 type AlumnoEncontrado = { curp: string; nombre: string };
 
+/**
+ * Lo que se ve en el contenido mientras no hay alumno abierto. Vive junto al
+ * buscador porque habla de él, y la usan Administración escolar y el directivo
+ * (C11: una pieza de presentación se define una vez).
+ */
+export function AvisoBuscarAlumno() {
+  return (
+    <p className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-6 text-center text-sm font-semibold text-[var(--oc-muted)]">
+      Busca a un alumno por su nombre o CURP en el panel de la izquierda para abrir su expediente.
+    </p>
+  );
+}
+
 export function BuscadorExpedienteOceano({
   seleccionado,
   onSeleccionar,

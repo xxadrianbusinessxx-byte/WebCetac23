@@ -52,16 +52,19 @@ export default async function OceanoPage({
   // Maestro/directivo necesitan su propio selector y entran en su fase (5-6).
   const esAlumno = rol === "alumno";
   const esTutor = rol === "tutor";
-  // Administración escolar (2026-09-24): abre el expediente del alumno que eligió
-  // en su buscador (`?alumno=CURP`). Que pueda verlo lo decide la action del
-  // perfil con `resolverAccesoAlumno`, no este parámetro.
+  // Administración escolar (2026-09-24) y, desde el PROMPT U, el directivo en
+  // Alumnos / Tutores: abren el expediente del alumno elegido en el buscador
+  // (`?alumno=CURP`). Quién tiene buscador lo dice la capacidad, no el rol; que
+  // pueda verlo lo decide la action del perfil con `resolverAccesoAlumno`, no
+  // este parámetro.
   const esAdministracion = rol === "administracion";
+  const abreExpediente = puede(rol, "alumno.ver_expediente");
 
   // La lista de vinculados se resuelve UNA vez por navegación (no por componente)
   // y es lo que el selector puede ofrecer. Con un solo alumno se elige solo.
   const alumnosVinculados = esTutor ? await actionListarAlumnosDelTutor() : [];
   const curpPedida = (params.alumno ?? "").trim().toUpperCase();
-  const curpConsulta = esAdministracion
+  const curpConsulta = abreExpediente
     ? curpPedida || null
     : !esTutor
       ? null
@@ -70,7 +73,7 @@ export default async function OceanoPage({
         null);
 
   const perfil =
-    esAlumno || esTutor || (esAdministracion && curpConsulta)
+    esAlumno || esTutor || (abreExpediente && curpConsulta)
       ? await actionObtenerPerfilAlumno(curpConsulta)
       : null;
   const datosAlumno: DatosAlumnoOceano | null =
@@ -144,12 +147,16 @@ export default async function OceanoPage({
   // Fase 6 — lo exclusivo del directivo sale del MISMO catálogo que el docente:
   // grado, grupo y carrera son facetas de `MateriaIdentidad`, así que no hace
   // falta ninguna consulta nueva para poblar el selector de ámbito.
+  // PROMPT U: el expediente del alumno elegido en Alumnos / Tutores va AQUÍ, no
+  // como `datosAlumno` (ver el comentario de Administración, abajo).
   const datosDirectivo: DatosDirectivoOceano | null =
-    rol === "directivo" ? { materias: materiasDocente } : null;
+    rol === "directivo" ? { materias: materiasDocente, alumno: datosAlumno } : null;
 
   // El expediente va DENTRO de los datos de este rol y no como `datosAlumno`: el
   // alumno abierto no es quien tiene la sesión, y las piezas del alumno se montan
-  // desde su propio emparejamiento (`contenido-administracion.ts`).
+  // desde su propio emparejamiento (`contenido-administracion.ts`). Con el
+  // directivo, además, `datosAlumno` haría que Materias › Recursos —que también
+  // existe en el mapa del alumno— montara la pieza del alumno.
   const datosAdministracion: DatosAdministracionOceano | null = esAdministracion
     ? {
         alumno: datosAlumno,
@@ -172,7 +179,7 @@ export default async function OceanoPage({
       key={rol ?? "sin-sesion"}
       rol={rol}
       nombre={sesion?.nombre ?? sesion?.matricula ?? ""}
-      datosAlumno={esAdministracion ? null : datosAlumno}
+      datosAlumno={abreExpediente ? null : datosAlumno}
       datosAdministracion={datosAdministracion}
       datosDocente={datosDocente}
       datosDirectivo={datosDirectivo}

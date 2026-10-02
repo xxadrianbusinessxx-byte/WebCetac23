@@ -8,9 +8,10 @@
  * `contenido-docente-oceano.tsx`, porque en el mapa son el MISMO objeto de
  * pestaña que las del maestro. Aquí no se duplican (R6).
  *
- * De Administración escolar, solo `alumnos-tutores` tiene pieza real. Citas,
- * Reportes, Recursos administrativos y Buzón son MAQUETA: el shell las monta
- * desde `maquetas-oceano.tsx` sin pasar por aquí.
+ * De Administración escolar, los cinco apartados operan. Alumnos / Tutores
+ * (PROMPT U, 2026-10-01) es el perfil del alumno elegido en el buscador, con
+ * las MISMAS piezas que el alumno y Administración escolar: no hay aquí una
+ * segunda versión de ninguna pantalla.
  */
 import { useCallback, useState } from "react";
 import { actionObtenerVistaRegistro } from "@/app/actions/escolar";
@@ -21,6 +22,8 @@ import {
 } from "@/app/components/administracion-panel";
 import { PortadaMediosPanel } from "@/app/components/portada-medios-panel";
 import { ConstanciaPorCurpPanel } from "@/app/components/constancia-por-curp-panel";
+import { AvisoBuscarAlumno } from "./buscador-expediente-oceano";
+import { ContenidoAlumnoOceano, type DatosAlumnoOceano } from "./contenido-alumno-oceano";
 import {
   claveDeGrupo,
   etiquetaGrupo,
@@ -31,12 +34,18 @@ import {
   type FiltroAmbito,
 } from "@/lib/escolar/materia/facetas-materia";
 import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
-import type { PiezaDirectivo } from "@/lib/navegacion/contenido-directivo";
+import { vistaAlumnosTutores, type PiezaDirectivo } from "@/lib/navegacion/contenido-directivo";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
 
 export type DatosDirectivoOceano = {
   /** Mismo catálogo que el docente: de aquí salen grado, grupo y carrera. */
   materias: readonly MateriaConNombreVisible[];
+  /**
+   * PROMPT U — el expediente del alumno elegido en el buscador de Alumnos /
+   * Tutores, resuelto por el servidor (`actionObtenerPerfilAlumno`). null =
+   * ninguno abierto.
+   */
+  alumno: DatosAlumnoOceano | null;
 };
 
 function Aviso({ children }: { children: React.ReactNode }) {
@@ -151,17 +160,32 @@ export function ContenidoDirectivoOceano({
     return <PortadaMediosPanel />;
   }
 
+  // Alumnos / Tutores (PROMPT U): el perfil del alumno elegido en el buscador.
+  // Qué se monta en cada modo lo decide `vistaAlumnosTutores`; nada de
+  // asistencias ni calificaciones. Cada pieza pide sus datos a su action, que
+  // vuelve a decidir SOBRE QUIÉN con `resolverAccesoAlumno`.
   if (pieza === "alumnos-tutores") {
-    // El buscador de alumnos con su tutor todavía no tiene una pieza propia:
-    // `actionListarAlumnosGruposProfesor` da los grupos con sus alumnos, pero
-    // la relación alumno→tutor la sirve `tutores.ts` por otra vía. Unirlas es
-    // trabajo de dominio, no de interfaz, así que NO se improvisa aquí.
+    const alumno = datos.alumno;
+    if (!alumno) return <AvisoBuscarAlumno />;
+    const vista = vistaAlumnosTutores(modo);
+    const elegido = { curp: alumno.curp, nombre: alumno.nombre };
+    if (vista.tipo === "reportes") {
+      return <AdministracionPanel pantalla="reportes" modo="Reportes" alumno={elegido} />;
+    }
+    if (vista.tipo === "citas") {
+      return <AdministracionPanel pantalla="citas" modo={null} alumno={elegido} />;
+    }
+    // Sin justificar desde aquí: este apartado consulta, no envía justificantes.
+    // `key` por CURP: al cambiar de alumno, lo que se estaba editando del
+    // anterior no se queda en pantalla bajo el nombre del nuevo.
     return (
-      <Aviso>
-        Selección de alumno y su tutor. Falta unir las dos lecturas que ya
-        existen —grupos con alumnos y la relación tutor→alumno— en una sola
-        consulta; es trabajo de dominio y se hace en su propio cambio.
-      </Aviso>
+      <ContenidoAlumnoOceano
+        key={alumno.curp}
+        pieza={vista.pieza}
+        modo={null}
+        permitirJustificacion={false}
+        datos={alumno}
+      />
     );
   }
 

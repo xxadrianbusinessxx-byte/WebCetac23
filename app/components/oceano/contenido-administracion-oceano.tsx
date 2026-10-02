@@ -17,6 +17,7 @@ import { DocumentosPanel } from "@/app/components/documentos-panel";
 import { MensajesInternosPanel } from "@/app/components/mensajes-internos-panel";
 import { TutoresPanel } from "@/app/components/tutores-panel";
 import { necesitaAlumno, type PiezaAdministracion } from "@/lib/navegacion/contenido-administracion";
+import { AvisoBuscarAlumno } from "./buscador-expediente-oceano";
 import { ContenidoAlumnoOceano, type DatosAlumnoOceano } from "./contenido-alumno-oceano";
 import { NumeroControlAlumno } from "./numero-control-alumno";
 
@@ -29,14 +30,6 @@ export type DatosAdministracionOceano = {
   cicloInicio: string | null;
   cicloFin: string | null;
 };
-
-function AvisoBuscarAlumno() {
-  return (
-    <p className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] px-4 py-6 text-center text-sm font-semibold text-[var(--oc-muted)]">
-      Busca a un alumno por su nombre o CURP en el panel de la izquierda para abrir su expediente.
-    </p>
-  );
-}
 
 export function ContenidoAdministracionOceano({
   pieza,

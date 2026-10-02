@@ -240,7 +240,11 @@ const ADMINISTRACION: Pestana = {
     // 2026-09-25: Dirección ya no acepta solicitudes de constancia (solo
     // Administración escolar). Aquí la genera DIRECTAMENTE, con la CURP.
     act("recursos-administrativos", "Recursos administrativos", ["Constancia de estudios"]),
-    act("alumnos-tutores", "Alumnos / Tutores"),
+    // PROMPT U (2026-10-01): el perfil de CUALQUIER alumno, elegido en el buscador
+    // de Administración escolar (`llevaBuscadorAlumno`). Solo lo de perfil: nada de
+    // asistencias ni calificaciones. Qué pieza monta cada modo lo decide
+    // `vistaAlumnosTutores` (contenido-directivo.ts); la suite compara los rótulos.
+    act("alumnos-tutores", "Alumnos / Tutores", ["Información personal", "Seguimiento médico", "Reportes", "Citas"]),
     act("buzon", "Buzón", ["Buzón de quejas", "Buzón (comentarios)"]),
   ],
 };
@@ -387,6 +391,19 @@ const DOCUMENTOS: Pestana = {
 
 /** Pestañas donde el buscador de alumno fija de quién son los datos. */
 export const PESTANAS_CON_ALUMNO: readonly string[] = [EXPEDIENTE.id, TRAMITES.id];
+
+/**
+ * ¿Lleva este hueco el buscador de alumno en el sidebar? Administración escolar,
+ * en sus pestañas de alumno; el directivo, solo en Administración escolar ›
+ * Alumnos / Tutores (PROMPT U). Es el MISMO buscador: lo que cambia es dónde se
+ * dibuja. Dibujarlo no da acceso a nada: buscar exige `alumno.ver_expediente` y
+ * ver el perfil, `resolverAccesoAlumno`, en el servidor.
+ */
+export function llevaBuscadorAlumno(rol: PortalRole | null, idPestana: string, idApartado: string): boolean {
+  if (rol === "administracion") return PESTANAS_CON_ALUMNO.includes(idPestana);
+  if (rol === "directivo") return idPestana === ADMINISTRACION.id && idApartado === "alumnos-tutores";
+  return false;
+}
 
 /** El mapa. Una pestaña ausente para un rol es una pestaña que ese rol NO ve. */
 const MAPA: Record<PortalRole, Pestana[]> = {

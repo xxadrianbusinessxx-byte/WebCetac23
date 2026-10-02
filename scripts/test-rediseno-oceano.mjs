@@ -394,7 +394,7 @@ eq(nav.apartado("alumno", "materias", "recursos").estado, "activo", "Recursos ya
 ok(cAl.piezaDe("materias", "recursos") !== null, "…y tiene pieza");
 eq(nav.apartado("alumno", "chat", "chat").estado, "apagado", "Chat tampoco");
 
-for (const id of ["citas", "reportes", "recursos-administrativos", "buzon"]) {
+for (const id of ["citas", "reportes", "recursos-administrativos", "buzon", "alumnos-tutores"]) {
   eq(nav.apartado("directivo", "administracion", id).estado, "activo", `${id} ya opera`);
   ok(cDir.piezaDe("administracion", id) !== null, `${id} tiene pieza que lo pinta`);
   ok(nav.apartado("directivo", "administracion", id).modos.length > 0, `${id} conserva su barra de modo`);
@@ -733,6 +733,50 @@ eq(cDir.vistaCitas(cDir.MODO_CITAS_PENDIENTES), "pendientes", "«Citas pendiente
 eq(cDir.vistaCitas(cDir.MODO_CITAS_PROGRAMADAS), "programadas", "«Citas programadas» → programadas");
 eq(cDir.vistaCitas(null), "programadas", "sin modo, como antes: programadas");
 eq(cDir.vistaCitas(modosCitas[0]), "configurar", "la barra arranca en modos[0]: abrir Citas enseña la agenda");
+
+// PROMPT U (2026-10-01) — Alumnos / Tutores del directivo: el perfil de
+// cualquier alumno, un modo por sección, decidido por IGUALDAD con el rótulo.
+console.log("\nAlumnos / Tutores del directivo (PROMPT U)");
+const modosAT = nav.apartado("directivo", "administracion", "alumnos-tutores").modos;
+eq(
+  [cDir.MODO_INFO_PERSONAL, cDir.MODO_SEGUIMIENTO_MEDICO, cDir.MODO_REPORTES_ALUMNO, cDir.MODO_CITAS_ALUMNO],
+  modosAT,
+  "los cuatro modos de Alumnos / Tutores son los rótulos del mapa, en su orden",
+);
+eq(cDir.vistaAlumnosTutores(cDir.MODO_INFO_PERSONAL), { tipo: "alumno", pieza: "perfil-informacion-personal" }, "«Información personal» → la pieza del alumno");
+eq(cDir.vistaAlumnosTutores(cDir.MODO_SEGUIMIENTO_MEDICO), { tipo: "alumno", pieza: "perfil-seguimiento-medico" }, "«Seguimiento médico» → la pieza del alumno");
+eq(cDir.vistaAlumnosTutores(cDir.MODO_REPORTES_ALUMNO), { tipo: "reportes" }, "«Reportes» → el panel de reportes acotado al alumno");
+eq(cDir.vistaAlumnosTutores(cDir.MODO_CITAS_ALUMNO), { tipo: "citas" }, "«Citas» → las citas del alumno");
+eq(cDir.vistaAlumnosTutores(null), { tipo: "alumno", pieza: "perfil-informacion-personal" }, "sin modo → información personal");
+eq(cDir.vistaAlumnosTutores("Calificaciones"), { tipo: "alumno", pieza: "perfil-informacion-personal" }, "un modo inventado no abre nada más: información personal");
+eq(cDir.vistaAlumnosTutores(modosAT[0]).tipo, "alumno", "la barra arranca en modos[0]: abrir el apartado enseña la ficha");
+// Lo que el responsable excluyó: nada de asistencias ni calificaciones.
+const PROHIBIDAS = ["perfil-registro-calificaciones", "materias-calificacion", "asistencia-tabular", "calendario-asistencia"];
+const piezasDelAlumno = new Set(cAl.huecosConPieza().map((h) => cAl.piezaDe(...h.split("/"))));
+for (const m of modosAT) {
+  const v = cDir.vistaAlumnosTutores(m);
+  if (v.tipo === "alumno") {
+    ok(!PROHIBIDAS.includes(v.pieza), `«${m}» no monta asistencias ni calificaciones`);
+    ok(piezasDelAlumno.has(v.pieza), `«${m}» reutiliza una pieza que existe en contenido-alumno («${v.pieza}»)`);
+  }
+}
+ok(!modosAT.some((m) => /asistencia|calificaci|boleta|justificaci/i.test(m)), "ningún modo habla de asistencias, calificaciones ni justificaciones");
+
+// El buscador de alumno: dónde se dibuja, por rol. Dibujarlo no da acceso; lo
+// que da acceso lo decide el servidor.
+ok(nav.llevaBuscadorAlumno("directivo", "administracion", "alumnos-tutores"), "directivo: el buscador sale en Alumnos / Tutores");
+for (const [p, a] of [["administracion", "citas"], ["administracion", "reportes"], ["materias", "recursos"], ["grupos-boleta", "boleta"]]) {
+  ok(!nav.llevaBuscadorAlumno("directivo", p, a), `directivo: NO sale en ${p}/${a}`);
+}
+for (const p of nav.PESTANAS_CON_ALUMNO) {
+  for (const a of nav.pestana("administracion", p).apartados) {
+    ok(nav.llevaBuscadorAlumno("administracion", p, a.id), `administracion: sale en ${p}/${a.id}, como antes`);
+  }
+}
+ok(!nav.llevaBuscadorAlumno("administracion", "tutores", "tutores"), "administracion: NO sale en Tutores");
+for (const rol of ["alumno", "tutor", "maestro", "tecnico", null]) {
+  ok(!nav.llevaBuscadorAlumno(rol, "administracion", "alumnos-tutores"), `${rol ?? "sin sesión"}: nunca lleva el buscador`);
+}
 
 // contenido-docente sirve a los DOS roles: sus huecos tienen que existir y
 // estar activos en el mapa de maestro Y en el de directivo. Si divergieran,

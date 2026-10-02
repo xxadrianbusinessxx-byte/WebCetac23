@@ -34,10 +34,10 @@ import { piezaDe as piezaTecnicoDe } from "@/lib/navegacion/contenido-tecnico";
 import {
   apartadoInicial,
   esNavegable,
+  llevaBuscadorAlumno,
   ordenSidebar,
   pestana,
   pestanasDe,
-  PESTANAS_CON_ALUMNO,
   textoMaqueta,
   type Apartado,
 } from "@/lib/navegacion/mapa-navegacion";
@@ -105,7 +105,7 @@ export function ShellOceano({
   datosAlumno?: DatosAlumnoOceano | null;
   /** Fase 5 — catálogo del docente, YA filtrado por el servidor (R-4). */
   datosDocente?: DatosDocenteOceano | null;
-  /** Fase 6 — lo exclusivo del directivo (Grupos/Boleta, Alumnos/Tutores). */
+  /** Fase 6 — lo exclusivo del directivo (Grupos/Boleta, Alumnos/Tutores con su expediente). */
   datosDirectivo?: DatosDirectivoOceano | null;
   /**
    * Administración escolar (2026-09-24) — el expediente del alumno elegido en su
@@ -136,6 +136,9 @@ export function ShellOceano({
   // contrario de para lo que existen.
   const activo: Apartado | null =
     apartados.find((a) => a.id === sel.idApartado && esNavegable(a)) ?? null;
+  // El alumno abierto en el buscador: el de Administración escolar o, desde el
+  // PROMPT U, el del directivo en Alumnos / Tutores. Lo resolvió el servidor.
+  const expediente = datosAdministracion?.alumno ?? datosDirectivo?.alumno ?? null;
 
   function irAPestana(idPestana: string) {
     const inicial = apartadoInicial(rol, idPestana);
@@ -182,16 +185,12 @@ export function ShellOceano({
               }
             />
           ) : null}
-          {/* Administración escolar — el buscador ocupa el mismo sitio que el
-              selector del tutor y hace lo mismo: fija de quién son los datos.
-              Solo en las pestañas que trabajan sobre un alumno. */}
-          {datosAdministracion && activa && PESTANAS_CON_ALUMNO.includes(activa.id) ? (
+          {/* Administración escolar y el directivo — el buscador ocupa el mismo
+              sitio que el selector del tutor y hace lo mismo: fija de quién son
+              los datos. Dónde se dibuja lo dice el mapa (`llevaBuscadorAlumno`). */}
+          {activa && llevaBuscadorAlumno(rol, activa.id, activo?.id ?? "") ? (
             <BuscadorExpedienteOceano
-              seleccionado={
-                datosAdministracion.alumno
-                  ? { curp: datosAdministracion.alumno.curp, nombre: datosAdministracion.alumno.nombre }
-                  : null
-              }
+              seleccionado={expediente ? { curp: expediente.curp, nombre: expediente.nombre } : null}
               onSeleccionar={(curp) =>
                 router.replace(`/oceano?alumno=${encodeURIComponent(curp)}`, {
                   scroll: false,

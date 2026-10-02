@@ -522,3 +522,23 @@ CONTRATO (obligatorio):
 6. Volver a correr el diagnóstico del paso 1 y mostrar antes/después.
 7. Entregar: qué archivos tocaste, por qué, y qué NO tocaste pudiendo hacerlo.
 ```
+
+---
+
+## EJECUCIÓN Y RETROALIMENTACIÓN (2026-10-01)
+
+No lo ejecutó Cline: lo ejecutó Claude a pedido del responsable, auditando cada
+paso contra `ORDEN.md`, `REGLAS_NO_HACER.md` y el CONTRATO. Parte A `0276097`;
+Parte B en el commit siguiente. Informe: `docs/historial/informes/INFORME-PROMPT-U.md`.
+La auditoría corrigió el propio prompt en estos puntos, para que el siguiente no
+los repita:
+
+| El prompt decía | Lo que se hizo | Por qué |
+|---|---|---|
+| oEmbed: «400/403/404 = privado o borrado», con el 404 como caso típico | Igual, pero la suite documenta que lo REAL es **400** | Medido: YouTube y TikTok contestan 400 a un id inexistente; 404 no apareció |
+| `VideoIncrustado` en `ui/` con `import type { FormatoVideo }` del dominio | Prop literal `"horizontal" \| "vertical"`, sin import | `ui/` es «sin dominio» (ORDEN §1); el literal es compatible por estructura |
+| `actionListarCitasDeAlumno`: «resolverAccesoAlumno valida el alumno» (implícito) | Comentario corregido: para el directivo solo normaliza y exige la CURP | No comprueba que el alumno exista; el comentario habría mentido |
+| Solo cambiar el `<Aviso>` de `alumnos-tutores` | También dos comentarios del mapa `HUECOS` que decían «Citas… apagados» | Hablaban del mismo hueco y eran falsos desde el 2026-09-17 |
+| `ContenidoAlumnoOceano` sin más | Con `key={alumno.curp}` | Al cambiar de alumno, lo que se estaba editando del anterior quedaba bajo el nombre del nuevo |
+| (no lo pedía) | Funciones extra en el puro: `leerEnlaceGuardado`, `describirEnlace`, `ETIQUETA_FORMATO`, `FORMATOS_BANDA`, `VIDEO_YA_NO_SE_SUBE` | La lectura, el rótulo del panel y el selector necesitaban esas reglas; fuera del puro habrían quedado en la UI |
+| `ESTADO-ACTUAL` sin tocar la cabecera | HEAD declarado `9f171cd` → `f45986d` | Iba 6 commits por detrás; con dos más llegaba a 8 de los 10 tolerados |
