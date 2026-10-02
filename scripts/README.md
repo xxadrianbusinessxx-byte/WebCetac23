@@ -57,6 +57,7 @@ Correr las que apliquen **antes y después** de cualquier cambio de dominio.
 |---|---|
 | `test-ciclo-estado.mjs` | `lib/escolar/ciclo/ciclo-estado-puro.ts` |
 | `test-atribucion-profesor.mjs` | `lib/escolar/asistencia/atribucion-profesor.ts` |
+| `test-asistencia-marcador.mjs` | `lib/escolar/asistencia/asistencia-marcador.ts` — marcador `MATERIA` (falta/distinto/válido) y elección de la fila a anular (PROMPT S · Parte A) |
 | `test-asistencia-parciales.mjs` | `lib/escolar/asistencia/asistencia-parcial.ts` |
 | `test-etiquetas-dinamicas.mjs` | `lib/escolar/alumno/etiquetas-dinamicas.ts` |
 | `test-mapeo-columnas-materia.mjs` | `lib/escolar/materia/mapeo-columnas-materia.ts` |

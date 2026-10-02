@@ -35,6 +35,7 @@ function ok(nombre, condicion, detalle = "") {
 const PROFESOR = 7;
 const GM_MAT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const GM_HIS = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const PERIODO = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
 const planDia = {
   clasesImpartidas: [
@@ -65,11 +66,13 @@ const subidaMat = M.atribuirMateriaAlPlan(planDia, {
   profesorId: PROFESOR,
   grupoMateriaId: GM_MAT,
   profesorClave: "P7",
+  periodoId: PERIODO,
 });
 const subidaHis = M.atribuirMateriaAlPlan(planDia, {
   profesorId: PROFESOR,
   grupoMateriaId: GM_HIS,
   profesorClave: "P7",
+  periodoId: PERIODO,
 });
 
 console.log("1) Dos materias del MISMO grupo y día => 2 filas, no una sobrescrita");
@@ -93,6 +96,13 @@ if (subidaMat.ok && subidaHis.ok) {
       filaMat.profesor_id === PROFESOR &&
       filaHis.profesor_id === PROFESOR,
   );
+  ok(
+    "las filas nuevas llevan periodo_id (A4)",
+    filaMat &&
+      filaHis &&
+      filaMat.periodo_id === PERIODO &&
+      filaHis.periodo_id === PERIODO,
+  );
   const clavesFila = new Set([
     `${filaMat.grupo_materia_id}|${filaMat.grado}|${filaMat.grupo}|${filaMat.fecha}`,
     `${filaHis.grupo_materia_id}|${filaHis.grado}|${filaHis.grupo}|${filaHis.fecha}`,
@@ -111,6 +121,7 @@ console.log("2) Subir dos veces la misma materia => 1 sola asignacion (idempoten
     profesorId: PROFESOR,
     grupoMateriaId: GM_MAT,
     profesorClave: "P7",
+    periodoId: PERIODO,
   });
   ok("segunda subida MAT ok", segunda.ok);
   if (subidaMat.ok && segunda.ok) {
@@ -174,6 +185,7 @@ console.log("5) Sin profesorId en sesion => error y NUNCA se escribe con profeso
     profesorId: null,
     grupoMateriaId: GM_MAT,
     profesorClave: "P7",
+    periodoId: PERIODO,
   });
   ok("rechazado sin profesorId", sinId.ok === false);
   ok(
@@ -202,11 +214,27 @@ console.log("6) Materia no resuelta => error controlado");
     profesorId: PROFESOR,
     grupoMateriaId: null,
     profesorClave: "P7",
+    periodoId: PERIODO,
   });
   ok("rechazado sin grupo_materia_id", sinMateria.ok === false);
   ok(
     "mensaje de materia no atribuible",
     !sinMateria.ok && sinMateria.error === M.ERROR_ATRIBUCION_MATERIA_NO_RESUELTA,
+  );
+}
+
+console.log("7) Sin periodoId => error y NO se escribe (A4)");
+{
+  const sinPeriodo = M.atribuirMateriaAlPlan(planDia, {
+    profesorId: PROFESOR,
+    grupoMateriaId: GM_MAT,
+    profesorClave: "P7",
+    periodoId: null,
+  });
+  ok("rechazado sin periodoId", sinPeriodo.ok === false);
+  ok(
+    "mensaje de periodo operativo",
+    !sinPeriodo.ok && sinPeriodo.error === M.ERROR_ATRIBUCION_SIN_PERIODO_ID,
   );
 }
 

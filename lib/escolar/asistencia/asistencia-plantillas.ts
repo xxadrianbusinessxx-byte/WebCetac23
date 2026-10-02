@@ -26,23 +26,23 @@ import {
   TABLA_ASISTENCIA_ALUMNOS,
   TABLA_CLASES_IMPARTIDAS,
   TABLA_ETIQUETAS_PERSONALES,
-  TABLA_GRUPO_MATERIAS,
   type TipoDiaCalendario,
 } from "../tables.ts";
 import {
-  buscarGrupoEnLista,
-  clavesEquivalenciaMateria,
-  materiaClaveHorario,
-  obtenerBloquesHorario,
   obtenerConteosHorarioMateria,
-  obtenerGruposConCarreraDePeriodo,
-  obtenerPeriodoPorNombre,
 } from "../horario/horario-semanal.ts";
+import {
+  resolverGrupoMateriaIdSubida,
+} from "./asistencia-materia-resolucion.ts";
 import {
   ERROR_ATRIBUCION_MATERIA_NO_RESUELTA,
   ERROR_ATRIBUCION_SIN_PROFESOR_ID,
   atribuirMateriaAlPlan,
 } from "./atribucion-profesor.ts";
+import {
+  extraerMarcadorMateria,
+  validarMarcadorMateria,
+} from "./asistencia-marcador.ts";
 import {
   traspasarMateriaAProfesor,
 } from "../materia/traspaso-materia.ts";
@@ -52,7 +52,7 @@ import type {
 import {
   ERROR_DDL_ATRIBUCION_PENDIENTE,
   FALLBACK_LEGACY_ETIQUETAS_ACTIVO,
-  TAMANO_LOTE,
+  LIMITE_FILAS_SUBIDA,
   TAMANO_PAGINA,
   celdaTexto,
   columnaExiste,
@@ -264,6 +264,15 @@ export async function generarPlantillaAsistencia(
   );
   if (!clases.ok) return { ok: false, error: clases.error };
 
+  // PROMPT S (A1) — la plantilla lleva su materia. Se resuelve el
+  // grupo_materia_id y se escribe una fila reservada `MATERIA` (verifica, no
+  // decide). Sin materia resuelta no se puede generar una plantilla válida.
+  const resMateria = await resolverGrupoMateriaIdSubida(supabase, ctx);
+  if (!resMateria.ok) return { ok: false, error: resMateria.error };
+  if (!resMateria.grupoMateriaId) {
+    return { ok: false, error: ERROR_ATRIBUCION_MATERIA_NO_RESUELTA };
+  }
+
   const filas: string[][] = [];
   filas.push(["CURP", "NOMBRE", ...fechas]);
   filas.push([
@@ -271,6 +280,7 @@ export async function generarPlantillaAsistencia(
     ctx.profesorNombre,
     ...fechas.map((f) => String(clases.porFecha.get(f) ?? 0)),
   ]);
+  filas.push(["MATERIA", resMateria.nombreVisible ?? "", resMateria.grupoMateriaId]);
   for (const a of alumnos) {
     filas.push([a.curp, a.nombre, ...fechas.map(() => "")]);
   }
@@ -279,6 +289,10 @@ export async function generarPlantillaAsistencia(
     .filter(Boolean)
     .join("_")
     .replace(/\s+/g, "_");
+  // PROMPT S (A1) — el nombre del archivo incluye la clave de la materia.
+  const claveMateriaArchivo = (ctx.materiaClave ?? "")
+    .trim()
+    .replace(/[^A-Za-z0-9_-]+/g, "_");
 
   return {
     ok: true,
@@ -291,7 +305,7 @@ export async function generarPlantillaAsistencia(
         "Asistencias",
         [20, 50, ...fechas.map(() => 11)],
       ),
-      nombreArchivo: `asistencias_${nombreBase || "grupo"}_${ctx.ciclo}${cargaCal.parcial ? `_parcial${cargaCal.parcial.numero}` : ""}.xlsx`,
+      nombreArchivo: `asistencias_${nombreBase || "grupo"}_${claveMateriaArchivo || "materia"}_${ctx.ciclo}${cargaCal.parcial ? `_parcial${cargaCal.parcial.numero}` : ""}.xlsx`,
       usaHorario: clases.usaHorario,
       aviso: clases.aviso,
     },
@@ -348,6 +362,25 @@ export async function analizarPlantillaAsistencia(
   if (idxNombre < 0) {
     return { ok: false, error: "La plantilla debe incluir una columna Â«NOMBREÂ»." };
   }
+
+  // PROMPT S (A1) — la plantilla debe indicar su materia. Se resuelve la
+  // materia elegida (ctx.materiaClave, validada en el servidor) y se exige el
+  // marcador `MATERIA`: verifica, no decide. Sin materia resuelta no hay nada
+  // que comparar y se rechaza.
+  const resMateria = await resolverGrupoMateriaIdSubida(supabase, ctx);
+  if (!resMateria.ok) return { ok: false, error: resMateria.error };
+  if (!resMateria.grupoMateriaId) {
+    return { ok: false, error: ERROR_ATRIBUCION_MATERIA_NO_RESUELTA };
+  }
+  const marcador = extraerMarcadorMateria(rawDatos, idxCurp, idxNombre);
+  const validacionMarcador = validarMarcadorMateria(marcador, {
+    grupoMateriaId: resMateria.grupoMateriaId,
+    nombreVisible: resMateria.nombreVisible ?? "",
+  });
+  if (!validacionMarcador.ok) {
+    return { ok: false, error: validacionMarcador.error };
+  }
+
 
   // 3) Calendario: dÃ­as vÃ¡lidos de clase del ciclo (fuente de verdad).
   const cargaCal = await cargarCalendarioAsistenciaContexto(supabase, ctx, {
@@ -467,7 +500,8 @@ export async function analizarPlantillaAsistencia(
       .select("fecha, clases")
       .eq("profesor_id", pidPrevio)
       .eq("grado", g)
-      .eq("grupo", gr);
+      .eq("grupo", gr)
+      .eq("grupo_materia_id", resMateria.grupoMateriaId);
     for (const r of (clasesPrevias ?? []) as { fecha: string; clases: number }[]) {
       clasesPreviasPorFecha.set(r.fecha, r.clases);
     }
@@ -477,7 +511,8 @@ export async function analizarPlantillaAsistencia(
       .select("curp, fecha, clases_asistidas")
       .eq("profesor_id", pidPrevio)
       .eq("grado", g)
-      .eq("grupo", gr);
+      .eq("grupo", gr)
+      .eq("grupo_materia_id", resMateria.grupoMateriaId);
     for (const r of (asistenciasPrevias ?? []) as {
       curp: string;
       fecha: string;
@@ -602,7 +637,8 @@ export async function analizarPlantillaAsistencia(
   // 13) Filas de alumnos.
   for (const fila of rawDatos) {
     const curp = celdaTexto(fila[idxCurp]).toUpperCase();
-    if (!curp || curp === "CLASES") continue;
+    // La fila reservada `MATERIA` se salta igual que `CLASES` (A1).
+    if (!curp || curp === "CLASES" || curp === "MATERIA") continue;
 
 
     // CURP vÃ¡lido.
@@ -692,6 +728,7 @@ export async function analizarPlantillaAsistencia(
     plan: {
       clasesImpartidas,
       asistencias,
+      grupoMateriaId: resMateria.grupoMateriaId,
       resumen: {
         procesados,
         actualizados,
@@ -752,104 +789,23 @@ async function verificarEsquemaAtribucion(
 }
 
 /**
- * Resuelve el `grupo_materias.id` (ACTIVO) del grupo del periodo operativo +
- * la materia elegida (`ctx.materiaClave`, la misma clave del horario con la
- * que se generó la plantilla). Consultas FIJAS (sin N+1 por alumno/fila).
- *
- * Puente preferido: `horario_semanal.materia_id` (vínculo best-effort al
- * catálogo). Respaldo: equivalencia de claves (materias.clave/nombre) contra
- * el grupo_materias del grupo.
- */
-async function resolverGrupoMateriaIdSubida(
-  supabase: SupabaseClient,
-  ctx: ContextoAsistencia,
-): Promise<
-  { ok: true; grupoMateriaId: string | null } | { ok: false; error: string }
-> {
-  const claveBuscada = materiaClaveHorario(ctx.materiaClave ?? "");
-  if (!claveBuscada) return { ok: true, grupoMateriaId: null };
-
-  // 1) Periodo (el contexto trae el id del operativo cuando es posible).
-  let periodoId = ctx.periodoId ?? null;
-  if (!periodoId) {
-    const periodo = await obtenerPeriodoPorNombre(supabase, ctx.ciclo);
-    if (!periodo) return { ok: true, grupoMateriaId: null };
-    periodoId = periodo.id;
-  }
-
-  // 2) Grupo por identidad académica (mismas normalizaciones del horario).
-  const grupos = await obtenerGruposConCarreraDePeriodo(supabase, periodoId);
-  const grupo = buscarGrupoEnLista(grupos, ctx.grado, ctx.grupo, ctx.carrera);
-  if (!grupo) return { ok: true, grupoMateriaId: null };
-
-  // 3) materia_id del catálogo desde el HORARIO oficial (puente preferido).
-  const bloques = await obtenerBloquesHorario(supabase, {
-    periodoId,
-    grupoId: grupo.id,
-  });
-  const materiaIds = new Set<string>();
-  for (const b of bloques) {
-    const claveBloque =
-      b.materia_clave || materiaClaveHorario(b.materia_nombre);
-    if (claveBloque === claveBuscada && b.materia_id) materiaIds.add(b.materia_id);
-  }
-
-  // 4) grupo_materias ACTIVO del grupo: primero el vinculado por el horario,
-  //    después cualquier materia del grupo equivalente por clave.
-  const { data: gms, error } = await supabase
-    .from(TABLA_GRUPO_MATERIAS)
-    .select("id, activo, materia_id, materias!inner(id, clave, nombre)")
-    .eq("grupo_id", grupo.id);
-  if (error) return { ok: false, error: error.message };
-
-  const filas = (gms ?? []) as Array<{
-    id: string;
-    activo: boolean;
-    materia_id: string | null;
-    materias:
-      | { id: string; clave: string; nombre: string }
-      | { id: string; clave: string; nombre: string }[]
-      | null;
-  }>;
-  const activas = filas.filter((g) => g.activo !== false);
-  const materiaDe = (g: (typeof activas)[number]) =>
-    Array.isArray(g.materias) ? g.materias[0] : g.materias;
-
-  const porHorario = activas.find((g) => g.materia_id && materiaIds.has(g.materia_id));
-  if (porHorario) return { ok: true, grupoMateriaId: porHorario.id };
-
-  const porClave = activas.find((g) => {
-    const m = materiaDe(g);
-    if (!m) return false;
-    return (
-      materiaClaveHorario(m.nombre ?? "") === claveBuscada ||
-      materiaClaveHorario(m.clave ?? "") === claveBuscada ||
-      clavesEquivalenciaMateria(m.nombre ?? "").includes(claveBuscada) ||
-      clavesEquivalenciaMateria(m.clave ?? "").includes(claveBuscada)
-    );
-  });
-  if (porClave) return { ok: true, grupoMateriaId: porClave.id };
-
-  return { ok: true, grupoMateriaId: null };
-}
-
-
-/**
- * Confirma la plantilla y ATRIBUYE la materia (Prompt C — R-3).
+ * Confirma la plantilla y ATRIBUYE la materia (Prompt C — R-3 + PROMPT S · A).
  *
  *  1. La identidad SIEMPRE es `profesor_id` (sesion.profesorId); sin ella se
  *     rechaza y NO se escribe con la contraseña (sesión vieja → re-login).
  *  2. Requiere el esquema R-1 (grupo_materia_id); sin él responde error
  *     controlado y NO escribe con la contraseña.
- *  3. Resuelve el grupo_materia_id (UNA resolución por subida) y rechaza si la
- *     materia no es atribuible al grupo en el catálogo.
+ *  3. Reusa la materia resuelta por `analizarPlantillaAsistencia` (UNA
+ *     resolución por subida, validada contra el marcador MATERIA) y rechaza
+ *     si no es atribuible al grupo en el catálogo.
  *  4. LLAMA la RPC `traspasar_materia_a_profesor` (Prompt D) ANTES de escribir:
  *     el que sube la plantilla se convierte en dueño de la materia (asignación
  *     y registros previos se traspasan) en una sola transacción. Si la RPC no
  *     está desplegada, NO se escribe nada.
- *  5. UPSERT de clases_impartidas / asistencia_alumnos con `profesor_id` +
- *     `grupo_materia_id` y la clave de conflicto POR MATERIA (2 materias del
- *     mismo grupo y día = 2 filas; re-subir la misma = actualizar, no duplicar).
+ *  5. Una sola petición UPSERT POR TABLA (A3) de clases_impartidas /
+ *     asistencia_alumnos con `profesor_id` + `grupo_materia_id` + `periodo_id`
+ *     y la clave de conflicto POR MATERIA (2 materias del mismo grupo y día =
+ *     2 filas; re-subir la misma = actualizar, no duplicar).
  */
 export async function confirmarAsistencias(
   supabase: SupabaseClient,
@@ -868,6 +824,16 @@ export async function confirmarAsistencias(
     return { ok: false, error: plan.resumen.aviso };
   }
 
+  // PROMPT S (A3) — escritura por tabla, sin medias tintas. Si el plan supera
+  // el límite se rechaza ANTES de escribir y se pide subir por parcial.
+  const totalFilas = plan.clasesImpartidas.length + plan.asistencias.length;
+  if (totalFilas > LIMITE_FILAS_SUBIDA) {
+    return {
+      ok: false,
+      error: `La subida supera el límite de ${LIMITE_FILAS_SUBIDA} filas (tiene ${totalFilas}). Divídela por parcial para guardarla.`,
+    };
+  }
+
   // R-2/R-3 — identidad estructural PROFESORES.ID (nunca la contraseña).
   const profesorId =
     ctx.profesorId != null &&
@@ -883,10 +849,10 @@ export async function confirmarAsistencias(
   const esquema = await verificarEsquemaAtribucion(supabase);
   if (!esquema.ok) return { ok: false, error: esquema.error };
 
-  // Resolución del grupo_materia_id (UNA consulta por subida, no por alumno).
-  const resMateria = await resolverGrupoMateriaIdSubida(supabase, ctx);
-  if (!resMateria.ok) return { ok: false, error: resMateria.error };
-  if (!resMateria.grupoMateriaId) {
+  // Materia resuelta ya por analizarPlantillaAsistencia (A1): se reutiliza para
+  // no repetir la resolución. Sin materia no se escribe.
+  const grupoMateriaId = plan.grupoMateriaId;
+  if (!grupoMateriaId) {
     return { ok: false, error: ERROR_ATRIBUCION_MATERIA_NO_RESUELTA };
   }
 
@@ -895,7 +861,7 @@ export async function confirmarAsistencias(
   // Cero N+1: una sola llamada por subida. Si falla, NO se escribe nada.
   const traspaso = await traspasarMateriaAProfesor(
     supabase,
-    resMateria.grupoMateriaId,
+    grupoMateriaId,
     profesorId,
   );
   if (!traspaso.ok) return { ok: false, error: traspaso.error };
@@ -905,28 +871,33 @@ export async function confirmarAsistencias(
     { clasesImpartidas: plan.clasesImpartidas, asistencias: plan.asistencias },
     {
       profesorId,
-      grupoMateriaId: resMateria.grupoMateriaId,
+      grupoMateriaId,
       profesorClave: ctx.profesorClave,
+      periodoId: ctx.periodoId ?? null,
     },
   );
   if (!atribuido.ok) return atribuido;
 
-  // UPSERT clases_impartidas (profesor_id + materia + grado + grupo + fecha).
-  for (let i = 0; i < atribuido.clasesImpartidas.length; i += TAMANO_LOTE) {
-    const lote = atribuido.clasesImpartidas.slice(i, i + TAMANO_LOTE);
-    const { error } = await supabase
-      .from(TABLA_CLASES_IMPARTIDAS)
-      .upsert(lote, { onConflict: atribuido.conflictoClases });
-    if (error) return { ok: false, error: `Error en clases impartidas: ${error.message}` };
+  // PROMPT S (A3) — una sola petición UPSERT por tabla (cada petición de
+  // PostgREST es una transacción). Orden: primero clases, después asistencias.
+  const { error: errClases } = await supabase
+    .from(TABLA_CLASES_IMPARTIDAS)
+    .upsert(atribuido.clasesImpartidas, { onConflict: atribuido.conflictoClases });
+  if (errClases) {
+    return { ok: false, error: `Error en clases impartidas: ${errClases.message}` };
   }
 
   // UPSERT asistencia_alumnos (profesor_id + materia + curp + grupo + fecha).
-  for (let i = 0; i < atribuido.asistencias.length; i += TAMANO_LOTE) {
-    const lote = atribuido.asistencias.slice(i, i + TAMANO_LOTE);
-    const { error } = await supabase
-      .from(TABLA_ASISTENCIA_ALUMNOS)
-      .upsert(lote, { onConflict: atribuido.conflictoAsistencia });
-    if (error) return { ok: false, error: `Error en asistencias: ${error.message}` };
+  // Si falla, los días quedan PENDIENTES (nunca en falta) y volver a subir el
+  // mismo archivo es idempotente.
+  const { error: errAsist } = await supabase
+    .from(TABLA_ASISTENCIA_ALUMNOS)
+    .upsert(atribuido.asistencias, { onConflict: atribuido.conflictoAsistencia });
+  if (errAsist) {
+    return {
+      ok: false,
+      error: `Error en asistencias: ${errAsist.message}. Los días quedan pendientes (nunca en falta) y volver a subir el mismo archivo es idempotente.`,
+    };
   }
 
   return { ok: true, plan };

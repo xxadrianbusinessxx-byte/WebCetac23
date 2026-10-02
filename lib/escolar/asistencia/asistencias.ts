@@ -213,12 +213,12 @@ export async function listarAportesDeProfesorEnDia(
     grupo: string;
   },
 ): Promise<
-  | { ok: true; filas: { id: string; clases_asistidas: number }[] }
+  | { ok: true; filas: { id: string; clases_asistidas: number; grupo_materia_id: string | null }[] }
   | { ok: false; error: string }
 > {
   const { data: filas, error } = await supabase
     .from(TABLA_ASISTENCIA_ALUMNOS)
-    .select("id, clases_asistidas")
+    .select("id, clases_asistidas, grupo_materia_id")
     .eq("profesor_id", filtro.profesorId)
     .eq("curp", filtro.curp)
     .eq("fecha", filtro.fecha)
@@ -228,7 +228,11 @@ export async function listarAportesDeProfesorEnDia(
   if (error) return { ok: false, error: error.message };
   return {
     ok: true,
-    filas: (filas ?? []) as { id: string; clases_asistidas: number }[],
+    filas: (filas ?? []) as {
+      id: string;
+      clases_asistidas: number;
+      grupo_materia_id: string | null;
+    }[],
   };
 }
 
@@ -276,3 +280,4 @@ export * from "./asistencia-comun.ts";
 export * from "./asistencia-configuracion.ts";
 export * from "./asistencia-plantillas.ts";
 export * from "./asistencia-estados.ts";
+export * from "./asistencia-marcador.ts";

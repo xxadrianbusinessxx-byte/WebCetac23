@@ -53,6 +53,9 @@ export const ERROR_ATRIBUCION_SIN_PROFESOR_ID =
 export const ERROR_ATRIBUCION_MATERIA_NO_RESUELTA =
   "No se pudo atribuir la materia: no existe un grupo_materias ACTIVO (grupo + materia del catálogo) para este grupo. Revisa la carga académica del grupo antes de subir la plantilla.";
 
+export const ERROR_ATRIBUCION_SIN_PERIODO_ID =
+  "Falta el periodo (ciclo operativo) para esta subida. Vuelve a iniciar el flujo de asistencias; no se escribirá nada sin periodo.";
+
 export type FilaClasesCandidata = {
   grado: string;
   grupo: string;
@@ -74,11 +77,13 @@ export type FilaAsistenciaCandidata = {
 export type FilaClasesAtribuida = FilaClasesCandidata & {
   profesor_id: number;
   grupo_materia_id: string;
+  periodo_id: string;
 };
 
 export type FilaAsistenciaAtribuida = FilaAsistenciaCandidata & {
   profesor_id: number;
   grupo_materia_id: string;
+  periodo_id: string;
 };
 
 /** ¿El valor es un UUID con formato canónico? */
@@ -119,6 +124,9 @@ export type AtribucionSubida = {
   /** CLAVE legacy de la sesión: solo para el dato histórico de
    *  asignaciones_profesor (NOT NULL legacy). No se escribe en asistencia. */
   profesorClave?: string | null;
+  /** PROMPT S (A4) — id del periodo OPERATIVO (`periodos.id`). Sin él NO se
+   *  escribe: las filas nuevas llevan `periodo_id` para no crecer sin índice. */
+  periodoId: string | null;
 };
 
 export type PlanSubida = {
@@ -155,9 +163,10 @@ export type ResultadoAtribucion =
  * Aplica la atribución a un plan de subida:
  *   - rechaza sin `profesorId` (nunca escribe con la contraseña);
  *   - rechaza sin materia resuelta (sin ella no existe atribución posible);
- *   - devuelve las filas enriquecidas con `profesor_id` y `grupo_materia_id`
- *     y las claves de conflicto que garantizan «2 materias ≠ colisión» e
- *     «idempotencia por materia».
+ *   - rechaza sin `periodoId` (las filas nuevas llevan `periodo_id`);
+ *   - devuelve las filas enriquecidas con `profesor_id`, `grupo_materia_id` y
+ *     `periodo_id`, y las claves de conflicto que garantizan «2 materias ≠
+ *     colisión» e «idempotencia por materia».
  */
 export function atribuirMateriaAlPlan(
   plan: PlanSubida,
@@ -169,8 +178,14 @@ export function atribuirMateriaAlPlan(
   if (!materiaResuelta(atribucion.grupoMateriaId)) {
     return { ok: false, error: ERROR_ATRIBUCION_MATERIA_NO_RESUELTA };
   }
+  // PROMPT S (A4) — sin periodo operativo no se escribe (mismo patrón que sin
+  // profesorId): las filas nuevas llevan `periodo_id`.
+  if (!atribucion.periodoId || !atribucion.periodoId.trim()) {
+    return { ok: false, error: ERROR_ATRIBUCION_SIN_PERIODO_ID };
+  }
   const profesorId = Number(atribucion.profesorId);
   const grupoMateriaId = atribucion.grupoMateriaId.trim();
+  const periodoId = atribucion.periodoId.trim();
 
   // Las filas NUEVAS NO escriben `profesor_clave` (pasa a NULL): la identidad
   // es `profesor_id`. Se construyen explícitamente (sin heredar la clave).
@@ -182,6 +197,7 @@ export function atribuirMateriaAlPlan(
     clases: f.clases,
     profesor_id: profesorId,
     grupo_materia_id: grupoMateriaId,
+    periodo_id: periodoId,
   }));
   const asistencias = plan.asistencias.map((f) => ({
     curp: f.curp,
@@ -193,6 +209,7 @@ export function atribuirMateriaAlPlan(
     clases_asistidas: f.clases_asistidas,
     profesor_id: profesorId,
     grupo_materia_id: grupoMateriaId,
+    periodo_id: periodoId,
   }));
 
   const ahora = new Date().toISOString();

@@ -158,6 +158,10 @@ export type PlanAsistencia = {
     clases_asistidas: number;
   }[];
   resumen: ResumenAsistencia;
+  /** PROMPT S (A1) — materia resuelta de la subida (grupo_materias.id ACTIVO).
+   *  Lo resuelve `analizarPlantillaAsistencia` y lo reusa `confirmarAsistencias`
+   *  para no repetir la resolución. */
+  grupoMateriaId: string | null;
 };
 
 export type ResultadoPlantilla =
@@ -170,6 +174,14 @@ export type ResultadoAnalisis =
 
 export const TAMANO_PAGINA = 1000;
 export const TAMANO_LOTE = 100;
+
+/**
+ * PROMPT S (A3) — tope de filas de UNA subida (clases + asistencias). Por
+ * encima se rechaza ANTES de escribir y se pide subir por parcial. Un parcial
+ * de 45 alumnos × 25 días son 1 125 filas de asistencia; el tope deja margen
+ * para el parcial más grande sin llegar a las peticiones por lotes.
+ */
+export const LIMITE_FILAS_SUBIDA = 4000;
 
 /** Normaliza grado/grupo/carrera a mayÃºsculas y sin espacios. */
 export function norm(texto: string): string {

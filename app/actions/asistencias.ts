@@ -12,6 +12,7 @@ import {
 import {
   calcularPorcentajeAsistencia,
   confirmarAsistencias,
+  elegirFilaParaAnular,
   esquemaAtribucionDisponible,
   fijarClasesAsistidas,
   generarPlantillaAsistencia,
@@ -29,6 +30,7 @@ import {
   type ResumenAsistencia,
   type ResumenPorParcial,
 } from "@/lib/escolar/asistencia/asistencias";
+import { esUuid } from "@/lib/escolar/asistencia/atribucion-profesor";
 import {
   consultarHorarioGrupoPorIdentidad,
   listarGrupoIdsConHorario,
@@ -638,8 +640,8 @@ export async function actionSolicitarJustificacionAsistencia(input: {
 }
 
 /**
- * BLOQUE 9 (PIEZA 4) + PROMPT C/D — Anula (resta 1 a) el aporte de asistencia
- * que el profesor registró para un alumno en una fecha concreta.
+ * BLOQUE 9 (PIEZA 4) + PROMPT C/D + PROMPT S (A5) — Anula (resta 1 a) el aporte
+ * de asistencia que el profesor registró para un alumno en una fecha concreta.
  *
  * SEGURIDAD:
  *   - SOLO rol «maestro» o «directivo».
@@ -647,8 +649,10 @@ export async function actionSolicitarJustificacionAsistencia(input: {
  *   - La identidad es SIEMPRE `profesor_id` (PROFESORES.ID). `profesor_clave`
  *     ya NO es criterio (regla D-4: la comparten 16 profesores).
  *   - Con atribución por materia puede haber VARIAS filas del mismo
- *     profesor/alumno/día (una por materia). La anulación es del DÍA (resta 1
- *     al total) y se elige la fila con mayor aporte (determinista).
+ *     profesor/alumno/día (una por materia). La anulación es POR MATERIA:
+ *     con `grupoMateriaId` solo esa fila; sin él y una sola fila, esa; sin él
+ *     y varias, se pide indicar la materia. La decisión es PURA
+ *     (`elegirFilaParaAnular`).
  *   - UPDATE puntual sobre el `id` de esa fila; NUNCA la de otro profesor.
  *   - Resta 1 con piso en 0 (GREATEST(clases_asistidas - 1, 0) emulado con
  *     Math.max; el CHECK `clases_asistidas >= 0` sigue protegiendo).
@@ -658,6 +662,7 @@ export async function actionAnularAsistenciaProfesor(input: {
   fecha: string;
   grado: string;
   grupo: string;
+  grupoMateriaId?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const g = await exigir("asistencia.anular");
   if (!g.ok) {
@@ -669,8 +674,12 @@ export async function actionAnularAsistenciaProfesor(input: {
   const fecha = input.fecha.trim();
   const grado = input.grado.trim();
   const grupo = input.grupo.trim();
+  const grupoMateriaId = (input.grupoMateriaId ?? "").trim() || null;
   if (!curp || !fecha || !grado || !grupo) {
     return { ok: false, error: "Indica CURP, fecha, grado y grupo." };
+  }
+  if (grupoMateriaId && !esUuid(grupoMateriaId)) {
+    return { ok: false, error: "La materia indicada no es válida." };
   }
   if (esFechaFuturaLocal(fecha)) {
     return { ok: false, error: "No se puede anular una fecha futura." };
@@ -730,13 +739,11 @@ export async function actionAnularAsistenciaProfesor(input: {
     };
   }
 
-  // Fila objetivo: la de mayor aporte (resta 1 al total del día).
-  const objetivo =
-    [...filas].sort(
-      (a, b) =>
-        (Number(b.clases_asistidas) || 0) - (Number(a.clases_asistidas) || 0),
-    )[0] ?? null;
-  if (!objetivo || (Number(objetivo.clases_asistidas) || 0) <= 0) {
+  // Fila objetivo (A5): decisión PURA por materia, no se elige por mayor aporte.
+  const eleccion = elegirFilaParaAnular(filas, grupoMateriaId);
+  if (!eleccion.ok) return { ok: false, error: eleccion.error };
+  const objetivo = eleccion.fila;
+  if ((Number(objetivo.clases_asistidas) || 0) <= 0) {
     return { ok: false, error: "La asistencia de ese día ya está en cero." };
   }
 
