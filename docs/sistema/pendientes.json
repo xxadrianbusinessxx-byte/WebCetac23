@@ -17,6 +17,28 @@
   ],
   "pendientes": [
     {
+      "id": "sql-portada-carreras",
+      "titulo": "Portada: ejecutar crear-portada-carreras.sql para guardar el video (enlace) y el texto de cada carrera",
+      "detalle": "PROMPT U, Parte A (2026-10-01): el video de cada carrera pasó de archivo subido a Cloudinary a ENLACE de YouTube o TikTok, con un texto lateral, guardados en la tabla nueva portada_carreras. Hasta que una persona ejecute el .sql en el SQL Editor, la portada se ve como antes (carrusel y nombres de carrera, sin videos ni textos) y «Configuración → Video e imágenes › Oferta educativa» avisa y no deja guardar. Después: guardar un enlace de YouTube, un Short y un TikTok desde la sesión de directivo o técnico, y verlos en / con su banda horizontal o vertical. diag-portada debe mostrar la tabla y las URL canónicas.",
+      "riesgo": "medio",
+      "quien": "persona — ejecuta el SQL y prueba con sesión de directivo o técnico",
+      "verificar": "node scripts/diag-portada.mjs",
+      "doc": "supabase/crear-portada-carreras.sql",
+      "revisado": "2026-10-01",
+      "estado": "abierto"
+    },
+    {
+      "id": "retirar-video-cloudinary-portada",
+      "titulo": "Retirar el camino de video subido a Cloudinary de la portada (marcado @deprecated en el PROMPT U)",
+      "detalle": "Desactivado el 2026-10-01: validarDestino rechaza tipo 'video', cargarPortada ya no lee esas filas y el panel no ofrece subir video. Quedan @deprecated, sin consumidores: validarVideo, MedicionVideo, MAX_BYTES_VIDEO, RECOMENDADO_BYTES_VIDEO, MAX_DURACION_VIDEO_S, FORMATOS_VIDEO, PROPORCION.video, MEDIDAS.video, TRANSFORMACION.video/poster (portada-puro.ts), medirVideo (lib/imagen/medir-archivo.ts) y las ramas de video de comprobarDestino/registrarMedio (portada.ts). Retirarlos en su propio cambio, con su suite, cuando diag-portada siga dando 0 filas tipo='video'. El CHECK de portada_medios que admite 'video' se puede dejar: no estorba.",
+      "riesgo": "bajo",
+      "quien": "agente — en su propio cambio",
+      "verificar": "node scripts/diag-portada.mjs",
+      "doc": "docs/historial/prompts/PROMPT_U_PORTADA_ENLACES_Y_ALUMNOS_TUTORES.md",
+      "revisado": "2026-10-01",
+      "estado": "abierto"
+    },
+    {
       "id": "sql-historial-seguimiento-medico",
       "titulo": "Historial del seguimiento médico: SQL aplicado, falta probarlo con una sesión real",
       "detalle": "crear-historial-seguimiento-medico.sql aplicado por persona el 2026-10-01; diag-seguimiento-medico confirma la función guardar_campos_personales_alumno y la tabla seguimiento_medico_historial (0 ediciones). Desde entonces «Información personal» y «Seguimiento médico» se guardan por esa función, que crea la ficha de los alumnos que no la tienen (144 de 472 medidos ese día). Falta lo que ningún agente puede hacer: guardar un cambio médico desde la cuenta de un padre y desde Administración escolar, ver la entrada en «Historial de cambios», y probar con un alumno SIN ficha (confirma que la clave pública puede insertar en ETIQUETAS PERSONALES). Después, el diag debe mostrar las ediciones por rol y 0 sin identidad.",

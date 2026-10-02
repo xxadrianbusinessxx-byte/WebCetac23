@@ -325,6 +325,31 @@ export const esquemaAjustesPortada = (claves: readonly string[]) =>
   );
 
 /**
+ * `portada.ts` · actionGuardarCarreraPortada (PROMPT U) — el video (enlace) y el
+ * texto de una carrera. Vacío es válido en los dos: quita ese dato. Los topes se
+ * INYECTAN desde `portada-puro.ts`, que son también los del CHECK de la base. Qué
+ * enlace vale lo decide `analizarEnlaceVideo`, no este esquema.
+ */
+export const esquemaCarreraPortada = (maxEnlace: number, maxDescripcion: number) =>
+  v.object(
+    {
+      carreraId: uuid("La carrera indicada no es válida."),
+      enlace: v.pipe(
+        v.string("El enlace no es válido."),
+        v.trim(),
+        v.maxLength(maxEnlace, `El enlace es demasiado largo (máximo ${maxEnlace} caracteres).`),
+      ),
+      formato: opcional(v.picklist(["horizontal", "vertical"], "El formato de la banda no es válido.")),
+      descripcion: v.pipe(
+        v.string("La descripción no es válida."),
+        v.trim(),
+        v.maxLength(maxDescripcion, `La descripción es demasiado larga (máximo ${maxDescripcion} caracteres).`),
+      ),
+    },
+    MSJ_PORTADA,
+  );
+
+/**
  * `administracion.ts` · actionGuardarNumeroControl (2026-09-24). El número llega
  * crudo: el FORMATO lo decide `validarNumeroControl` (numero-control-puro), que es
  * la misma regla que el CHECK de la base. Aquí solo se exige forma y tamaño.

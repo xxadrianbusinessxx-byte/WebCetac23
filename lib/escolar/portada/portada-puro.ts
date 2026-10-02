@@ -1,7 +1,15 @@
 /**
  * portada-puro.ts — MÓDULO PURO. Todas las reglas de la portada administrable:
- * qué imagen o video es válido, cuántos caben, cómo se ordenan, qué rótulo lleva
- * cada carrera y qué forma tiene cada ajuste de contacto. Cero I/O.
+ * qué imagen es válida, cuántas caben, cómo se ordenan, qué rótulo lleva cada
+ * carrera, qué enlace de video se acepta y qué forma tiene cada ajuste de
+ * contacto. Cero I/O.
+ *
+ * ── El video de cada carrera es un ENLACE (PROMPT U, 2026-10-01) ───────────
+ * Hasta esa fecha se SUBÍA un archivo a Cloudinary (`validarVideo` y sus
+ * constantes). Ahora se pega un enlace de YouTube o TikTok y se ve con su
+ * reproductor: `analizarEnlaceVideo`, al final de este archivo. Lo de subir video
+ * queda `@deprecated` —nunca se usó: 0 videos subidos— y se retira aparte
+ * (pendiente `retirar-video-cloudinary-portada`).
  *
  * ── Por qué todo aquí ──────────────────────────────────────────────────────
  * Estas reglas las aplican DOS sitios: el navegador, antes de subir, para avisar
@@ -46,6 +54,7 @@ export const MAX_IMAGENES = 5;
 export const PROPORCION = {
   escritorio: 7 / 3,
   movil: 4 / 5,
+  /** @deprecated PROMPT U: el video ya no se sube. La banda usa `PROPORCION_VIDEO` según el formato del enlace. */
   video: 16 / 9,
 } as const;
 
@@ -58,21 +67,32 @@ type Medidas = { ancho: number; alto: number };
 export const MEDIDAS: Readonly<Record<Variante | "video", { ideal: Medidas; minimo: Medidas }>> = {
   escritorio: { ideal: { ancho: 2800, alto: 1200 }, minimo: { ancho: 1400, alto: 600 } },
   movil: { ideal: { ancho: 1080, alto: 1350 }, minimo: { ancho: 810, alto: 1013 } },
+  /** @deprecated PROMPT U: el video ya no se sube; es un enlace de YouTube o TikTok (`analizarEnlaceVideo`). */
   video: { ideal: { ancho: 1920, alto: 1080 }, minimo: { ancho: 640, alto: 360 } },
 };
 
 const MB = 1024 * 1024;
 /** Tope de Cloudinary (plan gratuito) para una imagen. Se sirve optimizada: el peso subido no es el servido. */
 export const MAX_BYTES_IMAGEN = 10 * MB;
-/** Tope de Cloudinary (plan gratuito) para un video. */
+/**
+ * Tope de Cloudinary (plan gratuito) para un video.
+ * @deprecated PROMPT U: el video ya no se sube; es un enlace (`analizarEnlaceVideo`).
+ */
 export const MAX_BYTES_VIDEO = 100 * MB;
-/** Lo que se RECOMIENDA en la interfaz: cada reproducción completa gasta ese peso en ancho de banda. */
+/**
+ * Lo que se RECOMIENDA en la interfaz: cada reproducción completa gasta ese peso en ancho de banda.
+ * @deprecated PROMPT U: el video ya no se sube; es un enlace (`analizarEnlaceVideo`).
+ */
 export const RECOMENDADO_BYTES_VIDEO = 50 * MB;
+/** @deprecated PROMPT U: el video ya no se sube; es un enlace (`analizarEnlaceVideo`). */
 export const MAX_DURACION_VIDEO_S = 120;
 
 /** Cloudinary informa `jpg` aunque el archivo se llamara `.jpeg`: se aceptan los dos. */
 export const FORMATOS_IMAGEN = ["jpg", "jpeg", "png", "webp"] as const;
-/** `mov` es lo que graba un iPhone; Cloudinary lo sirve como mp4 con `f_auto`. */
+/**
+ * `mov` es lo que graba un iPhone; Cloudinary lo sirve como mp4 con `f_auto`.
+ * @deprecated PROMPT U: el video ya no se sube; es un enlace (`analizarEnlaceVideo`).
+ */
 export const FORMATOS_VIDEO = ["mp4", "mov", "webm"] as const;
 
 /**
@@ -86,8 +106,12 @@ export const ZONA_SEGURA = { inferior: 0.25, lateral: 0.05 } as const;
 export const TRANSFORMACION = {
   escritorio: "f_auto,q_auto,w_2400",
   movil: "f_auto,q_auto,w_1080",
+  /** @deprecated PROMPT U: el video lo sirve YouTube o TikTok (`urlInsercionVideo`), no Cloudinary. */
   video: "f_auto,q_auto,w_1280",
-  /** Primer fotograma del video como imagen de espera: nada se descarga hasta pulsar «play». */
+  /**
+   * Primer fotograma del video como imagen de espera: nada se descarga hasta pulsar «play».
+   * @deprecated PROMPT U: el video lo sirve YouTube o TikTok (`urlInsercionVideo`), no Cloudinary.
+   */
   poster: "so_0,f_jpg,q_auto,w_1280",
 } as const;
 
@@ -157,6 +181,7 @@ export function validarImagen(m: MedicionImagen): Resultado {
   return bien;
 }
 
+/** @deprecated PROMPT U: el video ya no se sube; es un enlace (`analizarEnlaceVideo`). */
 export type MedicionVideo = {
   ancho: number;
   alto: number;
@@ -165,6 +190,12 @@ export type MedicionVideo = {
   duracion_s: number;
 };
 
+/**
+ * @deprecated PROMPT U (2026-10-01): el video de una carrera ya no se sube a
+ * Cloudinary; se pega un enlace de YouTube o TikTok y lo valida
+ * `analizarEnlaceVideo`. Sin consumidores en la aplicación; la suite lo sigue
+ * probando hasta que se retire (pendiente `retirar-video-cloudinary-portada`).
+ */
 export function validarVideo(m: MedicionVideo): Resultado {
   const formato = normalizarFormato(m.formato);
   if (!(FORMATOS_VIDEO as readonly string[]).includes(formato)) {
@@ -266,10 +297,14 @@ export type Destino = {
 };
 
 /**
- * ¿Tiene sentido este destino? Una imagen necesita variante y posición; un video,
- * carrera y nada más. Es una regla ENTRE campos, y por eso vive aquí y no en el
- * esquema de `lib/validacion/`: `leerEntrada` valida campo a campo, y una
- * comprobación a nivel de objeto dentro del esquema se saltaría sin avisar.
+ * ¿Tiene sentido este destino? Una imagen necesita variante y posición. Es una
+ * regla ENTRE campos, y por eso vive aquí y no en el esquema de
+ * `lib/validacion/`: `leerEntrada` valida campo a campo, y una comprobación a
+ * nivel de objeto dentro del esquema se saltaría sin avisar.
+ *
+ * Un VIDEO ya no es un destino de subida (PROMPT U): se rechaza aquí, que es el
+ * primer paso de la firma y del registro, así que el camino de Cloudinary para
+ * video queda cerrado en el servidor y no solo escondido en el panel.
  */
 export function validarDestino(d: Destino): Resultado {
   if (d.tipo === "imagen") {
@@ -280,12 +315,7 @@ export function validarDestino(d: Destino): Resultado {
     if (d.carreraId) return mal("Una imagen del carrusel no va ligada a una carrera.");
     return bien;
   }
-  if (d.tipo === "video") {
-    if (!d.carreraId) return mal("Falta indicar de qué carrera es el video.");
-    if (d.orden != null) return mal("Un video no ocupa posición en el carrusel.");
-    if (d.variante != null) return mal("Un video no tiene versión para teléfono.");
-    return bien;
-  }
+  if (d.tipo === "video") return mal(VIDEO_YA_NO_SE_SUBE);
   return mal("Tipo de archivo no válido.");
 }
 
@@ -391,4 +421,201 @@ export function validarAjuste(clave: string, valor: string): Resultado {
     return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? bien : mal("No parece un correo válido.");
   }
   return bien;
+}
+
+/* ── Videos por enlace (PROMPT U, 2026-10-01) ───────────────────────────── */
+//
+// El video de cada carrera es un ENLACE de YouTube o TikTok que se ve con el
+// reproductor de la plataforma. Estas reglas las aplican el navegador (para
+// avisar mientras se escribe) y el servidor (antes de guardar, y otra vez al
+// leer lo guardado). El `src` del reproductor SIEMPRE se construye aquí con un
+// id que pasó su regex: la URL que pegó la persona nunca llega tal cual a un
+// `<iframe>`.
+
+export type PlataformaVideo = "youtube" | "tiktok";
+/** La banda de la carrera se adapta a esto. */
+export type FormatoVideo = "horizontal" | "vertical";
+
+/** Proporción ancho/alto de la caja del reproductor según el formato. */
+export const PROPORCION_VIDEO: Readonly<Record<FormatoVideo, number>> = {
+  horizontal: 16 / 9,
+  vertical: 9 / 16,
+};
+export const FORMATOS_BANDA: readonly FormatoVideo[] = ["horizontal", "vertical"];
+export const ETIQUETA_FORMATO: Readonly<Record<FormatoVideo, string>> = {
+  horizontal: "Horizontal 16:9",
+  vertical: "Vertical 9:16",
+};
+
+/** Topes. Los mismos números están en el CHECK de `crear-portada-carreras.sql` (la suite lo comprueba). */
+export const MAX_LARGO_ENLACE_VIDEO = 500;
+export const MAX_LARGO_DESCRIPCION_CARRERA = 600;
+
+/** Lo que `validarDestino` contesta a quien intente SUBIR un video. */
+export const VIDEO_YA_NO_SE_SUBE =
+  "Los videos de carrera ya no se suben: pega su enlace de YouTube o TikTok en «Oferta educativa».";
+
+export type EnlaceVideo = {
+  plataforma: PlataformaVideo;
+  id: string;
+  /** La que se guarda: sin parámetros de rastreo ni de tiempo. */
+  urlCanonica: string;
+  /** Lo que dice la propia URL: Shorts y TikTok son verticales. Quien edita puede corregirlo. */
+  formatoSugerido: FormatoVideo;
+};
+
+export type AnalisisEnlace =
+  | { tipo: "video"; enlace: EnlaceVideo }
+  /** Enlace corto de TikTok: hay que seguirlo (I/O) y analizar la dirección final. */
+  | { tipo: "corto-tiktok"; url: string }
+  | { tipo: "error"; error: string };
+
+const ID_YOUTUBE = /^[A-Za-z0-9_-]{11}$/;
+const ID_TIKTOK = /^\d{15,22}$/;
+const USUARIO_TIKTOK = /^[A-Za-z0-9._]{1,30}$/;
+const CODIGO_CORTO_TIKTOK = /^[A-Za-z0-9]+$/;
+/** Un esquema al principio («https:», «javascript:»…). Sin él se entiende https. */
+const CON_ESQUEMA = /^[a-z][a-z0-9+.-]*:/i;
+
+const NO_ES_ENLACE = "No es un enlace válido. Cópialo completo desde YouTube o TikTok.";
+const FORMA_TIKTOK =
+  "Ese enlace de TikTok no es de un video. Abre el video y copia su dirección (…tiktok.com/@cuenta/video/…).";
+
+const errorEnlace = (error: string): AnalisisEnlace => ({ tipo: "error", error });
+
+/** Quita UN prefijo `www.` o `m.`. La comparación de host que sigue es EXACTA. */
+function hostSinPrefijo(host: string): string {
+  const h = host.toLowerCase();
+  if (h.startsWith("www.")) return h.slice(4);
+  if (h.startsWith("m.")) return h.slice(2);
+  return h;
+}
+
+function enlaceYouTube(id: string, esShort: boolean): AnalisisEnlace {
+  if (!ID_YOUTUBE.test(id)) {
+    return errorEnlace("El identificador del video de YouTube no es válido. Copia el enlace completo otra vez.");
+  }
+  return {
+    tipo: "video",
+    enlace: {
+      plataforma: "youtube",
+      id,
+      urlCanonica: esShort ? `https://www.youtube.com/shorts/${id}` : `https://www.youtube.com/watch?v=${id}`,
+      formatoSugerido: esShort ? "vertical" : "horizontal",
+    },
+  };
+}
+
+/**
+ * ¿Qué video es este enlace? Acepta las formas que la gente copia de verdad:
+ *   YouTube  youtu.be/ID · /watch?v=ID · /shorts/ID · /embed/ID · /live/ID
+ *   TikTok   /@cuenta/video/ID · y los cortos vm.tiktok.com/… · tiktok.com/t/…
+ * Con o sin `https://`, con `www.` o `m.`, con parámetros (`si`, `t`…), que se
+ * descartan. El host se compara EXACTO: `youtube.com.otro.com` no es YouTube.
+ */
+export function analizarEnlaceVideo(texto: string): AnalisisEnlace {
+  const t = (texto ?? "").trim();
+  if (!t) return errorEnlace("Pega el enlace del video.");
+  if (t.length > MAX_LARGO_ENLACE_VIDEO) {
+    return errorEnlace(`El enlace es demasiado largo (máximo ${MAX_LARGO_ENLACE_VIDEO} caracteres).`);
+  }
+  let url: URL;
+  try {
+    url = new URL(CON_ESQUEMA.test(t) ? t : `https://${t}`);
+  } catch {
+    return errorEnlace(NO_ES_ENLACE);
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return errorEnlace(NO_ES_ENLACE);
+
+  const host = hostSinPrefijo(url.hostname);
+  const partes = url.pathname.split("/").filter(Boolean);
+
+  if (host === "youtu.be") {
+    return partes.length === 1 ? enlaceYouTube(partes[0], false) : errorEnlace(NO_ES_ENLACE);
+  }
+  if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    if (partes.length === 1 && partes[0] === "watch") return enlaceYouTube(url.searchParams.get("v") ?? "", false);
+    if (partes.length === 2 && partes[0] === "shorts") return enlaceYouTube(partes[1], true);
+    if (partes.length === 2 && ["embed", "live", "v"].includes(partes[0])) return enlaceYouTube(partes[1], false);
+    return errorEnlace("Ese enlace de YouTube no es de un video. Abre el video y copia su dirección.");
+  }
+
+  if (host === "vm.tiktok.com" || host === "vt.tiktok.com") {
+    return partes.length === 1 && CODIGO_CORTO_TIKTOK.test(partes[0])
+      ? { tipo: "corto-tiktok", url: `https://${host}/${partes[0]}/` }
+      : errorEnlace(FORMA_TIKTOK);
+  }
+  if (host === "tiktok.com") {
+    if (partes.length === 2 && partes[0] === "t" && CODIGO_CORTO_TIKTOK.test(partes[1])) {
+      return { tipo: "corto-tiktok", url: `https://www.tiktok.com/t/${partes[1]}/` };
+    }
+    if (partes.length === 3 && partes[0].startsWith("@")) {
+      const usuario = partes[0].slice(1);
+      if (partes[1] === "photo") return errorEnlace("Es una publicación de fotos, no un video.");
+      if (partes[1] === "video" && USUARIO_TIKTOK.test(usuario) && ID_TIKTOK.test(partes[2])) {
+        return {
+          tipo: "video",
+          enlace: {
+            plataforma: "tiktok",
+            id: partes[2],
+            urlCanonica: `https://www.tiktok.com/@${usuario}/video/${partes[2]}`,
+            formatoSugerido: "vertical",
+          },
+        };
+      }
+    }
+    return errorEnlace(FORMA_TIKTOK);
+  }
+
+  return errorEnlace("Solo se aceptan videos de YouTube o TikTok.");
+}
+
+/**
+ * Un enlace GUARDADO, leído de vuelta. Solo vale si es exactamente la canónica
+ * que produce `analizarEnlaceVideo`: lo que no lo sea no lo escribió el
+ * servidor, y la portada no lo muestra.
+ */
+export function leerEnlaceGuardado(url: string | null | undefined): EnlaceVideo | null {
+  if (!url) return null;
+  const a = analizarEnlaceVideo(url);
+  return a.tipo === "video" && a.enlace.urlCanonica === url ? a.enlace : null;
+}
+
+/**
+ * La dirección del reproductor oficial. YouTube en su dominio sin cookies hasta
+ * pulsar «play»; TikTok con su Embed Player (`player/v1`), sin la descripción ni
+ * la música superpuestas, porque el texto de la carrera ya va al lado.
+ */
+export function urlInsercionVideo(plataforma: PlataformaVideo, id: string): string {
+  const seguro = encodeURIComponent(id);
+  return plataforma === "youtube"
+    ? `https://www.youtube-nocookie.com/embed/${seguro}?rel=0&playsinline=1`
+    : `https://www.tiktok.com/player/v1/${seguro}?rel=0&description=0&music_info=0`;
+}
+
+/** «YouTube · horizontal 16:9», «YouTube Shorts · vertical 9:16», «TikTok · vertical 9:16». */
+export function describirEnlace(e: EnlaceVideo): string {
+  const origen =
+    e.plataforma === "tiktok" ? "TikTok" : e.urlCanonica.includes("/shorts/") ? "YouTube Shorts" : "YouTube";
+  return `${origen} · ${ETIQUETA_FORMATO[e.formatoSugerido].toLowerCase()}`;
+}
+
+/**
+ * ¿Qué significa la respuesta del oEmbed de la plataforma? `status` 0 = no hubo
+ * respuesta (sin red o tiempo agotado). YouTube contesta 401 cuando el dueño
+ * desactivó la inserción y 403/404 cuando es privado o no existe.
+ */
+export function interpretarRespuestaOembed(plataforma: PlataformaVideo, status: number): Resultado {
+  if (status === 200) return bien;
+  if (status === 401) {
+    return mal(
+      plataforma === "youtube"
+        ? "Ese video no permite insertarse en otras páginas. En YouTube: Studio › Detalles › Mostrar más › «Permitir insertar»."
+        : "Ese video no permite insertarse en otras páginas. En TikTok, activa «Permitir insertar» en la privacidad de la cuenta.",
+    );
+  }
+  if (status === 400 || status === 403 || status === 404) {
+    return mal("No se encontró ese video o es privado. Tiene que ser público (o «no listado» en YouTube).");
+  }
+  return mal("No se pudo comprobar el video ahora mismo. Inténtalo en un momento.");
 }

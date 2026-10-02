@@ -5,9 +5,17 @@
  * técnico. PROMPT N, 2026-09-23.
  *
  * Tres bloques: el carrusel de la portada (hasta 5 imágenes, cada una con su
- * versión opcional para teléfono), un video por carrera y los enlaces de contacto.
+ * versión opcional para teléfono), la oferta educativa —el video y el texto de
+ * cada carrera— y los enlaces de contacto.
  *
- * ── Cómo sube un archivo ───────────────────────────────────────────────────
+ * ── La oferta educativa (PROMPT U, 2026-10-01) ─────────────────────────────
+ * El video ya no se sube: se pega un enlace de YouTube o TikTok. Mientras se
+ * escribe, el navegador lo analiza con la MISMA regla que el servidor
+ * (`analizarEnlaceVideo`) para decir qué es y enseñar la vista previa; al
+ * guardar, el servidor además pregunta a la plataforma si existe y se puede
+ * insertar.
+ *
+ * ── Cómo sube una imagen ───────────────────────────────────────────────────
  * 1. Se mide en el navegador y se valida con las MISMAS reglas que el servidor
  *    (`portada-puro.ts`): si no cumple, se avisa antes de esperar la subida.
  * 2. El servidor firma (`actionFirmarSubidaPortada`) y el archivo va DIRECTO a
@@ -25,6 +33,7 @@ import {
   actionEliminarMedioPortada,
   actionFirmarSubidaPortada,
   actionGuardarAjustesPortada,
+  actionGuardarCarreraPortada,
   actionListarMediosPortada,
   actionRegistrarMedioPortada,
   actionReordenarPortada,
@@ -32,18 +41,24 @@ import {
 import type { CarreraPortada, EstadoPortada, ImagenPortada } from "@/lib/escolar/portada/portada";
 import {
   AJUSTES_PORTADA,
-  MAX_DURACION_VIDEO_S,
+  ETIQUETA_FORMATO,
+  FORMATOS_BANDA,
   MAX_IMAGENES,
+  MAX_LARGO_DESCRIPCION_CARRERA,
+  MAX_LARGO_ENLACE_VIDEO,
   MEDIDAS,
-  RECOMENDADO_BYTES_VIDEO,
+  analizarEnlaceVideo,
+  describirEnlace,
   siguienteOrdenLibre,
+  urlInsercionVideo,
   validarImagen,
-  validarVideo,
   type Destino,
+  type FormatoVideo,
   type Variante,
 } from "@/lib/escolar/portada/portada-puro";
-import { medirImagen, medirVideo } from "@/lib/imagen/medir-archivo";
+import { medirImagen } from "@/lib/imagen/medir-archivo";
 import { subirConFirma } from "@/lib/cloudinary/subida-navegador";
+import { VideoIncrustado } from "@/app/components/ui/video-incrustado";
 
 /* ── Estilos (constantes, no componentes: ver C11) ─────────────────────── */
 
@@ -61,11 +76,11 @@ const ENTRADA =
 
 type Mensaje = { tipo: "ok" | "error"; texto: string } | null;
 
-const MB = 1024 * 1024;
-const enMB = (b: number) => `${Math.round(b / MB)} MB`;
-
 /** El destino pendiente de elegir archivo, con lo que se necesita para registrarlo. */
 type Pendiente = Destino & { textoAlt?: string };
+
+/** Lo que el panel manda a guardar de una carrera. */
+type EntradaCarrera = { carreraId: string; enlace: string; formato: FormatoVideo | null; descripcion: string };
 
 export function PortadaMediosPanel() {
   const [estado, setEstado] = useState<EstadoPortada | null>(null);
@@ -96,12 +111,12 @@ export function PortadaMediosPanel() {
     void cargar();
   }, [cargar]);
 
-  /** Abre el selector de archivos para un destino concreto. */
+  /** Abre el selector de archivos para un destino concreto. Solo imágenes: el video es un enlace. */
   const elegirArchivo = (destino: Pendiente) => {
     pendiente.current = destino;
     const input = entradaArchivo.current;
     if (!input) return;
-    input.accept = destino.tipo === "video" ? "video/mp4,video/quicktime,video/webm" : "image/jpeg,image/png,image/webp";
+    input.accept = "image/jpeg,image/png,image/webp";
     input.value = "";
     input.click();
   };
@@ -115,12 +130,9 @@ export function PortadaMediosPanel() {
     setProgreso(null);
     try {
       // 1 · Medir y avisar a tiempo. Si no se puede medir, decide el servidor.
-      const medida = destino.tipo === "video" ? await medirVideo(archivo) : await medirImagen(archivo);
+      const medida = await medirImagen(archivo);
       if (medida) {
-        const previa =
-          destino.tipo === "video"
-            ? validarVideo({ ...medida, bytes: archivo.size })
-            : validarImagen({ ...medida, bytes: archivo.size, variante: destino.variante as Variante });
+        const previa = validarImagen({ ...medida, bytes: archivo.size, variante: destino.variante as Variante });
         if (!previa.ok) {
           setMensaje({ tipo: "error", texto: previa.error });
           return;
@@ -156,7 +168,7 @@ export function PortadaMediosPanel() {
       }
       aplicarEstado(r.estado);
       setAltNueva("");
-      setMensaje({ tipo: "ok", texto: destino.tipo === "video" ? "Video publicado en la portada." : "Imagen publicada en la portada." });
+      setMensaje({ tipo: "ok", texto: "Imagen publicada en la portada." });
     } catch (e) {
       setMensaje({ tipo: "error", texto: `No se pudo completar la subida. ${e instanceof Error ? e.message : ""}`.trim() });
     } finally {
@@ -297,23 +309,39 @@ export function PortadaMediosPanel() {
         </div>
       </section>
 
-      {/* ── Videos ───────────────────────────────────────────────────────── */}
+      {/* ── Oferta educativa ─────────────────────────────────────────────── */}
       <section className={TARJETA}>
-        <h2 className={TITULO_BLOQUE}>Video por carrera</h2>
+        <h2 className={TITULO_BLOQUE}>Oferta educativa</h2>
         <p className={`${NOTA} mt-1`}>
-          Uno por carrera. MP4 (o MOV de iPhone), <strong>horizontal 16:9</strong>, de hasta {MAX_DURACION_VIDEO_S / 60} minutos.
-          Procura no pasar de {enMB(RECOMENDADO_BYTES_VIDEO)}: cada reproducción completa consume ese peso del plan de Cloudinary.
+          Por cada carrera: el <strong>enlace de un video de YouTube o TikTok</strong> y un texto que la describa y diga su objetivo.
+          El video tiene que ser público (o «no listado» en YouTube) y permitir insertarse. La banda de la portada toma su forma:
+          horizontal 16:9 o vertical 9:16 (Shorts y TikTok). No consume el plan de Cloudinary.
         </p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+        {estado.faltaSqlCarreras && (
+          <p className="mt-3 rounded-xl border border-red-400/60 px-4 py-3 text-sm font-semibold text-red-300">
+            Falta ejecutar <code>supabase/crear-portada-carreras.sql</code> en el SQL Editor de Supabase. Hasta entonces no se pueden
+            guardar enlaces ni textos; la portada se sigue viendo como siempre.
+          </p>
+        )}
+        <div className="mt-4 grid gap-4 xl:grid-cols-2">
           {estado.carreras.map((c) => (
-            <VideoCarreraTarjeta
-              key={c.id}
+            <OfertaCarreraTarjeta
+              // La clave cambia con lo guardado: tras guardar, la tarjeta se
+              // rehace con lo que devolvió el servidor, no con lo que se tecleó.
+              key={`${c.id}|${c.video?.urlCanonica ?? ""}|${c.video?.formato ?? ""}|${c.descripcion ?? ""}`}
               carrera={c}
-              ocupado={ocupado}
-              onSubir={() => elegirArchivo({ tipo: "video", carreraId: c.id })}
-              onEliminar={() =>
-                c.video && eliminar(`del-${c.video.id}`, { id: c.video.id }, `¿Quitar el video de ${c.rotulo}?`, "Video quitado.")
+              bloqueado={ocupado !== null || estado.faltaSqlCarreras}
+              onGuardar={(entrada) =>
+                void ejecutar(`carrera-${c.id}`, () => actionGuardarCarreraPortada(entrada), `${c.rotulo}: guardado en la portada.`)
               }
+              onQuitarVideo={() => {
+                if (!window.confirm(`¿Quitar el video de ${c.rotulo}? El texto se conserva.`)) return;
+                void ejecutar(
+                  `carrera-${c.id}`,
+                  () => actionGuardarCarreraPortada({ carreraId: c.id, enlace: "", formato: null, descripcion: c.descripcion ?? "" }),
+                  "Video quitado.",
+                );
+              }}
             />
           ))}
         </div>
@@ -417,33 +445,112 @@ function PosicionCarrusel(p: {
   );
 }
 
-/* ── El video de una carrera ───────────────────────────────────────────── */
+/* ── El video y el texto de una carrera ─────────────────────────────── */
 
-function VideoCarreraTarjeta(p: {
+function OfertaCarreraTarjeta(p: {
   carrera: CarreraPortada;
-  ocupado: string | null;
-  onSubir: () => void;
-  onEliminar: () => void;
+  bloqueado: boolean;
+  onGuardar: (entrada: EntradaCarrera) => void;
+  onQuitarVideo: () => void;
 }) {
-  const v = p.carrera.video;
-  const bloqueado = p.ocupado !== null;
+  const guardado = p.carrera.video;
+  const [enlace, setEnlace] = useState(guardado?.urlCanonica ?? "");
+  const [formato, setFormato] = useState<FormatoVideo>(guardado?.formato ?? "horizontal");
+  const [descripcion, setDescripcion] = useState(p.carrera.descripcion ?? "");
+
+  // La MISMA regla que aplicará el servidor. Aquí solo sirve para avisar y
+  // para la vista previa: el servidor vuelve a analizar y además pregunta a la
+  // plataforma.
+  const analisis = enlace.trim() ? analizarEnlaceVideo(enlace) : null;
+  const hayVideo = analisis !== null && analisis.tipo !== "error";
+
+  const cambiarEnlace = (texto: string) => {
+    setEnlace(texto);
+    const a = texto.trim() ? analizarEnlaceVideo(texto) : null;
+    // El formato se propone con cada enlace nuevo; quien edita puede corregirlo.
+    if (a?.tipo === "video") setFormato(a.enlace.formatoSugerido);
+    if (a?.tipo === "corto-tiktok") setFormato("vertical");
+  };
+
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] p-3">
       <p className="text-sm font-bold text-[var(--oc-text)]">{p.carrera.rotulo}</p>
-      {v ? (
-        <video src={v.url} poster={v.poster} controls preload="none" playsInline className="aspect-video w-full rounded-lg bg-black" />
-      ) : (
-        <div className="flex aspect-video w-full items-center justify-center rounded-lg border border-dashed border-[var(--oc-border)] text-[10px] font-bold uppercase text-[var(--oc-muted)]">
-          Sin video: en la portada solo se verá el nombre de la carrera
-        </div>
+
+      <label className="text-[10px] font-bold uppercase tracking-wide text-[var(--oc-muted)]">
+        Enlace del video (YouTube o TikTok)
+        <input
+          className={`${ENTRADA} mt-1`}
+          value={enlace}
+          maxLength={MAX_LARGO_ENLACE_VIDEO}
+          placeholder="https://www.youtube.com/watch?v=… · https://www.tiktok.com/@cuenta/video/…"
+          onChange={(e) => cambiarEnlace(e.target.value)}
+        />
+      </label>
+      {analisis && (
+        <p className={`text-xs ${analisis.tipo === "error" ? "text-red-300" : "text-[var(--oc-muted)]"}`}>
+          {analisis.tipo === "error"
+            ? analisis.error
+            : analisis.tipo === "corto-tiktok"
+              ? "Enlace corto de TikTok: se comprobará al guardar."
+              : describirEnlace(analisis.enlace)}
+        </p>
       )}
+
+      {hayVideo && (
+        <label className="text-[10px] font-bold uppercase tracking-wide text-[var(--oc-muted)]">
+          Formato de la banda
+          <select className={`${ENTRADA} mt-1`} value={formato} onChange={(e) => setFormato(e.target.value as FormatoVideo)}>
+            {FORMATOS_BANDA.map((f) => (
+              <option key={f} value={f}>
+                {ETIQUETA_FORMATO[f]}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {analisis?.tipo === "video" ? (
+        <VideoIncrustado
+          src={urlInsercionVideo(analisis.enlace.plataforma, analisis.enlace.id)}
+          formato={formato}
+          titulo={`Vista previa del video de ${p.carrera.rotulo}`}
+          className="mx-auto rounded-lg"
+        />
+      ) : (
+        !analisis && (
+          <div className="flex aspect-video w-full items-center justify-center rounded-lg border border-dashed border-[var(--oc-border)] p-3 text-center text-[10px] font-bold uppercase text-[var(--oc-muted)]">
+            Sin video: en la portada solo se verá el nombre de la carrera{descripcion.trim() ? " y su texto" : ""}
+          </div>
+        )
+      )}
+
+      <label className="text-[10px] font-bold uppercase tracking-wide text-[var(--oc-muted)]">
+        Descripción de la carrera y su objetivo
+        <textarea
+          className={`${ENTRADA} mt-1 resize-y normal-case tracking-normal`}
+          rows={5}
+          value={descripcion}
+          maxLength={MAX_LARGO_DESCRIPCION_CARRERA}
+          placeholder={"Ej.: Formamos técnicos que diseñan, instalan y mantienen sistemas automatizados.\nObjetivo: …"}
+          onChange={(e) => setDescripcion(e.target.value)}
+        />
+      </label>
+      <p className={`${NOTA} -mt-2 text-right`}>
+        {descripcion.length} / {MAX_LARGO_DESCRIPCION_CARRERA}
+      </p>
+
       <div className="flex flex-wrap gap-2">
-        <button type="button" className={BTN_PRIMARIO} disabled={bloqueado} onClick={p.onSubir}>
-          {v ? "Reemplazar video" : "Subir video"}
+        <button
+          type="button"
+          className={BTN_PRIMARIO}
+          disabled={p.bloqueado || analisis?.tipo === "error"}
+          onClick={() => p.onGuardar({ carreraId: p.carrera.id, enlace, formato: hayVideo ? formato : null, descripcion })}
+        >
+          Guardar
         </button>
-        {v && (
-          <button type="button" className={BTN_PELIGRO} disabled={bloqueado} onClick={p.onEliminar}>
-            Quitar
+        {guardado && (
+          <button type="button" className={BTN_PELIGRO} disabled={p.bloqueado} onClick={p.onQuitarVideo}>
+            Quitar video
           </button>
         )}
       </div>

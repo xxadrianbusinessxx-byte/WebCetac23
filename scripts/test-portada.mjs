@@ -2,10 +2,12 @@
 /**
  * test-portada.mjs — suite pura de `lib/escolar/portada/portada-puro.ts`.
  *
- * QUÉ MIDE: las reglas de la portada administrable — qué imagen o video es
- *           válido, el orden del carrusel, los rótulos de carrera, los
- *           identificadores de Cloudinary y los ajustes de contacto.
- * QUÉ ESCRIBE: nada. Carga el `.ts` directamente. No toca la base ni la red.
+ * QUÉ MIDE: las reglas de la portada administrable — qué imagen es válida, el
+ *           orden del carrusel, los rótulos de carrera, los identificadores de
+ *           Cloudinary, los ajustes de contacto y (PROMPT U) qué enlace de
+ *           YouTube o TikTok se acepta como video de una carrera.
+ * QUÉ ESCRIBE: nada. Carga el `.ts` directamente y lee un `.sql` del repo. No
+ *              toca la base ni la red.
  * CÓMO SE EJECUTA: node scripts/test-portada.mjs
  *
  * ── Por qué importa ────────────────────────────────────────────────────────
@@ -121,7 +123,10 @@ ok("imagen en la posición 6 → no", !P.validarDestino({ tipo: "imagen", varian
 ok("imagen en la posición 0 → no", !P.validarDestino({ tipo: "imagen", variante: "escritorio", orden: 0 }).ok);
 ok("imagen en la posición 2,5 → no", !P.validarDestino({ tipo: "imagen", variante: "escritorio", orden: 2.5 }).ok);
 ok("imagen ligada a una carrera → no", !P.validarDestino({ tipo: "imagen", variante: "escritorio", orden: 1, carreraId: MEC }).ok);
-ok("video de una carrera", P.validarDestino({ tipo: "video", carreraId: MEC }).ok);
+// PROMPT U: el video de una carrera ya no se SUBE; es un enlace. El destino
+// «video» se cierra aquí, que es el primer paso de la firma y del registro.
+ok("video de una carrera → ya no se sube", !P.validarDestino({ tipo: "video", carreraId: MEC }).ok);
+eq(P.validarDestino({ tipo: "video", carreraId: MEC }), { ok: false, error: P.VIDEO_YA_NO_SE_SUBE }, "…y dice que se pegue el enlace");
 ok("video sin carrera → no", !P.validarDestino({ tipo: "video" }).ok);
 ok("video con posición → no", !P.validarDestino({ tipo: "video", carreraId: MEC, orden: 1 }).ok);
 ok("video con variante móvil → no", !P.validarDestino({ tipo: "video", carreraId: MEC, variante: "movil" }).ok);
@@ -166,6 +171,112 @@ ok("un subdominio falso no engaña (tiktok.com.malo.mx)", !P.validarAjuste("tikt
 eq(P.enlaceWhatsApp("442 123 4567"), "https://wa.me/524421234567", "10 dígitos → se antepone 52 (México)");
 eq(P.enlaceWhatsApp("+52 1 442 123 4567"), "https://wa.me/5214421234567", "con código de país se respeta");
 eq(P.enlaceWhatsApp("123"), null, "demasiado corto → sin enlace");
+
+/* ── Videos por enlace (PROMPT U) ──────────────────────────────────────── */
+console.log("\nvideos por enlace — YouTube y TikTok");
+const YT = "dQw4w9WgXcQ";
+const TT = "6718335390845095173";
+const video = (texto) => {
+  const a = P.analizarEnlaceVideo(texto);
+  return a.tipo === "video" ? a.enlace : null;
+};
+const canonicaYT = `https://www.youtube.com/watch?v=${YT}`;
+const formasYT = [
+  `https://www.youtube.com/watch?v=${YT}`,
+  `https://www.youtube.com/watch?v=${YT}&t=30s&list=PL1`,
+  `https://youtu.be/${YT}?si=abcDEF`,
+  `youtu.be/${YT}`,
+  `www.youtube.com/watch?v=${YT}`,
+  `http://m.youtube.com/watch?v=${YT}`,
+  `https://www.youtube.com/embed/${YT}`,
+  `https://www.youtube.com/live/${YT}`,
+  `https://www.youtube-nocookie.com/embed/${YT}`,
+  `  https://youtu.be/${YT}  `,
+];
+for (const f of formasYT) {
+  const e = video(f);
+  ok(`YouTube «${f.trim().slice(0, 44)}» → canónica horizontal`, e?.urlCanonica === canonicaYT && e.formatoSugerido === "horizontal" && e.id === YT);
+}
+const short = video(`https://youtube.com/shorts/${YT}?feature=share`);
+eq(short && [short.urlCanonica, short.formatoSugerido], [`https://www.youtube.com/shorts/${YT}`, "vertical"], "un Short es VERTICAL y conserva /shorts/");
+const tt = video(`https://www.tiktok.com/@cetac.23/video/${TT}?is_from_webapp=1&sender_device=pc`);
+eq(tt && [tt.plataforma, tt.urlCanonica, tt.formatoSugerido], ["tiktok", `https://www.tiktok.com/@cetac.23/video/${TT}`, "vertical"], "TikTok completo → canónica sin parámetros, vertical");
+eq(video(`https://m.tiktok.com/@cetac23/video/${TT}`)?.urlCanonica, `https://www.tiktok.com/@cetac23/video/${TT}`, "TikTok desde m. → canónica www");
+
+for (const corto of ["https://vm.tiktok.com/ZMabc123/", "vt.tiktok.com/ZSxyz9", "https://www.tiktok.com/t/ZTabc12/"]) {
+  eq(P.analizarEnlaceVideo(corto).tipo, "corto-tiktok", `enlace corto «${corto}» → hay que seguirlo`);
+}
+
+const malos = [
+  ["", "vacío"],
+  ["   ", "solo espacios"],
+  [`https://www.youtube.com/watch?v=${YT.slice(0, 10)}`, "id de 10 caracteres"],
+  [`https://www.youtube.com/watch?v=${YT}X`, "id de 12 caracteres"],
+  [`https://www.youtube.com/watch?v=${YT.slice(0, 10)}!`, "id con un carácter no permitido"],
+  ["https://www.youtube.com/@cetac23", "un canal"],
+  ["https://www.youtube.com/playlist?list=PL123", "una lista sin video"],
+  [`https://youtu.be/${YT}/otra`, "youtu.be con ruta de más"],
+  [`https://youtube.com.evil.com/watch?v=${YT}`, "subdominio falso"],
+  [`https://youtube.com@evil.com/watch?v=${YT}`, "usuario@host falso"],
+  ["https://evil.com/?u=youtube.com", "YouTube solo en la consulta"],
+  [`https://music.youtube.com/watch?v=${YT}`, "otro servicio de Google"],
+  ["https://vimeo.com/123456", "otra plataforma"],
+  ["javascript:alert(1)", "javascript:"],
+  [`data:text/html,https://youtu.be/${YT}`, "data:"],
+  [`ftp://youtu.be/${YT}`, "ftp:"],
+  [`https://www.tiktok.com/@cetac23/photo/${TT}`, "una publicación de fotos de TikTok"],
+  ["https://www.tiktok.com/@cetac23", "un perfil de TikTok"],
+  [`https://www.tiktok.com/@cetac23/video/123`, "id de TikTok demasiado corto"],
+  [`https://www.tiktok.com/@ce/tac/video/${TT}`, "ruta de TikTok de más"],
+  ["https://vm.tiktok.com/", "enlace corto sin código"],
+  [`https://youtu.be/${"a".repeat(P.MAX_LARGO_ENLACE_VIDEO)}`, `más de ${P.MAX_LARGO_ENLACE_VIDEO} caracteres`],
+];
+for (const [texto, nombre] of malos) {
+  const a = P.analizarEnlaceVideo(texto);
+  ok(`${nombre} → error con mensaje`, a.tipo === "error" && a.error.length > 10, `→ ${JSON.stringify(a)}`);
+}
+ok("la foto de TikTok dice que es una foto", P.analizarEnlaceVideo(`https://www.tiktok.com/@a/photo/${TT}`).error?.includes("fotos"));
+
+// Ida y vuelta: toda canónica se vuelve a leer igual (la lectura de la portada depende de ello).
+for (const e of [video(canonicaYT), short, tt]) {
+  eq(P.leerEnlaceGuardado(e.urlCanonica), e, `la canónica «${e.urlCanonica.slice(8, 40)}…» se relee igual`);
+}
+eq(P.leerEnlaceGuardado(`https://youtu.be/${YT}`), null, "una URL guardada que NO es canónica no se muestra");
+eq(P.leerEnlaceGuardado(null), null, "sin URL → sin video");
+
+eq(P.urlInsercionVideo("youtube", YT), `https://www.youtube-nocookie.com/embed/${YT}?rel=0&playsinline=1`, "reproductor de YouTube (sin cookies)");
+eq(P.urlInsercionVideo("tiktok", TT), `https://www.tiktok.com/player/v1/${TT}?rel=0&description=0&music_info=0`, "reproductor oficial de TikTok");
+ok("el src nunca lleva lo que no sea el id", !P.urlInsercionVideo("youtube", "a/../b?x").includes("/../"));
+
+eq(P.describirEnlace(video(canonicaYT)), "YouTube · horizontal 16:9", "rótulo de un video de YouTube");
+eq(P.describirEnlace(short), "YouTube Shorts · vertical 9:16", "rótulo de un Short");
+eq(P.describirEnlace(tt), "TikTok · vertical 9:16", "rótulo de un TikTok");
+eq(P.PROPORCION_VIDEO, { horizontal: 16 / 9, vertical: 9 / 16 }, "la banda: 16:9 o 9:16");
+
+// Respuesta del oEmbed. Medido el 2026-10-01: YouTube y TikTok contestan 400
+// (no 404) a un id que no existe; 401 es «el dueño no permite insertarlo».
+ok("oEmbed 200 → se puede insertar", P.interpretarRespuestaOembed("youtube", 200).ok);
+ok("oEmbed 401 → no permite insertarse", P.interpretarRespuestaOembed("youtube", 401).error?.includes("Permitir insertar"));
+ok("oEmbed 401 en TikTok → su propio consejo", P.interpretarRespuestaOembed("tiktok", 401).error?.includes("TikTok"));
+for (const st of [400, 403, 404]) {
+  ok(`oEmbed ${st} → no existe o es privado`, P.interpretarRespuestaOembed("youtube", st).error?.includes("privado"));
+}
+for (const st of [0, 500, 429]) {
+  ok(`oEmbed ${st} → no se pudo comprobar (reintentar)`, P.interpretarRespuestaOembed("tiktok", st).error?.includes("Inténtalo"));
+}
+
+// Una sola fuente para los topes: el CHECK del .sql y el puro dicen lo mismo.
+const fs = await import("node:fs");
+const sql = fs.readFileSync(new URL("../supabase/crear-portada-carreras.sql", import.meta.url), "utf8");
+ok(`el .sql limita el enlace a ${P.MAX_LARGO_ENLACE_VIDEO} como el puro`, sql.includes(`char_length(video_url) <= ${P.MAX_LARGO_ENLACE_VIDEO}`));
+ok(
+  `el .sql limita el texto a ${P.MAX_LARGO_DESCRIPCION_CARRERA} como el puro`,
+  sql.includes(`char_length(descripcion) between 1 and ${P.MAX_LARGO_DESCRIPCION_CARRERA}`),
+);
+ok("el .sql admite exactamente los dos formatos del puro", sql.includes(`video_formato in (${P.FORMATOS_BANDA.map((f) => `'${f}'`).join(", ")})`));
+for (const e of [video(canonicaYT), short, tt]) {
+  ok(`la canónica «${e.urlCanonica.slice(8, 30)}…» cumple el CHECK del .sql`, /^https:\/\/www\.(youtube|tiktok)\.com\//.test(e.urlCanonica));
+}
 
 console.log(`\nResultado: ${pasadas + fallos} verificaciones · ${pasadas} pasadas, ${fallos} fallidas`);
 if (fallos > 0) process.exit(1);

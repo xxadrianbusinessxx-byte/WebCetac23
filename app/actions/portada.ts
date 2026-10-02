@@ -23,16 +23,23 @@ import { createClient } from "@/lib/supabase/server";
 import { leerEntrada } from "@/lib/validacion/leer-form-data";
 import {
   esquemaAjustesPortada,
+  esquemaCarreraPortada,
   esquemaEliminarPortada,
   esquemaFirmarPortada,
   esquemaRegistrarPortada,
   esquemaReordenarPortada,
 } from "@/lib/validacion/esquemas-puro";
-import { CLAVES_AJUSTE, MAX_IMAGENES } from "@/lib/escolar/portada/portada-puro";
+import {
+  CLAVES_AJUSTE,
+  MAX_IMAGENES,
+  MAX_LARGO_DESCRIPCION_CARRERA,
+  MAX_LARGO_ENLACE_VIDEO,
+} from "@/lib/escolar/portada/portada-puro";
 import {
   cargarPortada,
   eliminarMedio,
   guardarAjustes,
+  guardarCarreraPortada,
   prepararSubida,
   registrarMedio,
   reordenarImagenes,
@@ -124,5 +131,32 @@ export async function actionGuardarAjustesPortada(entrada: unknown): Promise<Con
   } catch (x) {
     console.error("[portada] ajustes", x);
     return { ok: false, error: "No se pudieron guardar los ajustes." };
+  }
+}
+
+/**
+ * El video (enlace de YouTube o TikTok) y el texto de una carrera (PROMPT U). Un
+ * enlace vacío quita el video; un texto vacío quita el texto. Antes de guardar,
+ * el servidor pregunta a la plataforma si el video existe y se puede insertar.
+ */
+export async function actionGuardarCarreraPortada(entrada: unknown): Promise<ConEstado> {
+  const g = await exigir("noticia.publicar");
+  if (!g.ok) return { ok: false, error: SIN_PERMISO };
+  const e = leerEntrada(esquemaCarreraPortada(MAX_LARGO_ENLACE_VIDEO, MAX_LARGO_DESCRIPCION_CARRERA), entrada);
+  if (!e.ok) return e;
+  try {
+    return await guardarCarreraPortada(
+      await createClient(),
+      {
+        carreraId: e.datos.carreraId,
+        enlace: e.datos.enlace,
+        formato: e.datos.formato ?? null,
+        descripcion: e.datos.descripcion,
+      },
+      g.sesion?.profesorId ?? null,
+    );
+  } catch (x) {
+    console.error("[portada] carrera", x);
+    return { ok: false, error: "No se pudo guardar. Inténtalo de nuevo." };
   }
 }

@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { unstable_rethrow } from "next/navigation";
 import { PortadaCarrusel } from "@/app/components/portada-carrusel";
+import { VideoIncrustado } from "@/app/components/ui/video-incrustado";
 import { CARPETA_DECORACIONES_PUBLIC } from "@/lib/decoraciones/config";
 import { leerPortadaPublica, type CarreraPortada, type PortadaPublica } from "@/lib/escolar/portada/portada";
 import { ROTULOS_CARRERA } from "@/lib/escolar/portada/portada-puro";
@@ -18,13 +19,19 @@ export const metadata = {
  *
  * Es PÚBLICA: no consulta la sesión y no exige ninguna capacidad. Lo que cambia
  * de ella lo administran dirección y el técnico en «Configuración → Video e
- * imágenes» (`portada-medios-panel.tsx`): las imágenes del carrusel, un video por
- * carrera y los enlaces de contacto. Todo llega en UNA lectura,
+ * imágenes» (`portada-medios-panel.tsx`): las imágenes del carrusel, el video y
+ * el texto de cada carrera y los enlaces de contacto. Todo llega en UNA lectura,
  * `leerPortadaPublica`.
+ *
+ * ── La banda de cada carrera (PROMPT U, 2026-10-01) ────────────────────────
+ * El video es un ENLACE de YouTube o TikTok y se ve con su reproductor. La banda
+ * se adapta a él: horizontal 16:9 o vertical 9:16. Al lado va el texto que
+ * describe la carrera; en pantalla ancha, las bandas alternan el lado del video
+ * como alternan sus dos azules.
  *
  * ── Nunca se rompe ─────────────────────────────────────────────────────────
  * Si esa lectura falla, la portada se pinta igual con lo fijo: la portada
- * institucional, las dos carreras sin video y el pie sin enlaces. Una portada
+ * institucional, las dos carreras sin video ni texto y el pie sin enlaces. Una portada
  * en blanco por un fallo de la base es peor que una sin novedades.
  *
  * ── Sin imágenes subidas ───────────────────────────────────────────────────
@@ -54,12 +61,13 @@ const VALORES = [
 const DIRECCION_POR_DEFECTO =
   "Avenida Villas de la Piedad, La Piedad, San Miguel Colorado, 76246 La Cañada, QRO, México";
 
-/** Si la base no responde, las carreras que la escuela imparte, sin video. */
+/** Si la base no responde, las carreras que la escuela imparte, sin video ni texto. */
 const CARRERAS_RESPALDO: CarreraPortada[] = Object.entries(ROTULOS_CARRERA).map(([clave, rotulo]) => ({
   id: clave,
   clave,
   rotulo,
   video: null,
+  descripcion: null,
 }));
 
 /** Las bandas del frame alternan estos dos azules. */
@@ -124,6 +132,40 @@ function IconoRedPortada({ red, tamano }: { red: Red; tamano: number }) {
         style={red.escala ? { transform: `scale(${red.escala})` } : undefined}
       />
     </a>
+  );
+}
+
+/**
+ * Lo de debajo del título de una carrera: video, texto, los dos o nada. La caja
+ * del video tiene la proporción del video (la banda se adapta a él); el texto
+ * ocupa lo que queda. En pantalla ancha, `aLaDerecha` pone el video del otro lado.
+ */
+function CuerpoCarrera({ carrera, aLaDerecha }: { carrera: CarreraPortada; aLaDerecha: boolean }) {
+  const { video, descripcion, rotulo } = carrera;
+  const texto = descripcion ? (
+    <p className="max-w-3xl self-center whitespace-pre-line text-base leading-relaxed sm:text-lg">{descripcion}</p>
+  ) : null;
+  if (!video) return texto ? <div className="mt-3">{texto}</div> : null;
+
+  const vertical = video.formato === "vertical";
+  const reproductor = (
+    <VideoIncrustado
+      src={video.urlInsercion}
+      formato={video.formato}
+      titulo={`Video de ${rotulo}`}
+      className={vertical ? "mx-auto shrink-0 lg:mx-0 lg:w-[340px]" : ""}
+    />
+  );
+  if (!texto) {
+    return <div className={`mt-3 ${vertical ? "" : "lg:w-[72%]"}`}>{reproductor}</div>;
+  }
+  return (
+    <div
+      className={`mt-3 flex flex-col gap-5 lg:items-center lg:gap-10 ${aLaDerecha ? "lg:flex-row-reverse" : "lg:flex-row"}`}
+    >
+      <div className={vertical ? "w-full lg:w-auto" : "w-full lg:w-3/5 lg:shrink-0"}>{reproductor}</div>
+      {texto}
+    </div>
   );
 }
 
@@ -206,7 +248,7 @@ export default async function Home() {
       <main className="flex-1">
         {imagenes.length > 0 ? <PortadaCarrusel imagenes={imagenes} /> : <PortadaInstitucional />}
 
-        {/* Oferta educativa: una banda a sangre por carrera, con su video 16:9. */}
+        {/* Oferta educativa: una banda a sangre por carrera, con su video y su texto. */}
         <section id="oferta" aria-label="Oferta educativa" className="scroll-mt-4">
           {carreras.map((c, i) => (
             <div
@@ -215,19 +257,7 @@ export default async function Home() {
               style={{ background: FONDOS_CARRERA[i % FONDOS_CARRERA.length] }}
             >
               <h2 className="text-3xl font-medium tracking-tight sm:text-5xl">{c.rotulo}</h2>
-              {c.video && (
-                <video
-                  controls
-                  preload="none"
-                  playsInline
-                  poster={c.video.poster}
-                  aria-label={`Video de ${c.rotulo}`}
-                  className="mt-3 aspect-video w-full bg-[var(--oc-navy)] lg:w-[72%]"
-                >
-                  <source src={c.video.url} />
-                  Tu navegador no puede reproducir este video.
-                </video>
-              )}
+              <CuerpoCarrera carrera={c} aLaDerecha={i % 2 === 1} />
             </div>
           ))}
         </section>

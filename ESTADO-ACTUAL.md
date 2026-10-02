@@ -6,8 +6,8 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-10-01 (circuito de justificantes: padre → profesor por materia / directivo día completo)
-- **HEAD:** `9f171cd` (2026-10-01) · árbol limpio
+- **Última revisión:** 2026-10-01 (PROMPT U: videos de carrera por enlace; «Alumnos / Tutores» del directivo)
+- **HEAD:** `f45986d` (2026-10-01) · árbol limpio
 
 ---
 
@@ -18,8 +18,8 @@ Portal escolar del CETAC 23. Roles: **alumno**, **profesor** (rol `maestro`),
 la única que acepta solicitudes de constancia de estudios).
 Next.js 16.2.6 · React 19.2.4 · Supabase (PostgREST + Storage) · Cloudinary · SheetJS.
 
-La raíz `/` es una **portada pública** (no consulta la sesión) y administrable: carrusel,
-videos por carrera y contactos, editables desde «Configuración → Video e imágenes».
+La raíz `/` es una **portada pública** (no consulta la sesión) y administrable: carrusel, el video de cada carrera
+(enlace de YouTube o TikTok, `portada_carreras`) con su texto, y contactos; en «Configuración → Video e imágenes».
 
 **No hay REST API propia.** No existe `app/api/`. Todo el transporte navegador→servidor
 son Server Actions. Detalle completo en `docs/sistema/FLUJO-TECNICO.md`.

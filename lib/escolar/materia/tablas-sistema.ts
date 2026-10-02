@@ -54,6 +54,7 @@ import {
   TABLA_PERIODOS_EVALUACION,
   TABLA_PERMISOS_CARPETAS,
   TABLA_PORTADA_AJUSTES,
+  TABLA_PORTADA_CARRERAS,
   TABLA_PORTADA_MEDIOS,
   TABLA_PROFESORES,
   TABLA_REPORTES_ALUMNO,
@@ -119,6 +120,8 @@ export const TABLAS_SISTEMA: readonly string[] = [
   // Portada pública (PROMPT L).
   TABLA_PORTADA_MEDIOS,
   TABLA_PORTADA_AJUSTES,
+  // El video y el texto de cada carrera (PROMPT U).
+  TABLA_PORTADA_CARRERAS,
   // Migración Opción B (2026-09-30). C15 la cazó en cuanto nació el .sql, que
   // es exactamente para lo que esa regla existe.
   TABLA_CALIFICACIONES,

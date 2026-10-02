@@ -15,29 +15,49 @@ import "server-only";
  *
  * Entre 1 y 3 pueden pasar minutos y otra persona puede haber cambiado algo, así
  * que el destino se comprueba OTRA VEZ al registrar (`comprobarDestino`).
+ *
+ * ── El video de cada carrera (PROMPT U, 2026-10-01) ────────────────────────
+ * Ya no es un archivo: es un ENLACE de YouTube o TikTok guardado en
+ * `portada_carreras` junto con el texto de la carrera (`guardarCarreraPortada`).
+ * Antes de guardarlo se comprueba contra la plataforma (oEmbed), igual que una
+ * imagen se comprueba contra Cloudinary: la validación del navegador avisa; la
+ * que manda es esta.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { TABLA_CARRERAS, TABLA_PORTADA_AJUSTES, TABLA_PORTADA_MEDIOS } from "../tables.ts";
+import {
+  TABLA_CARRERAS,
+  TABLA_PORTADA_AJUSTES,
+  TABLA_PORTADA_CARRERAS,
+  TABLA_PORTADA_MEDIOS,
+} from "../tables.ts";
 import { urlCloudinaryDesdePublicId } from "../../cloudinary/urls.ts";
 import { borrarRecurso, firmarSubida, leerRecurso, type FirmaSubida } from "../../cloudinary/firma.ts";
+import { consultarOembed, resolverEnlaceCortoTikTok } from "../../oembed/oembed.ts";
 import {
   AJUSTES_PORTADA,
   TRANSFORMACION,
+  analizarEnlaceVideo,
   enlaceWhatsApp,
   esClaveAjuste,
   esPermutacion,
+  interpretarRespuestaOembed,
+  leerEnlaceGuardado,
   normalizarWhatsApp,
   ordenPermitidoParaSubir,
   ordenTrasEliminar,
   publicIdCorrespondeA,
   publicIdNuevo,
   rotuloCarrera,
+  urlInsercionVideo,
   validarAjuste,
   validarDestino,
   validarImagen,
   validarVideo,
   type ClaveAjuste,
   type Destino,
+  type EnlaceVideo,
+  type FormatoVideo,
+  type PlataformaVideo,
   type TipoMedio,
 } from "./portada-puro.ts";
 
@@ -72,19 +92,21 @@ export type ImagenPortada = {
   bytes: number | null;
 };
 
-export type VideoPortada = {
-  id: string;
-  url: string;
-  poster: string;
-  duracion_s: number | null;
-  bytes: number | null;
+/** El video de una carrera, listo para pintar: `urlInsercion` es el `src` del reproductor. */
+export type VideoCarrera = {
+  plataforma: PlataformaVideo;
+  formato: FormatoVideo;
+  urlCanonica: string;
+  urlInsercion: string;
 };
 
 export type CarreraPortada = {
   id: string;
   clave: string;
   rotulo: string;
-  video: VideoPortada | null;
+  video: VideoCarrera | null;
+  /** Texto lateral de la banda: qué es la carrera y su objetivo. */
+  descripcion: string | null;
 };
 
 export type AjustesPortada = Partial<Record<ClaveAjuste, string>>;
@@ -93,6 +115,18 @@ export type EstadoPortada = {
   imagenes: ImagenPortada[];
   carreras: CarreraPortada[];
   ajustes: AjustesPortada;
+  /**
+   * `true` mientras no se haya ejecutado `supabase/crear-portada-carreras.sql`.
+   * La portada se pinta igual —sin videos ni textos— y el panel lo avisa.
+   */
+  faltaSqlCarreras: boolean;
+};
+
+type FilaCarreraPortada = {
+  carrera_id: string;
+  video_url: string | null;
+  video_formato: FormatoVideo | null;
+  descripcion: string | null;
 };
 
 /** Lo que pinta la portada pública: el estado más los enlaces ya construidos. */
@@ -129,42 +163,67 @@ function aImagen(f: FilaMedio): ImagenPortada {
   };
 }
 
-function aVideo(f: FilaMedio): VideoPortada {
+/**
+ * El video guardado de una carrera, o `null`. Una URL que el puro no reconozca
+ * como canónica no la escribió el servidor: se avisa y no se muestra. Nunca
+ * lanza, porque la portada es pública.
+ */
+function aVideoCarrera(f: FilaCarreraPortada): VideoCarrera | null {
+  if (!f.video_url) return null;
+  const enlace = leerEnlaceGuardado(f.video_url);
+  if (!enlace || !f.video_formato) {
+    console.warn("[portada] video de carrera ilegible, no se muestra:", f.carrera_id, f.video_url);
+    return null;
+  }
   return {
-    id: f.id,
-    url: urlCloudinaryDesdePublicId(f.public_id, TRANSFORMACION.video, { version: f.version, tipo: "video" }),
-    poster: urlCloudinaryDesdePublicId(f.public_id, TRANSFORMACION.poster, { version: f.version, tipo: "video" }),
-    duracion_s: f.duracion_s,
-    bytes: f.bytes,
+    plataforma: enlace.plataforma,
+    formato: f.video_formato,
+    urlCanonica: enlace.urlCanonica,
+    urlInsercion: urlInsercionVideo(enlace.plataforma, enlace.id),
   };
 }
 
+/** PostgREST no conoce la tabla: el `.sql` todavía no se ejecutó. */
+const TABLA_INEXISTENTE = "PGRST205";
+
 /**
- * Todo lo de la portada en UNA ida: medios, carreras activas y ajustes, en
- * paralelo. La usan el panel de administración y la portada pública.
+ * Todo lo de la portada en UNA ida: medios, carreras activas, el video y el
+ * texto de cada carrera, y ajustes, en paralelo. La usan el panel de
+ * administración y la portada pública.
+ *
+ * Las filas `tipo = 'video'` de `portada_medios` ya NO se leen (PROMPT U): el
+ * video de una carrera vive en `portada_carreras`. Medido el 2026-10-01: había 0.
  */
 export async function cargarPortada(supabase: SupabaseClient): Promise<EstadoPortada> {
-  const [medios, carreras, ajustes] = await Promise.all([
+  const [medios, carreras, ajustes, porCarrera] = await Promise.all([
     supabase.from(TABLA_PORTADA_MEDIOS).select("*").order("orden", { ascending: true, nullsFirst: false }),
     supabase.from(TABLA_CARRERAS).select("id, clave, nombre").eq("activo", true).order("nombre"),
     supabase.from(TABLA_PORTADA_AJUSTES).select("clave, valor"),
+    supabase.from(TABLA_PORTADA_CARRERAS).select("carrera_id, video_url, video_formato, descripcion"),
   ]);
-  if (medios.error || carreras.error || ajustes.error) {
-    console.error("[portada] cargarPortada", medios.error ?? carreras.error ?? ajustes.error);
+  // Sin `portada_carreras` (SQL sin ejecutar) la portada se pinta igual: lo que
+  // se pierde son videos y textos, no el carrusel.
+  const faltaSqlCarreras = porCarrera.error?.code === TABLA_INEXISTENTE;
+  const errorCarreras = faltaSqlCarreras ? null : porCarrera.error;
+  if (medios.error || carreras.error || ajustes.error || errorCarreras) {
+    console.error("[portada] cargarPortada", medios.error ?? carreras.error ?? ajustes.error ?? errorCarreras);
     throw new Error(ERROR_BASE);
   }
   const filas = (medios.data ?? []) as FilaMedio[];
-  const videoDe = new Map(filas.filter((f) => f.tipo === "video").map((f) => [f.carrera_id, f]));
+  const filaDe = new Map(
+    ((faltaSqlCarreras ? [] : porCarrera.data) ?? []).map((f) => [f.carrera_id as string, f as FilaCarreraPortada]),
+  );
 
   return {
     imagenes: filas.filter((f) => f.tipo === "imagen").map(aImagen),
     carreras: (carreras.data ?? []).map((c) => {
-      const v = videoDe.get(c.id as string);
+      const f = filaDe.get(c.id as string);
       return {
         id: c.id as string,
         clave: String(c.clave ?? ""),
         rotulo: rotuloCarrera(c.clave as string | null, c.nombre as string | null),
-        video: v ? aVideo(v) : null,
+        video: f ? aVideoCarrera(f) : null,
+        descripcion: f?.descripcion?.trim() || null,
       };
     }),
     ajustes: Object.fromEntries(
@@ -172,6 +231,7 @@ export async function cargarPortada(supabase: SupabaseClient): Promise<EstadoPor
         .filter((a) => esClaveAjuste(String(a.clave)))
         .map((a) => [a.clave, String(a.valor ?? "")]),
     ) as AjustesPortada,
+    faltaSqlCarreras,
   };
 }
 
@@ -205,6 +265,21 @@ async function filasImagen(supabase: SupabaseClient): Promise<FilaMedio[]> {
   return (data ?? []) as FilaMedio[];
 }
 
+/** ¿Existe esta carrera y está activa? La portada solo muestra las activas. */
+async function comprobarCarreraActiva(
+  supabase: SupabaseClient,
+  carreraId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: carrera, error } = await supabase
+    .from(TABLA_CARRERAS)
+    .select("id, activo")
+    .eq("id", carreraId)
+    .maybeSingle();
+  if (error) return { ok: false, error: ERROR_BASE };
+  if (!carrera || carrera.activo !== true) return { ok: false, error: "Esa carrera no existe o no está activa." };
+  return { ok: true };
+}
+
 /**
  * ¿Se puede escribir en este destino AHORA? Las reglas de forma son del puro
  * (`validarDestino`); aquí se añaden las que necesitan mirar la base.
@@ -216,14 +291,11 @@ async function comprobarDestino(
   const forma = validarDestino(d);
   if (!forma.ok) return forma;
 
+  // Inalcanzable desde el PROMPT U: `validarDestino` rechaza `video`. Se conserva
+  // hasta retirar el camino de Cloudinary para video en su propio cambio.
   if (d.tipo === "video") {
-    const { data: carrera, error } = await supabase
-      .from(TABLA_CARRERAS)
-      .select("id, activo")
-      .eq("id", d.carreraId!)
-      .maybeSingle();
-    if (error) return { ok: false, error: ERROR_BASE };
-    if (!carrera || carrera.activo !== true) return { ok: false, error: "Esa carrera no existe o no está activa." };
+    const carrera = await comprobarCarreraActiva(supabase, d.carreraId!);
+    if (!carrera.ok) return carrera;
     const { data: previo } = await supabase
       .from(TABLA_PORTADA_MEDIOS)
       .select("*")
@@ -266,6 +338,11 @@ export async function prepararSubida(
 
 export type EntradaRegistro = Destino & { public_id: string; textoAlt?: string | null };
 
+/**
+ * Las ramas de VIDEO de esta función son inalcanzables desde el PROMPT U:
+ * `comprobarDestino` → `validarDestino` rechaza `tipo: "video"` antes. Se
+ * conservan hasta retirar ese camino en su propio cambio.
+ */
 export async function registrarMedio(
   supabase: SupabaseClient,
   e: EntradaRegistro,
@@ -482,6 +559,87 @@ export async function guardarAjustes(
   if (borrar.length) {
     const { error } = await supabase.from(TABLA_PORTADA_AJUSTES).delete().in("clave", borrar);
     if (error) return { ok: false, error: "No se pudieron quitar algunos ajustes." };
+  }
+  return { ok: true, estado: await cargarPortada(supabase) };
+}
+
+/* ── El video y el texto de cada carrera (PROMPT U) ─────────────────────── */
+
+export type EntradaCarreraPortada = {
+  carreraId: string;
+  /** Vacío = sin video. */
+  enlace: string;
+  /** `null` = el que sugiere el enlace. */
+  formato: FormatoVideo | null;
+  /** Vacío = sin texto. */
+  descripcion: string;
+};
+
+const FALTA_SQL_CARRERAS = "Falta ejecutar supabase/crear-portada-carreras.sql en el SQL Editor.";
+
+/**
+ * De lo que pegó la persona al video que se guarda: se analiza con el puro, se
+ * sigue el enlace corto de TikTok si hace falta, y se pregunta a la plataforma
+ * si el video existe y se puede insertar.
+ */
+async function enlaceComprobado(texto: string): Promise<{ ok: true; enlace: EnlaceVideo } | { ok: false; error: string }> {
+  let analisis = analizarEnlaceVideo(texto);
+  if (analisis.tipo === "corto-tiktok") {
+    const final = await resolverEnlaceCortoTikTok(analisis.url);
+    analisis = final ? analizarEnlaceVideo(final) : analisis;
+    if (analisis.tipo !== "video") {
+      return {
+        ok: false,
+        error:
+          "No se pudo leer ese enlace corto de TikTok. Ábrelo en el navegador y copia la dirección completa (…tiktok.com/@cuenta/video/…).",
+      };
+    }
+  }
+  if (analisis.tipo === "error") return { ok: false, error: analisis.error };
+  if (analisis.tipo !== "video") return { ok: false, error: "No se pudo leer ese enlace." };
+  const enlace = analisis.enlace;
+  const respuesta = interpretarRespuestaOembed(enlace.plataforma, await consultarOembed(enlace.plataforma, enlace.urlCanonica));
+  return respuesta.ok ? { ok: true, enlace } : respuesta;
+}
+
+/**
+ * Guarda el video (enlace) y el texto de una carrera. Sin video y sin texto, la
+ * fila se BORRA: la base no admite una fila vacía (`portada_carreras_no_vacia`).
+ */
+export async function guardarCarreraPortada(
+  supabase: SupabaseClient,
+  e: EntradaCarreraPortada,
+  actualizadoPor: number | null,
+): Promise<Resultado<{ estado: EstadoPortada }>> {
+  const carrera = await comprobarCarreraActiva(supabase, e.carreraId);
+  if (!carrera.ok) return carrera;
+
+  let video: { url: string; formato: FormatoVideo } | null = null;
+  if (e.enlace.trim()) {
+    const r = await enlaceComprobado(e.enlace);
+    if (!r.ok) return r;
+    video = { url: r.enlace.urlCanonica, formato: e.formato ?? r.enlace.formatoSugerido };
+  }
+  const descripcion = e.descripcion.trim() || null;
+
+  const { error } =
+    !video && !descripcion
+      ? await supabase.from(TABLA_PORTADA_CARRERAS).delete().eq("carrera_id", e.carreraId)
+      : await supabase.from(TABLA_PORTADA_CARRERAS).upsert(
+          {
+            carrera_id: e.carreraId,
+            video_url: video?.url ?? null,
+            video_formato: video?.formato ?? null,
+            descripcion,
+            actualizado_por: actualizadoPor,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "carrera_id" },
+        );
+  if (error) {
+    if (error.code === TABLA_INEXISTENTE) return { ok: false, error: FALTA_SQL_CARRERAS };
+    console.error("[portada] guardarCarreraPortada", error);
+    return { ok: false, error: "No se pudo guardar. Inténtalo de nuevo." };
   }
   return { ok: true, estado: await cargarPortada(supabase) };
 }

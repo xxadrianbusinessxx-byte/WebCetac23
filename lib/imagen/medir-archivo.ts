@@ -43,6 +43,12 @@ export function medirImagen(archivo: File): Promise<MedidaArchivo | null> {
   });
 }
 
+/**
+ * @deprecated PROMPT U (2026-10-01): la portada ya no sube videos —el de cada
+ * carrera es un enlace de YouTube o TikTok—, así que nada lo llama. Se retira con
+ * el resto del camino de video de Cloudinary (pendiente
+ * `retirar-video-cloudinary-portada`).
+ */
 export function medirVideo(archivo: File): Promise<MedidaArchivo | null> {
   return new Promise((resolver) => {
     const url = URL.createObjectURL(archivo);

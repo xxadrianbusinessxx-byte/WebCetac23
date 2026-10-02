@@ -35,6 +35,8 @@ export const TABLA_CARRERAS = "carreras";
 export const TABLA_PORTADA_MEDIOS = "portada_medios";
 /** Portada pública: enlaces y datos de contacto configurables (PROMPT L). */
 export const TABLA_PORTADA_AJUSTES = "portada_ajustes";
+/** Portada pública: el video (enlace de YouTube o TikTok) y el texto de cada carrera (PROMPT U). */
+export const TABLA_PORTADA_CARRERAS = "portada_carreras";
 
 /** Calificaciones normalizadas (migración Opción B, 2026-09-30). Sustituye a
  *  las tablas físicas por materia: una fila = una nota de un alumno. */

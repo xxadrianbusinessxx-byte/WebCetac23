@@ -202,7 +202,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 199 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 200 Server Actions.
 
 ### `actividades.ts`
 
@@ -501,6 +501,7 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 199 Server Actions.
 | `actionEliminarMedioPortada` | exigir: noticia.publicar | `noticia.publicar` |
 | `actionReordenarPortada` | exigir: noticia.publicar | `noticia.publicar` |
 | `actionGuardarAjustesPortada` | exigir: noticia.publicar | `noticia.publicar` |
+| `actionGuardarCarreraPortada` | exigir: noticia.publicar | `noticia.publicar` |
 
 ### `profesores.ts`
 
