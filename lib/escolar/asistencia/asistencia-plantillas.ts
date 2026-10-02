@@ -856,17 +856,9 @@ export async function confirmarAsistencias(
     return { ok: false, error: ERROR_ATRIBUCION_MATERIA_NO_RESUELTA };
   }
 
-  // PROMPT D — TRASPASO antes de escribir: la RPC deja la materia completa a
-  // este profesor (asignaciones de otros → inactivas; sus registros → su id).
-  // Cero N+1: una sola llamada por subida. Si falla, NO se escribe nada.
-  const traspaso = await traspasarMateriaAProfesor(
-    supabase,
-    grupoMateriaId,
-    profesorId,
-  );
-  if (!traspaso.ok) return { ok: false, error: traspaso.error };
-
   // Decisión pura de escritura (filas enriquecidas + claves de conflicto).
+  // Va ANTES del traspaso: el traspaso es un efecto que no se deshace, y una
+  // subida que la decisión pura va a rechazar no debe cambiar de dueño la materia.
   const atribuido = atribuirMateriaAlPlan(
     { clasesImpartidas: plan.clasesImpartidas, asistencias: plan.asistencias },
     {
@@ -877,6 +869,16 @@ export async function confirmarAsistencias(
     },
   );
   if (!atribuido.ok) return atribuido;
+
+  // PROMPT D — TRASPASO antes de escribir: la RPC deja la materia completa a
+  // este profesor (asignaciones de otros → inactivas; sus registros → su id).
+  // Cero N+1: una sola llamada por subida. Si falla, NO se escribe nada.
+  const traspaso = await traspasarMateriaAProfesor(
+    supabase,
+    grupoMateriaId,
+    profesorId,
+  );
+  if (!traspaso.ok) return { ok: false, error: traspaso.error };
 
   // PROMPT S (A3) — una sola petición UPSERT por tabla (cada petición de
   // PostgREST es una transacción). Orden: primero clases, después asistencias.
