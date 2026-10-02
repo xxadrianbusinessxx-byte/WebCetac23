@@ -721,6 +721,19 @@ function compruebaHuecos(modulo, rol, etiqueta) {
 compruebaHuecos(cDir, "directivo", "directivo");
 compruebaHuecos(cTec, "tecnico", "tecnico");
 
+// 2026-10-01 — Citas: tres vistas, una por modo, decididas por IGUALDAD.
+const modosCitas = nav.apartado("directivo", "administracion", "citas").modos;
+eq(
+  [cDir.MODO_CONFIGURAR_CITAS, cDir.MODO_CITAS_PENDIENTES, cDir.MODO_CITAS_PROGRAMADAS],
+  modosCitas,
+  "los tres modos de Citas son los rótulos del mapa, en su orden",
+);
+eq(cDir.vistaCitas(cDir.MODO_CONFIGURAR_CITAS), "configurar", "«Configurar citas» monta la agenda (antes caía en «programadas»)");
+eq(cDir.vistaCitas(cDir.MODO_CITAS_PENDIENTES), "pendientes", "«Citas pendientes» → pendientes");
+eq(cDir.vistaCitas(cDir.MODO_CITAS_PROGRAMADAS), "programadas", "«Citas programadas» → programadas");
+eq(cDir.vistaCitas(null), "programadas", "sin modo, como antes: programadas");
+eq(cDir.vistaCitas(modosCitas[0]), "configurar", "la barra arranca en modos[0]: abrir Citas enseña la agenda");
+
 // contenido-docente sirve a los DOS roles: sus huecos tienen que existir y
 // estar activos en el mapa de maestro Y en el de directivo. Si divergieran,
 // una pestaña compartida dejaria de serlo sin que nadie lo notara.

@@ -94,6 +94,9 @@ export const TABLA_ACTIVIDADES = "actividades";
 export const TABLA_ACTIVIDAD_ENTREGAS = "actividad_entregas";
 export const TABLA_REPORTES_ALUMNO = "reportes_alumno";
 export const TABLA_CITAS = "citas";
+/** Agenda de la dirección (supabase/crear-agenda-citas.sql, 2026-10-01). */
+export const TABLA_CITAS_FRANJAS = "citas_franjas";
+export const TABLA_CITAS_DIAS_BLOQUEADOS = "citas_dias_bloqueados";
 export const TABLA_SOLICITUDES_CONSTANCIA = "solicitudes_constancia";
 export const TABLA_BUZON_MENSAJES = "buzon_mensajes";
 export const TABLA_MENSAJES_INTERNOS = "mensajes_internos";

@@ -7,7 +7,10 @@
  *           derivado y pesos), el agrupado en hilos de `mensajes-internos` y
  *           la constancia de estudios de Administración escolar con el formato
  *           oficial (`administracion/constancia-puro`) y el número de control
- *           (`alumno/numero-control-puro`), 2026-09-24.
+ *           (`alumno/numero-control-puro`), 2026-09-24. Desde el 2026-10-01, la
+ *           agenda de citas (`administracion/agenda-citas-puro`): franjas,
+ *           huecos y la regla única de «¿se puede pedir este hueco?», y que sus
+ *           listas coincidan con el CHECK de `supabase/crear-agenda-citas.sql`.
  * QUÉ ESCRIBE: nada. Carga los `.ts` directamente. No toca la base.
  * CÓMO SE EJECUTA: node scripts/test-uis-pendientes.mjs
  *
@@ -229,6 +232,92 @@ ok("menos de 4 caracteres se rechaza", !NC.validarNumeroControl("123").ok);
 ok("más de 20 se rechaza", !NC.validarNumeroControl("1".repeat(21)).ok);
 ok("un signo raro se rechaza", !NC.validarNumeroControl("2322/2040").ok);
 ok("la regla es la del CHECK de la base", String(NC.FORMATO_NUMERO_CONTROL) === "/^[A-Z0-9-]{4,20}$/");
+
+/* ── Agenda de citas (2026-10-01) ──────────────────────────────────────── */
+console.log("\nagenda de citas — franjas");
+const AG = await import("../lib/escolar/administracion/agenda-citas-puro.ts");
+const HP = await import("../lib/escolar/administracion/hora-plantel-puro.ts");
+const CAL = await import("../lib/escolar/ciclo/calendario.ts");
+const MARTES = { id: "f1", dia_semana: "martes", hora_inicio: "09:00", hora_fin: "10:00", duracion_min: 30 };
+const JUEVES = { id: "f2", dia_semana: "jueves", hora_inicio: "16:00", hora_fin: "17:00", duracion_min: 20 };
+eq(AG.validarFranja(MARTES, []), { ok: true }, "una franja normal vale");
+eq(AG.validarFranja({ ...MARTES, hora_fin: "09:00" }, []).ok, false, "fin igual a inicio se rechaza");
+eq(AG.validarFranja({ ...MARTES, hora_fin: "08:00" }, []).ok, false, "fin antes de inicio se rechaza");
+eq(AG.validarFranja({ ...MARTES, hora_fin: "09:20" }, []), { ok: false, error: "En ese horario no cabe ni una cita de 30 minutos." }, "si no cabe ni una cita, se dice");
+eq(AG.validarFranja({ ...MARTES, duracion_min: 25 }, []).ok, false, "una duración fuera de la lista se rechaza");
+eq(AG.validarFranja({ ...MARTES, dia_semana: "Martes" }, []).ok, false, "el día va en el vocabulario guardado (sin mayúsculas)");
+eq(AG.validarFranja({ ...MARTES, hora_inicio: "9:00" }, []).ok, false, "la hora va como «HH:MM»");
+eq(
+  AG.validarFranja({ dia_semana: "martes", hora_inicio: "09:30", hora_fin: "11:00", duracion_min: 30 }, [MARTES]),
+  { ok: false, error: "Se cruza con el horario del martes de 09:00 a 10:00." },
+  "dos franjas solapadas del mismo día se rechazan, diciendo con cuál",
+);
+eq(AG.validarFranja({ dia_semana: "martes", hora_inicio: "10:00", hora_fin: "11:00", duracion_min: 30 }, [MARTES]), { ok: true }, "una franja que empieza donde acaba la otra NO se cruza");
+eq(AG.validarFranja({ ...MARTES, dia_semana: "miercoles" }, [MARTES]), { ok: true }, "la misma hora otro día no se cruza");
+eq(AG.validarFranja(MARTES, [MARTES]), { ok: true }, "una franja no se compara consigo misma (mismo id)");
+eq(AG.huecosDeFranja(MARTES), ["09:00", "09:30"], "09:00–10:00 de 30 min → 09:00 y 09:30");
+eq(AG.huecosDeFranja({ ...MARTES, hora_fin: "10:10" }), ["09:00", "09:30"], "la última cita tiene que caber ENTERA");
+eq(AG.huecosDeFranja(JUEVES), ["16:00", "16:20", "16:40"], "16:00–17:00 de 20 min → tres citas");
+
+console.log("\nagenda de citas — fechas");
+eq(AG.sumarDias("2026-12-31", 1), "2027-01-01", "sumar días cruza el año");
+eq(AG.sumarDias("2028-02-28", 1), "2028-02-29", "…y respeta el bisiesto");
+eq(AG.rangoDeSolicitud("2026-10-01"), { desde: "2026-10-02", hasta: "2026-10-31" }, "se pide de mañana a 30 días");
+ok("el 30 de febrero no es fecha", !AG.esFechaValida("2026-02-30"));
+eq(HP.hoyEnElPlantel(new Date("2026-10-02T03:00:00Z")), "2026-10-01", "a las 21:00 del plantel sigue siendo «hoy», aunque en UTC ya sea mañana");
+eq(AG.validarDiaBloqueado("2026-10-01", "2026-10-01"), { ok: true }, "se puede bloquear hoy (avisar tarde es mejor que no avisar)");
+eq(AG.validarDiaBloqueado("2026-09-30", "2026-10-01").ok, false, "no se bloquea un día pasado");
+eq(AG.validarDiaBloqueado("2027-10-02", "2026-10-01").ok, false, "ni a más de un año");
+eq(AG.validarDiaBloqueado("ayer", "2026-10-01").ok, false, "ni algo que no es fecha");
+eq(Object.keys(AG.NOMBRE_DIA), [...CAL.DIAS_SEMANA], "los rótulos cubren exactamente el vocabulario de DIAS_SEMANA");
+
+console.log("\nagenda de citas — ¿se puede pedir este hueco?");
+const HOY_CITA = "2026-10-01"; // jueves
+const VACIA = { franjas: [], bloqueados: new Set(), ocupados: new Set() };
+const AGENDA = { franjas: [MARTES, JUEVES], bloqueados: new Set(), ocupados: new Set() };
+const v = (fecha, hora, agenda = AGENDA) => AG.validarSolicitudCita({ fecha, hora }, agenda, HOY_CITA);
+eq(v("2026-10-06", "09:00", VACIA), { ok: false, error: AG.SIN_AGENDA }, "sin agenda publicada nadie pide cita");
+eq(v("2026-10-06", "09:00"), { ok: true }, "martes 6 a las 09:00: vale");
+eq(v("2026-10-01", "16:00"), { ok: false, error: "La cita tiene que ser a partir de mañana." }, "hoy no");
+eq(v("2026-09-29", "09:00").ok, false, "una fecha pasada no");
+eq(v("2026-11-03", "09:00"), { ok: false, error: "La cita no puede ser a más de 30 días." }, "a más de 30 días no");
+eq(v("2026-10-07", "09:00"), { ok: false, error: "La dirección no atiende citas los miércoles." }, "un día sin franja se nombra, con acento");
+eq(v("2026-10-06", "09:15"), { ok: false, error: "Esa hora está fuera del horario de citas." }, "una hora que no es inicio de cita no");
+eq(v("2026-10-06", "10:00").ok, false, "la hora de fin no es un hueco");
+eq(v("2026-02-30", "09:00").ok, false, "una fecha imposible no");
+eq(v("2026-10-06", "9:00").ok, false, "una hora mal escrita no");
+const CON_BLOQUEO = { ...AGENDA, bloqueados: new Set(["2026-10-13"]) };
+eq(v("2026-10-13", "09:00", CON_BLOQUEO), { ok: false, error: "La dirección no atiende citas ese día." }, "un día bloqueado no");
+const CON_OCUPADO = { ...AGENDA, ocupados: new Set([AG.claveHueco({ fecha: "2026-10-06", hora: "09:00" })]) };
+eq(v("2026-10-06", "09:00", CON_OCUPADO), { ok: false, error: AG.HUECO_OCUPADO }, "un hueco ya pedido no");
+eq(v("2026-10-06", "09:30", CON_OCUPADO), { ok: true }, "…pero el siguiente del mismo día sí");
+
+console.log("\nagenda de citas — huecos que se ofrecen");
+const todos = AG.huecosDisponibles(AGENDA, HOY_CITA);
+eq(todos.length, 20, "octubre: 4 martes × 2 + 4 jueves × 3 = 20 huecos");
+eq(todos[0], { fecha: "2026-10-06", hora: "09:00" }, "el primero es el martes 6 a las 09:00");
+eq(todos.at(-1), { fecha: "2026-10-29", hora: "16:40" }, "el último, el jueves 29 a las 16:40");
+ok("hoy (jueves 1) no se ofrece aunque sea jueves", !todos.some((h) => h.fecha === HOY_CITA));
+ok("salen en orden de fecha y hora", todos.every((h, i) => i === 0 || AG.claveHueco(todos[i - 1]) < AG.claveHueco(h)));
+const filtrados = AG.huecosDisponibles({ ...AGENDA, bloqueados: CON_BLOQUEO.bloqueados, ocupados: CON_OCUPADO.ocupados }, HOY_CITA);
+eq(filtrados.length, 17, "bloquear el martes 13 quita 2 y un hueco ocupado quita 1");
+ok("el día bloqueado no se ofrece", !filtrados.some((h) => h.fecha === "2026-10-13"));
+ok("el hueco ocupado no se ofrece", !filtrados.some((h) => h.fecha === "2026-10-06" && h.hora === "09:00"));
+// La propiedad que hace de las dos funciones UNA regla.
+ok(
+  "PROPIEDAD: todo hueco ofrecido lo acepta validarSolicitudCita",
+  filtrados.every((h) => AG.validarSolicitudCita(h, { ...AGENDA, bloqueados: CON_BLOQUEO.bloqueados, ocupados: CON_OCUPADO.ocupados }, HOY_CITA).ok),
+);
+eq(AG.huecosDisponibles(VACIA, HOY_CITA), [], "sin agenda, ningún hueco");
+
+console.log("\nagenda de citas — el código y el .sql dicen lo mismo");
+const fsAg = await import("node:fs");
+const sqlAgenda = fsAg.readFileSync(new URL("../supabase/crear-agenda-citas.sql", import.meta.url), "utf8");
+const durSql = /duracion_min in \(([^)]+)\)/.exec(sqlAgenda)?.[1].split(",").map((s) => Number(s.trim()));
+eq(durSql, [...AG.DURACIONES_CITA], "DURACIONES_CITA = el CHECK de citas_franjas.duracion_min");
+const diasSql = /dia_semana in \(([^)]+)\)/.exec(sqlAgenda)?.[1].split(",").map((s) => s.trim().replace(/'/g, ""));
+eq(diasSql, [...CAL.DIAS_SEMANA], "el CHECK de dia_semana = DIAS_SEMANA");
+ok("el índice único cubre las citas que ocupan su hora", /ux_citas_hueco_vivo[\s\S]*estado in \('pendiente','aceptada'\)/.test(sqlAgenda));
 
 console.log(`\nResultado: ${pasadas + fallos} verificaciones · ${pasadas} pasadas, ${fallos} fallidas`);
 if (fallos > 0) process.exit(1);

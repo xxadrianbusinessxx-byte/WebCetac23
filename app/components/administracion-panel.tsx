@@ -3,6 +3,8 @@
 /**
  * administracion-panel.tsx — las cuatro pantallas de Administración escolar del
  * directivo: Reportes, Citas, Recursos administrativos (constancias) y Buzón.
+ * Citas tiene tres vistas por modo; «Configurar citas» es la agenda de la
+ * dirección (2026-10-01): en qué días y horas recibe citas.
  *
  * Sustituyen a las MAQUETAS de `maquetas-oceano.tsx`, que dibujaban estas
  * mismas pantallas sin datos. La forma se conserva —es la del diseño— y lo que
@@ -17,9 +19,14 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   actionAnularReporte,
+  actionBloquearDia,
+  actionBorrarFranja,
   actionCambiarEstadoCita,
   actionCambiarEstadoConstancia,
   actionCrearReporte,
+  actionDesbloquearDia,
+  actionGuardarFranja,
+  actionLeerAgendaCitas,
   actionListarBuzon,
   actionListarCitas,
   actionListarConstancias,
@@ -32,6 +39,14 @@ import type {
   ConstanciaConAlumno,
   ReporteRow,
 } from "@/lib/escolar/administracion/administracion";
+import {
+  DURACIONES_CITA,
+  NOMBRE_DIA,
+  type DiaBloqueado,
+  type Franja,
+} from "@/lib/escolar/administracion/agenda-citas-puro";
+import { DIAS_SEMANA } from "@/lib/escolar/ciclo/calendario";
+import { vistaCitas } from "@/lib/navegacion/contenido-directivo";
 
 /* ── Piezas compartidas, con los tokens del diseño ─────────────────────── */
 
@@ -267,9 +282,15 @@ function Reportes({ modo, alumno }: { modo: string | null; alumno?: AlumnoElegid
 
 /* ── Citas ─────────────────────────────────────────────────────────────── */
 
+/** Tres vistas sobre el mismo hueco; cuál, lo decide `vistaCitas` con el rótulo. */
 function Citas({ modo }: { modo: string | null }) {
+  const vista = vistaCitas(modo);
+  if (vista === "configurar") return <AgendaCitas />;
+  return <ListaCitas pendientes={vista === "pendientes"} />;
+}
+
+function ListaCitas({ pendientes }: { pendientes: boolean }) {
   const [lista, setLista] = useState<CitaRow[] | null>(null);
-  const pendientes = (modo ?? "").toLowerCase().includes("pendiente");
 
   const cargar = useCallback(() => {
     return Promise.resolve()
@@ -328,6 +349,200 @@ function Citas({ modo }: { modo: string | null }) {
           </div>
         )}
       </Panel>
+    </>
+  );
+}
+
+/* ── Agenda de citas (2026-10-01) ──────────────────────────────────────── */
+
+const CLASE_SELECT =
+  "rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-sm text-[var(--oc-text)] outline-none focus:border-[var(--oc-border-active)]";
+
+type AgendaPantalla = { franjas: Franja[]; diasBloqueados: DiaBloqueado[]; huecosLibres: number };
+type Respuesta = { ok: true } | { ok: false; error: string };
+
+/**
+ * «Configurar citas»: el horario semanal en que la dirección recibe citas y los
+ * días concretos en que no. Alumno y tutor solo pueden pedir dentro de esto. La
+ * pantalla no valida nada: si una franja se cruza o no cabe, lo dice el servidor
+ * (`validarFranja`) y aquí se enseña su mensaje.
+ */
+function AgendaCitas() {
+  const [agenda, setAgenda] = useState<AgendaPantalla | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [franja, setFranja] = useState({ diaSemana: "lunes", horaInicio: "09:00", horaFin: "13:00", duracionMin: "30" });
+  const [bloqueo, setBloqueo] = useState({ fecha: "", motivo: "" });
+
+  const cargar = useCallback(() => {
+    return Promise.resolve()
+      .then(() => actionLeerAgendaCitas())
+      .then((r) => {
+        if (r.ok) {
+          setAgenda({ franjas: r.franjas, diasBloqueados: r.diasBloqueados, huecosLibres: r.huecosLibres });
+          setError(null);
+        } else {
+          setAgenda(null);
+          setError(r.error);
+        }
+      })
+      .catch(() => setError("No se pudo leer la agenda de citas."));
+  }, []);
+  useEffect(() => { void cargar(); }, [cargar]);
+
+  /** Ejecuta, enseña el resultado y relee: la agenda que se ve es siempre la guardada. */
+  const hacer = (accion: () => Promise<Respuesta>, exito: string, alTerminar?: () => void) => {
+    setMsg(null);
+    void accion()
+      .then((r) => {
+        setMsg(r.ok ? exito : r.error);
+        if (r.ok) alTerminar?.();
+        return cargar();
+      })
+      .catch(() => setMsg("No se pudo guardar. Inténtalo de nuevo."));
+  };
+
+  if (agenda === null) {
+    return (
+      <>
+        <Titulo>Configurar citas</Titulo>
+        <Aviso>{error ?? "Cargando la agenda…"}</Aviso>
+      </>
+    );
+  }
+
+  const publicada = agenda.franjas.length > 0;
+
+  return (
+    <>
+      <Titulo>Configurar citas</Titulo>
+      <div className="mb-4">
+        <Aviso>
+          {publicada
+            ? `Agenda publicada: ${agenda.huecosLibres} huecos libres en los próximos 30 días.`
+            : "Sin horario: alumnos y tutores no pueden pedir citas hasta que añadas uno."}
+        </Aviso>
+      </div>
+      {msg && (
+        <div className="mb-4">
+          <Aviso>{msg}</Aviso>
+        </div>
+      )}
+
+      <Panel>
+        <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-[var(--oc-muted)]">Horario de atención</h3>
+        <div className="flex flex-col gap-2">
+          {DIAS_SEMANA.map((d) => {
+            const delDia = agenda.franjas.filter((f) => f.dia_semana === d);
+            return (
+              <div
+                key={d}
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2"
+              >
+                <span className="w-24 text-sm font-bold capitalize text-[var(--oc-text)]">{NOMBRE_DIA[d]}</span>
+                {delDia.length === 0 ? (
+                  <span className="text-xs text-[var(--oc-muted)]">Sin atención</span>
+                ) : (
+                  delDia.map((f) => (
+                    <span key={f.id} className="flex items-center gap-2 text-sm text-[var(--oc-text)]">
+                      {f.hora_inicio}–{f.hora_fin} · citas de {f.duracion_min} min
+                      <Boton onClick={() => hacer(() => actionBorrarFranja({ id: f.id }), "Horario quitado.")}>
+                        Quitar
+                      </Boton>
+                    </span>
+                  ))
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <select
+            value={franja.diaSemana}
+            onChange={(e) => setFranja({ ...franja, diaSemana: e.target.value })}
+            aria-label="Día de la semana"
+            className={CLASE_SELECT}
+          >
+            {DIAS_SEMANA.map((d) => (
+              <option key={d} value={d}>{NOMBRE_DIA[d]}</option>
+            ))}
+          </select>
+          <Campo
+            type="time"
+            value={franja.horaInicio}
+            onChange={(e) => setFranja({ ...franja, horaInicio: e.target.value })}
+            aria-label="Desde"
+          />
+          <Campo
+            type="time"
+            value={franja.horaFin}
+            onChange={(e) => setFranja({ ...franja, horaFin: e.target.value })}
+            aria-label="Hasta"
+          />
+          <select
+            value={franja.duracionMin}
+            onChange={(e) => setFranja({ ...franja, duracionMin: e.target.value })}
+            aria-label="Duración de cada cita"
+            className={CLASE_SELECT}
+          >
+            {DURACIONES_CITA.map((m) => (
+              <option key={m} value={String(m)}>Citas de {m} min</option>
+            ))}
+          </select>
+          <Boton primario onClick={() => hacer(() => actionGuardarFranja(franja), "Horario añadido.")}>
+            Añadir horario
+          </Boton>
+        </div>
+      </Panel>
+
+      <div className="mt-4">
+        <Panel>
+          <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-[var(--oc-muted)]">Días sin atención</h3>
+          {agenda.diasBloqueados.length === 0 ? (
+            <Aviso>No hay días bloqueados.</Aviso>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {agenda.diasBloqueados.map((d) => (
+                <div
+                  key={d.fecha}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2"
+                >
+                  <span className="text-sm text-[var(--oc-text)]">
+                    <strong>{dia(d.fecha)}</strong>
+                    {d.motivo && <span className="text-[var(--oc-muted)]"> · {d.motivo}</span>}
+                  </span>
+                  <Boton onClick={() => hacer(() => actionDesbloquearDia({ fecha: d.fecha }), "Día desbloqueado.")}>
+                    Quitar
+                  </Boton>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Campo
+              type="date"
+              value={bloqueo.fecha}
+              onChange={(e) => setBloqueo({ ...bloqueo, fecha: e.target.value })}
+              aria-label="Día sin atención"
+            />
+            <Campo
+              placeholder="Motivo (opcional)"
+              value={bloqueo.motivo}
+              onChange={(e) => setBloqueo({ ...bloqueo, motivo: e.target.value })}
+              className="min-w-[14rem] flex-1"
+            />
+            <Boton
+              primario
+              disabled={!bloqueo.fecha}
+              onClick={() =>
+                hacer(() => actionBloquearDia(bloqueo), "Día bloqueado.", () => setBloqueo({ fecha: "", motivo: "" }))
+              }
+            >
+              Bloquear día
+            </Boton>
+          </div>
+        </Panel>
+      </div>
     </>
   );
 }

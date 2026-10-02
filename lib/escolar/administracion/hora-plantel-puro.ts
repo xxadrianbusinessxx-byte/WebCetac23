@@ -52,6 +52,11 @@ export function fechaHoraLocal(iso: string): FechaHoraLocal | null {
   };
 }
 
+/** El día de HOY en el plantel. `ahora` se recibe para que la suite sea estable. */
+export function hoyEnElPlantel(ahora: Date): string {
+  return fechaHoraLocal(ahora.toISOString())?.fecha ?? "";
+}
+
 /**
  * Fecha y hora del plantel → instante ISO que se guarda en la base. No valida
  * que el hueco exista: eso lo decide quien llama (`agenda-citas-puro`).

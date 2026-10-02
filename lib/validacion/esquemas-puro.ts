@@ -353,6 +353,62 @@ export const esquemaSolicitudConstancia = v.object(
   "Faltan datos de la solicitud.",
 );
 
+/* ── Agenda de citas (2026-10-01) ──────────────────────────────────────────
+ * Aquí solo la FORMA de lo que llega. Si el horario o el hueco valen lo decide
+ * `agenda-citas-puro` (validarFranja, validarDiaBloqueado, validarSolicitudCita),
+ * que tiene su suite: repetir esas reglas aquí sería una segunda copia. */
+
+/** Duración de cada cita: llega como número (o como texto, desde un `<select>`). */
+const minutos = (mensaje: string) =>
+  v.pipe(
+    v.custom<unknown>(
+      (x) => (typeof x === "number" && Number.isInteger(x)) || (typeof x === "string" && /^\d{1,3}$/.test(x.trim())),
+      mensaje,
+    ),
+    v.transform((x) => Number(typeof x === "string" ? x.trim() : x)),
+  );
+
+/** `administracion.ts` · actionGuardarFranja — el directivo añade un horario de atención. */
+export const esquemaFranjaCita = v.object(
+  {
+    diaSemana: texto("Elige el día de la semana.", 12),
+    horaInicio: texto("Indica la hora de inicio y la de fin.", 8),
+    horaFin: texto("Indica la hora de inicio y la de fin.", 8),
+    duracionMin: minutos("Elige la duración de cada cita."),
+  },
+  "Faltan datos del horario.",
+);
+
+/** `administracion.ts` · actionBorrarFranja. */
+export const esquemaIdFranjaCita = v.object(
+  { id: texto("Falta el horario a quitar.", 64) },
+  "Falta el horario a quitar.",
+);
+
+/** `administracion.ts` · actionBloquearDia y actionDesbloquearDia. */
+export const esquemaDiaBloqueadoCita = v.object(
+  {
+    fecha: texto("Elige una fecha válida.", 10),
+    motivo: textoOpcional("El motivo es demasiado largo.", 200),
+  },
+  "Elige una fecha válida.",
+);
+
+/**
+ * `administracion.ts` · actionSolicitarCita. Ya no llega un instante libre
+ * (`propuestaAt`) sino un HUECO de la agenda: día y hora del plantel. El motivo
+ * conserva su tope de siempre (`LARGO_MAX_TEXTO` de flujos-puro, 2000).
+ */
+export const esquemaSolicitudCita = v.object(
+  {
+    curp: textoMayusculas("Falta el alumno.", 25),
+    motivo: textoOpcional("El motivo es demasiado largo.", 2000),
+    fecha: texto("Elige el día y la hora de la cita.", 10),
+    hora: texto("Elige el día y la hora de la cita.", 5),
+  },
+  "Faltan datos de la cita.",
+);
+
 /** `administracion.ts` · actionDatosConstanciaPorCurp — Dirección la emite con la CURP. */
 export const esquemaCurpConstancia = v.object(
   { curp: textoMayusculas("Escribe la CURP del alumno.", 25) },

@@ -36,9 +36,29 @@ import { validarNumeroControl } from "@/lib/escolar/alumno/numero-control-puro";
 import { leerEntrada } from "@/lib/validacion/leer-form-data";
 import {
   esquemaCurpConstancia,
+  esquemaDiaBloqueadoCita,
+  esquemaFranjaCita,
+  esquemaIdFranjaCita,
   esquemaNumeroControl,
+  esquemaSolicitudCita,
   esquemaSolicitudConstancia,
 } from "@/lib/validacion/esquemas-puro";
+import {
+  bloquearDia,
+  borrarFranja,
+  desbloquearDia,
+  guardarFranja,
+  leerAgendaCitas,
+  pedirCitaEnAgenda,
+} from "@/lib/escolar/administracion/agenda-citas";
+import {
+  huecosDisponibles,
+  type DiaBloqueado,
+  type Franja,
+  type Hueco,
+} from "@/lib/escolar/administracion/agenda-citas-puro";
+import { hoyEnElPlantel } from "@/lib/escolar/administracion/hora-plantel-puro";
+import type { DiaSemana } from "@/lib/escolar/ciclo/calendario";
 import {
   datosConstanciaPorCurp,
   nombresDeAlumnos,
@@ -56,7 +76,6 @@ import {
   listarReportes,
   listarReportesVisiblesDeAlumno,
   marcarBuzonLeido,
-  solicitarCita,
   solicitarConstancia,
   type BuzonRow,
   type CitaRow,
@@ -194,50 +213,189 @@ export async function actionListarCitas(estado?: string): Promise<CitaRow[]> {
   return listarCitas(supabase, periodoId, { estado: estado as EstadoCita | undefined });
 }
 
-/** Las del alumno o su tutor: SOLO las de su alcance, resuelto en servidor. */
-export async function actionListarCitasPropias(): Promise<CitaRow[]> {
+/**
+ * Las del alumno o su tutor: SOLO las de su alcance, resuelto en servidor. Con
+ * `curp` (2026-10-01), las de ESE alumno —el hijo elegido en el selector del
+ * tutor—, siempre que esté dentro del alcance; fuera de él, ninguna.
+ */
+export async function actionListarCitasPropias(curp?: string): Promise<CitaRow[]> {
   const g = await exigir("cita.ver_propias");
   if (!g.ok) return [];
   const curps = await alcanceCurps();
   if (curps === null || curps.length === 0) return [];
+  const pedida = typeof curp === "string" ? curp.trim().toUpperCase() : "";
+  const acotadas = pedida ? curps.filter((c) => c.trim().toUpperCase() === pedida) : curps;
+  if (acotadas.length === 0) return [];
   const periodoId = await cicloActual();
   if (!periodoId) return [];
   const supabase = await createClient();
-  return listarCitas(supabase, periodoId, { curps });
+  return listarCitas(supabase, periodoId, { curps: acotadas });
 }
 
-export async function actionSolicitarCita(datos: {
-  curp: string;
-  motivo: string;
-  propuestaAt: string;
-}): Promise<{ ok: true } | Fallo> {
+/**
+ * Alumno o tutor piden una cita en un HUECO de la agenda de la dirección
+ * (2026-10-01): día y hora del plantel, no un instante libre. Si el hueco vale lo
+ * decide `validarSolicitudCita` dentro de `pedirCitaEnAgenda`, con la agenda
+ * leída en ese momento; la lista que ve el navegador es solo una ayuda.
+ */
+export async function actionSolicitarCita(entrada: unknown): Promise<{ ok: true } | Fallo> {
   const g = await exigir("cita.solicitar");
   if (!g.ok) return fallo("No autorizado.");
-  const sesion = await obtenerSesionPortal();
-  if (!sesion) return fallo("Sin sesión.");
-  const curps = await alcanceCurps();
-  const curp = datos.curp?.trim().toUpperCase() ?? "";
-  // La comprobación que impide pedir una cita a nombre de otro: si la sesión
-  // tiene alcance acotado, la CURP pedida tiene que estar dentro.
-  if (curps !== null && !curps.includes(curp)) {
-    return fallo("Esa CURP no está en tu alcance.");
+  const e = leerEntrada(esquemaSolicitudCita, entrada);
+  if (!e.ok) return fallo(e.error);
+  try {
+    const sesion = g.sesion!;
+    // La comprobación que impide pedir una cita a nombre de otro: si la sesión
+    // tiene alcance acotado, la CURP pedida tiene que estar dentro.
+    const curps = await alcanceCurps();
+    if (curps !== null && !curps.includes(e.datos.curp)) {
+      return fallo("Esa CURP no está en tu alcance.");
+    }
+    const periodoId = await cicloActual();
+    if (!periodoId) return fallo("No hay ciclo operativo.");
+    const supabase = await createClient();
+    const r = await pedirCitaEnAgenda(
+      supabase,
+      {
+        periodoId,
+        curp: e.datos.curp,
+        solicitadaPor: esRol(sesion.rol, "tutor") ? "tutor" : esRol(sesion.rol, "alumno") ? "alumno" : "directivo",
+        motivo: sanearTexto(e.datos.motivo),
+        hueco: { fecha: e.datos.fecha, hora: e.datos.hora },
+      },
+      hoyEnElPlantel(new Date()),
+    );
+    return r.ok ? { ok: true } : fallo(r.error);
+  } catch (err) {
+    console.error("[administracion] actionSolicitarCita", err);
+    return fallo("No se pudo registrar la cita. Inténtalo de nuevo.");
   }
-  if (!datos.propuestaAt) return fallo("Falta la fecha propuesta.");
-  const periodoId = await cicloActual();
-  if (!periodoId) return fallo("No hay ciclo operativo.");
-  const supabase = await createClient();
-  const r = await solicitarCita(supabase, {
-    periodoId,
-    curp,
-    solicitadaPor: esRol(sesion.rol, "tutor")
-      ? "tutor"
-      : esRol(sesion.rol, "alumno")
-        ? "alumno"
-        : "directivo",
-    motivo: sanearTexto(datos.motivo),
-    propuestaAt: datos.propuestaAt,
-  });
-  return r.ok ? { ok: true } : fallo(r.error);
+}
+
+/**
+ * Los huecos que alumno y tutor pueden pedir (de mañana a 30 días). Sin agenda
+ * publicada, `agendaPublicada: false`: la pantalla lo dice en vez de enseñar una
+ * lista vacía que parezca «todo ocupado».
+ */
+export async function actionListarHuecosCita(): Promise<
+  { ok: true; huecos: Hueco[]; agendaPublicada: boolean } | Fallo
+> {
+  const g = await exigir("cita.solicitar");
+  if (!g.ok) return fallo("No autorizado.");
+  try {
+    const hoy = hoyEnElPlantel(new Date());
+    const supabase = await createClient();
+    const r = await leerAgendaCitas(supabase, hoy);
+    if (!r.ok) return fallo(r.error);
+    return {
+      ok: true,
+      huecos: huecosDisponibles(r.dato.agenda, hoy),
+      agendaPublicada: r.dato.franjas.length > 0,
+    };
+  } catch (err) {
+    console.error("[administracion] actionListarHuecosCita", err);
+    return fallo("No se pudo leer el horario de citas.");
+  }
+}
+
+/* ── Agenda de citas: la configura el directivo (2026-10-01) ───────────── */
+
+/** La agenda para «Configurar citas», con cuántos huecos quedan libres a 30 días. */
+export async function actionLeerAgendaCitas(): Promise<
+  { ok: true; franjas: Franja[]; diasBloqueados: DiaBloqueado[]; huecosLibres: number } | Fallo
+> {
+  const g = await exigir("cita.gestionar");
+  if (!g.ok) return fallo("No autorizado.");
+  try {
+    const hoy = hoyEnElPlantel(new Date());
+    const supabase = await createClient();
+    const r = await leerAgendaCitas(supabase, hoy);
+    if (!r.ok) return fallo(r.error);
+    return {
+      ok: true,
+      franjas: r.dato.franjas,
+      diasBloqueados: r.dato.diasBloqueados,
+      huecosLibres: huecosDisponibles(r.dato.agenda, hoy).length,
+    };
+  } catch (err) {
+    console.error("[administracion] actionLeerAgendaCitas", err);
+    return fallo("No se pudo leer la agenda de citas.");
+  }
+}
+
+export async function actionGuardarFranja(entrada: unknown): Promise<{ ok: true } | Fallo> {
+  const g = await exigir("cita.gestionar");
+  if (!g.ok) return fallo("No autorizado.");
+  const e = leerEntrada(esquemaFranjaCita, entrada);
+  if (!e.ok) return fallo(e.error);
+  try {
+    const supabase = await createClient();
+    const r = await guardarFranja(
+      supabase,
+      {
+        // El día lo comprueba `validarFranja` contra DIAS_SEMANA; el tipo solo lo nombra.
+        dia_semana: e.datos.diaSemana as DiaSemana,
+        hora_inicio: e.datos.horaInicio,
+        hora_fin: e.datos.horaFin,
+        duracion_min: e.datos.duracionMin,
+      },
+      await profesorId(),
+    );
+    return r.ok ? { ok: true } : fallo(r.error);
+  } catch (err) {
+    console.error("[administracion] actionGuardarFranja", err);
+    return fallo("No se pudo guardar el horario.");
+  }
+}
+
+export async function actionBorrarFranja(entrada: unknown): Promise<{ ok: true } | Fallo> {
+  const g = await exigir("cita.gestionar");
+  if (!g.ok) return fallo("No autorizado.");
+  const e = leerEntrada(esquemaIdFranjaCita, entrada);
+  if (!e.ok) return fallo(e.error);
+  try {
+    const supabase = await createClient();
+    const r = await borrarFranja(supabase, e.datos.id);
+    return r.ok ? { ok: true } : fallo(r.error);
+  } catch (err) {
+    console.error("[administracion] actionBorrarFranja", err);
+    return fallo("No se pudo quitar el horario.");
+  }
+}
+
+export async function actionBloquearDia(entrada: unknown): Promise<{ ok: true } | Fallo> {
+  const g = await exigir("cita.gestionar");
+  if (!g.ok) return fallo("No autorizado.");
+  const e = leerEntrada(esquemaDiaBloqueadoCita, entrada);
+  if (!e.ok) return fallo(e.error);
+  try {
+    const supabase = await createClient();
+    const r = await bloquearDia(
+      supabase,
+      { fecha: e.datos.fecha, motivo: sanearTexto(e.datos.motivo, 200) },
+      hoyEnElPlantel(new Date()),
+      await profesorId(),
+    );
+    return r.ok ? { ok: true } : fallo(r.error);
+  } catch (err) {
+    console.error("[administracion] actionBloquearDia", err);
+    return fallo("No se pudo bloquear el día.");
+  }
+}
+
+export async function actionDesbloquearDia(entrada: unknown): Promise<{ ok: true } | Fallo> {
+  const g = await exigir("cita.gestionar");
+  if (!g.ok) return fallo("No autorizado.");
+  const e = leerEntrada(esquemaDiaBloqueadoCita, entrada);
+  if (!e.ok) return fallo(e.error);
+  try {
+    const supabase = await createClient();
+    const r = await desbloquearDia(supabase, e.datos.fecha);
+    return r.ok ? { ok: true } : fallo(r.error);
+  } catch (err) {
+    console.error("[administracion] actionDesbloquearDia", err);
+    return fallo("No se pudo desbloquear el día.");
+  }
 }
 
 export async function actionCambiarEstadoCita(

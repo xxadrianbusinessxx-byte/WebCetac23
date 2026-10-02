@@ -237,6 +237,38 @@ console.log("\nF) un esquema por action: qué rechaza y con qué texto");
 }
 
 // ============================================================================
+// AGENDA DE CITAS (2026-10-01) — entrada como objeto, por `leerEntrada`
+// ============================================================================
+{
+  console.log("\nagenda de citas");
+  const { leerEntrada } = await import("../lib/validacion/leer-form-data.ts");
+  const E = await import("../lib/validacion/esquemas-puro.ts");
+
+  const fr = leerEntrada(E.esquemaFranjaCita, { diaSemana: " martes ", horaInicio: "09:00", horaFin: "13:00", duracionMin: "30" });
+  ok("franja · acepta la duración como texto del <select> y la pasa a número", fr.ok && fr.datos.duracionMin === 30 && fr.datos.diaSemana === "martes", JSON.stringify(fr));
+  const frN = leerEntrada(E.esquemaFranjaCita, { diaSemana: "martes", horaInicio: "09:00", horaFin: "13:00", duracionMin: 45 });
+  ok("franja · acepta la duración como número", frN.ok && frN.datos.duracionMin === 45, JSON.stringify(frN));
+  const frMal = leerEntrada(E.esquemaFranjaCita, { diaSemana: "martes", horaInicio: "09:00", horaFin: "13:00", duracionMin: "media hora" });
+  ok("franja · una duración que no es número → «Elige la duración de cada cita.»", !frMal.ok && frMal.error === "Elige la duración de cada cita.", JSON.stringify(frMal));
+  const frSinHora = leerEntrada(E.esquemaFranjaCita, { diaSemana: "martes", horaInicio: "", horaFin: "13:00", duracionMin: 30 });
+  ok("franja · sin hora de inicio → su mensaje", !frSinHora.ok && frSinHora.error === "Indica la hora de inicio y la de fin.", JSON.stringify(frSinHora));
+  ok("franja · lo que no es objeto se rechaza", !leerEntrada(E.esquemaFranjaCita, "martes").ok);
+
+  const sol = leerEntrada(E.esquemaSolicitudCita, { curp: " abcd010101 ", fecha: "2026-10-06", hora: "09:00" });
+  ok("solicitud · la CURP en mayúsculas y el motivo opcional queda en «»", sol.ok && sol.datos.curp === "ABCD010101" && sol.datos.motivo === "", JSON.stringify(sol));
+  const solSinHora = leerEntrada(E.esquemaSolicitudCita, { curp: "X", fecha: "2026-10-06", hora: "" });
+  ok("solicitud · sin hora → «Elige el día y la hora de la cita.»", !solSinHora.ok && solSinHora.error === "Elige el día y la hora de la cita.", JSON.stringify(solSinHora));
+  const solLarga = leerEntrada(E.esquemaSolicitudCita, { curp: "X", motivo: "m".repeat(2000), fecha: "2026-10-06", hora: "09:00" });
+  ok("solicitud · el motivo conserva su tope de siempre (2000)", solLarga.ok, JSON.stringify(solLarga).slice(0, 120));
+  ok("solicitud · el instante libre de antes ya no basta", !leerEntrada(E.esquemaSolicitudCita, { curp: "X", propuestaAt: "2026-10-06T15:00:00Z" }).ok);
+
+  const bl = leerEntrada(E.esquemaDiaBloqueadoCita, { fecha: "2026-10-13" });
+  ok("día bloqueado · el motivo es opcional", bl.ok && bl.datos.motivo === "", JSON.stringify(bl));
+  ok("día bloqueado · sin fecha se rechaza", !leerEntrada(E.esquemaDiaBloqueadoCita, { motivo: "Junta" }).ok);
+  ok("borrar franja · sin id se rechaza", !leerEntrada(E.esquemaIdFranjaCita, {}).ok);
+}
+
+// ============================================================================
 // RESUMEN
 // ============================================================================
 console.log(`\n========================================`);

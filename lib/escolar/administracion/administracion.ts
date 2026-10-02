@@ -234,6 +234,11 @@ export async function listarCitas(
   return (data ?? []) as CitaRow[];
 }
 
+/**
+ * @deprecated 2026-10-01 — inserta en el instante que se le dé, sin mirar la
+ * agenda. Usa `pedirCitaEnAgenda` (`agenda-citas.ts`), que valida el hueco con
+ * la regla única antes de insertar. Sin consumidores desde esa fecha.
+ */
 export async function solicitarCita(
   supabase: SupabaseClient,
   c: {

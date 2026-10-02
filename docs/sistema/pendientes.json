@@ -17,6 +17,17 @@
   ],
   "pendientes": [
     {
+      "id": "sql-agenda-citas",
+      "titulo": "Ejecutar supabase/crear-agenda-citas.sql",
+      "detalle": "La agenda de citas (Prompt T, Parte B) está en el código pero sus tablas no existen. Hasta ejecutar el .sql en el SQL Editor, «Configurar citas» y «Pedir una cita» muestran «Falta crear la agenda de citas en la base». Después, el directivo tiene que añadir al menos una franja: sin agenda nadie puede pedir cita (decisión). Antes de ejecutarlo, el diag confirma que ninguna cita viva comparte instante (si no, el índice único fallaría).",
+      "riesgo": "alto",
+      "quien": "persona — ejecutar el SQL y luego configurar el horario como directivo",
+      "verificar": "node scripts/diag-agenda-citas.mjs",
+      "doc": "supabase/crear-agenda-citas.sql",
+      "revisado": "2026-10-01",
+      "estado": "abierto"
+    },
+    {
       "id": "sql-unicidad-calificaciones",
       "titulo": "corregir-unicidad-calificaciones.sql (cerrado: aplicado y verificado, 2026-10-01)",
       "detalle": "Cerrado. Aplicado por persona en el SQL Editor el 2026-10-01. Verificado el mismo día de dos formas: (1) `migrar-ensayo-modelo-b.mjs --apply` con el código de la app: las cuatro escrituras del modelo B escriben sin 42P10, re-subir ACTUALIZA (3 filas, no 4), calificar a mano y subir Excel caen en la misma fila, la lectura por CURP no trae a nadie más, y la limpieza dejó 0 filas; (2) catálogo de PostgreSQL en transacción READ ONLY: las 4 restricciones UNIQUE nuevas existen, los 3 índices parcial/expresión viejos ya no, clave_columna es NOT NULL DEFAULT '', materia_id admite NULL en alias y mapeo, la unicidad legacy por materia_id se conserva, FKs y CHECK de tipo como se declararon, RLS activada con su política. 30 de 30 piezas.",

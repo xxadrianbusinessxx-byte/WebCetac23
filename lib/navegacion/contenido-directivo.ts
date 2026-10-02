@@ -57,6 +57,25 @@ const HUECOS: Readonly<Record<string, PiezaDirectivo>> = {
   // Apagados en el mapa por falta de modelo de datos.
 };
 
+/**
+ * Administración escolar › Citas tiene TRES vistas sobre el mismo hueco, una por
+ * modo de la barra (los rótulos los manda el mapa; la suite comprueba que son
+ * los mismos). Se decide por IGUALDAD con el rótulo: hasta el 2026-10-01 se
+ * miraba si contenía «pendiente», y «Configurar citas» caía en «programadas».
+ * Sin modo, «programadas», como antes.
+ */
+export const MODO_CONFIGURAR_CITAS = "Configurar citas";
+export const MODO_CITAS_PENDIENTES = "Citas pendientes";
+export const MODO_CITAS_PROGRAMADAS = "Citas programadas";
+
+export type VistaCitas = "configurar" | "pendientes" | "programadas";
+
+export function vistaCitas(modo: string | null): VistaCitas {
+  if (modo === MODO_CONFIGURAR_CITAS) return "configurar";
+  if (modo === MODO_CITAS_PENDIENTES) return "pendientes";
+  return "programadas";
+}
+
 /** Pieza que corresponde a un hueco, o `null` si ese hueco no tiene pieza. */
 export function piezaDe(idPestana: string, idApartado: string): PiezaDirectivo | null {
   return HUECOS[`${idPestana}/${idApartado}`] ?? null;

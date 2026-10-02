@@ -181,8 +181,8 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `reporte.anular` | Anular un reporte ya levantado. Va aparte de `crear` porque toca el historial de un alumno. | ✅ | X | X | X | X | ✅ |
 | `reporte.ver_propios` | **2026-10-01**: ver los reportes NO anulados de UN alumno en Perfil › Notificaciones — el alumno, los suyos; el tutor, los de sus vinculados; Administración escolar, en el Expediente (alcance: `resolverAccesoAlumno`). | X | X | X | ✅ | ✅ | ✅ |
 | `cita.ver_propias` | Ver las citas propias (alumno) o las del vinculado (tutor). | X | X | X | ✅ | ✅ | X |
-| `cita.solicitar` | Pedir una cita. | X | X | X | ✅ | ✅ | X |
-| `cita.gestionar` | Aceptar, rechazar y cerrar citas. | ✅ | X | X | X | X | X |
+| `cita.solicitar` | Pedir una cita **en un hueco de la agenda de la dirección** (2026-10-01) y ver los huecos libres. | X | X | X | ✅ | ✅ | X |
+| `cita.gestionar` | Aceptar, rechazar y cerrar citas, y **configurar la agenda** (franjas semanales y días sin atención, 2026-10-01). | ✅ | X | X | X | X | X |
 | `constancia.solicitar` | Pedir una constancia. | X | X | X | ✅ | ✅ | X |
 | `constancia.gestionar` | Resolver solicitudes de constancia y adjuntar el documento emitido. **Desde el 2026-09-25, solo Administración escolar** (Dirección la emite directo con `constancia.emitir`). | X | X | X | X | X | ✅ |
 | `constancia.ver_propias` | **2026-09-25**: ver el estado de las constancias pedidas — el alumno, las suyas; el tutor, las de sus vinculados (el alcance lo resuelve la action). | X | X | X | ✅ | ✅ | X |
@@ -202,7 +202,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 192 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 198 Server Actions.
 
 ### `actividades.ts`
 
@@ -226,6 +226,12 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 192 Server Actions.
 | `actionListarCitas` | exigir: cita.gestionar | `cita.gestionar` |
 | `actionListarCitasPropias` | exigir: cita.ver_propias | `cita.ver_propias` |
 | `actionSolicitarCita` | exigir: cita.solicitar | `cita.solicitar` |
+| `actionListarHuecosCita` | exigir: cita.solicitar | `cita.solicitar` |
+| `actionLeerAgendaCitas` | exigir: cita.gestionar | `cita.gestionar` |
+| `actionGuardarFranja` | exigir: cita.gestionar | `cita.gestionar` |
+| `actionBorrarFranja` | exigir: cita.gestionar | `cita.gestionar` |
+| `actionBloquearDia` | exigir: cita.gestionar | `cita.gestionar` |
+| `actionDesbloquearDia` | exigir: cita.gestionar | `cita.gestionar` |
 | `actionCambiarEstadoCita` | exigir: cita.gestionar | `cita.gestionar` |
 | `actionListarConstancias` | exigir: constancia.gestionar | `constancia.gestionar` |
 | `actionListarConstanciasPropias` | exigir: constancia.ver_propias | `constancia.ver_propias` |
