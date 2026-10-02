@@ -103,3 +103,6 @@ export const TABLA_MENSAJES_INTERNOS = "mensajes_internos";
 export const TABLA_CICLO_TRANSICIONES = "ciclo_transiciones";
 /** Traspasos de asistencia entre materias (supabase/crear-rpc-traspasar-materia.sql). */
 export const TABLA_ASISTENCIA_TRASPASOS_HISTORICO = "asistencia_traspasos_historico";
+/** Quién editó el seguimiento médico del alumno y cuándo; solo se añade
+ *  (supabase/crear-historial-seguimiento-medico.sql, 2026-10-01). */
+export const TABLA_SEGUIMIENTO_MEDICO_HISTORIAL = "seguimiento_medico_historial";

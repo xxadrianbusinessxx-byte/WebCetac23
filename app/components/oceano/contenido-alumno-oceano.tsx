@@ -17,11 +17,13 @@
  */
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { actionVistaCalificacionesAlumno } from "@/app/actions/calificaciones-normalizadas";
 import type { VistaCalificacionesAlumno } from "@/app/actions/calificaciones-normalizadas";
 import { actionGuardarCamposPersonales } from "@/app/actions/etiquetas-dinamicas";
 import { MensajesTutorPanel } from "@/app/components/mensajes-tutor-panel";
 import { NumeroControlAlumno } from "./numero-control-alumno";
+import { HistorialSeguimientoMedico } from "./historial-seguimiento-medico";
 import { AsistenciaTabularAlumno } from "./asistencia-tabular-alumno";
 import { NotificacionesAlumno } from "./notificaciones-alumno";
 import { CalendarioAsistenciaAlumno } from "@/app/components/calendario-asistencia-alumno";
@@ -185,13 +187,17 @@ function CamposDeGrupo({
   grupo,
   curp,
   puedeEditar,
+  onGuardado,
 }: {
   etiquetas: EtiquetasPersonalesRow | null;
   grupo: GrupoCampoPersonal;
   curp: string;
   /** Flag del servidor: el tutor sí, el alumno no. */
   puedeEditar: boolean;
+  /** Se llama tras un guardado correcto (el historial médico se vuelve a pedir). */
+  onGuardado?: () => void;
 }) {
+  const router = useRouter();
   const porClave = new Map(
     informacionPersonalDesdeEtiquetas(etiquetas).map((c) => [String(c.clave), c]),
   );
@@ -218,13 +224,22 @@ function CamposDeGrupo({
     // El guardado envía SOLO las claves de este grupo: `patchCamposPersonales`
     // aplica las presentes y no toca las demás (por eso los dos apartados
     // pueden editar su mitad sin pisarse).
-    const r = await actionGuardarCamposPersonales(curp, valores);
-    setGuardando(false);
-    if (r.ok) {
-      setMensaje("Datos guardados.");
-      setEditando(false);
-    } else {
-      setMensaje(r.error);
+    try {
+      const r = await actionGuardarCamposPersonales(curp, valores);
+      if (r.ok) {
+        setMensaje("Datos guardados.");
+        setEditando(false);
+        // Los valores que se pintan vienen del servidor (`etiquetas`): sin
+        // refrescar, tras guardar se seguían viendo los anteriores.
+        router.refresh();
+        onGuardado?.();
+      } else {
+        setMensaje(r.error);
+      }
+    } catch {
+      setMensaje("No se pudo guardar. Inténtalo de nuevo.");
+    } finally {
+      setGuardando(false);
     }
   }
 
@@ -295,6 +310,35 @@ function CamposDeGrupo({
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/**
+ * «Seguimiento médico»: sus campos y, debajo, quién los editó y cuándo. Cada
+ * guardado sube `version` para que el historial se vuelva a pedir. El historial
+ * lo escribe el servidor al guardar; aquí no se decide nada.
+ */
+function SeguimientoMedico({
+  etiquetas,
+  curp,
+  puedeEditar,
+}: {
+  etiquetas: EtiquetasPersonalesRow | null;
+  curp: string;
+  puedeEditar: boolean;
+}) {
+  const [version, setVersion] = useState(0);
+  return (
+    <div className="flex flex-col gap-5">
+      <CamposDeGrupo
+        etiquetas={etiquetas}
+        grupo="medico"
+        curp={curp}
+        puedeEditar={puedeEditar}
+        onGuardado={() => setVersion((v) => v + 1)}
+      />
+      <HistorialSeguimientoMedico curp={curp} version={version} />
     </div>
   );
 }
@@ -604,9 +648,8 @@ export function ContenidoAlumnoOceano({
   if (pieza === "perfil-seguimiento-medico") {
     return (
       <Tira>
-        <CamposDeGrupo
+        <SeguimientoMedico
           etiquetas={etiquetas}
-          grupo="medico"
           curp={curp}
           puedeEditar={datos.puedeEditarDatosPersonales}
         />

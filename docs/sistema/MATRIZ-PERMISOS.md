@@ -202,7 +202,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 198 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 199 Server Actions.
 
 ### `actividades.ts`
 
@@ -510,6 +510,12 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 198 Server Actions.
 | `actionReponerClaveAccesoProfesor` | exigir: profesor.ver_credenciales_acceso | `profesor.ver_credenciales_acceso` |
 | `actionListarProfesoresCredenciales` | exigir: profesor.ver_credenciales_acceso | `profesor.ver_credenciales_acceso` |
 | `actionCambiarDebeCambiarCredencialesProfesor` | exigir: profesor.forzar_cambio_clave | `profesor.forzar_cambio_clave` |
+
+### `seguimiento-medico.ts`
+
+| Action | Guardia hoy | Capacidad |
+|---|---|---|
+| `actionListarHistorialSeguimientoMedico` | exigir: alumno.ver_perfil | `alumno.ver_perfil` |
 
 ### `semestres.ts`
 

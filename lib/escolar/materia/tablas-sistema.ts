@@ -57,6 +57,7 @@ import {
   TABLA_PORTADA_MEDIOS,
   TABLA_PROFESORES,
   TABLA_REPORTES_ALUMNO,
+  TABLA_SEGUIMIENTO_MEDICO_HISTORIAL,
   TABLA_SEMESTRES,
   TABLA_SOLICITUDES_CONSTANCIA,
   TABLA_TUTOR_ALUMNOS,
@@ -121,6 +122,8 @@ export const TABLAS_SISTEMA: readonly string[] = [
   // Migración Opción B (2026-09-30). C15 la cazó en cuanto nació el .sql, que
   // es exactamente para lo que esa regla existe.
   TABLA_CALIFICACIONES,
+  // Quién editó el seguimiento médico y cuándo (2026-10-01).
+  TABLA_SEGUIMIENTO_MEDICO_HISTORIAL,
 ];
 
 /** Registros de calificaciones finales por grupo: tampoco son materias. */

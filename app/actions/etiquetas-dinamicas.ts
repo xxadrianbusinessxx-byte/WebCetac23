@@ -25,11 +25,12 @@ import {
 } from "@/lib/escolar/alumno/etiquetas-dinamicas-servicio";
 import type { AlumnoEtiquetaRow } from "@/lib/escolar/alumno/etiquetas-dinamicas";
 import {
-  actualizarEtiquetasPersonales,
   CAMPOS_PERSONALES_PRIMARIOS,
   patchCamposPersonales,
   type CampoPersonalPrimario,
 } from "@/lib/escolar/alumno/etiquetas";
+import { guardarCamposPersonalesConHistorial } from "@/lib/escolar/alumno/seguimiento-medico";
+import { editorDesdeSesion } from "@/lib/escolar/alumno/seguimiento-medico-puro";
 import type { EtiquetaAlumno } from "@/lib/escolar/alumno/etiquetas-dinamicas";
 import {
   leerEtiquetasDesdeArchivoGlobal,
@@ -227,7 +228,7 @@ export async function actionImportarEtiquetasGlobal(
 export async function actionGuardarCamposPersonales(
   curp: string,
   campos: Partial<Record<CampoPersonalPrimario, unknown>>,
-): Promise<{ ok: true } | Err> {
+): Promise<{ ok: true; camposRegistrados: string[] } | Err> {
   const g = await exigir("alumno.editar_datos_personales");
   if (!g.ok) return noAutorizado();
   const supabase = await createClient();
@@ -244,11 +245,17 @@ export async function actionGuardarCamposPersonales(
       return { ok: false, error: `Valor demasiado largo en «${campo}».` };
     }
   }
-  const r = await actualizarEtiquetasPersonales(
-    supabase,
-    curp,
-    patchCamposPersonales(campos),
-  );
-  return r;
+  // 2026-10-01 — quién firma sale de la sesión, nunca del navegador. Los
+  // cambios del seguimiento médico quedan en su historial en la misma
+  // transacción; los de «Información personal» no dejan historial.
+  const editor = editorDesdeSesion(g.sesion);
+  if (!editor) {
+    return { ok: false, error: "No se pudo identificar quién edita. Vuelve a iniciar sesión." };
+  }
+  return guardarCamposPersonalesConHistorial(supabase, {
+    curp: res.curp,
+    patch: patchCamposPersonales(campos),
+    editor,
+  });
 }
 

@@ -12,10 +12,11 @@
 - Legacy y fallbacks (R8): no se retiran.
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
-- **Rama y HEAD:** main · 1ca2310
+- **Rama y HEAD:** main · d9055e0
 
 ## Qué cerró (últimos 10 commits)
 
+- d9055e0 · Agenda de citas: el SQL está aplicado; falta que el directivo publique s…
 - 1ca2310 · Prompt T, Parte B: la agenda de citas del directivo; alumno y tutor solo…
 - 95157b0 · Prompt T, Parte A: los reportes disciplinarios llegan a Notificaciones d…
 - d7b2803 · Justificantes: historial del profesor con sus materias justificadas El p…
@@ -25,7 +26,6 @@
 - 64821c2 · Parte A del Prompt S: la subida de asistencia se guarda por materia sin…
 - d7415a7 · Modelo B: el SQL correctivo está aplicado y la estructura, completa
 - f727b0b · Revisión de la Parte 3 del Prompt R: aceptada; los grupos se distinguen…
-- c479872 · Parte 3 del Prompt R: la pantalla del tecnico de materias por grupo
 
 ## Lo que más pesa hoy
 

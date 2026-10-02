@@ -74,7 +74,7 @@ propia migración verificada (R8).
   intencionada: puede **solicitar y aprobar** la misma justificación.
 - **Justificantes (2026-10-01)**: envían padre y directivo; el profesor justifica solo materias (`justificar_clase`:
   las suyas o sin dueño) y el directivo el día completo. Efecto derivado al leer (`justificacion-dias.ts`).
-- **Reportes y citas (2026-10-01)**: reportes no anulados en Notificaciones (`reporte.ver_propios`); citas solo en la agenda del directivo (`agenda-citas-puro.ts`).
+- **Reportes, citas, historial médico (2026-10-01)**: reportes no anulados en Notificaciones (`reporte.ver_propios`); citas solo en la agenda del directivo (`agenda-citas-puro.ts`); el historial médico solo se añade.
 - Todo `scripts/` corre con `service_role` y salta RLS. No hay entorno de staging.
 
 ## 5. Estado de datos — última medición conocida
@@ -119,10 +119,10 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **50 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **51 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
-**Una de las 50 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
+**Una de las 51 no prueba un módulo: prueba el REPO.** `scripts/test-orden.mjs` es la
 mitad mecánica de `ORDEN.md` —capas, scripts, raíz, tamaño de archivo, composición de
 UI, entrada validada, extensión explícita en `lib/`, exports de `"use server"`, qué
 tablas son de sistema, la unicidad de `onConflict` y `test:ci` fiel al workflow— y

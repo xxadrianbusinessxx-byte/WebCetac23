@@ -52,6 +52,15 @@ const ETIQUETAS_LABEL: Record<CampoPersonalPrimario, string> = {
   ESTATURA: "Estatura",
 };
 
+/** Etiqueta amigable de un campo personal («ENFERMEDAD CRONICA» → «Enfermedad
+ *  crónica»). Si llega una clave desconocida —p. ej. leída de un historial—, se
+ *  devuelve tal cual en vez de perderla. */
+export function etiquetaCampoPersonal(campo: string): string {
+  return Object.hasOwn(ETIQUETAS_LABEL, campo)
+    ? ETIQUETAS_LABEL[campo as CampoPersonalPrimario]
+    : campo;
+}
+
 const CAMPOS_ORDEN: { clave: CampoPersonalPrimario; etiqueta: string }[] =
   CAMPOS_PERSONALES_PRIMARIOS.map((clave) => ({
     clave,

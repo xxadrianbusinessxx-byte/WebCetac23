@@ -17,6 +17,17 @@
   ],
   "pendientes": [
     {
+      "id": "sql-historial-seguimiento-medico",
+      "titulo": "Historial del seguimiento médico: SQL aplicado, falta probarlo con una sesión real",
+      "detalle": "crear-historial-seguimiento-medico.sql aplicado por persona el 2026-10-01; diag-seguimiento-medico confirma la función guardar_campos_personales_alumno y la tabla seguimiento_medico_historial (0 ediciones). Desde entonces «Información personal» y «Seguimiento médico» se guardan por esa función, que crea la ficha de los alumnos que no la tienen (144 de 472 medidos ese día). Falta lo que ningún agente puede hacer: guardar un cambio médico desde la cuenta de un padre y desde Administración escolar, ver la entrada en «Historial de cambios», y probar con un alumno SIN ficha (confirma que la clave pública puede insertar en ETIQUETAS PERSONALES). Después, el diag debe mostrar las ediciones por rol y 0 sin identidad.",
+      "riesgo": "medio",
+      "quien": "persona — prueba con sesión real de padre y de Administración escolar",
+      "verificar": "node scripts/diag-seguimiento-medico.mjs",
+      "doc": "supabase/crear-historial-seguimiento-medico.sql",
+      "revisado": "2026-10-01",
+      "estado": "abierto"
+    },
+    {
       "id": "sql-agenda-citas",
       "titulo": "Agenda de citas: el directivo no ha publicado ningún horario (SQL ya aplicado)",
       "detalle": "crear-agenda-citas.sql aplicado por persona el 2026-10-01; diag-agenda-citas confirma citas_franjas y citas_dias_bloqueados (0 filas) y 0 citas vivas que choquen. El índice ux_citas_hueco_vivo no lo ve PostgREST: se confirma en el SQL Editor con la consulta del final del .sql. Falta lo operativo: con 0 franjas nadie puede pedir cita (decisión), así que el directivo tiene que añadir al menos un horario en Administración escolar › Citas › Configurar citas.",
