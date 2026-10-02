@@ -130,7 +130,7 @@ const PERFIL_ALUMNO: Pestana = {
   id: "perfil",
   label: "Perfil",
   apartados: [
-    act("notificaciones", "Notificaciones", ["Comentarios", "Justificaciones"]),
+    act("notificaciones", "Notificaciones", ["Comentarios", "Justificaciones", "Reportes"]),
     act("informacion-personal", "Información personal"),
     act("seguimiento-semestral", "Seguimiento semestral"),
     act("estatus-academico", "Estatus académico"),
@@ -350,7 +350,7 @@ const EXPEDIENTE: Pestana = {
     act("horario", "Horario"),
     act("seguimiento-semestral", "Seguimiento semestral"),
     act("seguimiento-medico", "Seguimiento médico"),
-    act("notificaciones", "Notificaciones", ["Comentarios", "Justificaciones"]),
+    act("notificaciones", "Notificaciones", ["Comentarios", "Justificaciones", "Reportes"]),
     // Sin «Sesiones programadas»: su pieza lista las citas de la CURP de la
     // SESIÓN y ofrece «Solicitar cita», que este rol no tiene. Enseñarla aquí
     // sería una lista siempre vacía con un botón que el servidor rechaza.

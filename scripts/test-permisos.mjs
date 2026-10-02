@@ -225,6 +225,15 @@ ok(puede("administracion", "alumno.editar_numero_control"), "administracion pued
 ok(!puede("tutor", "alumno.editar_numero_control"), "el tutor NO captura el número de control (aunque edite datos personales)");
 ok(!puede("alumno", "alumno.editar_numero_control"), "el alumno NO captura su número de control");
 
+seccion("Reportes en Notificaciones (2026-10-01) — los de UN alumno, dentro del alcance");
+ok(
+  rolesDe("reporte.ver_propios").sort().join(",") === "administracion,alumno,tutor",
+  "reporte.ver_propios: solo alumno, tutor y Administración escolar (su Expediente)",
+);
+ok(!puede("alumno", "reporte.ver") && !puede("tutor", "reporte.ver"), "alumno y tutor NO listan todos los reportes del ciclo");
+ok(!puede("maestro", "reporte.ver_propios"), "el profesor no los ve");
+ok(!puede("alumno", "reporte.crear") && !puede("tutor", "reporte.anular"), "alumno y tutor no crean ni anulan reportes");
+
 seccion("Constancias de estudios (2026-09-25) — solicitud, aceptación y emisión directa");
 ok(puede("alumno", "constancia.solicitar") && puede("tutor", "constancia.solicitar"), "alumno y tutor la piden desde su perfil");
 ok(puede("alumno", "constancia.ver_propias") && puede("tutor", "constancia.ver_propias"), "…y ven cómo va");

@@ -179,6 +179,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `reporte.ver` | Ver los reportes disciplinarios de un grupo. | ✅ | X | X | X | X | ✅ |
 | `reporte.crear` | Levantar un reporte disciplinario sobre un alumno. | ✅ | X | X | X | X | ✅ |
 | `reporte.anular` | Anular un reporte ya levantado. Va aparte de `crear` porque toca el historial de un alumno. | ✅ | X | X | X | X | ✅ |
+| `reporte.ver_propios` | **2026-10-01**: ver los reportes NO anulados de UN alumno en Perfil › Notificaciones — el alumno, los suyos; el tutor, los de sus vinculados; Administración escolar, en el Expediente (alcance: `resolverAccesoAlumno`). | X | X | X | ✅ | ✅ | ✅ |
 | `cita.ver_propias` | Ver las citas propias (alumno) o las del vinculado (tutor). | X | X | X | ✅ | ✅ | X |
 | `cita.solicitar` | Pedir una cita. | X | X | X | ✅ | ✅ | X |
 | `cita.gestionar` | Aceptar, rechazar y cerrar citas. | ✅ | X | X | X | X | X |
@@ -201,7 +202,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 191 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 192 Server Actions.
 
 ### `actividades.ts`
 
@@ -219,6 +220,7 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 191 Server Actions.
 | Action | Guardia hoy | Capacidad |
 |---|---|---|
 | `actionListarReportes` | exigir: reporte.ver | `reporte.ver` |
+| `actionListarReportesDeAlumno` | exigir: reporte.ver_propios | `reporte.ver_propios` |
 | `actionCrearReporte` | exigir: reporte.crear | `reporte.crear` |
 | `actionAnularReporte` | exigir: reporte.anular | `reporte.anular` |
 | `actionListarCitas` | exigir: cita.gestionar | `cita.gestionar` |

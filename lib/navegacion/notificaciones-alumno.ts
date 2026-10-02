@@ -1,7 +1,7 @@
 /**
  * notificaciones-alumno.ts — MÓDULO PURO. «Perfil › Notificaciones» del alumno:
- * UNA sola lista a partir de DOS fuentes que ya existen (comentarios y
- * justificaciones).
+ * UNA sola lista a partir de TRES fuentes que ya existen (comentarios,
+ * justificaciones y, desde el 2026-10-01, reportes disciplinarios).
  *
  * Por qué existe: qué entra en la lista y en qué orden es una decisión, no una
  * presentación. Escrita con condicionales dentro del JSX no se puede probar ni
@@ -11,7 +11,8 @@
  * No hace I/O y no conoce la base de datos: recibe filas ya leídas por las
  * acciones que ya existían (los comentarios vienen dentro de
  * `actionObtenerPerfilAlumno`; las justificaciones, de
- * `actionObtenerJustificacionesDeAlumno`, la MISMA vía que usa el calendario).
+ * `actionObtenerJustificacionesDeAlumno`, la MISMA vía que usa el calendario;
+ * los reportes, de `actionListarReportesDeAlumno`, ya sin los anulados).
  *
  * ── La regla de orden (una sola vez, aquí) ────────────────────────────────
  *   1. `fecha` descendente. En `YYYY-MM-DD` el orden lexicográfico ya es
@@ -25,7 +26,9 @@
  *      renders (y la suite pueda afirmarlo).
  */
 
-export type FuenteNotificacion = "comentario" | "justificacion";
+import type { Gravedad } from "../escolar/administracion/flujos-puro.ts";
+
+export type FuenteNotificacion = "comentario" | "justificacion" | "reporte";
 
 export type EstadoJustificacionNotificacion = "pendiente" | "aprobada" | "rechazada";
 
@@ -33,6 +36,14 @@ export type EstadoJustificacionNotificacion = "pendiente" | "aprobada" | "rechaz
 export type ComentarioNotificacion = {
   comentario: string;
   fecha: string | null;
+};
+
+/** Lo mínimo que este módulo necesita de `ReporteVisible`. */
+export type ReporteNotificacion = {
+  id: string;
+  fecha: string | null;
+  motivo: string;
+  gravedad: Gravedad;
 };
 
 /** Lo mínimo que este módulo necesita de `FilaJustificacion`. */
@@ -54,25 +65,31 @@ export type NotificacionAlumno = {
   detalle: string;
   /** Solo las justificaciones tienen estado. */
   estado: EstadoJustificacionNotificacion | null;
+  /** Solo los reportes tienen gravedad. */
+  gravedad: Gravedad | null;
 };
 
 export const ETIQUETA_FUENTE: Readonly<Record<FuenteNotificacion, string>> = {
   comentario: "Comentario",
   justificacion: "Justificación",
+  reporte: "Reporte",
 };
 
-/** Los dos rótulos de la barra de modo los manda el mapa de navegación. */
+/** Los rótulos de la barra de modo los manda el mapa de navegación. */
 export const MODO_COMENTARIOS = "Comentarios";
 export const MODO_JUSTIFICACIONES = "Justificaciones";
+export const MODO_REPORTES = "Reportes";
 
 /** Del rótulo del modo a la fuente. `null` = el modo no filtra (lista entera). */
 export function fuenteDelModo(modo: string | null): FuenteNotificacion | null {
   if (modo === MODO_COMENTARIOS) return "comentario";
   if (modo === MODO_JUSTIFICACIONES) return "justificacion";
+  if (modo === MODO_REPORTES) return "reporte";
   return null;
 }
 
-/** Lo que pide acción va antes que lo resuelto cuando comparten fecha. */
+/** Lo que pide acción va antes que lo resuelto cuando comparten fecha. Un
+ *  reporte no pide acción del alumno: pesa como lo resuelto. */
 function pesoAccion(n: NotificacionAlumno): number {
   return n.estado === "pendiente" ? 0 : 1;
 }
@@ -94,6 +111,8 @@ function comparar(a: NotificacionAlumno, b: NotificacionAlumno): number {
 export function notificacionesDeAlumno(entrada: {
   comentarios: readonly ComentarioNotificacion[];
   justificaciones: readonly JustificacionNotificacion[];
+  /** Opcional: quien no los pide recibe la lista de siempre. */
+  reportes?: readonly ReporteNotificacion[];
   limite?: number;
 }): NotificacionAlumno[] {
   const deComentario: NotificacionAlumno[] = entrada.comentarios.map((c, i) => ({
@@ -103,6 +122,7 @@ export function notificacionesDeAlumno(entrada: {
     titulo: ETIQUETA_FUENTE.comentario,
     detalle: c.comentario,
     estado: null,
+    gravedad: null,
   }));
 
   const deJustificacion: NotificacionAlumno[] = entrada.justificaciones.map((j, i) => ({
@@ -112,9 +132,22 @@ export function notificacionesDeAlumno(entrada: {
     titulo: ETIQUETA_FUENTE.justificacion,
     detalle: j.motivo,
     estado: j.estado,
+    gravedad: null,
   }));
 
-  const lista = [...deComentario, ...deJustificacion].sort(comparar);
+  // Clave por `id` y no por posición: el reporte tiene identidad propia, y así
+  // la clave no cambia si otro reporte entra o sale de la lista.
+  const deReporte: NotificacionAlumno[] = (entrada.reportes ?? []).map((r) => ({
+    clave: `reporte-${r.id}`,
+    fuente: "reporte",
+    fecha: r.fecha && r.fecha.trim() ? r.fecha : null,
+    titulo: ETIQUETA_FUENTE.reporte,
+    detalle: r.motivo,
+    estado: null,
+    gravedad: r.gravedad,
+  }));
+
+  const lista = [...deComentario, ...deJustificacion, ...deReporte].sort(comparar);
   return typeof entrada.limite === "number" ? lista.slice(0, entrada.limite) : lista;
 }
 

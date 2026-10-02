@@ -46,6 +46,8 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "constancia.solicitar",
     "constancia.ver_propias",
     "buzon.enviar",
+    // 2026-10-01: sus reportes disciplinarios llegan a Notificaciones.
+    "reporte.ver_propios",
   ]),
 
   tecnico: new Set<Capacidad>([
@@ -124,6 +126,8 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "constancia.solicitar",
     "constancia.ver_propias",
     "buzon.enviar",
+    // 2026-10-01: los reportes de su hijo, en el mismo perfil que ve el alumno.
+    "reporte.ver_propios",
   ]),
 
   maestro: new Set<Capacidad>([
@@ -259,6 +263,8 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "reporte.ver",
     "reporte.crear",
     "reporte.anular",
+    // El Expediente monta la MISMA pieza de Notificaciones que el alumno.
+    "reporte.ver_propios",
     "constancia.gestionar",
     "constancia.emitir",
     // Documentos: las cinco, como directivo y técnico. Con solo ver/subir no

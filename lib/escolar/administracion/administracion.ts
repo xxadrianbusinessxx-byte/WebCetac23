@@ -19,6 +19,7 @@ import {
   type Gravedad,
   type TipoBuzon,
 } from "./flujos-puro.ts";
+import { fechaHoraLocal } from "./hora-plantel-puro.ts";
 import {
   TABLA_BUZON_MENSAJES,
   TABLA_CITAS as TABLA_CITAS_REGISTRO,
@@ -97,6 +98,16 @@ export type BuzonRow = {
   created_at: string;
 };
 
+/** Lo que el alumno y su tutor ven de un reporte en Notificaciones: ni quién lo
+ *  levantó (identidad de profesor rota, GLOSARIO) ni nada de su anulación. */
+export type ReporteVisible = {
+  id: string;
+  /** Día LOCAL del plantel en que ocurrió, «YYYY-MM-DD». */
+  fecha: string | null;
+  motivo: string;
+  gravedad: Gravedad;
+};
+
 export type Resultado<T> = { ok: true; dato: T } | { ok: false; error: string };
 
 /* ── Reportes ──────────────────────────────────────────────────────────── */
@@ -112,6 +123,41 @@ export async function listarReportes(
   const { data, error } = await q.order("ocurrido_at", { ascending: false });
   if (error) return [];
   return (data ?? []) as ReporteRow[];
+}
+
+/**
+ * Los reportes de UN alumno que él y su tutor ven en Notificaciones (2026-10-01).
+ * Solo los NO anulados: un reporte anulado es uno que la escuela retiró, y
+ * enseñarlo en el perfil lo seguiría sosteniendo. Dirección y Administración lo
+ * siguen viendo en su lista (`listarReportes`), que no filtra.
+ *
+ * El alcance (¿puede esta sesión mirar esta CURP?) lo decide la action antes.
+ * Un error de lectura se PROPAGA: «no hay reportes» y «no se pudo leer» no son
+ * lo mismo para un padre.
+ */
+export async function listarReportesVisiblesDeAlumno(
+  supabase: SupabaseClient,
+  periodoId: string,
+  curp: string,
+): Promise<Resultado<ReporteVisible[]>> {
+  const { data, error } = await supabase
+    .from(TABLA_REPORTES)
+    .select("id, motivo, gravedad, ocurrido_at")
+    .eq("periodo_id", periodoId)
+    .eq("curp", curp)
+    .is("anulado_at", null)
+    .order("ocurrido_at", { ascending: false });
+  if (error) return { ok: false, error: error.message };
+  const filas = (data ?? []) as Pick<ReporteRow, "id" | "motivo" | "gravedad" | "ocurrido_at">[];
+  return {
+    ok: true,
+    dato: filas.map((r) => ({
+      id: r.id,
+      fecha: fechaHoraLocal(r.ocurrido_at)?.fecha ?? null,
+      motivo: r.motivo,
+      gravedad: r.gravedad,
+    })),
+  };
 }
 
 export async function crearReporte(

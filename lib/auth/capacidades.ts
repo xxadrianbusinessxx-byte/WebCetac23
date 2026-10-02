@@ -104,6 +104,9 @@ export const CAPACIDADES = [
   "reporte.ver",
   "reporte.crear",
   "reporte.anular",
+  // 2026-10-01: los reportes de UN alumno, dentro del alcance de la sesión
+  // (Perfil › Notificaciones). No es `reporte.ver`, que lista todos los del ciclo.
+  "reporte.ver_propios",
   // Citas. Una entidad, dos lados: quien la pide y quien la resuelve.
   "cita.ver_propias",
   "cita.solicitar",

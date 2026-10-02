@@ -593,6 +593,57 @@ eq(notif.notificacionesDeAlumno({ comentarios: [], justificaciones: [] }).length
 eq(notif.ETIQUETA_FUENTE.comentario, "Comentario", "rótulo de fuente: comentario");
 eq(notif.ETIQUETA_FUENTE.justificacion, "Justificación", "rótulo de fuente: justificación");
 
+// 2026-10-01 — los reportes disciplinarios son la TERCERA fuente.
+const N_REPORTES = [
+  { id: "r-a", fecha: "2026-09-09", motivo: "Mala conducta", gravedad: "media" },
+  { id: "r-b", fecha: "2026-09-11", motivo: "Pelea en el patio", gravedad: "grave" },
+];
+const conReportes = notif.notificacionesDeAlumno({
+  comentarios: N_COMENTARIOS,
+  justificaciones: N_JUSTIFICACIONES,
+  reportes: N_REPORTES,
+});
+eq(conReportes.length, 7, "las TRES fuentes entran en la misma lista");
+eq(
+  conReportes.map((n) => n.clave),
+  ["reporte-r-b", "justificacion-1", "comentario-2", "justificacion-0", "reporte-r-a", "comentario-0", "comentario-1"],
+  "un reporte se intercala por fecha; a igual fecha no adelanta a nadie (no pide acción)",
+);
+const rb = conReportes.find((n) => n.clave === "reporte-r-b");
+eq(rb.fuente, "reporte", "el reporte conserva su fuente");
+eq(rb.titulo, "Reporte", "rótulo de fuente: reporte");
+eq(rb.gravedad, "grave", "el reporte lleva su gravedad");
+eq(rb.estado, null, "un reporte no tiene estado (no es una solicitud)");
+eq(conReportes.find((n) => n.clave === "comentario-0").gravedad, null, "un comentario no tiene gravedad");
+eq(conReportes.find((n) => n.clave === "justificacion-0").gravedad, null, "una justificación no tiene gravedad");
+eq(
+  notif.notificacionesDeAlumno({ comentarios: N_COMENTARIOS, justificaciones: N_JUSTIFICACIONES }).map((n) => n.clave),
+  lista.map((n) => n.clave),
+  "sin `reportes` la lista es la de siempre (las llamadas existentes no cambian)",
+);
+eq(notif.MODO_REPORTES, nav.apartado("alumno", "perfil", "notificaciones").modos[2], "el modo «Reportes» es el del mapa (alumno)");
+eq(notif.MODO_REPORTES, nav.apartado("tutor", "perfil", "notificaciones").modos[2], "el tutor tiene el mismo modo «Reportes» (perfil del hijo)");
+eq(notif.MODO_REPORTES, nav.apartado("administracion", "expediente", "notificaciones").modos[2], "el Expediente tiene el mismo modo «Reportes»");
+eq(notif.fuenteDelModo(notif.MODO_REPORTES), "reporte", "«Reportes» filtra por reportes");
+eq(
+  notif.filtrarPorModo(conReportes, notif.MODO_REPORTES).map((n) => n.clave),
+  ["reporte-r-b", "reporte-r-a"],
+  "el modo Reportes deja solo los reportes, en orden",
+);
+ok(!notif.hayPendiente(notif.filtrarPorModo(conReportes, notif.MODO_REPORTES)), "un reporte no enciende el aviso de «pendiente»");
+eq(N_REPORTES[0].id, "r-a", "no muta los reportes de entrada");
+
+// ── 7b) hora-plantel-puro (la fecha LOCAL de un reporte o de una cita) ─────
+console.log("\nhora-plantel-puro");
+const hp = await import("../lib/escolar/administracion/hora-plantel-puro.ts");
+eq(hp.fechaHoraLocal("2026-09-26T01:30:00Z"), { fecha: "2026-09-25", hora: "19:30" }, "las 01:30 UTC son las 19:30 del día ANTERIOR en el plantel");
+eq(hp.fechaHoraLocal("2026-09-25T18:19:00+00:00"), { fecha: "2026-09-25", hora: "12:19" }, "lee el formato de PostgREST (+00:00)");
+eq(hp.fechaHoraLocal("no-es-fecha"), null, "un texto que no es instante devuelve null, no una fecha inventada");
+eq(hp.instanteDelPlantel("2026-10-06", "09:30"), "2026-10-06T09:30:00-06:00", "fecha+hora del plantel → instante con desfase");
+eq(new Date(hp.instanteDelPlantel("2026-10-06", "09:30")).toISOString(), "2026-10-06T15:30:00.000Z", "…que es el instante UTC correcto");
+eq(hp.fechaHoraLocal(hp.instanteDelPlantel("2026-12-31", "23:45")), { fecha: "2026-12-31", hora: "23:45" }, "ida y vuelta: fin de año a las 23:45");
+eq(hp.fechaHoraLocal(hp.instanteDelPlantel("2027-04-05", "08:00")), { fecha: "2027-04-05", hora: "08:00" }, "ida y vuelta en abril: sin horario de verano");
+
 // ── 8) buscar-en-filas (alcance: qué fila es de qué alumno) ─────────────────
 console.log("\nbuscar-en-filas");
 

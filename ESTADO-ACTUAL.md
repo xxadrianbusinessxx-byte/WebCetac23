@@ -74,6 +74,7 @@ propia migración verificada (R8).
   intencionada: puede **solicitar y aprobar** la misma justificación.
 - **Justificantes (2026-10-01)**: envían padre y directivo; el profesor justifica solo materias (`justificar_clase`:
   las suyas o sin dueño) y el directivo el día completo. Efecto derivado al leer (`justificacion-dias.ts`).
+- **Reportes (2026-10-01)**: alumno y tutor ven los no anulados en Notificaciones (`reporte.ver_propios` + `resolverAccesoAlumno`).
 - Todo `scripts/` corre con `service_role` y salta RLS. No hay entorno de staging.
 
 ## 5. Estado de datos — última medición conocida

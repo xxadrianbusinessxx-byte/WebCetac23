@@ -54,6 +54,7 @@ import {
   listarCitas,
   listarConstancias,
   listarReportes,
+  listarReportesVisiblesDeAlumno,
   marcarBuzonLeido,
   solicitarCita,
   solicitarConstancia,
@@ -62,6 +63,7 @@ import {
   type ConstanciaConAlumno,
   type ConstanciaRow,
   type ReporteRow,
+  type ReporteVisible,
 } from "@/lib/escolar/administracion/administracion";
 import {
   esGravedadValida,
@@ -114,6 +116,31 @@ export async function actionListarReportes(
   if (!periodoId) return [];
   const supabase = await createClient();
   return listarReportes(supabase, periodoId, { grupoId: grupoId ?? null });
+}
+
+/**
+ * Los reportes de UN alumno para Perfil › Notificaciones (2026-10-01): el
+ * alumno ve los suyos; el tutor, los del hijo elegido; Administración escolar,
+ * los del alumno de su Expediente. La CURP llega del navegador, así que SOBRE
+ * QUIÉN lo decide `resolverAccesoAlumno`, no el parámetro.
+ */
+export async function actionListarReportesDeAlumno(
+  curp: string,
+): Promise<{ ok: true; reportes: ReporteVisible[] } | Fallo> {
+  const g = await exigir("reporte.ver_propios");
+  if (!g.ok) return fallo("No autorizado.");
+  try {
+    const supabase = await createClient();
+    const acceso = await resolverAccesoAlumno(supabase, g.sesion, curp);
+    if (!acceso.ok) return fallo(acceso.error);
+    const periodoId = await cicloActual();
+    if (!periodoId) return { ok: true, reportes: [] };
+    const r = await listarReportesVisiblesDeAlumno(supabase, periodoId, acceso.curp);
+    return r.ok ? { ok: true, reportes: r.dato } : fallo("No se pudieron leer los reportes.");
+  } catch (err) {
+    console.error("[administracion] actionListarReportesDeAlumno", err);
+    return fallo("No se pudieron leer los reportes.");
+  }
 }
 
 export async function actionCrearReporte(datos: {
