@@ -18,10 +18,10 @@
   "pendientes": [
     {
       "id": "sql-agenda-citas",
-      "titulo": "Ejecutar supabase/crear-agenda-citas.sql",
-      "detalle": "La agenda de citas (Prompt T, Parte B) está en el código pero sus tablas no existen. Hasta ejecutar el .sql en el SQL Editor, «Configurar citas» y «Pedir una cita» muestran «Falta crear la agenda de citas en la base». Después, el directivo tiene que añadir al menos una franja: sin agenda nadie puede pedir cita (decisión). Antes de ejecutarlo, el diag confirma que ninguna cita viva comparte instante (si no, el índice único fallaría).",
+      "titulo": "Agenda de citas: el directivo no ha publicado ningún horario (SQL ya aplicado)",
+      "detalle": "crear-agenda-citas.sql aplicado por persona el 2026-10-01; diag-agenda-citas confirma citas_franjas y citas_dias_bloqueados (0 filas) y 0 citas vivas que choquen. El índice ux_citas_hueco_vivo no lo ve PostgREST: se confirma en el SQL Editor con la consulta del final del .sql. Falta lo operativo: con 0 franjas nadie puede pedir cita (decisión), así que el directivo tiene que añadir al menos un horario en Administración escolar › Citas › Configurar citas.",
       "riesgo": "alto",
-      "quien": "persona — ejecutar el SQL y luego configurar el horario como directivo",
+      "quien": "persona — el directivo configura su horario de atención",
       "verificar": "node scripts/diag-agenda-citas.mjs",
       "doc": "supabase/crear-agenda-citas.sql",
       "revisado": "2026-10-01",

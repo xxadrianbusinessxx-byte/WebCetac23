@@ -12,10 +12,11 @@
 - Legacy y fallbacks (R8): no se retiran.
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
-- **Rama y HEAD:** main · 95157b0
+- **Rama y HEAD:** main · 1ca2310
 
 ## Qué cerró (últimos 10 commits)
 
+- 1ca2310 · Prompt T, Parte B: la agenda de citas del directivo; alumno y tutor solo…
 - 95157b0 · Prompt T, Parte A: los reportes disciplinarios llegan a Notificaciones d…
 - d7b2803 · Justificantes: historial del profesor con sus materias justificadas El p…
 - 93dd14e · Justificantes: el padre envía, el profesor justifica materias y el direc…
@@ -25,11 +26,10 @@
 - d7415a7 · Modelo B: el SQL correctivo está aplicado y la estructura, completa
 - f727b0b · Revisión de la Parte 3 del Prompt R: aceptada; los grupos se distinguen…
 - c479872 · Parte 3 del Prompt R: la pantalla del tecnico de materias por grupo
-- 52f6941 · Revisión de la Parte 2 del Prompt R: aceptada; la subida nueva ya no pue…
 
 ## Lo que más pesa hoy
 
-- sql-agenda-citas — Ejecutar supabase/crear-agenda-citas.sql · `node scripts/diag-agenda-citas.mjs`
+- sql-agenda-citas — Agenda de citas: el directivo no ha publicado ningún horario (SQL ya aplicado) · `node scripts/diag-agenda-citas.mjs`
 - traspaso-sin-estrenar — asignaciones_profesor sigue con 0 filas · `node scripts/diag-asignaciones-profesor.mjs`
 - claves-compartidas-profesores — 15 de 22 profesores comparten contraseña · `node scripts/diag-credenciales-duplicadas.mjs`
 - rotar-password-supabase — Rotar la contraseña de Supabase · sin comando de verificación
