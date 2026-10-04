@@ -8,7 +8,7 @@
  * (PostgREST + PostgreSQL), que es donde vive la hipótesis del cuello.
  *
  * Uso:
- *   node scripts/fase10-perfil-datos.mjs [--runs N] [--openapi]
+ *   node scripts/fase10-perfil-datos.mjs [--runs=N] [--openapi]
  *
  * Solo LECTURA. No escribe nada. No crea índices. No modifica esquema.
  * No expone secretos (se leen desde .env.local en runtime).
@@ -215,14 +215,30 @@ await medir("Catálogo · grupos eq(activo) [resolución de grupos]", () =>
   supabase.from("grupos").select("*").eq("activo", true),
 );
 
-// Tutores: listarTutores
-await medir("Directivo · tutores range(0,4999) [listarTutores]", () =>
-  supabase.from("tutores").select("*").range(0, 4999),
+// Panel directivo de tutores (`actionListarTutoresConCredenciales`): las MISMAS dos
+// consultas que la app. Tutores: `listarTutores` (tutores-relacion.ts), con la
+// proyección `SELECT_TUTOR` de tutores-credenciales.ts copiada aquí.
+await medir("Directivo · tutores SELECT_TUTOR order(created_at) [listarTutores]", () =>
+  supabase
+    .from("tutores")
+    .select(
+      "id, clave_tutor, nombre, apellidos, curp, telefono, correo, usuario, password_hash, debe_cambiar_credenciales, activo, created_at, updated_at",
+    )
+    .order("created_at", { ascending: false }),
 );
 
-// Credenciales iniciales de tutores
-await medir("Directivo · tutor_credenciales_iniciales [listarCredencialesInicialesDeTutores]", () =>
-  supabase.from("tutor_credenciales_iniciales").select("*"),
+// Credenciales iniciales: `listarCredencialesInicialesDeTutores`
+// (tutores-credenciales.ts, O9): dos columnas, `in(tutor_id)` en lotes de 50 en
+// paralelo. Los ids se leen una vez, fuera de la medida.
+const { data: idsTutores } = await supabase.from("tutores").select("id");
+const lotesTutores = [];
+for (let i = 0; i < (idsTutores ?? []).length; i += 50) lotesTutores.push(idsTutores.slice(i, i + 50).map((t) => t.id));
+await medir("Directivo · tutor_credenciales_iniciales in(tutor_id) en lotes de 50 [listarCredencialesInicialesDeTutores]", () =>
+  Promise.all(
+    lotesTutores.map((lote) =>
+      supabase.from("tutor_credenciales_iniciales").select("tutor_id, curp_alumno").in("tutor_id", lote),
+    ),
+  ),
 );
 
 // Etiquetas personales por grado/grupo (fallback legacy de asistencias)

@@ -24,4 +24,6 @@ const r = await fetch(
   { headers: hdr },
 );
 console.log("status", r.status);
-console.log(JSON.stringify(await r.json(), null, 2));
+// CLAVE es la contraseña del profesor: no se imprime.
+const filas = await r.json();
+console.log(JSON.stringify(Array.isArray(filas) ? filas.map((p) => ({ ...p, CLAVE: "[oculta]" })) : filas, null, 2));

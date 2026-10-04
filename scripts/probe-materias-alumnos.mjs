@@ -28,10 +28,14 @@ const hdr = { apikey: key, Authorization: `Bearer ${key}` };
 
 const alu = await fetch(`${urlBase}/rest/v1/${encodeURIComponent("ALUMNOS")}?select=*&limit=3`, { headers: hdr });
 const aluBody = await alu.json();
-console.log("ALUMNOS muestra:", JSON.stringify(aluBody, null, 2));
+// CLAVE es una contraseña y la CURP la deriva (la del alumno son sus 6 últimos
+// caracteres; la inicial del tutor, sus 8 últimos): ninguna de las dos se imprime.
+const ocultar = (f) => ({ ...f, ...("CLAVE" in f && { CLAVE: "[oculta]" }), ...("CURP" in f && { CURP: "[oculta]" }) });
+console.log("ALUMNOS muestra:", JSON.stringify(Array.isArray(aluBody) ? aluBody.map(ocultar) : aluBody, null, 2));
 
 const prof = await fetch(`${urlBase}/rest/v1/${encodeURIComponent("PROFESORES")}?select=*&limit=1`, { headers: hdr });
-console.log("PROFESORES status", prof.status, await prof.text());
+const profBody = await prof.json().catch(() => null);
+console.log("PROFESORES status", prof.status, JSON.stringify(Array.isArray(profBody) ? profBody.map(ocultar) : profBody));
 
 const materias = [
   "1RO A CONCIENCIA HISTORICA",

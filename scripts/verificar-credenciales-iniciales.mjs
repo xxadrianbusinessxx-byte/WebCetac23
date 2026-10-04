@@ -1,5 +1,6 @@
 // Verificación (solo lectura): confirma que la migración 6L quedó bien.
 // Cuenta filas, muestra una muestra y verifica el formato del hash.
+// Salida sensible: la CURP del alumno da la contraseña inicial del tutor; no se imprime.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -34,7 +35,7 @@ const muestra = await get("tutor_credenciales_iniciales?select=tutor_id,curp_alu
 console.log("Muestra:");
 for (const f of muestra) {
   const okHash = /^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/.test(f.password_hash ?? "");
-  console.log(`  tutor=${f.tutor_id} curp=${f.curp_alumno} hash_formato_ok=${okHash}`);
+  console.log(`  tutor=${f.tutor_id} curp=[oculta] hash_formato_ok=${okHash}`);
 }
 
 // Tutores que NO tienen ninguna credencial inicial (deberían ser solo los sin hijos).

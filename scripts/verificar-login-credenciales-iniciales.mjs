@@ -1,6 +1,8 @@
 // Verificación E2E: comprueba que la contraseña inicial (últimos 8 del CURP
 // de cada hijo) valida contra el hash almacenado, replicando la lógica de
 // `verificarContraseñaTutor` de lib/escolar/tutores/tutores.ts.
+// Salida sensible: no imprime ni la CURP ni la contraseña; cada fila se nombra por
+// el inicio de su tutor_id.
 import fs from "node:fs";
 import path from "node:path";
 import { scryptSync, timingSafeEqual } from "node:crypto";
@@ -57,7 +59,7 @@ for (const f of probadas) {
   const contraseña = f.curp_alumno.slice(-8);
   const valido = verifica(contraseña, f.password_hash);
   if (valido) ok++;
-  console.log(`  ${valido ? "OK " : "FAIL"} curp=${f.curp_alumno} → "${contraseña}"`);
+  console.log(`  ${valido ? "OK " : "FAIL"} tutor=${String(f.tutor_id).slice(0, 8)} curp=[oculta] → contraseña [oculta]`);
 }
 console.log(`Resultado: ${ok}/${probadas.length} contraseñas iniciales validan correctamente.`);
 process.exit(ok === probadas.length ? 0 : 1);

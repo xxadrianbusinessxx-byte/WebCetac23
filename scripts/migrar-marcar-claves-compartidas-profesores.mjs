@@ -3,8 +3,10 @@
 // (ESCRIBE con --apply).
 //
 // Marca `debe_cambiar_credenciales = true` en los PROFESORES que comparten
-// clave con otro (login por nombre + clave: 16 comparten "4321", 3 comparten
-// "8080"). La cuenta del rol técnico (ID 21) tiene clave única → no se toca.
+// clave con otro (login por nombre + clave; en 2026-09-07 eran 19, en dos grupos de
+// 16 y 3). La cuenta del rol técnico (ID 21) tiene clave única → no se toca.
+// Salida sensible, también en el dry-run: la clave no se imprime; cada grupo se
+// nombra A, B… con su recuento.
 //
 // NO inventa claves nuevas: cada profesor define la suya al entrar (flujo A4
 // de cambio forzado). La marca se puede revertir poniendo el flag en false.
@@ -61,19 +63,24 @@ for (const p of filas) {
 }
 
 // Profesores con clave COMPARTIDA y que aún no están marcados.
+// Cada grupo de clave compartida lleva una etiqueta OPACA por orden de aparición
+// (A, B…) y su recuento: la clave no se imprime, ni nada calculado con ella.
+const etiqueta = (i) => (i >= 26 ? etiqueta(Math.floor(i / 26) - 1) : "") + String.fromCharCode(65 + (i % 26));
 const aMarcar = [];
+let grupos = 0;
 for (const lista of porClave.values()) {
   if (lista.length < 2) continue;
+  const grupo = `${etiqueta(grupos++)} (${lista.length})`;
   for (const p of lista) {
     if (p.debe_cambiar_credenciales !== true) {
-      aMarcar.push({ id: p.ID, nombre: nombreProf(p), clave: p.CLAVE, permisos: p.Permisos });
+      aMarcar.push({ id: p.ID, nombre: nombreProf(p), grupo, permisos: p.Permisos });
     }
   }
 }
 
 console.log(`Profesores con clave compartida sin marcar: ${aMarcar.length}`);
 for (const p of aMarcar) {
-  console.log(`  ID ${p.id} · ${p.nombre} · Permisos=${p.permisos} · CLAVE "${p.clave}"`);
+  console.log(`  ID ${p.id} · ${p.nombre} · Permisos=${p.permisos} · CLAVE [oculta] · grupo ${p.grupo}`);
 }
 
 // La del técnico (ID 21) es única → nunca entra en aMarcar. Se verifica igual.

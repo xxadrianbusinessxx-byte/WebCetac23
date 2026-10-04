@@ -4,7 +4,8 @@
 // 3) Calcula la contraseña inicial esperada = últimos 8 chars del CURP.
 // 4) Verifica el hash almacenado contra esa contraseña (scrypt, mismo criterio
 //    que verificarContraseñaTutor: tal cual y en mayúsculas).
-// NO imprime el hash completo ni la contraseña en claro salvo confirmación.
+// Salida sensible: no imprime el hash, la contraseña ni ninguna CURP; solo si
+// coinciden.
 import fs from "node:fs";
 import path from "node:path";
 import { scryptSync, timingSafeEqual } from "node:crypto";
@@ -57,7 +58,7 @@ if (!Array.isArray(tutores) || tutores.length === 0) {
 }
 const tutor = tutores[0];
 console.log(`Tutor: id=${tutor.id.slice(0, 8)} | usuario="${tutor.usuario}" | clave="${tutor.clave_tutor}"`);
-console.log(`  activo=${tutor.activo} | debe_cambiar=${tutor.debe_cambiar_credenciales} | curp_tutor=${tutor.curp ?? "(null)"}`);
+console.log(`  activo=${tutor.activo} | debe_cambiar=${tutor.debe_cambiar_credenciales} | curp_tutor=${tutor.curp ? "[oculta]" : "(null)"}`);
 console.log(`  password_hash presente: ${tutor.password_hash ? "SÍ" : "NO"}`);
 
 // 2) Obtener CURP del alumno de referencia (tutor_alumnos)
@@ -73,20 +74,20 @@ if (!ref) {
   console.log("  No hay alumno de referencia → no se puede derivar la contraseña inicial.");
   process.exit(1);
 }
-console.log(`  Alumno de referencia: curp="${ref.curp_alumno}" | tipo=${ref.tipo_relacion} | activo=${ref.activo}`);
+console.log(`  Alumno de referencia: curp=[oculta] | tipo=${ref.tipo_relacion} | activo=${ref.activo}`);
 
 // 3) Contraseña inicial esperada = últimos 8 chars del CURP
 const curp = ref.curp_alumno.trim().toUpperCase();
 const inicial = curp.slice(-8);
-console.log(`  Contraseña inicial esperada (últimos 8 del CURP): "${inicial}" (${inicial.length} chars)`);
+console.log("  Contraseña inicial esperada (últimos 8 del CURP): [oculta]");
 
 // 4) Verificar hash
 const ok = verificar(inicial, tutor.password_hash);
 console.log(`  ¿El hash almacenado coincide con la contraseña inicial? ${ok ? "SÍ ✅" : "NO ❌"}`);
 
 // Probar también la clave_tutor y el usuario como posibles contraseñas (diagnóstico)
-for (const cand of [tutor.clave_tutor, tutor.usuario]) {
+for (const [campo, cand] of [["clave_tutor", tutor.clave_tutor], ["usuario", tutor.usuario]]) {
   if (cand && verificar(cand, tutor.password_hash)) {
-    console.log(`  ⚠️ El hash coincide con el valor "${cand}" (clave_tutor o usuario).`);
+    console.log(`  ⚠️ La contraseña es igual al campo ${campo} del tutor (valor [oculta]).`);
   }
 }

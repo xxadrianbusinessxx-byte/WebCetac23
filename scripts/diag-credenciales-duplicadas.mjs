@@ -11,6 +11,8 @@
 // (entrar como el otro sin saberlo).
 //
 // Solo lectura. Uso: node scripts/diag-credenciales-duplicadas.mjs
+// Salida sensible: nunca imprime una CLAVE ni una CURP (de la CURP salen la clave del
+// alumno y la contraseña inicial del tutor). Los grupos se nombran A, B… por orden.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -38,6 +40,9 @@ async function get(tabla, select, extra = "") {
 }
 
 const norm = (s) => String(s ?? "").trim().toUpperCase();
+// Etiqueta OPACA por orden de aparición (A, B… Z, AA…): distingue grupos sin imprimir
+// la clave ni nada calculado con ella (el hash de una clave corta se invierte al instante).
+const etiqueta = (i) => (i >= 26 ? etiqueta(Math.floor(i / 26) - 1) : "") + String.fromCharCode(65 + (i % 26));
 
 // ---------------------------------------------------------------------------
 // PROFESORES
@@ -56,8 +61,8 @@ for (const p of filasProf) {
 }
 const duplicadasProf = [...porClaveProf.values()].filter((l) => l.length > 1);
 console.log(`Claves distintas: ${porClaveProf.size} · claves compartidas: ${duplicadasProf.length}`);
-for (const grupo of duplicadasProf) {
-  console.log(`  CLAVE "${grupo[0].CLAVE}" → ${grupo.map((p) => `${p.NOMBRE} (ID ${p.ID}, ${p.Permisos})`).join(" · ")}`);
+for (const [i, grupo] of duplicadasProf.entries()) {
+  console.log(`  grupo ${etiqueta(i)}: CLAVE [oculta] (${grupo.length}) → ${grupo.map((p) => `${p.NOMBRE} (ID ${p.ID}, ${p.Permisos})`).join(" · ")}`);
 }
 const marcados = filasProf.filter((p) => p.debe_cambiar_credenciales === true);
 console.log(`debe_cambiar_credenciales=true: ${marcados.length} de ${filasProf.length}\n`);
@@ -78,9 +83,9 @@ for (const a of alumnos) {
 const duplicadasAl = [...porClaveAl.values()].filter((l) => l.length > 1);
 console.log(`Claves distintas: ${porClaveAl.size} · claves compartidas (pares o más): ${duplicadasAl.length}`);
 let totalAlEnPares = 0;
-for (const grupo of duplicadasAl) {
+for (const [i, grupo] of duplicadasAl.entries()) {
   totalAlEnPares += grupo.length;
-  console.log(`  CLAVE "${grupo[0].CLAVE}" (${grupo.length} alumnos)`);
+  console.log(`  grupo ${etiqueta(i)}: CLAVE [oculta] (${grupo.length} alumnos)`);
 }
 console.log(`Alumnos implicados en claves compartidas: ${totalAlEnPares}`);
 
@@ -95,7 +100,7 @@ for (const a of alumnos) {
 const paresNombreClave = [...porNombreYClave.values()].filter((l) => l.length > 1);
 console.log(`\nPares que comparten NOMBRE y CLAVE a la vez (agujero real): ${paresNombreClave.length}`);
 for (const grupo of paresNombreClave) {
-  console.log(`  ${nombreKey(grupo[0])} → ${grupo.map((a) => a.CURP).join(" · ")}`);
+  console.log(`  ${nombreKey(grupo[0])} → ${grupo.length} alumnos (CURP [oculta])`);
 }
 const curpsDuplicados = alumnos.length - new Set(alumnos.map((a) => norm(a.CURP))).size;
 console.log(`CURPs duplicados en ALUMNOS: ${curpsDuplicados}\n`);

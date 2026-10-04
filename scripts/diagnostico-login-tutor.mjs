@@ -1,7 +1,9 @@
 // Diagnóstico del login de TUTOR (Bloque 6E) — FASE 2: verificación de contraseña.
 // Verifica contra Supabase REAL si la contraseña inicial (últimos 8 del CURP del
 // alumno vinculado) coincide con el password_hash almacenado.
-// Solo lectura. NO modifica nada. NO expone contraseñas.
+// Solo lectura. NO modifica nada. Salida sensible: la CURP del alumno ES la contraseña
+// inicial del tutor (sus 8 últimos caracteres), así que no imprime ni la CURP ni la
+// clave: cada fallo se nombra por su usuario.
 import fs from "node:fs";
 import path from "node:path";
 import { scryptSync, timingSafeEqual } from "node:crypto";
@@ -98,7 +100,7 @@ console.log(`>>> Contraseña inicial NO verifica: ${noVerifican}`);
 if (fallos.length > 0) {
   console.log("\n--- EJEMPLOS DE FALLOS (primeros 10) ---");
   for (const f of fallos.slice(0, 10)) {
-    console.log(`  usuario="${f.usuario}" | clave=${f.clave} | curpAlumno=${f.curp}`);
+    console.log(`  usuario="${f.usuario}" | clave=[oculta] | curpAlumno=[oculta]`);
   }
 }
 

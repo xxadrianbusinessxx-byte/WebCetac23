@@ -106,4 +106,5 @@ const nuevo = await rest("PROFESORES", {
 });
 const fila = Array.isArray(nuevo) ? nuevo[0] : nuevo;
 console.log(`\nCreado: ID=${fila?.ID} nombre=${JSON.stringify(fila?.["NOMBRE/PROFESOR/DIRECTIVO"])} Permisos=${JSON.stringify(fila?.Permisos)}`);
-console.log(`Clave inicial (se muestra SOLO ahora; se cambia en el primer acceso): ${CLAVE}`);
+// Solo se imprime si se generó al azar: es la única vía para entregarla. La de --clave= ya la conoce quien la pasó.
+console.log(`Clave inicial (se muestra SOLO ahora; se cambia en el primer acceso): ${arg("clave") ? "[oculta] (la de --clave=)" : CLAVE}`);

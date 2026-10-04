@@ -76,7 +76,7 @@ const leer = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
  * «mencionar algo en un comentario» y «hacerlo» dejen de ser indistinguibles,
  * que es justo donde el grep fallaba.
  */
-function codigoDesnudo(src) {
+function codigoDesnudo(src, { conservarCadenas = false } = {}) {
   let out = "";
   let i = 0;
   const N = src.length;
@@ -90,14 +90,17 @@ function codigoDesnudo(src) {
       while (i < N && !(src[i] === "*" && src[i + 1] === "/")) { out += src[i] === "\n" ? "\n" : " "; i++; }
       out += "  "; i += 2;
     } else if (c === '"' || c === "'" || c === "`") {
+      // Con `conservarCadenas` solo se quitan los comentarios: la cadena se copia
+      // tal cual. Hace falta recorrerla igual, para que un `//` dentro de una URL
+      // no se tome por comentario. Lo usa la detección de `method:` de C6.
       const cierre = c;
-      out += " "; i++;
+      out += conservarCadenas ? c : " "; i++;
       while (i < N && src[i] !== cierre) {
-        if (src[i] === "\\") { out += "  "; i += 2; continue; }
-        out += src[i] === "\n" ? "\n" : " ";
+        if (src[i] === "\\") { out += conservarCadenas ? src.slice(i, i + 2) : "  "; i += 2; continue; }
+        out += conservarCadenas || src[i] === "\n" ? src[i] : " ";
         i++;
       }
-      out += " "; i++;
+      out += conservarCadenas ? (src[i] ?? "") : " "; i++;
     } else {
       out += c; i++;
     }
@@ -200,12 +203,56 @@ comprobar("C5", "lib/**-puro.ts no hace I/O", 0, () =>
 // ORDEN.md §4, «regla dura», y existe porque SE VIOLÓ: había `probe-*` que
 // vaciaban tablas en producción. Se mide sobre el código desnudo: una suite
 // que compara contra la cadena ".delete()" no escribe nada.
+//
+// Desde el PROMPT V (B4), también el método HTTP: un `fetch` con método DELETE
+// escribe sin llamar a `.delete(`, y el código desnudo no lo ve porque el método ES
+// una cadena —así vaciaba una tabla `_peligrosos/probe-materia-crud.mjs` con C6 en
+// 0—. Esa detección se mide sobre el fuente SIN COMENTARIOS PERO CON CADENAS, y deja
+// fuera `_peligrosos/` (lo vigila C18) y `_archivo/` (historia) SOLO en ella: la de
+// llamadas sigue recorriendo todo, como antes. (Este comentario no escribe el método
+// entre comillas a propósito: el escáner no entiende los literales de regex, y en
+// este archivo una comilla dentro de una regex desalinea comentarios y cadenas. Por
+// eso las regex nuevas de C6 y C18 escriben las comillas como \x22, \x27 y \x60.)
+// El método se reconoce en cualquier caja (fetch pasa a mayúsculas DELETE, POST y
+// PUT) y con la clave entre comillas o sin ellas, como en un JSON.
+//
+// Excepción declarada: una RPC de LECTURA va por POST a `/rest/v1/rpc/`, porque así
+// la invoca PostgREST. Cada archivo exceptuado nombra sus funciones y su motivo; si
+// llama a una RPC que no está en su lista, el POST cuenta como escritura.
+const C6_RPC_DE_LECTURA = {
+  "scripts/diag-materias-alumno.mjs": {
+    rpcs: ["obtener_perfil_alumno"],
+    motivo: "la función solo hace SELECT (supabase/crear-rpc-obtener-perfil-alumno.sql)",
+  },
+};
+function esRpcDeLectura(archivo, fuente, posicion) {
+  const excepcion = C6_RPC_DE_LECTURA[archivo];
+  if (!excepcion) return false;
+  const llamada = fuente.slice(fuente.lastIndexOf("fetch(", posicion), posicion);
+  if (!llamada.includes("/rest/v1/rpc/")) return false;
+  const llamadas = [
+    ...[...fuente.matchAll(/\/rest\/v1\/rpc\/([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]),
+    ...[...fuente.matchAll(/\brpc\(\s*["']([A-Za-z_][A-Za-z0-9_]*)["']/g)].map((m) => m[1]),
+  ];
+  // Una llamada `rpc(x)` cuyo nombre no es un literal no se puede comprobar contra
+  // la lista: el POST deja de estar exento (la definición `function rpc(` no cuenta).
+  if (/(?<!function\s+)\brpc\(\s*(?![\x22\x27])/.test(fuente)) return false;
+  return llamadas.length > 0 && llamadas.every((fn) => excepcion.rpcs.includes(fn));
+}
 comprobar("C6", "test-/diag-/probe- nunca escriben en la base", 0, () =>
   listar("scripts", (f) => /\/(test|diag|probe)-[^/]+\.mjs$/.test(f))
     .flatMap((f) => {
-      const cuerpo = codigoDesnudo(leer(f));
-      return [...cuerpo.matchAll(/\.(insert|update|upsert|delete|rpc)\s*\(/g)]
+      const src = leer(f);
+      const cuerpo = codigoDesnudo(src);
+      const llamadas = [...cuerpo.matchAll(/\.(insert|update|upsert|delete|rpc)\s*\(/g)]
         .map((m) => ({ archivo: f, detalle: `.${m[1]}(` }));
+      if (/^scripts\/_(peligrosos|archivo)\//.test(f)) return llamadas;
+      const fuente = codigoDesnudo(src, { conservarCadenas: true });
+      const metodos = [...fuente.matchAll(/[\x22\x27]?method[\x22\x27]?\s*:\s*[\x22\x27\x60](POST|PUT|PATCH|DELETE)\b/gi)]
+        .map((m) => ({ metodo: m[1].toUpperCase(), index: m.index }))
+        .filter((m) => !(m.metodo === "POST" && esRpcDeLectura(f, fuente, m.index)))
+        .map((m) => ({ archivo: f, detalle: `method ${m.metodo} (línea ${fuente.slice(0, m.index).split("\n").length})` }));
+      return [...llamadas, ...metodos];
     }),
 );
 
@@ -251,7 +298,7 @@ comprobar("C9", `ningún archivo de app/ o lib/ supera ${LIMITE_LINEAS} líneas`
 // ORDEN.md §4: «Todo script nuevo: … y una fila en scripts/README.md. Sin eso,
 // no está terminado». TRINQUETE: hoy faltan 35, casi todos anteriores a la
 // regla. Lo que importa es que no crezca.
-comprobar("C10", "todo scripts/*.mjs tiene fila en scripts/README.md", 34, () => {
+comprobar("C10", "todo scripts/*.mjs tiene fila en scripts/README.md", 19, () => {
   const readme = fs.existsSync(path.join(root, "scripts/README.md")) ? leer("scripts/README.md") : "";
   return listar("scripts", (f) => /^scripts\/[^/]+\.mjs$/.test(f))
     .map((f) => path.basename(f))
@@ -534,6 +581,50 @@ comprobar("C17", "npm run test:ci corre los mismos pasos que el workflow (salvo 
     }
   }
   return hallazgos;
+});
+
+// ── C18 · la cuarentena no se puede desarmar ───────────────────────────────
+// PROMPT V (B2). `scripts/_peligrosos/` guarda scripts que escriben o borran en
+// producción sin guarda. Hasta el 2026-10-04 no arrancaban solo porque buscaban
+// `scripts/.env.local`, que no existe: «arreglar» esa ruta los armaba. Ahora su
+// primera sentencia tras los `import` lanza, y esta regla exige que siga ahí.
+//
+// Lee el fuente CRUDO, no `codigoDesnudo()`: lo que se comprueba es la línea con su
+// cadena, y desnudarla la borraría. DURA. Una carpeta sin scripts también falla: un
+// guardián que mide 0 archivos no protege nada.
+const LINEA_CUARENTENA = 'throw new Error("CUARENTENA: no se ejecuta. Ver scripts/README.md");';
+function primeraSentenciaTrasImports(src) {
+  let i = src.startsWith("#!") ? src.indexOf("\n") + 1 : 0;
+  if (i === 0 && src.startsWith("#!")) return "";
+  for (;;) {
+    while (i < src.length && /\s/.test(src[i])) i++;
+    const resto = src.slice(i, i + 12);
+    let fin; // último carácter de lo que se salta (comentario o import)
+    if (resto.startsWith("//")) fin = src.indexOf("\n", i);
+    else if (resto.startsWith("/*")) fin = src.indexOf("*/", i + 2) + 1;
+    else if (/^import\b(?!\s*[.(])/.test(resto)) {
+      // El import acaba en su especificador, con `;` opcional, y no en el primer `;`
+      // del archivo: sin `;`, aquel se tragaba la sentencia siguiente y el throw podía
+      // ir segundo. Una forma que no reconoce devuelve -1, y C18 falla.
+      const m = /^import\b[^\x22\x27\x60;]*?[\x22\x27][^\x22\x27\n]+[\x22\x27][^\S\n]*;?/.exec(src.slice(i));
+      fin = m ? i + m[0].length - 1 : -1;
+    }
+    else {
+      const salto = src.indexOf("\n", i);
+      return src.slice(i, salto < 0 ? src.length : salto).trimEnd();
+    }
+    if (fin <= 0) return "";
+    i = fin + 1;
+  }
+}
+comprobar("C18", "todo scripts/_peligrosos/ lanza antes de ejecutar nada: la cuarentena no se desarma", 0, () => {
+  const archivos = listar("scripts/_peligrosos", (f) => /\.(mjs|cjs|js)$/.test(f));
+  if (archivos.length === 0) {
+    return [{ archivo: "scripts/_peligrosos/", detalle: "no hay scripts que vigilar: ¿se movió la cuarentena?" }];
+  }
+  return archivos
+    .filter((f) => primeraSentenciaTrasImports(leer(f)) !== LINEA_CUARENTENA)
+    .map((f) => ({ archivo: f, detalle: "la primera sentencia tras los import no es el throw de CUARENTENA" }));
 });
 
 // ── Informe ────────────────────────────────────────────────────────────────

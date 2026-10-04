@@ -48,9 +48,11 @@ package-lock.json
 next-env.d.ts
 
 # Historial: NO es el estado actual. Leer ESTADO-ACTUAL.md y docs/00-INDICE.md.
-contexto.feliz
 docs/historial/
 
 # Salidas de scripts ya consumidas
 scripts/_archivo/
 *.csv
+
+# Cuarentena: escriben o borran en producción sin guarda (lanzan al cargarse; C18)
+scripts/_peligrosos/

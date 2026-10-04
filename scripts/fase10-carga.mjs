@@ -6,10 +6,13 @@
  * patrones de consulta REALES de la app (login, paneles, catálogo, directorio
  * de tutores). Solo LECTURA. No escribe, no crea índices, no modifica esquema.
  *
- * Uso:
- *   node scripts/fase10-carga.mjs [--niveles 50,100,200] [--budget N]
- *   node scripts/fase10-carga.mjs --pico-login [--conc 300]
- *   node scripts/fase10-carga.mjs --sostenido [--conc 150] [--duracion 20000]
+ * CARGA REAL sobre producción: sin `--confirmar-carga` sale con 1 antes de leer
+ * `.env.local`. Solo una persona, con autorización y fuera de horario.
+ *
+ * Uso (cada opción vale como `--x=v` o como `--x v`):
+ *   node scripts/fase10-carga.mjs --confirmar-carga [--niveles=50,100,200] [--budget=N]
+ *   node scripts/fase10-carga.mjs --confirmar-carga --pico-login [--conc=300]
+ *   node scripts/fase10-carga.mjs --confirmar-carga --sostenido [--conc=150] [--duracion=20000]
  *
  * Nota de realismo: usa la SERVICE ROLE key (sin RLS) para medir el costo real
  * de las consultas (filas completas). El camino full-stack (Next.js + sesión)
@@ -22,14 +25,31 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 const args = process.argv.slice(2);
+// CARGA REAL sobre producción: no arranca sin el flag. Va ANTES de leer .env.local
+// y de cualquier fetch, para que ejecutarlo «a ver qué hace» no haga nada.
+if (!args.includes("--confirmar-carga")) {
+  console.error(
+    "fase10-carga genera CARGA REAL sobre producción (service_role, rampa de concurrencia hasta 1 000).\n" +
+      "Solo una persona, con autorización y fuera de horario. Para ejecutarla: --confirmar-carga.\n" +
+      "Ver scripts/README.md (etiqueta CARGA).",
+  );
+  process.exit(1);
+}
+/** Valor de una opción, como `--x=v` o como `--x v` (las dos formas de la cabecera). */
+const valor = (nombre) => {
+  const i = args.findIndex((a) => a === `--${nombre}` || a.startsWith(`--${nombre}=`));
+  if (i < 0) return undefined;
+  if (args[i].includes("=")) return args[i].slice(nombre.length + 3);
+  return args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : undefined;
+};
 const MODE = args.includes("--pico-login") ? "pico" : args.includes("--sostenido") ? "sostenido" : "niveles";
-const NIVELES = (args.find((a) => a.startsWith("--niveles="))?.split("=")[1] ?? "50,100,200,300,500,750,1000")
+const NIVELES = (valor("niveles") ?? "50,100,200,300,500,750,1000")
   .split(",")
   .map(Number);
-const BUDGET = Number(args.find((a) => a.startsWith("--budget="))?.split("=")[1] ?? 300);
-const CONC_PICO = Number(args.find((a) => a.startsWith("--conc="))?.split("=")[1] ?? 300);
-const CONC_SOST = Number(args.find((a) => a.startsWith("--conc="))?.split("=")[1] ?? 150);
-const DURACION_SOST = Number(args.find((a) => a.startsWith("--duracion="))?.split("=")[1] ?? 20000);
+const BUDGET = Number(valor("budget") ?? 300);
+const CONC_PICO = Number(valor("conc") ?? 300);
+const CONC_SOST = Number(valor("conc") ?? 150);
+const DURACION_SOST = Number(valor("duracion") ?? 20000);
 
 function leerEnvLocal() {
   const raw = fs.readFileSync(path.join(root, ".env.local"), "utf8");

@@ -2,6 +2,7 @@
 // Replica EXACTAMENTE validarAccesoPortal con la clave ANON (como el navegador)
 // y prueba VARIOS escenarios de lo que el tutor podría escribir, para aislar
 // el punto exacto donde falla. NUNCA imprime contraseñas ni hashes.
+// Uso: node scripts/6i-diagnostico-login-tutor.mjs --pw=…
 import fs from "node:fs";
 import path from "node:path";
 import { scryptSync, timingSafeEqual } from "node:crypto";
@@ -112,11 +113,17 @@ async function buscarAlumnoPorNombre(nombre) {
   return null;
 }
 
+// La contraseña inicial NO vive en el repo (son 8 caracteres de la CURP de un alumno):
+// se pasa con --pw=… y no se imprime.
 const TUTOR = {
   usuario: "tutor GABRIEL PASCUAL ALBINO",
   claveTutor: "TUT-NAX5QUFX",
-  pwInicial: "HQTSLBA3",
+  pwInicial: (process.argv.find((a) => a.startsWith("--pw=")) ?? "").slice("--pw=".length).trim(),
 };
+if (!TUTOR.pwInicial) {
+  console.error("Falta --pw=… (la contraseña inicial del tutor de prueba; no se escribe en el repo).");
+  process.exit(1);
+}
 
 console.log("=== 1) Valor EXACTO almacenado de usuario (case/espacios) ===");
 const rawTutor = await rest("tutores", {

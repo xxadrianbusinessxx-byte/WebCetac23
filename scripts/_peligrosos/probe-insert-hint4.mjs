@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+throw new Error("CUARENTENA: no se ejecuta. Ver scripts/README.md");
 
 const root = path.join(import.meta.dirname, "..");
 const raw = fs.readFileSync(path.join(root, ".env.local"), "utf8");

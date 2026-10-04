@@ -60,7 +60,7 @@ async function main() {
     const conProf = hor.filter((h) => (h.profesor_clave ?? "").trim() !== "");
     console.log(`  bloques: ${hor.length} · con profesor_clave: ${conProf.length} · SIN profesor: ${hor.length - conProf.length}`);
     const claves = [...new Set(conProf.map((h) => h.profesor_clave))];
-    console.log(`  profesores distintos en el horario: ${claves.length} ${claves.length ? "→ " + claves.slice(0, 10).join(", ") : ""}`);
+    console.log(`  profesores distintos en el horario: ${claves.length} (profesor_clave es su CLAVE, su contraseña: no se imprime)`);
     if (conProf.length === 0) console.log("  >> El horario NO atribuye profesor: no sirve para acotar por profesor.");
   }
 

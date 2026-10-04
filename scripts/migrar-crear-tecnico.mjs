@@ -5,9 +5,9 @@
 // (Permisos = 'Tecnico'), sin un segundo camino de autenticación (R6).
 // Autorizado por el directivo 2026-09-06:
 //   - fila nueva con nombre "TECNICO";
-//   - clave inicial definida por el agente (se imprime SOLO en el dry-run /
-//     primer --apply; el técnico la cambia en el primer acceso porque
-//     debe_cambiar_credenciales = true);
+//   - clave inicial: NO está en el repo; se pasa con --clave=… (≥ 6) y no se
+//     imprime. El técnico la cambia en el primer acceso porque
+//     debe_cambiar_credenciales = true;
 //   - hereda la identidad estructural (PROFESORES.ID → profesorId en la
 //     sesión), el login por nombre y el cambio forzado de clave (A4).
 //
@@ -15,13 +15,20 @@
 // Por defecto SOLO imprime el plan (dry-run). Escribe con `--apply`.
 //
 // Uso:
-//   node scripts/migrar-crear-tecnico.mjs
-//   node scripts/migrar-crear-tecnico.mjs --apply
+//   node scripts/migrar-crear-tecnico.mjs --clave=…
+//   node scripts/migrar-crear-tecnico.mjs --apply --clave=…
 import fs from "node:fs";
 import path from "node:path";
 
 const args = process.argv.slice(2);
 const APPLY = args.includes("--apply");
+// La clave inicial no vive en el repo: se pide con --clave=, como en
+// migrar-crear-administracion.mjs. ≥ 6 caracteres (CLAVE_PROFESOR_MIN).
+const CLAVE_TECNICO = (args.find((x) => x.startsWith("--clave=")) ?? "").slice("--clave=".length).trim();
+if (CLAVE_TECNICO.length < 6) {
+  console.error("Falta --clave=… (al menos 6 caracteres): la clave inicial del técnico no se escribe en el repo.");
+  process.exit(1);
+}
 
 const ROOT = path.join(import.meta.dirname, "..");
 const raw = fs.readFileSync(path.join(ROOT, ".env.local"), "utf8");
@@ -65,13 +72,12 @@ if (existentes.length > 0) {
   process.exit(0);
 }
 
-// 2) Clave inicial del técnico (la cambia en el primer acceso).
-// ≥ 6 caracteres (CLAVE_PROFESOR_MIN). Se imprime solo aquí.
-const CLAVE_TECNICO = "TECNICO26";
+// 2) Clave inicial del técnico: la de `--clave=` (leída arriba). La cambia en el
+// primer acceso.
 console.log(`\nPlan: INSERT en PROFESORES`);
 console.log(`  NOMBRE/PROFESOR/DIRECTIVO = "TECNICO"`);
 console.log(`  Permisos                  = "Tecnico"`);
-console.log(`  CLAVE                     = "${CLAVE_TECNICO}" (inicial; se cambia al primer acceso)`);
+console.log(`  CLAVE                     = [oculta] (la de --clave=; inicial, se cambia al primer acceso)`);
 console.log(`  debe_cambiar_credenciales = true`);
 
 if (!APPLY) {
