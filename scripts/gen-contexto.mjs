@@ -5,14 +5,19 @@
  *
  * QUÉ MIDE: qué hace falta saber para tocar unos archivos concretos, y qué
  *           reglas, suites, términos y mediciones les aplican.
- * QUÉ ESCRIBE: un Markdown por stdout, o el archivo que se le pase con
- *           `--salida`. No toca la base ni la red.
+ * QUÉ ESCRIBE: un Markdown por stdout, o con `--salida` un archivo bajo
+ *           `docs/historial/prompts/` (no pisa uno existente sin `--forzar`).
+ *           No toca la base ni la red.
  * CÓMO SE EJECUTA:
  *   node scripts/gen-contexto.mjs lib/escolar/materia/facetas-materia.ts
  *   node scripts/gen-contexto.mjs --tarea=crear,permisos app/actions/escolar.ts
  *   node scripts/gen-contexto.mjs --agente=claude lib/escolar/asistencia/
  *   node scripts/gen-contexto.mjs --salida=docs/historial/prompts/X.md <rutas>
  *   node scripts/gen-contexto.mjs --tareas        (lista las tareas válidas)
+ * SALE CON 1, en vez de entregar algo incompleto que parece completo, si: una
+ *   ruta no existe, una `--tarea` no casa con ninguna fila (palabra completa,
+ *   sin tildes), el presupuesto da 0 filas, falta el CONTRATO (rama cline) o
+ *   `--salida` no es válida.
  *
  * ── Por qué DOS agentes y no uno ───────────────────────────────────────────
  * `AGENTS.md` §Reparto dice que el presupuesto de contexto no es el mismo, y
@@ -58,7 +63,11 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 
 const root = path.join(import.meta.dirname, "..");
-const leer = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+// CRLF → LF al leer: con `core.autocrlf=true` la copia local lleva `\r\n` y la
+// del CI no, y lo que se extrae aquí (el bloque del CONTRATO, la tabla del
+// presupuesto) está escrito para `\n`. Con CRLF el CONTRATO no se encontraba y
+// el paquete salía sin él, con exit 0.
+const leer = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
 const existe = (rel) => fs.existsSync(path.join(root, rel));
 
 // ── Argumentos ─────────────────────────────────────────────────────────────
@@ -67,9 +76,35 @@ const opt = (nombre) => {
   const a = args.find((x) => x.startsWith(`--${nombre}=`));
   return a ? a.slice(nombre.length + 3) : null;
 };
-const rutas = args.filter((a) => !a.startsWith("--"));
+// `\` → `/` aquí, una sola vez: todo lo de abajo (capa, suites, sugerencias
+// ancladas con `^app\/…`) compara contra rutas con `/`, y una ruta de Windows
+// perdía en silencio las sugerencias de permisos, apariencia y scripts.
+const rutas = args.filter((a) => !a.startsWith("--")).map((r) => r.replace(/\\/g, "/"));
 const tareasPedidas = (opt("tarea") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const salida = opt("salida");
+
+// `--salida` solo escribe en la carpeta de los prompts, y no pisa uno que ya
+// existe sin `--forzar`: el paquete de un prompt archivado es la constancia de
+// lo que se le dio a Cline, y regenerarlo encima la borra.
+const CARPETA_SALIDA = "docs/historial/prompts/";
+let destinoSalida = null;
+if (salida !== null) {
+  const destino = path.resolve(root, salida.replace(/\\/g, "/"));
+  const dentro = path.relative(path.join(root, CARPETA_SALIDA), destino);
+  if (!dentro || dentro.startsWith("..") || path.isAbsolute(dentro)) {
+    console.error(`--salida=${salida} no está bajo ${CARPETA_SALIDA}: es la única carpeta donde este script escribe.`);
+    process.exit(1);
+  }
+  if (!fs.existsSync(path.dirname(destino))) {
+    console.error(`--salida=${salida}: la carpeta ${path.relative(root, path.dirname(destino)).replace(/\\/g, "/")} no existe.`);
+    process.exit(1);
+  }
+  if (fs.existsSync(destino) && (fs.statSync(destino).isDirectory() || !args.includes("--forzar"))) {
+    console.error(`--salida=${salida} ya existe. No se sobrescribe sin --forzar (y nunca una carpeta).`);
+    process.exit(1);
+  }
+  destinoSalida = destino;
+}
 
 // Por defecto, «cline»: es el caso que existía antes de que hubiera dos, y
 // cambiar el comportamiento por defecto de un script que ya se usa en prompts
@@ -89,6 +124,7 @@ if (!AGENTES.includes(agente)) {
  * `| Tarea | Leer |`. La primera fila es el mínimo obligatorio.
  */
 function presupuesto() {
+  if (!existe("docs/00-INDICE.md")) return [];
   const texto = leer("docs/00-INDICE.md");
   const seccion = texto.split("## Presupuesto de lectura por tipo de tarea")[1] ?? "";
   const tabla = seccion.split("\n---")[0] ?? "";
@@ -98,20 +134,65 @@ function presupuesto() {
     if (!m || /^-+$/.test(m[1]) || m[1] === "Tarea") continue;
     const tarea = m[1].replace(/\*\*/g, "").trim();
     const rutasDoc = [...m[2].matchAll(/`([^`]+)`/g)].map((x) => x[1]);
-    filas.push({ tarea, claves: tarea.toLowerCase(), docs: rutasDoc, crudo: m[2] });
+    filas.push({ tarea, claves: tarea.toLowerCase(), palabras: palabras(tarea), docs: rutasDoc, crudo: m[2] });
   }
   return filas;
 }
 
+/** Las palabras de un texto, sin tildes (NFD) y en minúsculas: «el síntoma» →
+ *  [«el», «sintoma»]. */
+function palabras(s) {
+  return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+
+/** Una `--tarea` casa con una fila si sus palabras aparecen ENTERAS y seguidas
+ *  en el nombre de la fila. Por subcadena, «ui» casaba con «arquitectura» y con
+ *  «cualquier»; y sin quitar tildes, «sintoma» no casaba con «síntoma». */
+function casa(fila, tarea) {
+  const p = palabras(tarea);
+  if (!p.length) return false;
+  for (let i = 0; i + p.length <= fila.palabras.length; i++) {
+    if (p.every((w, j) => fila.palabras[i + j] === w)) return true;
+  }
+  return false;
+}
+
 const PRESUPUESTO = presupuesto();
+// Sin filas, el paquete diría «no cargues documentación fuera de esta lista»
+// con la lista vacía. Pasa si cambia el encabezado de la sección en el índice.
+if (PRESUPUESTO.length === 0) {
+  console.error("No se pudo leer el presupuesto: «## Presupuesto de lectura por tipo de tarea» de");
+  console.error("docs/00-INDICE.md da 0 filas. Arregla el índice (o este lector) antes de generar nada.");
+  process.exit(1);
+}
+const listaTareas = () =>
+  PRESUPUESTO.map((f, i) => `  ${i === 0 ? "(siempre)" : "         "} ${f.tarea}`).join("\n");
 if (args.includes("--tareas")) {
   console.log("Tareas reconocidas (de docs/00-INDICE.md):\n");
-  PRESUPUESTO.forEach((f, i) => console.log(`  ${i === 0 ? "(siempre)" : "         "} ${f.tarea}`));
+  console.log(listaTareas());
   process.exit(0);
 }
 
+// Una `--tarea` que no casa con ninguna fila daba la misma salida que no pasar
+// ninguna, y parecía completa. Se para y se dice cuáles valen.
+const sinFila = tareasPedidas.filter((t) => !PRESUPUESTO.some((f) => casa(f, t)));
+if (sinFila.length) {
+  console.error(`--tarea=${sinFila.join(",")} no casa con ninguna fila del presupuesto (palabra completa, sin tildes).`);
+  console.error("Tareas reconocidas (de docs/00-INDICE.md):\n");
+  console.error(listaTareas());
+  process.exit(1);
+}
+
+// El paquete de Cline termina en el CONTRATO; sin él no se entrega.
+const CONTRATO = agente === "cline" ? contrato() : null;
+if (agente === "cline" && CONTRATO === null) {
+  console.error("No se pudo leer el bloque «CONTRATO (obligatorio):» de docs/normativo/CONTRATO-DE-CAMBIO.md §1.");
+  console.error("Un paquete para Cline sin CONTRATO no se entrega: arregla el bloque (o este lector).");
+  process.exit(1);
+}
+
 if (rutas.length === 0) {
-  console.error("Uso: node scripts/gen-contexto.mjs [--agente=cline|claude] [--tarea=a,b] [--salida=X.md] <rutas...>");
+  console.error("Uso: node scripts/gen-contexto.mjs [--agente=cline|claude] [--tarea=a,b] [--salida=docs/historial/prompts/X.md [--forzar]] <rutas...>");
   console.error("     node scripts/gen-contexto.mjs --tareas   (qué tareas existen)");
   process.exit(1);
 }
@@ -128,8 +209,7 @@ if (faltan.length) {
  * A qué capa de ORDEN.md §2 pertenece una ruta, y qué exige esa capa. Los
  * textos son el resumen operativo de la tabla «Quién puede importar a quién».
  */
-function capaDe(rel) {
-  const p = rel.replace(/\\/g, "/");
+function capaDe(p) {
   if (/^app\/actions\//.test(p))
     return { capa: "action", exige: "empieza por exigir(); valida, delega y devuelve. Sin lógica de negocio, sin .from(), sin importar otra action." };
   if (/-client\.tsx$/.test(p) || /^app\/components\//.test(p))
@@ -163,8 +243,7 @@ function capaDe(rel) {
 // porque la cadena «escolar» está en todas (`lib/escolar/…`). «Corre las 35»
 // equivale a «corre todo», que es exactamente lo que este script evita.
 const SUITES = fs.readdirSync(path.join(root, "scripts")).filter((f) => /^test-.+\.mjs$/.test(f));
-function suitesDe(rel) {
-  const p = rel.replace(/\\/g, "/");
+function suitesDe(p) {
   const sinExt = p.replace(/\.(tsx?|mjs)$/, "");
   const carpeta = sinExt.split("/").slice(-2).join("/"); // «materia/facetas-materia»
   const candidatos = [p, `${sinExt}.js`, `${sinExt}.ts`, `${carpeta}.js`, `"${carpeta}"`, `'${carpeta}'`];
@@ -190,10 +269,13 @@ function terminosGlosario(textos) {
 }
 
 // ── 5) El bloque del contrato, leído tal cual ──────────────────────────────
+// `null` si no está: un paquete para Cline sin CONTRATO no se entrega (ver el
+// arranque, donde se comprueba y se sale con 1).
 function contrato() {
+  if (!existe("docs/normativo/CONTRATO-DE-CAMBIO.md")) return null;
   const texto = leer("docs/normativo/CONTRATO-DE-CAMBIO.md");
   const m = texto.match(/```\n(CONTRATO \(obligatorio\):[\s\S]*?)```/);
-  return m ? m[1].trimEnd() : "(no se pudo leer CONTRATO-DE-CAMBIO.md §1)";
+  return m ? m[1].trimEnd() : null;
 }
 
 // ── 6) Fuentes que solo necesita el brief de diagnóstico ───────────────────
@@ -201,21 +283,27 @@ function contrato() {
 // archivos o a medir reglas tendría su propia versión de cifras que ya tienen
 // dueño, y divergirían al primer cambio (R6). Lo mismo que hace gen-estado.
 
-/** Las reglas de `test-orden`, tal y como están AHORA. */
+/** Las reglas de `test-orden`, tal y como están AHORA. `null` si no se pudieron
+ *  leer: una lista vacía se confundiría con «no hay deuda», y el brief lo
+ *  afirmaría. */
 function reglasOrden() {
+  const deJson = (out) => {
+    const r = JSON.parse(out.replace(/^﻿/, "")).reglas;
+    return Array.isArray(r) && r.length ? r : null;
+  };
   try {
     const out = execFileSync(process.execPath, [path.join(root, "scripts/test-orden.mjs"), "--json"], {
       cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 32 * 1024 * 1024,
     });
-    return JSON.parse(out.replace(/^﻿/, "")).reglas ?? [];
+    return deJson(out);
   } catch (e) {
     // test-orden sale con 1 cuando una regla falla, y ese es justo el caso que
     // hay que enseñar: el JSON de stdout sigue siendo válido.
     const out = e?.stdout;
     if (typeof out === "string" && out.trim().startsWith("{")) {
-      try { return JSON.parse(out.replace(/^﻿/, "")).reglas ?? []; } catch { /* nada */ }
+      try { return deJson(out); } catch { /* nada */ }
     }
-    return [];
+    return null;
   }
 }
 
@@ -276,9 +364,10 @@ const fichas = rutas.map((rel) => {
   return { rel, capa, exige, lineas: src.split("\n").length, src, suites: suitesDe(rel) };
 });
 
-// Presupuesto: la fila obligatoria siempre + las que el usuario pidió.
+// Presupuesto: la fila obligatoria siempre + las que el usuario pidió. Cada
+// `--tarea` ya casó con alguna fila (se comprobó al leer los argumentos).
 const filasElegidas = [PRESUPUESTO[0], ...PRESUPUESTO.slice(1).filter((f) =>
-  tareasPedidas.some((t) => f.claves.includes(t.toLowerCase())),
+  tareasPedidas.some((t) => casa(f, t)),
 )].filter(Boolean);
 
 // Sugerencias automáticas por lo que se está tocando: no reemplazan la
@@ -326,7 +415,10 @@ if (agente === "cline") {
   const reglas = reglasOrden();
   const pnl = panel();
   L.push("## YA ESTÁ MEDIDO — no lo cuentes a mano\n");
-  if (reglas.length) {
+  if (reglas === null) {
+    L.push("**Reglas: no se pudo leer test-orden.** `node scripts/test-orden.mjs --json` falló");
+    L.push("o no devolvió reglas: córrelo a mano antes de apoyarte en ninguna cifra.\n");
+  } else {
     L.push("`node scripts/test-orden.mjs` (ahora mismo, no cacheado):\n");
     L.push("| Regla | Hoy | Umbral | Modo |");
     L.push("|---|---|---|---|");
@@ -353,10 +445,16 @@ if (agente === "cline") {
   // deuda viva —que es lo que hacía la primera versión de este brief, enseñando
   // «C8 (0/0)»— manda a investigar un sitio donde no hay nada, que es justo el
   // gasto que este documento existe para evitar.
-  const deudaViva = reglas.filter((r) => r.deuda && r.actual > 0 && r.actual <= r.umbral);
-  const fallando = reglas.filter((r) => r.actual > r.umbral);
+  const deudaViva = (reglas ?? []).filter((r) => r.deuda && r.actual > 0 && r.actual <= r.umbral);
+  const fallando = (reglas ?? []).filter((r) => r.actual > r.umbral);
   L.push("## DEUDA DECLARADA ≠ BUG\n");
-  if (deudaViva.length) {
+  if (reglas === null) {
+    // Sin las reglas no se sabe nada de la deuda. Afirmar «ninguna arrastra
+    // deuda viva» con la lista vacía era un resultado incompleto que parecía
+    // completo, que es justo lo que este script no puede entregar.
+    L.push("No se sabe: no se pudo leer test-orden. Sin sus reglas no hay forma de");
+    L.push("distinguir una deuda declarada de un bug.\n");
+  } else if (deudaViva.length) {
     L.push("Estas reglas NO están en 0 por descuido: tienen plan escrito y su umbral");
     L.push("es un trinquete que solo falla si el número **sube**.\n");
     for (const r of deudaViva) L.push(`- **${r.id}** (${r.actual}/${r.umbral}) — ${r.deuda}`);
@@ -458,7 +556,7 @@ if (agente === "cline") {
   L.push("- No bajar un umbral de `scripts/test-orden.mjs` para que pase: eso apaga el guardián.\n");
 
   L.push("```");
-  L.push(contrato());
+  L.push(CONTRATO);
   L.push("```");
 } else {
   // Lo último que lee el brief, y a propósito: un diagnóstico no se equivoca
@@ -485,8 +583,8 @@ if (agente === "cline") {
 }
 
 const texto = L.join("\n") + "\n";
-if (salida) {
-  fs.writeFileSync(path.join(root, salida), texto, "utf8");
+if (destinoSalida) {
+  fs.writeFileSync(destinoSalida, texto, "utf8");
   const que = agente === "cline" ? "Paquete" : "Brief";
   console.log(`${que} escrito en ${salida} (${texto.split("\n").length} líneas).`);
 } else {

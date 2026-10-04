@@ -31,7 +31,16 @@ const root = path.join(import.meta.dirname, "..");
 const abs = (rel) => path.join(root, rel);
 const existe = (rel) => fs.existsSync(abs(rel));
 const leer = (rel) => fs.readFileSync(abs(rel), "utf8");
-const pesa = (rel) => (existe(rel) ? fs.statSync(abs(rel)).size : 0);
+/** Bytes SIN los `\r`: con `core.autocrlf=true` la copia local lleva CRLF y la del
+ *  CI no, y el mismo archivo pesaba ~140 tokens más aquí que allí. Se mide lo
+ *  que se versiona, que es lo que mide el CI. */
+const pesa = (rel) => {
+  if (!existe(rel)) return 0;
+  const b = fs.readFileSync(abs(rel));
+  let cr = 0;
+  for (const x of b) if (x === 0x0d) cr++;
+  return b.length - cr;
+};
 /** Aproximación estándar del repo: ~4 bytes por token. */
 const tok = (b) => Math.round(b / 4);
 
@@ -94,6 +103,8 @@ const ARRANQUE = [
 // el mismo ~8 % con que se justificó 9 500. Lo que este número sigue sin
 // permitir es un NOVENO archivo obligatorio sin volver a escribir un párrafo
 // como este.
+//
+// 2026-10-04 — PROMPT V (A1): se mide sin `\r`, como el CI: 10 345 tokens; margen real, 155.
 const TECHO_TOKENS = 10500;
 
 const arranque = ARRANQUE.map((f) => ({ archivo: f, bytes: pesa(f), tokens: tok(pesa(f)) })).sort(

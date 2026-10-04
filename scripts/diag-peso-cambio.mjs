@@ -259,7 +259,7 @@ if (rutas.length === 0) {
   process.exit(1);
 }
 
-const { d, total, quien } = pesar(rutas, ref ? borradosDe(ref) : new Set());
+const { d, total, quien, irreversible } = pesar(rutas, ref ? borradosDe(ref) : new Set());
 
 console.log(`Peso del cambio — ${rutas.length} ruta(s)\n`);
 const fila = (nombre, x, nota) =>
