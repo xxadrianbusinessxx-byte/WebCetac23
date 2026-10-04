@@ -118,7 +118,7 @@ medición en vez de recalcularla.
 
 | Script | Qué vigila |
 |---|---|
-| `verificar-estado-actual.mjs` | Que `ESTADO-ACTUAL.md` siga siendo «qué es verdad hoy»: el `HEAD:` declarado es ancestro del real y no más de 10 commits atrás, el nº de suites coincide con `scripts/test-*.mjs`, y el archivo respeta su propio límite de ~150 líneas. Nació porque la cabecera llegó a estar 31 commits atrás, decía 34 suites habiendo 36, y tenía 517 líneas |
+| `verificar-estado-actual.mjs` | Que `ESTADO-ACTUAL.md` siga siendo «qué es verdad hoy»: no lleva más de 10 commits sin tocarse (último commit que lo editó, según `git log`), el nº de suites coincide con `scripts/test-*.mjs`, y el archivo respeta su propio límite de ~150 líneas. Nació porque la cabecera llegó a estar 31 commits atrás, decía 34 suites habiendo 36, y tenía 517 líneas |
 | `verificar-docs.mjs` | Que el **sistema** de documentos siga siendo utilizable. (1) **Rutas vivas**: ningún documento del presente cita un archivo retirado — el caso que lo originó es `MATRIZ-UX.md` señalando `ui/barra-navegacion.tsx` tres commits después de borrarlo. (2) **Coste de arranque**: los archivos de lectura obligatoria por debajo de su techo en tokens, que es la única cifra que se paga en CADA sesión. `docs/historial/` **no** se escanea a propósito: citar lo que ya no existe es lo que lo hace historial. Las rutas citadas a propósito (`app/api/`, las cuarentenas retiradas, las piezas aún no construidas) van en una lista de excepciones **con su motivo**, y se imprimen en cada ejecución para que no sirvan de escondite |
 
 ### Diagnósticos vivos (`LEE`) — el instrumental para medir antes de tocar
@@ -143,7 +143,7 @@ medición en vez de recalcularla.
 | `diag-preview-reparar-tabla-legacy.mjs` | simula el preview de reparación sin escribir |
 | `diag-relaciones-supabase.mjs` | mapa de FKs reales |
 | `diag-duplicados-ciclos.mjs` · `diagnostico-ciclo-activo-bug.mjs` · `8-diagnostico-ciclos.mjs` | duplicados y exclusividad de ciclo. `diagnostico-ciclo-activo-bug`: **salida sensible: no ejecutar desde Cline** (imprime CURPs) |
-| `probe-*` (los 16 que quedan aquí) | esquema y contenido de tablas: columnas, permisos, OpenAPI, CURPs duplicadas. `probe-materias-alumnos` y `probe-schema-tabla`: **salida sensible: no ejecutar desde Cline** (sus muestras de tablas de materia imprimen CURPs) |
+| `probe-*` (los que no tienen fila propia) | esquema y contenido de tablas: columnas, permisos, OpenAPI, CURPs duplicadas. `probe-materias-alumnos` y `probe-schema-tabla`: **salida sensible: no ejecutar desde Cline** (sus muestras de tablas de materia imprimen CURPs) |
 | `verificar-credenciales-iniciales.mjs` · `verificar-login-credenciales-iniciales.mjs` · `verificar-tablas-tutores.mjs` | credenciales y tutores. Los dos primeros: **salida sensible: no ejecutar desde Cline** (ni CURP ni contraseña en la salida) |
 | `6i/6k-*.mjs` · `7-diagnostico-materias-alumnos.mjs` | diagnósticos de bloques anteriores, siguen siendo válidos. `6i-diagnostico-login-tutor.mjs` pide la contraseña inicial de su tutor de prueba con `--pw=` (no vive en el repo). `7-diagnostico-materias-alumnos`: **salida sensible: no ejecutar desde Cline** (imprime CURPs) |
 | `6j-verificar-password-tutor.mjs` | `LEE`. Si el hash de UN tutor coincide con su contraseña inicial (los 8 últimos caracteres de la CURP de su alumno de referencia), o con su `clave_tutor` o su usuario. **Salida sensible: no ejecutar desde Cline.** Uso: `node scripts/6j-verificar-password-tutor.mjs "<usuario>"` |

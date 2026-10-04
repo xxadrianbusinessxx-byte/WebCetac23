@@ -5,37 +5,9 @@ contexto que los originó. Este archivo es autoridad permanente (ver `AGENTS.md`
 orden de autoridad nº 3). No es un historial: cada regla expresa una prohibición
 y la alternativa correcta.
 
-Fuente del incidente raíz documentado: **P0 2026-09-03** (restauración de
-identidad académica).
-
----
-
-## Incidente P0 que originó este archivo (resumen)
-
-Estado real encontrado en Supabase:
-
-- Periodo `2026-2027` → `activo=false`, pero con **356 inscripciones ACTIVAS**
-  (alumnos reales), grupos, `grupo_materias`, `horario_semanal` (168 bloques),
-  calendario propio y configuración de semestres (1/3/5 activos).
-- Periodo `AGO2026-ENE2027` → `activo=true`, creado el 2026-09-03 como clon con
-  grupos/materias/horario/parciales, pero con **0 inscripciones** y sin
-  calendario bajo su propio nombre.
-- Consecuencia en cascada: `resolverGrupoAlumno()` exige periodo ACTIVO → al no
-  estarlo el de las inscripciones, alumnos y tutores perdieron
-  grado/grupo/carrera/materias/asistencias. La credencial seguía funcionando
-  porque usa `ALUMNOS` directamente.
-
-Reparación aplicada (mínima, reversible, **sin migración de alumnos**):
-
-1. `periodos.activo = true` para `2026-2027`.
-2. `periodos.activo = false` para `AGO2026-ENE2027`.
-
-No se reactivaron semestres: `2/4/6 INACTIVO` es la configuración intencional
-del periodo (la operación real del término es con semestres 1, 3 y 5). Quedan
-**4 inscripciones activas residuales en `2DO A RH`** (semestre 2 inactivo, sin
-horario cargado) pendientes de decisión del directivo; no se modificaron.
-
----
+Incidente raíz: **P0 2026-09-03** (ciclo activo sin contexto académico). Relato,
+reparación y cifras: `docs/historial/BITACORA-2026-09.md` («Incidente P0 — movido de
+REGLAS») y `docs/historial/informes/INFORME-PROMPT-1-ESQUEMA-Y-DATOS.md` §T4.
 
 ## R1. Un ciclo activo no puede existir sin contexto académico operativo
 
@@ -94,8 +66,10 @@ verificar su integridad. La activación debe:
   (invariante: **exactamente un ciclo activo**);
 - registrar el antes/después para poder revertir.
 
-Herramientas existentes de verificación (solo lectura): `scripts/8-diagnostico-ciclos.mjs`
-y `scripts/p0-diag-contexto.mjs`.
+Verificación: la RPC `activar_ciclo_operativo` y `validarIntegridadCiclo`
+(`lib/escolar/ciclo/ciclo-estado.ts`). Diagnóstico:
+`node scripts/diag-calendario-periodo.mjs`. `8-diagnostico-ciclos.mjs` y
+`p0-diag-contexto.mjs` son de la época del P0 y agrupan por texto.
 
 ---
 
@@ -118,20 +92,12 @@ la tabla `periodos`.
 
 ## R5. No usar nombres de ciclo como identificadores estructurales
 
-`calendario_escolar.ciclo_escolar` es **texto** (ej. `2026-2027`,
-`SEMESTRE AGO26-ENE27`, `PRIMER PARCIAL (SEP-AGO)`) mientras el resto de los
-módulos relaciona por `periodo_id` (UUID). Esto es **deuda arquitectónica
-conocida** y NO debe replicarse.
-
-Dirección futura (fuera de P0):
-
-```text
-calendario_escolar.periodo_id UUID  →  relación estructural única
-```
-
-No realizar esta migración durante P0 salvo que sea estrictamente necesaria.
-Hasta entonces, todo módulo que resuelva el "ciclo" por texto debe usar el
-mismo origen (el periodo activo del catálogo) y validar contra el catálogo.
+`calendario_escolar.periodo_id` es la relación estructural. La columna de texto
+`ciclo_escolar` es legado (R8) y no tiene por qué coincidir con `periodos.nombre`.
+Prohibido en código nuevo: resolver el calendario por texto o construir
+`ciclo_escolar` a partir de `periodos.nombre` para leer. Se lee con
+`obtenerCalendarioDePeriodo` (`lib/escolar/ciclo/calendario.ts`). Falta la FK:
+pendiente `fk-calendario-periodo`.
 
 ---
 
@@ -172,8 +138,8 @@ permanecen gated y documentados; nunca se amplían.
 1. ¿Existe el periodo en `periodos`? ¿Nombre único (`periodos_nombre_key`)?
 2. ¿Tiene grupos activos y `grupo_materias`/`materias` activas?
 3. ¿Tiene `horario_semanal` para los grupos que operarán?
-4. ¿Tiene calendario (`calendario_escolar`) **bajo el mismo nombre del periodo**
-   (limitación R5 actual)?
+4. ¿Tiene días `clase` por `calendario_escolar.periodo_id = periodos.id`? (lo cuenta
+   `validarIntegridadCiclo`)
 5. ¿Tiene **inscripciones activas** (o una migración explícita aprobada)?
 6. ¿Su configuración de semestres (`academico_semestres`) coincide con la
    operación real (sin fila = activo)?
@@ -182,33 +148,4 @@ permanecen gated y documentados; nunca se amplían.
 
 Si algo falla → el ciclo permanece como preparación (`activo=false`) y NO se
 convierte en operativo.
-
----
-
-## Deuda arquitectónica conocida (NO resuelta en P0)
-
-1. `calendario_escolar.ciclo_escolar` texto vs `periodos.id` UUID (R5).
-2. Existe `AGO2026-ENE2027` inactivo con parciales y rango, y su calendario fue
-   cargado bajo el texto `SEMESTRE AGO26-ENE27` (nombre distinto). Conservado
-   como histórico/preparación; no se eliminó.
-3. `inscripciones_alumno` en semestres inactivos (`2DO A RH`: 4 alumnos) sin
-   horario cargado; requiere decisión del directivo (mover de grupo o desactivar
-   la inscripción).
-4. Duplicidad de contexto `2026-2027` vs `AGO2026-ENE2027` (grupos/materias/
-   horario clonados): la consolidación debe elegir una sola representación del
-   ciclo (fase posterior, fuera de P0).
-5. Clave de profesor en `PROFESORES` con datos de baja calidad (varias filas
-   comparten `CLAVE=4321`) y horario sin `profesor_clave`: la atribución
-   profesor→bloque todavía no puede apoyarse en asignaciones; no bloquea el
-   flujo actual de plantillas (cualquier profesor genera la plantilla de una
-   materia del horario).
-
----
-
-## Consolidación arquitectónica (fase independiente, PENDIENTE)
-
-El P0 NO implementó la unificación completa ciclo+grupos+materias+horario+
-calendario+evaluaciones+asistencia. Ese trabajo es una fase propia y debe
-partir de estas reglas. El sistema quedó funcional con su arquitectura actual;
-la consolidación sigue pendiente por diseño.
 

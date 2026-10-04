@@ -1,6 +1,6 @@
 # mi-web-escolar — portal escolar CETAC 23
 
-Portal escolar con cuatro roles (alumno, profesor, directivo, tutor): asistencia,
+Portal escolar con los roles de `lib/auth/types.ts` (`ROLES_PORTAL`): asistencia,
 calificaciones, horario, justificaciones, documentos y administración del ciclo escolar.
 
 Next.js 16 · React 19 · Supabase (PostgREST + Storage) · Cloudinary · SheetJS.
@@ -23,7 +23,8 @@ Variables de entorno: copiar `.env.example` a `.env.local` y rellenarlas.
 | `npm run build` | Build de producción. |
 | `npm run lint` | ESLint. |
 | `npx tsc --noEmit` | Typecheck. Debe dar 0 errores antes de cualquier entrega. |
-| `npm run test:suites` | Las 40 suites puras. Sin paso previo: Node carga los `.ts` de `lib/` directamente. |
+| `npm run test:suites` | Todas las `scripts/test-*.mjs`. Sin paso previo: Node carga los `.ts` de `lib/` directamente. |
+| `npm run test:ci` | El CI completo (lo mismo que GitHub). Antes de cada commit. |
 
 ## Documentación
 

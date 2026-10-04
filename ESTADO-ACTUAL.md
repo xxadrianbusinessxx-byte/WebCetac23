@@ -6,8 +6,7 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-10-01 (PROMPT U: videos de carrera por enlace; «Alumnos / Tutores» del directivo)
-- **HEAD:** `f45986d` (2026-10-01) · árbol limpio
+- **Última revisión:** 2026-10-04 (PROMPT V, Parte C: una sola verdad en el arranque)
 
 ---
 
@@ -19,7 +18,8 @@ la única que acepta solicitudes de constancia de estudios).
 Next.js 16.2.6 · React 19.2.4 · Supabase (PostgREST + Storage) · Cloudinary · SheetJS.
 
 La raíz `/` es una **portada pública** (no consulta la sesión) y administrable: carrusel, el video de cada carrera
-(enlace de YouTube o TikTok, `portada_carreras`) con su texto, y contactos; en «Configuración → Video e imágenes».
+(enlace de YouTube o TikTok, `portada_carreras`) con su texto, y contactos; en «Configuración → Video e imágenes»
+(SQL pendiente: `sql-portada-carreras`).
 
 **No hay REST API propia.** No existe `app/api/`. Todo el transporte navegador→servidor
 son Server Actions. Detalle completo en `docs/sistema/FLUJO-TECNICO.md`.
@@ -42,7 +42,7 @@ Fuentes únicas que **no** se duplican (regla R6):
 | Ciclo escolar | `periodos.id` |
 | Alumno → grupo | `inscripciones_alumno` |
 | Identidad de profesor | `PROFESORES.ID` |
-| Identidad de materia | `idInterno` = nombre de la tabla física |
+| Identidad de materia | `grupo_materia_id` (modelo B); `idInterno` en el legado |
 | Parciales | `periodos_evaluacion` |
 
 ## 3. Deudas estructurales vivas
@@ -53,7 +53,8 @@ Son **tres**, y casi todo bug «nuevo» resulta ser una de ellas:
    columna texto `ciclo_escolar`, conservada como legado (R8).
 2. **Identidad del profesor** — varios comparten la CLAVE `4321`; `profesor_clave`
    queda como columna legacy.
-3. **Una tabla física por materia** — nombres en texto, columnas creadas por RPC.
+3. **Una tabla física por materia** — nombres en texto, columnas creadas por RPC; en
+   retirada: modelo B en calificaciones.
 
 Manifestación, ubicación y cifras: `docs/sistema/MAPA-DEL-SISTEMA.md` §2a — que es
 donde se mantienen, no aquí. Ninguna se cierra «de paso»: cada una necesita su
@@ -139,11 +140,4 @@ las otras dos verificaciones: una regla que nada comprueba se degrada sola.
 
 ## 8. Cómo se valida un cambio
 
-```bash
-npx tsc --noEmit
-npm run build
-node scripts/<la suite pura del módulo>.mjs   # ver scripts/README.md
-```
-No hay paso de compilar: las suites cargan los `.ts` de `lib/` directamente (Node ≥ 22.18).
-
-Checklist completo de aceptación: `docs/normativo/CONTRATO-DE-CAMBIO.md`.
+Ver `AGENTS.md` §Antes de dar un cambio por bueno.

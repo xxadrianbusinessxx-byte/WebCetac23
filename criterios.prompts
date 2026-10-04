@@ -20,7 +20,8 @@
     · criterios.prompts         → cómo agrupar y redactar el trabajo de
                                   implementación (ESTE archivo).
     · docs/historial/prompts/   → los prompts ya enviados, tal cual se enviaron.
-                                  Su informe correspondiente, en `informes/`.
+                                  Su informe correspondiente, en
+                                  `docs/historial/informes/`.
 
   El paquete de contexto de un prompt NO se escribe a mano: lo arma
   `scripts/gen-contexto.mjs`, que lee el presupuesto de `docs/00-INDICE.md` y el
@@ -34,7 +35,7 @@
 A QUIÉN VA DIRIGIDO ESTE DOCUMENTO
 ================================================================================
 
-Este documento se dirige de forma EXPLÍCITA a tres públicos:
+Este documento se dirige de forma EXPLÍCITA a cuatro públicos:
 
   1) A QUIEN REDACTE UN PROMPT (usuario o desarrollador del proyecto):
      define cómo agrupar trabajo en unidades arquitectónicas completas y cómo
@@ -173,33 +174,12 @@ El objetivo del prompt debe describirse desde el comportamiento y la
 arquitectura.
 
 ================================================================================
-4. CLINE YA CONOCE EL PROYECTO
+4. QUÉ RECIBE CLINE
 ================================================================================
 
-Una vez que Cline haya trabajado correctamente sobre el repositorio y conozca:
-
-    · estructura;
-    · arquitectura;
-    · convenciones;
-    · decisiones previas;
-    · documentos de contexto;
-    · filosofia.estructural;
-    · criterios.prompts;
-
-no es necesario volver a explicarle todo en cada prompt.
-
-Los prompts posteriores deben concentrarse en:
-
-    1. objetivo;
-    2. comportamiento esperado;
-    3. restricciones;
-    4. límites;
-    5. criterios de calidad;
-    6. validación.
-
-Evitar repetir información que ya está documentada.
-
-Esto reduce ruido y facilita que Cline pueda razonar sobre el cambio real.
+Cline no conserva conocimiento entre prompts. Recibe `AGENTS.md`, el paquete de
+`gen-contexto` y el CONTRATO. El prompt no repite la documentación: la cita. Las
+decisiones de esquema y de fuente de verdad llegan tomadas (DECISIONES TOMADAS).
 
 ================================================================================
 5. UN PROMPT GRANDE NO SIGNIFICA IMPLEMENTAR TODO EL PROYECTO
@@ -259,7 +239,8 @@ Esto permite que Cline:
     · evite crear sistemas paralelos;
     · respete decisiones anteriores.
 
-El análisis forma parte del trabajo.
+El análisis forma parte del trabajo. Si aparece una integración mejor, se
+detiene y lo reporta; no rediseña.
 
 ================================================================================
 8. REUTILIZAR ANTES DE CREAR
@@ -365,38 +346,15 @@ La seguridad debe estar en:
 ================================================================================
 
 Antes de implementar una nueva funcionalidad, identificar cuál es la fuente de
-verdad.
-
-No duplicar información simplemente porque sea más conveniente para la UI.
-
-Ejemplo:
-
-    Identidad            → ALUMNOS
-    Identidad académica  → inscripciones_alumno
-    Grupo/carrera        → catálogo académico
-    Relación tutor       → tutor_alumnos
-    Etiquetas dinámicas  → alumno_etiquetas
-
-Si una funcionalidad necesita información existente, debe consumir esa fuente.
-
-No reconstruirla desde datos secundarios o legacy.
+verdad: las oficiales las fija `filosofia.estructural` §4, y los términos donde
+ya se rompió, `docs/normativo/GLOSARIO.md`. No se repiten aquí.
 
 ================================================================================
 13. LEGACY: AISLAR, NO DESTRUIR SIN NECESIDAD
 ================================================================================
 
-Cuando exista código legacy:
-
-    1. identificarlo;
-    2. determinar si sigue siendo necesario;
-    3. aislarlo;
-    4. evitar nuevas dependencias;
-    5. marcarlo como deprecated cuando corresponda;
-    6. mantener compatibilidad si existe riesgo;
-    7. eliminarlo únicamente cuando exista una transición segura.
-
-No realizar limpieza destructiva únicamente porque una nueva arquitectura ya
-existe.
+Cómo se trata el código legacy lo fijan `filosofia.estructural` §9 y §14 y la R8
+de `docs/normativo/REGLAS_NO_HACER.md`. No se repite aquí.
 
 ================================================================================
 14. MIGRACIONES
@@ -506,22 +464,8 @@ El código nuevo no debe introducir nuevas dependencias sobre sistemas legacy.
 19. VALIDACIÓN OBLIGATORIA
 ================================================================================
 
-Todo prompt de implementación importante debe terminar con validación.
-
-Como mínimo:
-
-    tsc --noEmit
-
-y ESLint de las áreas afectadas.
-
-Además:
-
-    · tests existentes relacionados;
-    · tests nuevos cuando aporten valor;
-    · búsqueda de referencias legacy afectadas;
-    · revisión de imports;
-    · revisión de Server Actions;
-    · revisión de consultas relevantes.
+Todo prompt de implementación importante debe terminar con validación: la que
+fija `docs/normativo/CONTRATO-DE-CAMBIO.md` §1. No se repite aquí.
 
 Si una validación falla por un cambio realizado durante el trabajo:
 
@@ -612,33 +556,8 @@ Separarlas cuando:
 24. ESTRUCTURA RECOMENDADA DE UN PROMPT
 ================================================================================
 
-Los prompts grandes deberían seguir aproximadamente esta estructura:
-
-    OBJETIVO
-
-    ESTADO ACTUAL
-
-    RESULTADO ESPERADO
-
-    REGLAS ARQUITECTÓNICAS
-
-    PERMISOS / SEGURIDAD
-
-    INTEGRACIONES
-
-    COMPATIBILIDAD / LEGACY
-
-    RENDIMIENTO
-
-    LÍMITES
-
-    VALIDACIÓN
-
-    INFORME FINAL
-
-No es obligatorio utilizar exactamente estos títulos.
-
-Lo importante es que el prompt defina claramente el contrato de trabajo.
+La estructura de un prompt la fija `docs/normativo/ORDEN.md` §6. No se repite
+aquí.
 
 ================================================================================
 25. EL PROMPT DEBE PEDIR ANÁLISIS + IMPLEMENTACIÓN + VALIDACIÓN
@@ -699,7 +618,11 @@ Qué medidas importantes se tomaron.
 
 ### Validación
 
-Tests, TypeScript y ESLint.
+`npm run test:ci` y la suite del módulo.
+
+### Medición antes/después
+
+El mismo diagnóstico, antes y después del cambio.
 
 ### Legacy
 

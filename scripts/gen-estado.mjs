@@ -206,11 +206,11 @@ for (const [id, titulo, comando] of [
 if (docState) {
   const atras = docState.commitsAtras;
   señal({
-    zona: "docs", id: "docs.frescura", titulo: "ESTADO-ACTUAL.md vs el HEAD real",
+    zona: "docs", id: "docs.frescura", titulo: "ESTADO-ACTUAL.md: commits desde su última edición",
     valor: atras === null ? "?" : atras, unidad: "commits atrás",
     estado: docState.fallos.length ? "mal" : atras > 1 ? "aviso" : "ok",
     detalle: docState.fallos[0] ?? docState.avisos[0] ??
-      `declara ${docState.headDeclarado ?? "—"}, el real es ${docState.headReal ?? "—"}`,
+      `última edición ${docState.headDeclarado?.slice(0, 7) ?? "—"}, HEAD ${docState.headReal ?? "—"}`,
     accion: "node scripts/verificar-estado-actual.mjs", doc: "ESTADO-ACTUAL.md", peorSi: "sube",
   });
   señal({

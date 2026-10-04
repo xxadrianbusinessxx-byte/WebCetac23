@@ -41,8 +41,8 @@
  * investigación para la que está.
  *
  * ── Por qué existe ─────────────────────────────────────────────────────────
- * `docs/00-INDICE.md` dice que la documentación pesa ~500 KB y que cargarla
- * entera consume media ventana antes de escribir una línea. Tiene una tabla
+ * `docs/00-INDICE.md` dice que la mayor parte de la documentación es historial y
+ * que cargarla entera agota la ventana antes de escribir una línea. Tiene una tabla
  * «Tarea → Leer» que es exactamente el presupuesto correcto… y que hasta ahora
  * había que aplicar A MANO en cada prompt. A mano se olvida, y el prompt acaba
  * diciendo «lee el repo», que es justo lo contrario.
@@ -459,8 +459,8 @@ if (agente === "cline") {
     L.push("es un trinquete que solo falla si el número **sube**.\n");
     for (const r of deudaViva) L.push(`- **${r.id}** (${r.actual}/${r.umbral}) — ${r.deuda}`);
     L.push("");
-    L.push("Bajar uno de estos umbrales para que el CI pase apaga el guardián, y es");
-    L.push("una decisión de arquitectura disfrazada de arreglo (`AGENTS.md`).\n");
+    L.push("Aflojar uno de estos umbrales (subirlo) para que el CI pase apaga el guardián;");
+    L.push("apretarlo cuando baja la deuda es parte del cambio (`AGENTS.md` §Qué nunca se delega).\n");
   } else {
     L.push("Ninguna regla de `test-orden` arrastra deuda viva: todas están en 0 o en");
     L.push("su umbral. Si una falla, es un fallo de verdad.\n");
@@ -535,7 +535,6 @@ L.push("- Cambiar el INVARIANTE —el número esperado, la aserción, el umbral�
 L.push("  Eso es apagar el detector. Para y repórtalo.");
 L.push("- Si un elemento sale de una lista porque dejó de cumplir el rol que la lista audita,");
 L.push("  demuéstralo: dónde vive ahora y qué otra comprobación lo sigue cubriendo.\n");
-L.push("Además, siempre: `npx tsc --noEmit` · `npm run test:ci` · `node scripts/test-orden.mjs` · `npm run build`.\n");
 
 if (glosario.length) {
   L.push("## TÉRMINOS — usa estos nombres, no sinónimos\n");
@@ -553,7 +552,8 @@ if (agente === "cline") {
   L.push("- Nada fuera de la lista de arriba. Un archivo extra hay que justificarlo.");
   L.push("- Legacy y fallbacks se quedan en pie (R8): no se borran «de paso».");
   L.push("- No crear un módulo paralelo a uno que ya cubre el dominio (R6).");
-  L.push("- No bajar un umbral de `scripts/test-orden.mjs` para que pase: eso apaga el guardián.\n");
+  L.push("- No **aflojar** un umbral de `scripts/test-orden.mjs` (subirlo o pasar una regla DURA a trinquete):");
+  L.push("  aflojarlo para que el CI pase apaga el guardián; apretarlo cuando baja la deuda es parte del cambio.\n");
 
   L.push("```");
   L.push(CONTRATO);

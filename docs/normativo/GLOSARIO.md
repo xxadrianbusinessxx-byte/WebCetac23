@@ -11,16 +11,15 @@ Si un prompt usa uno de estos términos de forma ambigua, el prompt está mal es
 |---|---|
 | **`periodos`** (tabla) | La **raíz del sistema**. Un ciclo escolar es una fila con un `uuid`. Todo lo académico cuelga de `periodos.id`. |
 | **`periodos.id`** | El identificador estructural. **La única forma correcta de referirse a un ciclo.** |
-| **`periodos.nombre`** | Texto de presentación (`"2026-2027"`, `"AGO2026-ENE2027"`). **Nunca es identificador** (regla R5). El incidente P0 vino de usarlo como tal. |
+| **`periodos.nombre`** | Texto de presentación (`"2026-2027"`). **Nunca es identificador** (regla R5). El incidente P0 vino de usarlo como tal. |
 | **`periodos.activo`** | Exclusividad impuesta por PL/pgSQL (`activar_ciclo_operativo`), no por convención. Solo un ciclo operativo a la vez. |
 | **«ciclo operativo»** | El `periodo` activo que además tiene contexto académico real: grupos > 0, materias activas > 0, inscritos > 0. Un ciclo activo sin eso es un ciclo roto (regla R1). |
 | **`periodos_evaluacion`** | Los **parciales** dentro de un ciclo. No confundir «periodo» (ciclo) con «periodo de evaluación» (parcial). |
 
 > **Trampa activa:** `calendario_escolar` tiene **dos identidades vivas** — la columna de
-> texto `ciclo_escolar` (LEGACY, marcada `@deprecated` en `lib/escolar/ciclo/calendario.ts`) y
-> `periodo_id` (correcta). Un mismo día puede existir bajo ambas claves, y entonces
-> calendario y asistencia discrepan. Al tocar calendario: verificar **siempre** por cuál
-> de los dos caminos entra el flujo.
+> texto `ciclo_escolar` (LEGACY: solo sus **lecturas** están `@deprecated`; las escrituras
+> aún usan la UNIQUE de texto) y `periodo_id` (correcta). El texto no tiene por qué
+> coincidir con `periodos.nombre`: leer **siempre** por `periodo_id`.
 
 ## Alumno → grupo
 
@@ -37,27 +36,19 @@ Si un prompt usa uno de estos términos de forma ambigua, el prompt está mal es
 
 | Término | Qué es realmente |
 |---|---|
-| **`idInterno`** | **El nombre exacto de la tabla física en Supabase** (`"2DO A MECATRONICA CONCIENCIA HISTORICA"`). Es el identificador técnico real y **nunca cambia**. Todo acceso a datos usa esto. |
+| **`idInterno`** | **El nombre exacto de la tabla física en Supabase** (`"2DO A MECATRONICA CONCIENCIA HISTORICA"`). Es el identificador técnico real y **nunca cambia**. Todo acceso a las **tablas físicas legado** usa esto. |
 | **`nombreVisible`** | Solo presentación (`"Conciencia Histórica II"`). Vive en `materias_nombres_visibles`. **Nunca se usa para acceder a datos.** |
 | **`tabla_legacy`** | La columna de `grupo_materias` que hace de **puente** entre el catálogo (uuid) y la tabla física (texto). Si está vacía o mal, el alumno no ve su materia. |
 | **`asignatura`** | La identidad lógica extraída del `idInterno` (`CONCIENCIA HISTORICA`), sin grado/grupo/carrera. Sirve para agrupar y buscar, no para acceder. |
 | **`materias_mapeo_columnas`** | Qué columna física de la tabla de materia corresponde a qué actividad evaluable, y con qué peso. |
-
-> Una materia = **una tabla física por grupo**, con columnas creadas en caliente vía RPC
-> (`escolar_agregar_columnas`, `escolar_sync_columns`). De ahí sale todo el descubrimiento
-> de esquema en runtime. Es deuda conocida, no se «arregla» de paso (regla R8).
->
-> **Por qué es deliberado:** el modelo de calificaciones replica los Excel de la escuela
-> (una hoja por grupo·materia) y es la base del sistema de boletas digital previsto. Ver
-> `docs/sistema/modulos/CALIFICACIONES-Y-BOLETAS.md` (PROMPT-5/B7): no centralizar las
-> tablas físicas sin un rediseño explícito de producto.
+| **Calificaciones (modelo B)** | Tabla `calificaciones` por `grupo_materia_id` + CURP (`supabase/crear-calificaciones-normalizadas.sql`). Las tablas físicas por materia (columnas creadas por RPC) son legado (R8): las usa la vista del profesor. Trampa: `materia_id` en `materias_nombres_visibles` y `materias_mapeo_columnas` es TEXTO (= nombre de tabla); unir por `grupo_materia_id`. |
 
 ## Profesor
 
 | Término | Qué es realmente |
 |---|---|
 | **`PROFESORES.ID`** | La identidad estructural real. Es lo que viaja en la sesión como `profesorId`. |
-| **`PROFESORES.CLAVE`** | La contraseña. **No es identidad y no es única: 16 de 20 profesores comparten `4321`.** Cualquier lógica que identifique por CLAVE está mal. |
+| **`PROFESORES.CLAVE`** | La contraseña. **No es identidad y no es única** (cuántas la comparten: pendiente `claves-compartidas-profesores`). Cualquier lógica que identifique por CLAVE está mal. |
 | **`profesor_clave`** (columna) | Legacy nullable en `clases_impartidas` / `asistencia_alumnos`. Se lee por compatibilidad, no se escribe como identidad. |
 | **`profesor_id`** | La columna correcta. Regla congelada en `atribucion-profesor.ts`: **sin `profesor_id` de sesión, no se escribe nada.** |
 | **`asignaciones_profesor`** | Qué profesor da qué `grupo_materia` en qué ciclo. |

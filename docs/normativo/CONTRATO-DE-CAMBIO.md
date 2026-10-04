@@ -20,7 +20,7 @@ CONTRATO (obligatorio):
    de datos sin autorización explícita en este mismo prompt.
 4. No crear un camino paralelo a una fuente única existente
    (periodos para ciclo, inscripciones_alumno para alumno→grupo).
-5. Validar: npx tsc --noEmit + la suite pura del módulo + next build.
+5. Validar: npm run test:ci (el CI completo) + la suite del módulo.
 6. Volver a correr el diagnóstico del paso 1 y mostrar antes/después.
 7. Entregar: qué archivos tocaste, por qué, y qué NO tocaste pudiendo hacerlo.
 ```
@@ -48,21 +48,21 @@ CONTRATO (obligatorio):
 ### Identidad (donde el sistema ya se rompió)
 - [ ] Ciclo referenciado por `periodos.id`, **nunca** por `periodos.nombre`. (R5)
 - [ ] Profesor identificado por `PROFESORES.ID`, **nunca** por `CLAVE`.
-- [ ] Materia accedida por `idInterno`, **nunca** por `nombreVisible`.
+- [ ] Calificaciones por `grupo_materia_id` (modelo B); `idInterno` solo para las tablas físicas legado; nunca `nombreVisible`.
 - [ ] Alumno→grupo resuelto por `inscripciones_alumno`, no por otra vía.
 - [ ] Calendario: ¿por `periodo_id` o por el texto `ciclo_escolar`? Si es lo segundo, hay que saber por qué.
 
 ### Verificación
-- [ ] `npx tsc --noEmit` en 0 errores.
-- [ ] La suite pura del módulo pasa (`scripts/README.md` dice cuál es).
-- [ ] `next build` completa.
+- [ ] `npm run test:ci` en verde.
 - [ ] Existe una medición **antes** y **después** con el mismo script de diagnóstico.
 - [ ] Ningún script de `_peligrosos/` ni de `_archivo/` fue ejecutado.
 
 ### Documentación
 - [ ] Si cambió una regla estructural: se actualizó `ESTADO-ACTUAL.md`.
 - [ ] Si cerró o movió una deuda: se actualizó `docs/sistema/MAPA-DEL-SISTEMA.md` §2.
-- [ ] El informe de lo hecho vive en `docs/historial/informes/`, no suelto en `docs/`.
+- [ ] El informe lo entrega quien implementa (chat y mensaje del commit) y lo archiva Claude en `docs/historial/informes/`.
+- [ ] Si añadiste o cambiaste una Server Action: `npm run gen:matriz`. Si editaste `pendientes.json`: `node scripts/gen-rumbo.mjs`, en el mismo paso.
+- [ ] ¿Respeta `docs/normativo/INVARIANTES.md`?
 
 ---
 
@@ -75,7 +75,7 @@ No hace falta revisar el resto si aparece cualquiera de estos:
 | Ejecutó algo de `scripts/_peligrosos/` | Hay scripts ahí que vacían tablas. |
 | Migración de datos no pedida en el prompt | Irreversible sin respaldo. |
 | Identifica un ciclo por nombre de texto | Es el incidente P0 exacto. |
-| Identifica un profesor por CLAVE | 16 de 20 comparten `4321`. |
+| Identifica un profesor por CLAVE | La CLAVE es una contraseña compartida (pendiente `claves-compartidas-profesores`). |
 | Escribe asistencia sin `profesor_id` de sesión | Regla congelada en `atribucion-profesor.ts`. |
 | Crea una segunda fuente de verdad «temporal» | Nunca es temporal (R6). |
 | Entrega sin medición antes/después | No es auditable. |

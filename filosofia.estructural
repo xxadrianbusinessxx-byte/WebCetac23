@@ -8,14 +8,14 @@
     · AGENTS.md                 → punto de entrada y orden de autoridad. Coloca
                                   ESTE archivo en la autoridad #2.
     · ESTADO-ACTUAL.md          → contexto FUNCIONAL actual (qué es verdad hoy).
-    · docs/00-INDICE.md         → qué leer y qué NO leer, según la tarea.
-    · docs/normativo/ORDEN.md   → DÓNDE va cada cosa (rutas, capas, nombres).
-    · docs/normativo/
-        REGLAS_NO_HACER.md      → R1-R8: lo que ya rompió el sistema.
+    · `docs/00-INDICE.md`       → qué leer y qué NO leer, según la tarea.
+    · `docs/normativo/ORDEN.md` → DÓNDE va cada cosa (rutas, capas, nombres).
+    · `docs/normativo/REGLAS_NO_HACER.md`
+                                → R1-R8: lo que ya rompió el sistema.
     · filosofia.estructural     → CÓMO debe construirse/modificarse (este archivo).
     · criterios.prompts         → CÓMO deben diseñarse los prompts de
                                   implementación (agrupación y contratos).
-    · docs/historial/           → el pasado. Incluye `contexto.feliz.md` y
+    · `docs/historial/`         → el pasado. Incluye `contexto.feliz.md` y
                                   `OPTIMIZACION_RENDIMIENTO_400_500.md`, que
                                   fueron ciertos el día que se escribieron y NO
                                   describen el presente.
@@ -24,6 +24,9 @@
   construcción que deben respetarse en TODOS los módulos. Si un cambio entra en
   conflicto con este documento, primero hay que revisar el diseño, no saltarse
   la regla.
+
+  Las líneas `INVARIANTE:` generan `docs/normativo/INVARIANTES.md`
+  (`npm run gen:invariantes`; límites en `scripts/gen-invariantes.mjs`).
 ================================================================================
 
 ================================================================================
@@ -142,12 +145,14 @@ que pertenecen a otro módulo.
 Fuentes oficiales de WebCetac23:
 
     ALUMNOS                    → identidad básica (CURP, nombre, clave)
+    PROFESORES.ID              → identidad del profesor
     inscripciones_alumno       → pertenencia académica del alumno
     grupos                     → grado / grupo / carrera (dentro de un periodo)
     periodos / carreras        → ciclo escolar y catálogo de carreras
     grupo_materias             → materias de cada grupo (con tabla_legacy como
                                  puente físico de almacenamiento)
     materias                   → catálogo de asignaturas
+    calificaciones             → notas por `grupo_materia_id` + CURP (modelo B)
     asignaciones_profesor      → acceso académico del profesor (qué imparte)
     academico_semestres        → estado activo/inactivo de la oferta por semestre
     tutores + tutor_alumnos    → relación tutor ↔ alumno(s)
@@ -156,7 +161,8 @@ Fuentes oficiales de WebCetac23:
                                  (NO identidad académica, ver §5)
     ETIQUETAS (STATUS)         → promedios/materias reprobadas (estatus/estrella)
     COMENTARIOS / COMENTARIOS PROFESORES → chat y comentarios de perfil
-    calendario_escolar, clases_impartidas, asistencia_alumnos → asistencia
+    calendario_escolar (por `periodo_id`; `ciclo_escolar` es legado, R5),
+    clases_impartidas, asistencia_alumnos → asistencia
     justificaciones_asistencia → justificaciones de faltas
     CARPETAS / DOCUMENTOS      → documentos institucionales
     Cloudinary                 → imágenes (fotos de perfil, noticias)
@@ -261,12 +267,10 @@ Toda operación de escritura (o lectura sensible) debe validar:
 
 Patrón actual del proyecto (debe mantenerse):
 
-    - RLS público en tablas + autorización de negocio en Server Actions.
-    - El rol sale de obtenerSesionPortal() (cookie firmada), NUNCA del cliente.
-    - El alumno objetivo (CURP) se valida contra la sesión o contra la
-      relación (p. ej. listarCurpsDeTutor para tutores).
-    - Los permisos de escritura se comprueban en la función server antes de
-      tocar la base de datos.
+    RLS público en tablas + autorización de negocio en Server Actions.
+    `exigir(capacidad)` es la primera línea de toda action (rol de la cookie
+    firmada); el alcance (sobre quién) se resuelve después, con la sesión; la
+    entrada, con `leerFormData`; la decisión se delega a `lib/` (ORDEN §2).
 
 Aplica especialmente a: editar etiquetas, editar datos personales, importación
 individual, importación global, subida de archivos y cualquier operación de
@@ -318,7 +322,7 @@ Reglas:
       contra ejecución repetida (ON CONFLICT, IF NOT EXISTS, guardas).
     - Las migraciones de datos NO borran columnas/tablas legacy en el mismo
       paso: primero se verifica el destino.
-    - Los scripts SQL de migración se documentan en supabase/*.sql y se
+    - Los scripts SQL de migración se documentan en `supabase/*.sql` y se
       ejecutan manualmente en el SQL Editor (no hay ejecutor automático).
 
 ================================================================================
@@ -363,7 +367,7 @@ Reglas:
       1×N de queries.
     - Los índices necesarios se declaran en el SQL del módulo.
     - Medir cuando el cambio toque rutas calientes (/perfil, listados del
-      directivo). Ver docs/historial/OPTIMIZACION_RENDIMIENTO_400_500.md.
+      directivo). Ver `docs/historial/OPTIMIZACION_RENDIMIENTO_400_500.md`.
 
 ================================================================================
 12. IMPORTACIONES
@@ -385,8 +389,8 @@ Los importadores de archivos (CSV/Excel) deben separar las fases:
 Reglas:
 
     - La lógica de importación debe ser REUTILIZABLE y compartida:
-        · lib/escolar/csv.ts              → lectura (CSV/Excel).
-        · lib/escolar/materia/mapeo-columnas.ts   → identificación de columnas por aliases.
+        · `lib/escolar/csv.ts`              → lectura (CSV/Excel).
+        · `lib/escolar/materia/mapeo-columnas.ts` → identificación de columnas por aliases.
         · normalizadores (nombres, grado/grupo/carrera, CURP) → capas puras.
     - Antes de crear un sistema de identificación de columnas nuevo, reutilizar
       el existente (mapeo-columnas.ts / columnas-calificaciones.ts).
@@ -441,19 +445,19 @@ Reglas:
 ================================================================================
 15. NOTAS DE APLICACIÓN
 ================================================================================
-INVARIANTE: Los documentos no se duplican entre sí: el estado lo dice ESTADO-ACTUAL.md, no este archivo.
+INVARIANTE: Los documentos no se duplican entre sí: el estado lo dice ESTADO-ACTUAL.md, no la filosofía.
 
     - Este documento es la referencia para revisar diseños nuevos: antes de
       implementar, verificar contra §2 (modularidad), §3 (acoplamiento),
       §4 (fuente única) y §7 (seguridad).
     - La FORMA de trabajo (cómo agrupar y redactar prompts, análisis previo,
-      validación final) se define en criterios.prompts; este documento define
-      las REGLAS arquitectónicas.
+      validación final) la fijan ORDEN §6 y CONTRATO; criterios.prompts la
+      desarrolla. Este documento define las REGLAS arquitectónicas.
     - Los documentos no se duplican entre sí: ESTADO-ACTUAL.md describe el
-      estado, este archivo define las reglas permanentes, y criterios.prompts
-      define la forma de trabajo. Si una decisión cambia de estado, se
-      actualiza ESTADO-ACTUAL.md; si cambia una regla permanente, se actualiza
-      este documento con justificación.
+      estado, este archivo define las reglas permanentes, y la forma de trabajo
+      la fijan ORDEN §6 y CONTRATO; criterios.prompts la desarrolla. Si una
+      decisión cambia de estado, se actualiza ESTADO-ACTUAL.md; si cambia una
+      regla permanente, se actualiza este documento con justificación.
 
 ===============================================================================
 16. OPTIMIZACIÓN POR CAPAS
@@ -481,7 +485,8 @@ Reglas de aplicación:
       de reducir el costo real (p. ej. reducir JavaScript enviado al cliente
       también baja carga de red) y debe documentarse como tal.
     - En rendimiento: si el costo es de base de datos, la solución pertenece a
-      la fase de índices/rediseño de datos (ver docs/OPTIMIZACION_*.md); no se
-      disfraza con cachés ni abstracciones en el frontend.
+      la fase de índices/rediseño de datos (ver
+      `docs/historial/OPTIMIZACION_RENDIMIENTO_400_500.md`); no se disfraza con
+      cachés ni abstracciones en el frontend.
 
 

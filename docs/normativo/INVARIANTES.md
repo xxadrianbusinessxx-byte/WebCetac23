@@ -19,5 +19,5 @@ de `filosofia.estructural`: fuente y porqué; `docs/00-INDICE.md` sigue mandando
 | §12 | La importación reutiliza lectura y mapeo, y valida todo antes de escribir. |
 | §13 | Un flag de desactivación no reemplaza la autorización: si el módulo escribe, la action valida. |
 | §14 | El código viejo se marca @deprecated con su alternativa; un fallback de identidad no se amplía. |
-| §15 | Los documentos no se duplican entre sí: el estado lo dice ESTADO-ACTUAL.md, no este archivo. |
+| §15 | Los documentos no se duplican entre sí: el estado lo dice ESTADO-ACTUAL.md, no la filosofía. |
 | §16 | No se optimiza una capa si el costo es de otra: primero se mide la capa responsable. |

@@ -11,7 +11,7 @@
 // realidad y fallar si divergen.
 //
 // Comprueba, sin tocar la red ni la base:
-//   1. La cabecera "HEAD:" coincide con `git rev-parse --short HEAD`.
+//   1. El archivo no lleva más de 10 commits sin tocarse (`git log -1 -- ESTADO-ACTUAL.md`).
 //   2. El número de suites declarado coincide con `scripts/test-*.mjs`.
 //   3. El archivo no supera su propio límite de líneas.
 //
@@ -56,7 +56,7 @@ const datos = {
   maxCommitsAtras: null,
 };
 
-// --- 1) HEAD declarado vs real -------------------------------------------
+// --- 1) Commits desde la última edición del documento ---------------------
 let headReal = null;
 try {
   headReal = execSync("git rev-parse --short HEAD", { cwd: root })
@@ -66,57 +66,50 @@ try {
   avisos.push("No se pudo leer el HEAD de git (¿fuera de un repo?); se omite ese check.");
 }
 
-// Cuántos commits puede quedarse atrás la cabecera antes de considerarse
-// podrida. No es 0 y no puede serlo: exigir igualdad EXACTA hacía este check
-// imposible de satisfacer. Escribes el sha X, commiteas, y el HEAD pasa a ser
-// Y ≠ X — el propio commit que pone el documento al día lo vuelve a
-// desincronizar, y el CI (que corre en cada PR) fallaba siempre.
+// Cuántos commits puede pasar el documento sin que nadie lo toque antes de
+// considerarse podrido. Hasta el PROMPT V (2026-10-04) se medía contra una
+// cabecera «HEAD: <sha>» escrita a mano, y esa cabecera era una cifra copiada
+// de git: el propio commit que la ponía al día la dejaba vieja. Ahora la
+// referencia es el último commit que tocó el archivo
+// (`git log -1 --format=%H -- ESTADO-ACTUAL.md`), que no se escribe a mano.
 //
-// La intención original se conserva entera: lo que hay que impedir es que la
-// cabecera se quede 31 commits atrás, como estaba el 2026-09-16. Por eso se
-// exige que el sha declarado sea ANCESTRO del HEAD real —no un commit
-// cualquiera ni una rama abandonada— y que la distancia sea corta.
+// La intención original se conserva entera: lo que hay que impedir es que el
+// documento se quede 31 commits atrás, como estaba el 2026-09-16. Misma
+// tolerancia que antes: aviso por encima de 1, fallo por encima de 10.
 const MAX_COMMITS_ATRAS = 10;
 datos.headReal = headReal;
 datos.maxCommitsAtras = MAX_COMMITS_ATRAS;
 
 if (headReal) {
-  // Acepta "**HEAD:** `abc1234`" y variantes con o sin backticks/negritas.
-  const m = texto.match(/HEAD:?\*{0,2}\s*`?([0-9a-f]{7,40})`?/i);
-  datos.headDeclarado = m?.[1] ?? null;
-  if (m && (headReal.startsWith(m[1]) || m[1].startsWith(headReal))) datos.commitsAtras = 0;
-  if (!m) {
-    fallos.push(
-      `No se encontró una línea "HEAD: <sha>" en ${ARCHIVO}. La cabecera debe declarar sobre qué commit se escribió.`,
-    );
-  } else if (!headReal.startsWith(m[1]) && !m[1].startsWith(headReal)) {
-    const declarado = m[1];
-    let esAncestro = false;
-    let n = null;
-    try {
-      execSync(`git merge-base --is-ancestor ${declarado} HEAD`, { cwd: root, stdio: "ignore" });
-      esAncestro = true;
-      n = Number(execSync(`git rev-list --count ${declarado}..HEAD`, { cwd: root }).toString().trim());
-    } catch {
-      /* no es ancestro, o el sha declarado ya no existe */
+  let ultimaEdicion = "";
+  let n = null;
+  try {
+    ultimaEdicion = execSync(`git log -1 --format=%H -- ${ARCHIVO}`, { cwd: root }).toString().trim();
+    if (ultimaEdicion) {
+      n = Number(execSync(`git rev-list --count ${ultimaEdicion}..HEAD`, { cwd: root }).toString().trim());
     }
-    datos.commitsAtras = esAncestro ? n : null;
+  } catch {
+    /* git no responde: se informa abajo como «no se sabe» */
+  }
+  // `headDeclarado` conserva su nombre porque lo lee `gen-estado.mjs`: ahora es
+  // el sha de la última edición, no una cabecera escrita a mano.
+  datos.headDeclarado = ultimaEdicion || null;
+  datos.commitsAtras = Number.isFinite(n) ? n : null;
 
-    if (!esAncestro) {
-      fallos.push(
-        `${ARCHIVO} declara HEAD \`${declarado}\`, que NO es ancestro del HEAD real \`${headReal}\`. ` +
-          `O el documento viene de otra rama, o el sha ya no existe.`,
-      );
-    } else if (n > MAX_COMMITS_ATRAS) {
-      fallos.push(
-        `${ARCHIVO} declara HEAD \`${declarado}\` y el real es \`${headReal}\`: ${n} commits por detrás ` +
-          `(máximo ${MAX_COMMITS_ATRAS}). La cabecera se quedó vieja.`,
-      );
-    } else if (n > 1) {
-      avisos.push(
-        `la cabecera va ${n} commits por detrás (\`${declarado}\` → \`${headReal}\`); tolerado hasta ${MAX_COMMITS_ATRAS}.`,
-      );
-    }
+  if (datos.commitsAtras === null) {
+    fallos.push(
+      `git no da el último commit que tocó ${ARCHIVO} (\`git log -1 --format=%H -- ${ARCHIVO}\`): ` +
+        `no se puede saber cuántos commits lleva sin revisarse.`,
+    );
+  } else if (n > MAX_COMMITS_ATRAS) {
+    fallos.push(
+      `${ARCHIVO} no se toca desde \`${ultimaEdicion.slice(0, 7)}\`: ${n} commits por detrás de \`${headReal}\` ` +
+        `(máximo ${MAX_COMMITS_ATRAS}). El documento se quedó viejo.`,
+    );
+  } else if (n > 1) {
+    avisos.push(
+      `${ARCHIVO} va ${n} commits por detrás (última edición \`${ultimaEdicion.slice(0, 7)}\` → \`${headReal}\`); tolerado hasta ${MAX_COMMITS_ATRAS}.`,
+    );
   }
 }
 

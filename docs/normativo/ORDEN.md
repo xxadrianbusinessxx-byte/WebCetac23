@@ -42,7 +42,6 @@ Hay seis órdenes independientes. Cada uno tiene su tabla de decisión.
 | Imagen de decoración | `decoraciones imagenes/` (fuente), nunca `public/` a mano | `npm run sync:decoraciones` copia a `public/` |
 | Una utilidad transversal (la usan 3+ familias) | `lib/escolar/` (raíz) | nombre genérico: `nombres.ts`, `fechas.ts`, `csv.ts` |
 | Un informe de trabajo terminado | `docs/historial/informes/` | ver §6 |
-| UI o dominio escrito pero sin cablear | `app/_borrador/` o `lib/_borrador/` | ver el README de cada carpeta |
 
 
 ### 1b. Familias de `lib/escolar/`
@@ -59,7 +58,9 @@ la misma unidad que usan `docs/sistema/MAPA-DEL-SISTEMA.md` y este documento.
 | `alumno/` | alumnos, acceso, registro, estatus, información personal, foto, todas las `etiquetas*` |
 | `catalogo/` | catalogo-academico, carga-academica, inscripciones-borrador, grupos, asignaciones, profesores, roster-validacion |
 | `tutores/` | tutores, tutores-types |
-| (raíz) | transversales: `tables`, `types`, `nombres`, `fechas`, `csv`, `buscar-en-filas`, `matriz-hoja`, `exportar-xlsx`, `excel-a-registros`, `openapi`, `comentarios`, `documentos` |
+| `administracion/` | reportes, citas, constancias y buzón (`administracion`), agenda de citas y constancia (+`-puro`), flujos-puro, hora-plantel-puro |
+| `portada/` | la portada pública administrable: portada (+`-puro`) |
+| (raíz) | transversales: `tables`, `types`, `nombres`, `fechas`, `csv`, `buscar-en-filas`, `matriz-hoja`, `exportar-xlsx`, `excel-a-registros`, `openapi`, `comentarios`, `documentos`, `documentos-permisos-puro`, `mensajes-internos` |
 
 **Dentro de `lib/escolar/` los imports son relativos, y en todo `lib/` llevan
 extensión** (`./x.ts`, `../familia/x.ts`), nunca `@/`. No es estilo: las suites cargan
@@ -91,6 +92,8 @@ carga el bundler, nunca Node.
   mismo nombre se declara en dos archivos de `app/`, está mal, aunque los dos «se vean
   bien». Lo vigila la regla **C11** de `test-orden.mjs` (trinquete en 21 copias sobrantes),
   y el plan que las unifica es `docs/sistema/MATRIZ-UX.md` §7 (F-UX1).
+- **Tamaño máximo de un archivo de `app/` o `lib/`: `LIMITE_LINEAS` de
+  `scripts/test-orden.mjs`.** Lo vigila **C9**.
 - Nada nuevo en la raíz del repo. La raíz ya está cerrada: configuración, los cuatro
   documentos de arranque y `Name_of_archives_excels_CSVs`.
 
@@ -121,6 +124,8 @@ supabase/*.sql           esquema, RPC, triggers
 | `app/actions/` | todo `lib/` | otro `app/actions/` |
 | `lib/validacion/` (esquemas de entrada) | `valibot` y nada más: es un módulo puro | Supabase, `app/`, I/O de cualquier tipo |
 | `lib/auth/` (permisos, exigir, capacidades) | `lib/auth/types` y nada de Supabase en el módulo puro | decidir permisos desde la action |
+| `lib/escolar/` | otros `lib/`, por ruta **relativa** | cualquier cosa de `app/`; el alias `@/` |
+| `lib/*-puro.ts` | solo tipos | I/O de cualquier tipo |
 
 > **Un `"use server"` exporta funciones async y nada más.** Ni `export { … }` ni
 > `export type { … }`: Next con Turbopack —lo que compila Vercel— registra cada
@@ -128,7 +133,8 @@ supabase/*.sql           esquema, RPC, triggers
 > cargarse. Del 17 al 23 de septiembre, tres reexportaciones de tipos tumbaron
 > **todas** las acciones de `/oceano` en producción, con tsc, lint, suites y build
 > en verde. Los tipos que necesite la UI se importan de su módulo de `lib/` con
-> `import type`. Lo vigila **C14**.
+> `import type`. Se permite `export type X = …`: es una declaración, no una lista.
+> Lo vigila **C14**.
 >
 > **PROMPT-2 (centralización de permisos):** toda Server Action empieza por
 > `exigir("capacidad")`. El rol se lee SOLO de la cookie firmada (nunca de
@@ -136,17 +142,16 @@ supabase/*.sql           esquema, RPC, triggers
 > `lib/auth/permisos.ts`. `lib/auth/exigir.ts` es el ÚNICO sitio con I/O de
 > sesión en el camino de autorización por capacidad.
 >
-> **Rol administración escolar (2026-09-24):** sexto rol, `administracion`, con la
+> **Rol administración escolar (2026-09-24):** otro rol, `administracion`, con la
 > misma forma que el técnico. Los roles viven en UNA lista, `ROLES_PORTAL` de
 > `lib/auth/types.ts`: la sesión y `rolesDe` la recorren en vez de repetirla.
 >
-> **PROMPT-3 (rol técnico, ejecutado 2026-09-06):** los roles son **5** (`alumno`,
-> `maestro`, `directivo`, `tutor`, `tecnico`). El técnico es una fila normal de
-> `PROFESORES` con `Permisos='Tecnico'` — no hay segundo camino de autenticación
-> (R6). La UI gobierna con la MISMA `puede()` que el servidor (regla 4: un botón
-> visible que el servidor rechaza es un bug). El recorte a directivo de la §4
-> (configuración → técnico; lectura conservada) ya está aplicado en
-> `lib/auth/permisos.ts` y verificado por `scripts/test-permisos.mjs`.
+> **PROMPT-3 (rol técnico, ejecutado 2026-09-06):** se añadió el rol `tecnico`. El
+> técnico es una fila normal de `PROFESORES` con `Permisos='Tecnico'` — no hay
+> segundo camino de autenticación (R6). La UI gobierna con la MISMA `puede()` que el
+> servidor (regla 4: un botón visible que el servidor rechaza es un bug). El recorte
+> a directivo de la §4 (configuración → técnico; lectura conservada) ya está aplicado
+> en `lib/auth/permisos.ts` y verificado por `scripts/test-permisos.mjs`.
 >
 > **PROMPT-K (entrada validada, ejecutado 2026-09-20):** `exigir()` responde «este rol
 > puede hacer esto», **no** «esto que ha llegado es lo que dice ser». El orden es
@@ -155,8 +160,6 @@ supabase/*.sql           esquema, RPC, triggers
 > los mensajes de error siguen siendo los de siempre, en castellano y para el usuario.
 > Lo vigila la regla **C12** de `test-orden.mjs` (umbral 0). Pesaba más aquí que en otros
 > repos: las policies de RLS son `USING (true)`, así que no hay una segunda red debajo.
-| `lib/escolar/` | otros `lib/`, por ruta **relativa** | cualquier cosa de `app/`; el alias `@/` |
-| `lib/*-puro.ts` | solo tipos | I/O de cualquier tipo |
 
 ### La prueba del algodón
 
@@ -166,6 +169,8 @@ Cuando eso deja de ser cierto, hay lógica de negocio en la capa equivocada.
 
 **Señal de error de capa:** una action con más de ~30 líneas que no sean validar
 sesión, llamar a `lib/` y devolver. Si tiene un `if` de negocio, ese `if` va a `lib/`.
+
+**Una action no llama a `.from()`:** el acceso a Supabase vive en `lib/`. Lo vigila **C8**.
 
 ---
 
@@ -221,6 +226,13 @@ Detalle completo e inventario: **`scripts/README.md`**. Aquí solo la regla de c
 | `p0-*` | herramienta de emergencia de ciclo | solo con `--apply` |
 | `migrar-*` | migración de datos: dry-run por defecto, imprime el plan | solo con `--apply` |
 | `gen-*` | genera un archivo del repo | archivos, no base de datos |
+| `sync-*` | copia archivos dentro del repo | archivos, no base de datos |
+| `verificar-*` | compara lo declarado con lo real: `LEE(fs)` o `LEE`, según su fila | ❌ nunca (los dos que escriben están en `_peligrosos/`) |
+| `check-*` | conectividad y rutas; `LEE` | ❌ nunca |
+| `diagnostico-*` | como `diag-*`, `LEE`, pero C6 no lo cubre | ❌ nunca |
+| `fase10-*` | rendimiento contra producción: `LEE(red)`, o `CARGA` solo con `--confirmar-carga` | ❌ nunca (la carga sí es real) |
+| numerados (`6i-` … `8-`) | diagnósticos de bloques anteriores: `LEE`, según su fila | ❌ nunca |
+| cualquier otro prefijo | sin contrato: se trata como `ESCRIBE` hasta leerlo entero | se supone que sí |
 
 **Regla dura:** un script que escribe en la base **no puede** llamarse `test-`, `diag-`
 ni `probe-`. Si escribe: o lleva guarda `--apply` con dry-run por defecto, o va a
@@ -232,6 +244,13 @@ tablas.
 | `scripts/` | herramientas vivas y reutilizables |
 | `scripts/_peligrosos/` | escriben o borran sin guarda. No ejecutar. |
 | `scripts/_archivo/` | un solo uso ya consumido. No re-ejecutar. |
+
+**Cuarentena:** todo `.mjs` de `scripts/_peligrosos/` lanza
+`throw new Error("CUARENTENA: …")` como primera sentencia tras sus imports; quitarla es
+desarmarlo. Lo vigila **C18**.
+
+**`npm run test:ci` es el workflow** (`.github/workflows/verificacion.yml`): los mismos
+pasos, salvo `npm ci`; si cambia uno, cambia el otro. Lo vigila **C17**.
 
 Todo script nuevo: cabecera con **qué mide**, **qué escribe** (o «nada») y **cómo se
 ejecuta**, y una fila en `scripts/README.md`. Sin eso, no está terminado.
@@ -260,6 +279,8 @@ ejecuta**, y una fila en `scripts/README.md`. Sin eso, no está terminado.
 - **Una tabla nueva se clasifica al crearla.** Si no es una materia, su nombre va en
   `lib/escolar/tables.ts` y en `lib/escolar/materia/tablas-sistema.ts`: el descubrimiento
   de materias ofrece como materia toda tabla que no esté en esa lista. Lo vigila **C15**.
+- **Un `onConflict` apunta a una restricción UNIQUE o PK declarada en `supabase/`.** Lo
+  vigila **C16** (mide el repo, no si la restricción está aplicada).
 - La lógica que deba ser atómica o exclusiva va en **PL/pgSQL**, no en TypeScript:
   la exclusividad de ciclo la impone `activar_ciclo_operativo()`, no el código.
 
@@ -273,19 +294,25 @@ Aquí el ciclo de vida y el archivado.
 ### Estructura de un prompt
 
 ```
-1. OBJETIVO        qué debe ser cierto al terminar (no cómo)
-2. CONTEXTO        SOLO las rutas del presupuesto de docs/00-INDICE.md
-3. MEDICIÓN        qué script de diagnóstico correr ANTES, y pegar el resultado
-4. ALCANCE         qué SÍ y, explícito, qué NO tocar
-5. CONTRATO        el bloque de 12 líneas de CONTRATO-DE-CAMBIO.md §1
+1. OBJETIVO              qué debe ser cierto al terminar (no cómo)
+2. CONTEXTO              el paquete de gen-contexto --agente=cline
+3. ESTADO ACTUAL         verificado: «no re-investigar»
+4. DECISIONES TOMADAS    las de esquema y fuente de verdad, ya cerradas
+5. MEDICIÓN              antes/después, con el mismo script
+6. RESULTADO ESPERADO
+7. REGLAS / SEGURIDAD / RENDIMIENTO
+8. ALCANCE               qué SÍ y, explícito, qué NO tocar
+9. VALIDACIÓN            los comandos
+10. INFORME              qué se hizo · quién lo ejecutó y qué pudo y no pudo hacer · cómo se ejecutó y se midió (antes → después) · qué normas respetó (CONTRATO §2) · veredicto frente a la filosofía y la arquitectura · desviaciones y decisiones propias · lo no verificado
+11. CONTRATO             el bloque de CONTRATO-DE-CAMBIO.md §1, literal
 ```
 
 ### Economía de contexto
 
 - **No pegar documentación en el prompt.** Citar la ruta: `docs/normativo/GLOSARIO.md`.
   El agente ya sabe leer. Pegar 40 KB en cada mensaje los paga en cada turno.
-- **Un prompt, un dominio.** Cruzar dominios multiplica el contexto necesario y hace
-  imposible auditar el resultado.
+- **Un prompt, un dominio**, o varias partes independientes con commit y `test:ci` por
+  parte; cruzar dominios dentro de una parte la hace imposible de auditar.
 - **Nombrar los términos del glosario tal cual.** Decir `periodos.id`, no «el ciclo»;
   `idInterno`, no «el nombre de la materia». La ambigüedad se paga en re-trabajo.
 - **Exigir la medición antes que el código.** Un prompt que no pide medir produce un
@@ -298,7 +325,7 @@ Aquí el ciclo de vida y el archivado.
 | Se redacta | fuera del repo, o directo en el chat |
 | Se ejecuta | Cline implementa |
 | Se acepta | checklist de `CONTRATO-DE-CAMBIO.md` |
-| Se archiva | el prompt a `docs/historial/prompts/`, el informe a `docs/historial/informes/` |
+| Se archiva | el prompt a `docs/historial/prompts/`, el informe a `docs/historial/informes/` (lo archiva Claude) |
 | Cambia el estado del sistema | se actualiza `ESTADO-ACTUAL.md` — **este paso es el que se olvida** |
 
 Un prompt archivado sirve de plantilla para el siguiente. Por eso se guardan tal cual

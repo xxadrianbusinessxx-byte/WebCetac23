@@ -12,10 +12,12 @@
 - Legacy y fallbacks (R8): no se retiran.
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
-- **Rama y HEAD:** main · 19dc335
+Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
+- **Rama y HEAD:** main · 03eb384
 
 ## Qué cerró (últimos 10 commits)
 
+- 03eb384 · Prompt V, Parte B: los scripts de credenciales ya no imprimen claves ni…
 - 19dc335 · Prompt V: retroalimentación de la auditoría externa de docs para IA y el…
 - 48b8d53 · Prompt V, Parte A: las herramientas de contexto miden igual que el CI y…
 - b184b01 · Prompt U, Parte B: «Alumnos / Tutores» del directivo abre el perfil de c…
@@ -25,15 +27,14 @@
 - 1ca2310 · Prompt T, Parte B: la agenda de citas del directivo; alumno y tutor solo…
 - 95157b0 · Prompt T, Parte A: los reportes disciplinarios llegan a Notificaciones d…
 - d7b2803 · Justificantes: historial del profesor con sus materias justificadas El p…
-- 93dd14e · Justificantes: el padre envía, el profesor justifica materias y el direc…
 
 ## Lo que más pesa hoy
 
-- sql-agenda-citas — Agenda de citas: el directivo no ha publicado ningún horario (SQL ya aplicado) · `node scripts/diag-agenda-citas.mjs`
-- traspaso-sin-estrenar — asignaciones_profesor sigue con 0 filas · `node scripts/diag-asignaciones-profesor.mjs`
-- claves-compartidas-profesores — 15 de 22 profesores comparten contraseña · `node scripts/diag-credenciales-duplicadas.mjs`
-- rotar-password-supabase — Rotar la contraseña de Supabase · sin comando de verificación
-- tabla-calificaciones-inexistente — archivos_calificaciones: una action viva apunta a una tabla que no esta en public · `node scripts/check-supabase-public.mjs`
-- C10 = 19
-- C11 = 21
+- sql-agenda-citas — Agenda de citas: el directivo no ha publicado ningún horario (SQL ya aplicado) · `node scripts/diag-agenda-citas.mjs` · persona
+- traspaso-sin-estrenar — asignaciones_profesor sigue con 0 filas · `node scripts/diag-asignaciones-profesor.mjs` · persona
+- claves-compartidas-profesores — 15 de 22 profesores comparten contraseña · `node scripts/diag-credenciales-duplicadas.mjs` · persona
+- rotar-password-supabase — Rotar la contraseña de Supabase · sin comando de verificación · persona
+- tabla-calificaciones-inexistente — archivos_calificaciones: una action viva apunta a una tabla que no esta en public · `node scripts/check-supabase-public.mjs` · persona
+- C10 (todo scripts/*.mjs tiene fila en scripts/README.md) = 19
+- C11 (ningún componente de app/ se define a mano en más de un archivo) = 21
 <!-- FIN GENERADO -->

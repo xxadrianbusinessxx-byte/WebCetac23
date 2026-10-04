@@ -297,3 +297,172 @@ Del checklist del auditor; la columna «Cumple» es la suya, con lo que hizo el 
 | `6j-verificar-password-tutor.mjs:30` usa por defecto el usuario (nombre real) de una tutora | sin tocar | No es credencial |
 | El escáner de `test-orden` no entiende literales de regex | a vigilar | Hoy 0 falsos positivos en 93 scripts vivos; las regex nuevas no llevan comillas literales |
 | Un `import … with { type: "json" }` en `_peligrosos/` haría fallar C18 | a vigilar | Falla en voz alta, no deja pasar; ninguno de los 23 lo usa |
+
+---
+
+## Parte C — Una sola verdad en el arranque y en las normas
+
+**Estado:** COMPLETA · **Commit:** el que contiene este informe («Prompt V, Parte C: …»; el sha va en el Resumen) · **Auditoría:** ACEPTAR_CON_CAMBIOS (4 issues bajos: los tres primeros, aplicados en el cierre; el cuarto, en su forma mínima, y la unificación de `criterios.prompts` §26 queda para D)
+
+### 1. Qué se hizo
+
+| Archivo | Cambio | Ítem |
+|---|---|---|
+| `docs/historial/BITACORA-2026-09.md` | Sección nueva «Incidente P0 — movido de REGLAS_NO_HACER (2026-10-04)» con la copia literal de `b184b01:REGLAS_NO_HACER.md:13-36` y `:186-214` (comparada con diff: idéntica) | Pre-paso PARA CLAUDE |
+| `docs/sistema/pendientes.json` · `RUMBO.md` | Objeto `inscripciones-2do-a-rh` literal, tras `filas-sin-periodo`; RUMBO regenerado en el mismo paso | C1 |
+| `scripts/verificar-docs.mjs` | Línea fechada con la DECISIÓN 1 bajo la de A1. `TECHO_TOKENS` sigue en 10500 | C0 |
+| `docs/normativo/REGLAS_NO_HACER.md` | Cabecera del P0 → remisión a la BITACORA y a `INFORME-PROMPT-1` §T4; R3 (verificación y diagnóstico); R5 (`periodo_id`, `obtenerCalendarioDePeriodo`, pendiente `fk-calendario-periodo`); punto 4 del checklist; fuera «Deuda…» y «Consolidación…» | C1 |
+| `docs/normativo/GLOSARIO.md` | Sin `"AGO2026-ENE2027"`; «Trampa activa» nueva; «tablas físicas legado»; fila «Calificaciones (modelo B)» y fuera el blockquote; la CLAVE remite al pendiente | C2 |
+| `docs/normativo/CONTRATO-DE-CAMBIO.md` | §1.5 = `test:ci` + suite (sigue en 12 líneas); §2: una casilla `test:ci`, identidad de calificaciones, archivo del informe, `gen:matriz`/`gen-rumbo`, INVARIANTES; §3: la CLAVE remite al pendiente | C3 |
+| `AGENTS.md` | Sin «~37 KB», «~500 KB» ni «~800 KB»; migraciones (CONTRATO §1.3); «Al terminar: `npm run test:ci`»; nivel 3 = DECISIÓN 10; `diag-peso-cambio` y ORDEN §6; fila de Cline; párrafo de «aflojar» | C4 |
+| `docs/00-INDICE.md` | Sin «~500 KB» ni «~37 KB»; 6 filas del presupuesto; sin «138» ni «(6 roles)»; `docs/historial/` en una frase; fila `supabase/*.sql`; filas `pendientes.json` y `TOKENS-OCEANO.css` | C5 |
+| `README.md` | Roles → `ROLES_PORTAL`; `test:suites` sin cifra; fila `test:ci` | C6 |
+| `ESTADO-ACTUAL.md` · `scripts/verificar-estado-actual.mjs` | Fuera la cabecera «HEAD:»; SQL pendiente de la portada; identidad de materia = modelo B; deuda 3 «en retirada»; §8 remite a AGENTS. El verificador cuenta los commits desde la última edición (`git log -1` + `rev-list --count`), con la misma tolerancia y las mismas claves `--json` | C7 |
+| `scripts/README.md` | Fila de `verificar-estado-actual.mjs` alineada con C7 | C7 (implementador) |
+| `docs/normativo/ORDEN.md` | «otro rol» y «se añadió `tecnico`»; fuera la fila `_borrador/`; `lib/escolar/` y `*-puro` en la tabla de imports; familias `administracion/` y `portada/`; prefijos de §4 con contrato o «se trata como `ESCRIBE`»; líneas normativas C8, C9, C16, C17 y la cuarentena; excepción de C14; §6 con los 11 puntos; «Un prompt, un dominio…»; «(lo archiva Claude)» | C8 |
+| `filosofia.estructural` · `docs/normativo/INVARIANTES.md` | Rutas con raíz y backticks en las líneas citadas; «Patrón actual» en un párrafo; §4 con `periodo_id`, `PROFESORES.ID` y `calificaciones`; §15; la línea `INVARIANTE:` termina en «…no la filosofía.»; línea de cabecera sobre `gen:invariantes`. INVARIANTES, regenerado | C9 |
+| `criterios.prompts` | §4 «QUÉ RECIBE CLINE»; frase en §7; §12, §13, §19 y §24 → remisiones; §26 + «Medición antes/después»; «cuatro»; ruta de informes | C10 |
+| `scripts/gen-rumbo.mjs` · `RUMBO.md` | Línea fija dentro del bloque (`LINEA_FIJA`, y `--check` la exige); sufijo `· persona`/`· agente`; reglas con su texto de `test-orden --json`. RUMBO regenerado | C11 |
+| `scripts/gen-contexto.mjs` | Fuera «Además, siempre: …»; texto de «aflojar» en las ramas cline y claude; cabecera sin «~500 KB» | C12 |
+| `.github/workflows/verificacion.yml` | El comentario de `fetch-depth: 0` describe el mecanismo nuevo; el paso pasa a «ESTADO-ACTUAL.md al día (commits desde su última edición + nº de suites)». Solo texto: C17 compara los `run:` | Issue 1 (cierre) |
+| `scripts/gen-estado.mjs` | Señal `docs.frescura`: título «commits desde su última edición» y detalle «última edición `<sha7>`, HEAD `<sha>`». Las claves del JSON no cambian | Issue 2 (cierre) |
+| `docs/historial/README.md` | Filas `contexto.feliz.md` y `BITACORA-2026-09.md` en «Contenido», al que ahora remite el 00-INDICE | Issue 3 (cierre) |
+| `criterios.prompts` | §26 «Validación»: «Tests, TypeScript y ESLint» → «`npm run test:ci` y la suite del módulo» | Issue 4, forma mínima (cierre) |
+| `scripts/README.md` | «`probe-*` (los 16 que quedan aquí)» → «(los que no tienen fila propia)»: hoy son 17 | Pendiente que la Parte B dejó a C (cierre) |
+| `docs/historial/informes/INFORME-PROMPT-V.md` | Esta sección | Cierre |
+
+Diff de la parte sin contar los CR ni este informe: 22 archivos, +324/−364.
+
+### 2. Quién lo ejecutó y qué pudo / no pudo hacer
+
+| Agente | Rol | Pudo | No pudo y por qué |
+|---|---|---|---|
+| Claude (Opus 5.5), implementador | Hacer el pre-paso y C0-C12 en lugar de Cline, sin commit | Leer `docs/historial/` y el código para escribir R5 y el checklist (`calendario.ts:449`, `ciclo-estado.ts:289`); copiar el P0 y compararlo con diff; medir antes y después; regenerar RUMBO e INVARIANTES; `test:ci` dos veces | Confirmar en la base las 4 inscripciones de 2DO A RH, o que el SQL de `portada_carreras` sigue sin aplicar. Ejecutar `diag-calendario-periodo.mjs` (conecta a Supabase) y `gen-estado.mjs` (escribe `.panel/`). Dejar RUMBO y ESTADO exactos antes del commit |
+| Claude, auditor independiente | Revisar contra CONTRATO §2/§3, las REGLAS de C y la filosofía | Recalcular la base desde HEAD (blobs sin CR / 4 = 10 347); comparar la copia del P0 con diff; repetir la VALIDACIÓN barata, `test-orden`, los tres `--check` y eslint de los 4 scripts; probar `gen-contexto`; comprobar los 7 ajenos | Corregir: solo propone (4 issues bajos). `test:ci` completo: se apoyó en el log del implementador |
+| Claude, cierre | Aplicar la auditoría, re-validar, informe y commit | Issues 1-3 completos y el 4 en su forma mínima; la cifra falsa de `probe-*`; VALIDACIÓN completa y `test:ci`; commit con rutas concretas | Ejecutar `gen-estado.mjs` tras editarlo (escribe `.panel/`): validado con `node --check`, eslint y la plantilla evaluada aparte. Unificar §26 con ORDEN §6: C10 fijó su forma. Push: prohibido |
+
+Ninguno de los tres tocó la base de datos, la red, `scripts/_peligrosos/`, `scripts/_archivo/`, `fase10-*`, ningún `.sql`, `lib/`, `app/` ni los 7 cambios ajenos del árbol.
+
+### 3. Cómo se ejecutó y se midió
+
+Orden del implementador: MEDICIÓN sobre `03eb384` → copia del P0 a la BITACORA (diff contra `b184b01`) → `pendientes.json` + `gen-rumbo` → poda de C1 → C0 y C2-C12 → `gen:invariantes` y `gen-rumbo` → VALIDACIÓN → `test:ci`. El cierre: issues → VALIDACIÓN → `test:ci` → informe → `test:ci` justo antes del commit.
+
+| Medición | Antes (`03eb384` + ajenos) | Después (cierre) |
+|---|---|---|
+| `npm run verificar:docs` | exit 0 · **10 347** tokens · 0 rutas muertas | exit 0 · **9 720** tokens (−627) · 0 rutas muertas · techo 10 500 sin tocar |
+| `git grep` de cifras de la VALIDACIÓN | **11**: AGENTS `:3`, `:14`, `:91`; README `:3`, `:26`; 00-INDICE `:4`, `:29`, `:71`; CONTRATO `:78`; GLOSARIO `:60`; ORDEN `:143` | **0** (exit 1) |
+| `npm run verificar:estado` | OK, contra la cabecera «HEAD:» escrita a mano | OK · 144 líneas · 51 suites · aviso tolerado: 3 commits desde la última edición (`b184b01`); con este commit, 0 |
+| `gen-invariantes --check` · `gen-rumbo --check` | al día | al día. Antes de regenerar, `gen-rumbo --check` daba DESFASADO, como se esperaba por el formato nuevo |
+| `node scripts/test-orden.mjs` | 18 reglas · C10 19/19 · C11 21/21 | igual, también tras los cambios del cierre |
+| `gen-contexto` | — | `--tareas` exit 0 (13 filas); `--tarea=inexistente` exit 1; el paquete lleva el punto 5 nuevo y el texto de «aflojar», sin «Además, siempre» |
+| `npm run test:ci` | verde (cierre de B) | **verde, exit 0**: tsc; lint 0 errores y 1 aviso previo (`gen-panel.mjs:41` `MARCA`); 51/51 suites; test-permisos 738/0; auditoría de permisos 309/0; `--check` de matriz, invariantes y rumbo al día; `verificar:estado` OK; `verificar:docs` OK; build OK |
+
+**Tokens del arranque**, por archivo (sin CR, la medida del CI):
+
+| Archivo | Antes | Después | Delta |
+|---|---|---|---|
+| REGLAS_NO_HACER | 2 062 | 1 425 | −637 |
+| ESTADO-ACTUAL | 2 000 | 1 947 | −53 |
+| GLOSARIO | 1 996 | 1 938 | −58 |
+| 00-INDICE | 1 829 | 1 830 | +1 |
+| AGENTS | 1 302 | 1 358 | +56 |
+| RUMBO | 537 | 601 | +64 |
+| INVARIANTES | 476 | 476 | 0 |
+| CLAUDE | 145 | 145 | 0 |
+| **Total** | **10 347** | **9 720** | **−627** |
+
+El OBJETIVO pedía coste neto ≤ 0, «en torno a 9 800». La base de esta parte es 10 347, no los 10 345 de A1, porque la Parte B regeneró RUMBO (+2). Los cambios del cierre no tocan ningún archivo del arranque.
+
+### 4. Qué normas respetó
+
+Del checklist del auditor; la columna «Cumple» es la suya, con lo que hizo el cierre donde cambió algo.
+
+| Norma (CONTRATO §2 / §3) | Cumple | Evidencia |
+|---|---|---|
+| RESULTADO ESPERADO C0-C12 | sí | Diff de los 19 archivos revisado: los literales están donde el prompt pide; las 8 desviaciones, justificadas (§6) |
+| Pre-paso: copia literal del P0 antes de podar | sí | diff de `b184b01:13-36 + 186-214` (sin CR) contra la BITACORA: idéntica. El encabezado contiene la cadena que cita REGLAS |
+| §2 Alcance: solo lo pedido, extras justificados | sí | Extras: fila de `scripts/README.md`, BITACORA (pre-paso), INVARIANTES y RUMBO (regenerados), línea de la rama claude de `gen-contexto`. Los del cierre son los issues de la auditoría y la cifra de `probe-*` que B dejó a C |
+| §2 Alcance: legacy en pie (R8) | sí | Sin código tocado; R5 nombra como excepción el fallback de `obtenerCalendarioDePeriodo` y la UNIQUE de texto; las excepciones `_borrador` de `verificar-docs` siguen porque otros docs las citan |
+| §2 Alcance: sin fuente paralela (R6) | sí | La deuda 3 va a `pendientes.json`; ni documentos ni secciones nuevas salvo las pedidas (§26 y la BITACORA) |
+| §2 Capas · Datos | n/a | Sin `app/`, `lib/`, `.sql` ni escritura en la base |
+| §2 Identidad (periodos.id, PROFESORES.ID, `grupo_materia_id`, `periodo_id`) | sí | R5, checklist, GLOSARIO, CONTRATO §2, ESTADO §2 y filosofía §4 lo dicen así |
+| §2 Verificación: `test:ci` en verde | sí | Implementador (dos veces) y cierre (tras los issues y antes del commit) |
+| §2 Verificación: medición antes/después con el mismo script | sí | Sección 3; la base, recalculada por el auditor desde HEAD |
+| §2 Verificación: nada de `_peligrosos/` ni `_archivo/` | sí | Solo los scripts permitidos; los que conectan a Supabase o escriben `.panel/` se declaran no ejecutados |
+| §2 Documentación: ESTADO-ACTUAL si cambió una regla estructural | sí | Modelo B, deuda 3 en retirada, SQL de la portada; 144 líneas (≤ 150) |
+| §2 Documentación: MAPA §2 si se movió una deuda | n/a | El prompt deja `MAPA:118` para D1: divergencia transitoria y prevista |
+| §2 Documentación: `gen:matriz` / `gen-rumbo` en el mismo paso; INVARIANTES | sí | `pendientes.json` → RUMBO regenerado; ninguna Server Action cambiada; INVARIANTES solo regenerado; los tres `--check` al día |
+| §3 Motivos de rechazo | sí | Ninguno: REGLAS cita la BITACORA como relato; 00-INDICE marca OPTIMIZACION como «línea base histórica» |
+| `TECHO_TOKENS` y umbrales de `test-orden` | sí | `TECHO_TOKENS = 10500` igual; `test-orden.mjs` sin diff |
+| Cifras derivables (DECISIÓN «Cifras») | sí | grep en 0; también «(6 roles)», «1 928 líneas» y, en el cierre, «16» de `probe-*`. Quedan cifras hoy ciertas que la parte no nombra (§7) |
+| `verificar-estado-actual`: tolerancia y claves `--json` | sí | `headDeclarado` = sha de la última edición; `commitsAtras` = 3; aviso por encima de 1, fallo por encima de 10; sin sha, fallo explícito |
+| Ajenos intactos, `git add` con rutas concretas | sí | Diff vacío de los 7 con `-w --ignore-cr-at-eol --ignore-blank-lines` |
+| Finales de línea | sí | Cada archivo conserva los suyos (CRLF o LF); RUMBO e INVARIANTES, en LF por su generador; `git diff --check` limpio en los del cierre |
+
+### 5. ¿Sigue la filosofía y la arquitectura?
+
+| Principio | Veredicto | Nota |
+|---|---|---|
+| R6 / §15 · fuente única | respeta | La deuda viva va a `pendientes.json` y el relato a la BITACORA; las cifras remiten a su fuente (`ROLES_PORTAL`, `scripts/test-*.mjs`, MATRIZ §5, el pendiente de claves, `verificar:docs`); criterios §12, §13, §19 y §24 pasan a remisiones. Queda §26 de criterios como segundo esquema de informe (para D) |
+| §16 · medir antes y después | respeta | Mismos comandos antes y después: 10 347 → 9 720 tokens y 11 → 0 cifras |
+| R8 · legacy no se retira | respeta | Sin código tocado; el fallback y la UNIQUE de texto quedan nombrados como excepción |
+| Reutilizar antes de crear | respeta | `pendientes.json`, la BITACORA, el verificador reorientado y `LINEA_FIJA` dentro de `gen-rumbo`; ningún documento nuevo |
+| No aflojar umbrales ni `TECHO_TOKENS` | respeta | `test-orden` sin diff; el texto de «aflojar» llega a AGENTS y a `gen-contexto` |
+| Economía del arranque | respeta | −627 tokens: REGLAS (−637) paga AGENTS (+56) y RUMBO (+64) |
+| ORDEN · dónde va cada cosa | respeta | Pendiente en `docs/sistema/`, relato en `docs/historial/`, reglas en su sección de ORDEN; las familias nuevas coinciden con el disco |
+| Generados no se editan a mano | respeta | INVARIANTES y RUMBO salen de su generador; `gen-rumbo --check` detecta ahora que se borre la línea fija |
+| Lo que el CI comprueba lo dicen sus textos | respeta | El cierre alineó con C7 el comentario y el paso del workflow y la señal del panel |
+
+**Veredicto global:** la Parte C sigue la filosofía y la arquitectura del repo: el arranque es más corto, ya no copia cifras derivables y dice una sola verdad sobre calificaciones (modelo B), calendario (`periodo_id`), validación (`test:ci`) y autoridad (DECISIÓN 10).
+
+### 6. Desviaciones y decisiones propias
+
+**Desviaciones del implementador**
+
+| Ítem | Qué cambió | Por qué |
+|---|---|---|
+| C5 · fila de MATRIZ-PERMISOS | Además de «138», quitó «(6 roles)» | Cifra de roles a mano en la misma fila; la DECISIÓN «Cifras» manda `ROLES_PORTAL` |
+| C7 · «Última revisión» de ESTADO | 2026-10-04 (PROMPT V, Parte C) | La regla del archivo: se actualiza en el cambio que lo vuelve falso |
+| C7 · `scripts/README.md` | La fila del verificador describe el check nuevo | Si no, describiría uno que ya no existe |
+| C10 · título de §4 | «CLINE YA CONOCE EL PROYECTO» → «QUÉ RECIBE CLINE» | El cuerpo nuevo dice que no conserva conocimiento |
+| C11 · `gen-rumbo --check` | DESFASADO también si falta la línea fija (`faltaLineaFija`) | No depende de git; sin esto, borrarla a mano pasaba el CI |
+| C12 · rama claude y cabecera de `gen-contexto` | Texto de «aflojar» y sin «~500 KB» | Citaba a AGENTS por un texto que C4 quitó, y decía «bajar», la dirección opuesta |
+| C9 · cabecera de filosofía | La línea de `INVARIANTE:` en dos renglones | En uno rompe la caja de 80 columnas |
+| C8 · fila de la raíz en ORDEN | Módulos sin `.ts` | Estilo del resto de la fila |
+
+**Desviaciones y decisiones del cierre**
+
+| Ítem | Qué cambió | Por qué |
+|---|---|---|
+| Issue 3, `docs/historial/README.md` | Aplicado ya, no «después de D» | El hueco lo abre C5 en este mismo commit (el 00-INDICE remite a ese README) y cuesta 0 tokens de arranque. La tarea de `:28` (OPTIMIZACION) sigue siendo de después de D |
+| Issue 4, `criterios.prompts` §26 | Solo la forma mínima: «Validación» = `test:ci` + suite | «Tests, TypeScript y ESLint» contradecía CONTRATO §1.5 y la DECISIÓN «Validación». Convertir §26 en remisión a ORDEN §6 desharía la lista que C10 fijó: queda para D |
+| Issue 2, `gen-estado.mjs` | Aplicado (opcional, trivial) | El panel mostraba «declara `<sha de 40>`», que ya no es lo que mide |
+| `scripts/README.md` · `probe-*` | «(los 16 que quedan aquí)» → «(los que no tienen fila propia)» | Era falsa (hoy 17) y el informe de la Parte B la dejó a C. Las otras cifras a mano que quedan son ciertas hoy: van a D (§7) |
+
+**Decisiones propias del implementador**
+- BITACORA: la sección va al final, con una línea de origen (`b184b01`, líneas, C1) y las dos copias separadas por una línea en blanco, en CRLF como el archivo.
+- REGLAS: el texto nuevo de la cabecera va como párrafo, no como blockquote; R1 queda sin el `---` delante, porque `:8-38` lo incluía.
+- GLOSARIO: la fila del modelo B va al final de la tabla Materia; la «Trampa activa» conserva su arranque.
+- AGENTS, nivel 3: REGLAS, el resto de `docs/normativo/` y `criterios.prompts`; en la forma de trabajo mandan ORDEN y CONTRATO, en los principios `filosofia.estructural`.
+- 00-INDICE: la fila de rendimiento pierde también «(1 928 líneas…)».
+- `verificar-estado-actual`: `headDeclarado` guarda el `%H` completo; si git no da el sha, es fallo; lo no committeado no cuenta.
+- ORDEN: C9 en §1, C8 en §2, C18 y C17 en §4, C16 en §5, la excepción de C14 en su blockquote. Contratos de los prefijos según el README de B, y fila nueva «cualquier otro prefijo» = `ESCRIBE`. §6 con los 11 puntos; el 10 enumera las 7 secciones del informe.
+- filosofía: se conserva la etiqueta «Patrón actual del proyecto (debe mantenerse):» y se cambia solo su cuerpo.
+- criterios: §19 conserva «si una validación falla, corregirla», que no está en el CONTRATO; §26 gana «### Medición antes/después».
+- gen-rumbo: `LINEA_FIJA` es una constante; `/^persona/i` también casa «persona - …».
+
+### 7. Lo no verificado y lo pendiente
+
+| Qué | Estado | Por qué / quién |
+|---|---|---|
+| Las 4 inscripciones activas en 2DO A RH | no verificado | Sin base; el pendiente queda con `revisado` 2026-09-03 y `verificar: null` |
+| Que el SQL de `portada_carreras` siga sin aplicar | no verificado | Sin base; ESTADO remite al pendiente `sql-portada-carreras` |
+| `diag-calendario-periodo.mjs`, que cita la R3 nueva | no ejecutado | Conecta a Supabase. Que `validarIntegridadCiclo` cuente por `periodo_id` se comprobó leyendo el código |
+| `gen-estado.mjs` con el verificador nuevo y el texto del cierre | no ejecutado | Escribe `.panel/`. Comprobado leyendo `:207-213`, con la salida `--json` del verificador, `node --check`, eslint y la plantilla evaluada aparte |
+| RUMBO tras el commit | a vigilar | Dirá `main · 03eb384`, 1 commit por detrás (tolerado hasta 10); ESTADO quedará en 0 |
+| `MAPA-DEL-SISTEMA` §2a sin «deuda 3 en retirada» | pendiente | D1, como prevé el prompt |
+| `criterios.prompts` §26 como remisión a ORDEN §6 punto 10 | pendiente | D o una nota (issue 4) |
+| Cifras a mano que la parte no nombra y hoy son ciertas: «16 principios» (AGENTS `:8`, 00-INDICE), «21 copias sobrantes» (ORDEN `:93`, fila de `test-orden` en `scripts/README.md`) | pendiente | La de C11 se deriva de `test-orden`: candidatas para D. Las «81 filas» del GLOSARIO son un hecho histórico fijo |
+| Rutas sin raíz de `filosofia.estructural` fuera de las líneas citadas (§12, cabecera) | pendiente | D4(d) |
+| `docs/historial/README.md:28`: «las mediciones son anteriores al refactor» | pendiente | Claude, después de D (PARA CLAUDE) |
+| Aviso de lint en `gen-panel.mjs:41` (`MARCA`) | previo | Ajeno a la Parte C |

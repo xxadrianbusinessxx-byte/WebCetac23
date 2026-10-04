@@ -160,6 +160,17 @@
       "estado": "abierto"
     },
     {
+      "id": "inscripciones-2do-a-rh",
+      "titulo": "4 inscripciones activas en 2DO A RH (semestre 2 inactivo, sin horario)",
+      "detalle": "Deuda 3 del P0 (antes en REGLAS_NO_HACER). Requiere decisión del directivo: mover de grupo o desactivar la inscripción. Sin verificar desde el 2026-09-03.",
+      "riesgo": "bajo",
+      "quien": "persona — directivo",
+      "verificar": null,
+      "doc": "docs/historial/BITACORA-2026-09.md",
+      "revisado": "2026-09-03",
+      "estado": "abierto"
+    },
+    {
       "id": "indices-asistencia",
       "titulo": "agregar-indices-asistencia.sql sin verificar",
       "detalle": "Único SQL cuya aplicación no se puede comprobar por PostgREST: los índices no salen en el spec OpenAPI. Con 3863 filas y creciendo, conviene confirmarlo en el SQL Editor.",

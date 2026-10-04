@@ -36,6 +36,12 @@ const PENDIENTES = path.join(raiz, "docs", "sistema", "pendientes.json");
 const INICIO = "<!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->";
 const FIN = "<!-- FIN GENERADO -->";
 const soloComprobar = process.argv.includes("--check");
+/**
+ * Primera línea del bloque, siempre la misma. RUMBO.md entra en la lectura de
+ * arranque, y un agente que lee «lo que más pesa hoy» tiende a tomarlo como
+ * encargo: esta línea le dice que es contexto, no alcance.
+ */
+const LINEA_FIJA = "Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.";
 
 const NUM_COMMITS = 10;
 /**
@@ -78,9 +84,12 @@ function pendientes() {
   const json = JSON.parse(fs.readFileSync(PENDIENTES, "utf8"));
   const abiertos = json.pendientes.filter((p) => p.estado === "abierto" && p.riesgo === "alto");
   if (!abiertos.length) return ["- ninguno"];
+  // El sufijo dice quién puede cerrarlo: un pendiente de persona (operación,
+  // decisión, panel de Supabase) no lo resuelve un agente, por mucho que pese.
   return abiertos.map((p) => {
     const donde = p.verificar ? `\`${p.verificar}\`` : "sin comando de verificación";
-    return `- ${p.id} — ${p.titulo} · ${donde}`;
+    const quien = /^persona/i.test(String(p.quien ?? "")) ? "persona" : "agente";
+    return `- ${p.id} — ${p.titulo} · ${donde} · ${quien}`;
   });
 }
 
@@ -108,9 +117,10 @@ function reglas() {
     if (!e.stdout) throw e;
     salida = e.stdout;
   }
+  // Con su enunciado: «C10 = 19» solo lo entiende quien ya sabe qué es C10.
   return JSON.parse(salida)
     .reglas.filter((r) => r.actual !== 0)
-    .map((r) => `- ${r.id} = ${r.actual}`);
+    .map((r) => `- ${r.id} (${r.regla}) = ${r.actual}`);
 }
 
 if (!fs.existsSync(DOC)) {
@@ -124,6 +134,7 @@ if (!doc.includes(INICIO) || !doc.includes(FIN)) {
 }
 
 const bloque = [
+  LINEA_FIJA,
   ramaYHead(),
   "",
   `## Qué cerró (últimos ${NUM_COMMITS} commits)`,
@@ -163,6 +174,8 @@ const bloqueEnDisco = doc.slice(doc.indexOf(INICIO) + INICIO.length, doc.indexOf
 // distinto.
 const medidoCambio =
   !bloqueEnDisco.includes(SEPARADOR) || trozoMedido(bloqueEnDisco).trim() !== trozoMedido(bloque).trim();
+// La línea fija tampoco depende de git: si alguien la borra a mano, es desfase.
+const faltaLineaFija = !bloqueEnDisco.trimStart().startsWith(LINEA_FIJA);
 
 /** Cuántos commits atrás va el sha que declara el documento. `null` = no se sabe. */
 function commitsAtras() {
@@ -181,7 +194,7 @@ function commitsAtras() {
 
 const { sha, n } = commitsAtras();
 const gitDemasiadoAtras = sha === null || n === null || n > MAX_COMMITS_ATRAS;
-const desfasado = medidoCambio || gitDemasiadoAtras;
+const desfasado = medidoCambio || faltaLineaFija || gitDemasiadoAtras;
 const hayQueReescribir = salida !== doc;
 
 if (soloComprobar) {
@@ -190,6 +203,7 @@ if (soloComprobar) {
   } else {
     console.log("DESFASADO:");
     if (medicionCambioTexto()) console.log(`  · ${medicionCambioTexto()}`);
+    if (faltaLineaFija) console.log("  · el bloque no empieza por su línea fija («Contexto, no alcance…»).");
     if (gitDemasiadoAtras) {
       console.log(
         sha === null

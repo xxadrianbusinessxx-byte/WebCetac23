@@ -105,6 +105,7 @@ const ARRANQUE = [
 // como este.
 //
 // 2026-10-04 — PROMPT V (A1): se mide sin `\r`, como el CI: 10 345 tokens; margen real, 155.
+// 2026-10-04 — PROMPT V (C0), DECISIÓN 1: se mantiene `TECHO_TOKENS = 10500`, se poda REGLAS_NO_HACER (C1) y se mide sin CR (A1).
 const TECHO_TOKENS = 10500;
 
 const arranque = ARRANQUE.map((f) => ({ archivo: f, bytes: pesa(f), tokens: tok(pesa(f)) })).sort(

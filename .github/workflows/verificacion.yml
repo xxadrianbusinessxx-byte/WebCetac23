@@ -29,9 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # verificar-estado-actual.mjs resuelve `git merge-base --is-ancestor`
-          # contra el sha que declara la cabecera. Con el clon superficial por
-          # defecto ese sha no existe en el CI y el check falla siempre.
+          # verificar-estado-actual.mjs cuenta los commits desde la última
+          # edición de ESTADO-ACTUAL.md (`git log -1 -- ESTADO-ACTUAL.md` +
+          # `rev-list --count`), y gen-rumbo.mjs resuelve `merge-base
+          # --is-ancestor` contra el sha de RUMBO. Con el clon superficial, el
+          # primero mediría siempre 0 y el segundo fallaría siempre.
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
@@ -65,7 +67,7 @@ jobs:
       - name: RUMBO al día (gen:rumbo --check)
         run: node scripts/gen-rumbo.mjs --check
 
-      - name: ESTADO-ACTUAL.md al dia (HEAD + nº de suites)
+      - name: ESTADO-ACTUAL.md al día (commits desde su última edición + nº de suites)
         run: npm run verificar:estado
 
       - name: Documentación sana (rutas vivas + techo de arranque)

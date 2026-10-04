@@ -421,3 +421,61 @@ antes del recorte del PROMPT F: se conserva como registro, no como estado.
 Las 81 filas históricas de `clases_impartidas` con clave `4321` tienen **autoría
 irrecuperable**: no se backfillea `profesor_id`, inventar la atribución sería peor.
 
+## Incidente P0 — movido de REGLAS_NO_HACER (2026-10-04)
+
+Origen: `docs/normativo/REGLAS_NO_HACER.md` en `b184b01`, líneas 13-36 y 186-214, copiadas tal cual antes de podarlas (PROMPT V, Parte C1).
+
+## Incidente P0 que originó este archivo (resumen)
+
+Estado real encontrado en Supabase:
+
+- Periodo `2026-2027` → `activo=false`, pero con **356 inscripciones ACTIVAS**
+  (alumnos reales), grupos, `grupo_materias`, `horario_semanal` (168 bloques),
+  calendario propio y configuración de semestres (1/3/5 activos).
+- Periodo `AGO2026-ENE2027` → `activo=true`, creado el 2026-09-03 como clon con
+  grupos/materias/horario/parciales, pero con **0 inscripciones** y sin
+  calendario bajo su propio nombre.
+- Consecuencia en cascada: `resolverGrupoAlumno()` exige periodo ACTIVO → al no
+  estarlo el de las inscripciones, alumnos y tutores perdieron
+  grado/grupo/carrera/materias/asistencias. La credencial seguía funcionando
+  porque usa `ALUMNOS` directamente.
+
+Reparación aplicada (mínima, reversible, **sin migración de alumnos**):
+
+1. `periodos.activo = true` para `2026-2027`.
+2. `periodos.activo = false` para `AGO2026-ENE2027`.
+
+No se reactivaron semestres: `2/4/6 INACTIVO` es la configuración intencional
+del periodo (la operación real del término es con semestres 1, 3 y 5). Quedan
+**4 inscripciones activas residuales en `2DO A RH`** (semestre 2 inactivo, sin
+horario cargado) pendientes de decisión del directivo; no se modificaron.
+
+---
+
+## Deuda arquitectónica conocida (NO resuelta en P0)
+
+1. `calendario_escolar.ciclo_escolar` texto vs `periodos.id` UUID (R5).
+2. Existe `AGO2026-ENE2027` inactivo con parciales y rango, y su calendario fue
+   cargado bajo el texto `SEMESTRE AGO26-ENE27` (nombre distinto). Conservado
+   como histórico/preparación; no se eliminó.
+3. `inscripciones_alumno` en semestres inactivos (`2DO A RH`: 4 alumnos) sin
+   horario cargado; requiere decisión del directivo (mover de grupo o desactivar
+   la inscripción).
+4. Duplicidad de contexto `2026-2027` vs `AGO2026-ENE2027` (grupos/materias/
+   horario clonados): la consolidación debe elegir una sola representación del
+   ciclo (fase posterior, fuera de P0).
+5. Clave de profesor en `PROFESORES` con datos de baja calidad (varias filas
+   comparten `CLAVE=4321`) y horario sin `profesor_clave`: la atribución
+   profesor→bloque todavía no puede apoyarse en asignaciones; no bloquea el
+   flujo actual de plantillas (cualquier profesor genera la plantilla de una
+   materia del horario).
+
+---
+
+## Consolidación arquitectónica (fase independiente, PENDIENTE)
+
+El P0 NO implementó la unificación completa ciclo+grupos+materias+horario+
+calendario+evaluaciones+asistencia. Ese trabajo es una fase propia y debe
+partir de estas reglas. El sistema quedó funcional con su arquitectura actual;
+la consolidación sigue pendiente por diseño.
+
