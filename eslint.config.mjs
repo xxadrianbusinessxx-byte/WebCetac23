@@ -16,7 +16,7 @@ const eslintConfig = defineConfig([
     // los ARTEFACTOS DE COMPILACION de las suites puras —JS CommonJS de los
     // modulos TS— y lintarlos generaba 135 de los 151 errores del 2026-09-16,
     // enterrando los ~29 hallazgos reales de app/ y lib/ (ver
-    // docs/sistema/PENDIENTES-2026-09-16.md §1). La cuarentena murio con el paso
+    // docs/historial/auditorias/PENDIENTES-2026-09-16.md §1). La cuarentena murio con el paso
     // de compilar: Node carga los `.ts` de lib/ directamente y esas carpetas ya
     // no existen. Si vuelve a hacer falta este ignore, es que alguien
     // reintrodujo un paso de compilacion.

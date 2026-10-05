@@ -466,3 +466,147 @@ Del checklist del auditor; la columna «Cumple» es la suya, con lo que hizo el 
 | Rutas sin raíz de `filosofia.estructural` fuera de las líneas citadas (§12, cabecera) | pendiente | D4(d) |
 | `docs/historial/README.md:28`: «las mediciones son anteriores al refactor» | pendiente | Claude, después de D (PARA CLAUDE) |
 | Aviso de lint en `gen-panel.mjs:41` (`MARCA`) | previo | Ajeno a la Parte C |
+
+---
+
+## Parte D — docs/sistema y el mapa describen el presente
+
+**Estado:** COMPLETA · **Commit:** el que contiene este informe («Prompt V, Parte D: …»; el sha va en el Resumen) · **Auditoría:** ACEPTAR_CON_CAMBIOS (los 2 issues medios y los 8 bajos, aplicados en el cierre)
+
+### 1. Qué se hizo
+
+| Archivo | Cambio | Ítem |
+|---|---|---|
+| `docs/sistema/MAPA-DEL-SISTEMA.md` | «las familias de ORDEN §1b»; 3 anclas rotas llevadas al archivo que define el símbolo (`asistencia-estados.ts`, `contexto-ciclo-reparar.ts`, `horario-importar-validacion-puro.ts`); `:92` → `resolverAccesoAlumno` (rama maestro) → `profesorTieneAccesoAlumno`, y `nivelAccesoProfesor` pasa a la fila de Documentos; `:53` → las actions que importan los `paso-*.tsx`; `:72` con `promedioActividades` (modelo B); `:76` RPC + fallback O1; `lib/oembed/`; deuda 3 «en retirada»; `asistencia-estados.ts` en la fila de asistencia; 6 filas de dominio nuevo (subsección «Portal Océano, administración escolar y avisos» y modelo B) | D1 |
+| ídem | `carga-academica.ts` en el paso de alumnos; `asistencias.ts` deja de llamarse «barril»; «un `contenido-*.ts` por familia de roles»; nota de `fase10-perfil-datos`; `:90` con «salida sensible» y `:93` con `--pw=` | Cierre: issues 2, 3, 4 y 8 · pendiente de B para D1 |
+| `docs/sistema/FLUJO-TECNICO.md` | Sin conteos ni «(N L)»; paso 1 sobre `/oceano`; cuarta ancla rota (`:62` → `asistencia-plantillas.ts::generarPlantillaAsistencia()`); modelo B en §4; oEmbed en §1; fuera `*-client.tsx` y «el módulo más grande del repo»; deuda 3 en retirada | D2 |
+| ídem | `asistencias.ts`; los `fetch()` a mano sin cifra, con el seguimiento de enlaces cortos de TikTok | Cierre: issues 3 y 5 |
+| `docs/sistema/MATRIZ-UX.md` | `:113-118`: las 6 rutas viejas son `redirect("/oceano")`, con su pieza del shell y su `contenido-*.ts` | D3 |
+| ídem | La nota de `:103` y la fila `/oceano` ya no hablan de rutas vivas; `MAPA_POR_ROL`, que no existe, → `MAPA`/`pestanasDe` (`:128` y `:405`) | Cierre: issue 7 · decisión propia |
+| `docs/sistema/MATRIZ-PERMISOS.md` | `:81` sin «138»; `:84` y `:647` dicen la misma frase sobre §4 | D3 |
+| `docs/sistema/modulos/CICLO_EVALUACIONES_MODULO.md` | `:85`: identificado por `periodo_id` (F5); `ciclo_escolar` es legado | D3 |
+| `scripts/verificar-docs.mjs` | Bloque 3: (a) anclas, (b) rutas de `pendientes.json`, (c) listas de arranque ⊆ `ARRANQUE`, (d) nombres sueltos con rangos `a..b` y `NOMBRES_AUSENTES_A_PROPOSITO`; claves `--json` aditivas | D4 |
+| ídem | `git ls-files --cached --others --exclude-standard`, filtrado por lo que existe en disco; un solo normalizador de citas (`rutaDeCita`) para los bloques 2 y 3 | Cierre: issues 1 y 9 |
+| `scripts/README.md` | Fila de `verificar-docs` con el punto (3); en el cierre, qué cuenta como «en el repo» | D4 · issue 1 |
+| 7 × `git mv` | PROMPT_E y PROMPT_F → `docs/historial/prompts/`; EVALUACION-REPO, PENDIENTES-2026-09-16, SOSTENIBILIDAD, MIGRACION-MATERIAS-A-ID y CALIFICACIONES-Y-BOLETAS → `docs/historial/auditorias/`. Renombres al 100 % | D5 |
+| `scripts/test-orden.mjs` | Fuera el quinto argumento de C8 y C9, «las once reglas» y «hoy faltan 35». Umbrales intactos | D5.1 |
+| `pendientes.json` · `eslint.config.mjs` · `gen-rumbo.mjs` · `test-calificaciones-puro.mjs` | Rutas nuevas del historial; el `doc` de `prompt5-parte-b` → `PROMPT_CLINE_B4_PURO_VS_IO.md` | D5 |
+| `docs/sistema/pendientes.json` | `remedir-rendimiento` sin la premisa falsa, con C-1, C-2, C-3 y P0-3/6B por `archivo:línea` y `verificar: null`; nuevo `rotar-pat-y-bypass`, literal | D6 |
+| ídem | P0-3/6B con la caché O5 (10 min por instancia, `urls-server.ts:12-16`); «todos los roles» en vez de «los 5 roles» | Cierre: issue 6 |
+| `RUMBO.md` | Regenerado con `gen-rumbo` (HEAD `5e4e8c9`); el cierre no lo cambia | D6 |
+| `docs/historial/informes/INFORME-PROMPT-V.md` | Esta sección | Cierre |
+
+Diff de la parte sin contar los CR ni este informe: 13 archivos, +296/−73, más 7 renombres sin cambios.
+
+### 2. Quién lo ejecutó y qué pudo / no pudo hacer
+
+| Agente | Rol | Pudo | No pudo y por qué |
+|---|---|---|---|
+| Claude (Opus 5.5), implementador | Hacer D1-D6 en lugar de Cline, sin commit | Leer el código y `docs/historial/` para redactar los literales y comprobar cada ruta con `git ls-files --error-unmatch`; implementar D4 primero en modo informe y luego como fallo; control positivo en un clon; `git grep` antes de cada `git mv`; VALIDACIÓN y `test:ci` | Correr `diag-*`, `probe-*` o `fase10-perfil-datos`, porque conectan a Supabase: las filas nuevas citan tres diag sin ejecutarlos. Editar `supabase/crear-calificaciones-normalizadas.sql:6`, por la regla. Hacer las tareas «Después de D» de PARA CLAUDE: no son de la parte |
+| Claude, auditor independiente | Revisar contra CONTRATO §2/§3, las REGLAS de D y la filosofía | Contrastar cada afirmación nueva con el código; repetir verificar-docs, test-orden, los tres `--check`, verificar-estado, test-permisos (738/0), test-calificaciones-puro y eslint; su propio control positivo en un clon, con el que encontró el fallo del módulo sin `git add` | Corregir: un auditor solo propone (2 issues medios y 8 bajos). Correr `test:ci` completo: se apoyó en el del implementador |
+| Claude, cierre | Aplicar la auditoría, volver a validar, informe y commit | Los 10 issues; el pendiente que B dejó a D1 (`MAPA:90`/`:93`); `MAPA_POR_ROL`; control positivo de los dos cambios de `verificar-docs` en un clon; VALIDACIÓN y `test:ci`; commit con rutas concretas | Hacer push: lo prohíben las reglas duras. Tocar lo de §7: las tareas «Después de D» y las afirmaciones caducadas que la parte no nombra |
+
+Ninguno de los tres conectó con Supabase, ejecutó `scripts/_peligrosos/`, `scripts/_archivo/` o `fase10-*`, editó un `.sql` o tocó los 7 cambios ajenos del árbol.
+
+### 3. Cómo se ejecutó y se midió
+
+Orden del implementador: MEDICIÓN (`verificar:docs` + D4 en modo informe) → D1-D3 → D4 como fallo → D5 (`git grep` antes de cada `git mv`) → D6 + `gen-rumbo` → VALIDACIÓN → `test:ci`. El cierre: issues → control positivo en un clon → VALIDACIÓN → `test:ci` → informe.
+
+| Medición | Antes (`5e4e8c9` + ajenos) | Después del implementador | Después del cierre |
+|---|---|---|---|
+| `npm run verificar:docs` | exit 0 · 9 720 tokens · 27 documentos · 0 rutas muertas | exit 0 · 9 720 · 20 documentos (7 movidos) · 0 | exit 0 · 9 720 · 20 · 0 |
+| D4 (a) anclas rotas | 4 (recuento en seco): `FLUJO:62`, `MAPA:60`, `:70` y `:82`, todas a barriles | 0 | 0 |
+| D4 (b) rutas de `pendientes.json` · (c) listas de arranque | 0 · 0 | 0 · 0 | 0 · 0 |
+| D4 (d) nombres sueltos | 13 (≤ 15: no hubo que detenerse) | 0: D3 corrigió 6, 1 salió del corpus con el movimiento y 6 pasaron a excepciones con motivo | 0 |
+| `git grep` de los 5 nombres movidos (sin historial ni `supabase/`) | rutas viejas en `pendientes.json` (×5), `eslint.config.mjs:19`, `gen-rumbo.mjs` y `test-calificaciones-puro.mjs:11` | 7 resultados, todos con la ruta nueva | igual |
+| `gen-rumbo --check` · `test-orden` | al día · 18 reglas | al día · 18 reglas | al día · 18 reglas (C10 19). El cierre no cambia RUMBO: el `detalle` de un pendiente no se publica |
+| `npm run test:ci` | verde (cierre de C) | verde | **verde, exit 0**: tsc; lint 0 errores y 1 aviso previo (`gen-panel.mjs:41`); 51/51 suites; test-permisos 738/0; auditoría de permisos 201 actions, 309/0; `--check` de matriz, invariantes y rumbo al día; `verificar:estado` OK; `verificar:docs` OK; build OK |
+
+**Tokens del arranque:** 9 720 → 9 720. Delta 0 contra la base LF de esta parte, que es el cierre de C. D no edita ningún archivo del arranque; RUMBO se regeneró y sigue en 601.
+
+**Controles positivos** (siempre en un clon del scratchpad, borrado al terminar):
+
+| Caso | Quién | Resultado |
+|---|---|---|
+| Ancla a un barril, símbolo inexistente, ancla con raíz y `()` a un archivo borrado, nombre suelto inexistente, rango `f0..f9`, `doc` y `verificar` inexistentes en `pendientes.json`, archivo de más en las listas de AGENTS y 00-INDICE | implementador | exit 1 en todos; `f0..f8` pasa |
+| 2 anclas, 2 pendientes, 1 lista y 2 sueltos inyectados (incluido `f0..f9`) | auditor | exit 1 |
+| Módulo nuevo sin `git add`, citado como `nuevo-modulo-puro.ts::nuevaDecision` | auditor → cierre | antes del cierre: exit 1 (el issue 1). Ahora: exit 0 |
+| Lo mismo más `inexistente-puro.ts` | cierre | exit 1, 1 suelto |
+| `lib/escolar/fechas.ts` borrado del árbol pero aún en el índice, citado como `fechas.ts` | cierre | exit 1: cuenta como ausente |
+| `lib/escolar/alumno/alumnos.ts:76-78` y `lib/escolar/no-existe.ts:76-78` en el corpus (bloque 2, normalizador único) | cierre | el primero pasa; el segundo es ruta muerta, exit 1 |
+
+### 4. Qué normas respetó
+
+Del checklist del auditor; la columna «Cumple» es la suya, con lo que hizo el cierre donde cambió algo.
+
+| Norma (CONTRATO §2 / §3) | Cumple | Evidencia |
+|---|---|---|
+| RESULTADO ESPERADO D1-D6 | sí | Cada afirmación nueva, contrastada con el código por el auditor; sus correcciones, aplicadas en el cierre (§1) |
+| §2 Alcance: solo lo pedido, extras justificados | sí | 13 archivos y 7 `git mv`. Extras: «única API externa» y «único fetch» en FLUJO, suites que ya existían en el MAPA, la fila del README. En el cierre: `MAPA:90`/`:93` (pendiente de B para D1) y `MAPA_POR_ROL` |
+| §2 Alcance: legacy en pie (R8) | sí | No se borra nada. Las rutas viejas constan como redirect, las tablas físicas como legado, `ciclo_escolar` como legado y `ciclo-orquestador.ts` como «no lo importa nadie». Los movimientos no editan el contenido; el `.sql` no se toca |
+| §2 Alcance: sin fuente paralela (R6) | sí | Sin documentos nuevos. `NOMBRES_AUSENTES_A_PROPOSITO` sigue el patrón de `AUSENTES_A_PROPOSITO`. La trampa `materia_id` = TEXTO sigue en GLOSARIO:44 y la decisión del techo, en C0 |
+| §2 Capas · Datos | n/a | Solo documentos y scripts de verificación; sin esquema ni base |
+| §2 Identidad (`periodo_id`, `PROFESORES.ID`, `grupo_materia_id`) | sí | `CICLO_EVALUACIONES:85`; la fila de mensajes del MAPA, «nunca por CLAVE»; el modelo B, por `grupo_materia_id` + CURP |
+| §2 Verificación: `test:ci` en verde | sí | Implementador y cierre (exit 0, sobre el árbol final) |
+| §2 Verificación: medición antes y después con el mismo script | sí | Sección 3: D4 en modo informe → fallo, y controles positivos de los tres agentes |
+| §2 Verificación: nada de `_peligrosos/` ni `_archivo/` | sí | Solo los scripts de solo lectura permitidos |
+| §2 Documentación: MAPA §2 al mover una deuda | sí | Deuda 3 «en retirada» en MAPA §2 y en FLUJO §6 |
+| §2 Documentación: ESTADO-ACTUAL si cambió una regla estructural | n/a | Ninguna regla del código cambia; `ESTADO-ACTUAL:135` sigue siendo cierto |
+| §2 Documentación: `pendientes.json` → `gen-rumbo` en el mismo paso | sí | `--check` al día, también tras el issue 6 |
+| §2 Documentación: informe | sí | Esta sección (DECISIÓN 4) |
+| Respeta INVARIANTES | sí | §15 (lo fechado sale del presente), §16 (medición), §14 (lo legado se marca) |
+| §3 Motivos de rechazo inmediato | sí | Ninguno. Que `pendientes.json` apunte a `docs/historial/` lo manda el prompt (D5.3, D6): es el origen del pendiente, no estado actual |
+| Reglas duras: ajenos, `git add`, finales de línea | sí | Diff de los 7 ajenos vacío con `--ignore-cr-at-eol --ignore-blank-lines`. `git add` con rutas concretas. Los CRLF siguen 100 % CRLF (`verificar-docs`, `test-orden`, MATRIZ-UX, CICLO) y los LF siguen LF |
+| `TECHO_TOKENS` y umbrales | sí | 10 500 intacto; C10 en 19; en C8 y C9 solo cae el argumento de deuda, que no influye con umbral 0 |
+
+### 5. ¿Sigue la filosofía y la arquitectura?
+
+| Principio | Veredicto | Nota |
+|---|---|---|
+| R6 / §15 · fuente única, sin documentos duplicados | respeta | Ningún documento nuevo. Lo que tenía hechos vivos ya estaba en su fuente antes de moverse (GLOSARIO:44, C0) |
+| §16 · medir antes y después | respeta | D4 en modo informe para el recuento en seco y después como fallo; tres controles positivos independientes |
+| R8 · el legacy no se retira | respeta | Rutas viejas, tablas físicas, `ciclo_escolar` y `ciclo-orquestador.ts` siguen en pie y documentados como legado |
+| Reutilizar antes de crear | respeta (tras el cierre) | Reutiliza CORPUS, RAICES, `resuelve()` y el patrón de excepciones. El matiz del auditor (dos normalizadores de citas) se cerró: `rutaDeCita` sirve a los bloques 2 y 3 |
+| No aflojar umbrales ni `TECHO_TOKENS` | respeta | Ningún umbral tocado |
+| Economía del arranque | respeta | Delta 0 |
+| ORDEN · dónde va cada cosa | respeta | Prompts ejecutados a `docs/historial/prompts/` y auditorías fechadas a `docs/historial/auditorias/` (ORDEN §6) |
+| D2 y Parte C · sin conteos ni cifras derivables | no respetaba → respeta tras el cierre | Fuera «son dos» (FLUJO) y «los 5 roles» (`pendientes.json`). Quedan «9 FK nuevas», un hecho del intervalo FASE 10 → hoy que ningún script deriva, y «3 buckets» y «9 tablas» en FLUJO, que no son conteos de archivos del repo |
+
+**Veredicto global:** la Parte D sigue la filosofía y la arquitectura del repo. El MAPA lleva del síntoma al archivo donde vive el símbolo, lo fechado salió del presente sin perder hechos vivos, y `verificar-docs` convierte «las anclas resuelven» en un guardián que falla en voz alta.
+
+### 6. Desviaciones y decisiones propias
+
+**Desviaciones**
+
+| Ítem | Qué cambió | Por qué |
+|---|---|---|
+| **Literales D1, D2 y D3, y la cuarta ancla** | Los redactó el implementador y los registró como decisión propia, no como desviación | El bloque `[LITERALES]` de PARA CLAUDE nunca se escribió en el prompt (la casilla sigue sin marcar), y la REGLA de D dice «No inventes los literales: si falta alguno, detente». El implementador es Claude, el mismo agente que debía escribirlos, y comprobó cada ruta con `git ls-files --error-unmatch`. El auditor los contrastó con el código: salieron los issues 2, 3, 4 y 5, corregidos en el cierre. La casilla del prompt archivado no se marca aquí: la marcará el cierre final con las demás |
+| D5.3 · `gen-rumbo.mjs:90` | La cita estaba en `:99` y era un nombre suelto; ahora lleva la ruta completa | La línea se había movido desde `b184b01` |
+| D3 · `MATRIZ-PERMISOS:84` | Conserva «Código ⇄ §4 (los 6 roles)» | Es el título literal de la sección en `test-permisos.mjs:251` |
+| D1 · «Medir con» de las filas nuevas | Además de la suite, el diag de solo lectura cuando existe | Las filas existentes mezclan diag y suite, y `scripts/README.md` los clasifica `LEE` |
+| Cierre · `MAPA:90` y `:93` | «salida sensible: los ejecuta Claude o una persona» y `--pw=` | El informe de B lo dejó «para D1» y el implementador no lo recogió |
+| Cierre · `MATRIZ-UX:128` y `:405` | `MAPA_POR_ROL` → `MAPA` (se lee con `pestanasDe`) y `mapa-navegacion.ts::pestanasDe` | La constante no existe. El implementador la situó en `:34`; el auditor corrigió la ubicación (`:128` y `:405`). La segunda cita es ahora un ancla que D4 comprueba |
+| Cierre · issue 1 | Además de `--others --exclude-standard`, la cabecera, el mensaje y la línea de salida dicen «del repo» en vez de «versionado» | Lo que cuenta ya no es solo lo versionado |
+| Cierre · issue 9 | Un solo normalizador, que sube antes del bloque 2; los recorridos siguen siendo dos | El bloque 2 conserva su criterio de saltarse las citas con espacios o `()`. Fundir los recorridos cambiaba qué marca cada bloque sin ganar nada |
+
+**Decisiones propias del implementador**
+- D1: una fila por dominio. Cinco van en la subsección nueva y la del modelo B, en «Alumno, materias y calificaciones».
+- D2: el paso 1 recorre `app/oceano/page.tsx` → `datosDocente` (capacidades ya resueltas por `puede()`) → `ShellOceano` → `piezaDe` → `AsistenciasPanel`. La línea del modelo B va en §4.
+- D3: cada fila nombra la pieza del shell y su `lib/navegacion/contenido-*.ts`; las 15 rutas, comprobadas.
+- MAPA: sale `validarAccesoProfesor`, que nadie llama. `ciclo-orquestador.ts` se anota como no importado, sin borrarlo (R8).
+- FLUJO: además de quitar los conteos, corrige «única API externa», «único fetch», `*-client.tsx` y «el módulo más grande del repo».
+- D4: (d) busca por sufijo de ruta, así que resuelve también rutas parciales. Un rango `a..b` exige cada elemento. (a) marca también un ancla con raíz y `()` a un archivo borrado. Si no puede leer git o `pendientes.json`, falla explícitamente.
+- `pendientes.json`: `remedir-rendimiento` pasa a revisado el 2026-10-04 y `rotar-pat-y-bypass` va tras `rotar-password-supabase`.
+
+### 7. Lo no verificado y lo pendiente
+
+| Qué | Estado | Por qué / quién |
+|---|---|---|
+| `diag-agenda-citas`, `diag-seguimiento-medico` y `diag-portada`, citados en las filas nuevas | no ejecutados | Conectan a Supabase. `scripts/README.md` los clasifica `LEE` |
+| Que los síntomas de las filas nuevas se comporten como se describen | no verificado en ejecución | Se describen leyendo el código; el auditor los contrastó |
+| `supabase/crear-calificaciones-normalizadas.sql:6` cita `docs/sistema/MIGRACION-MATERIAS-A-ID.md` | a propósito | Los `.sql` no se editan (son historia del esquema); el `git grep` de la VALIDACIÓN los excluye |
+| RUMBO tras el commit | a vigilar | Dirá `main · 5e4e8c9`, 1 commit por detrás (tolerado hasta 10) |
+| Tareas «Después de D» de PARA CLAUDE: índice de `docs/historial/auditorias/README.md` con lo movido, bloque «Vigencia» de `OPTIMIZACION_RENDIMIENTO_400_500.md` y `docs/historial/README.md:28` | pendiente | Claude, después de D |
+| Afirmaciones caducadas que la parte no nombra: MATRIZ-UX `:97` («7 de 8 rutas») y `:77`/`:416` (mandan al `*-client.tsx` de la ruta); MAPA §3 paso 5 (tsc + build, no `test:ci`); FLUJO §4 (símbolos que hoy viven en archivos partidos: `catalogo-academico-resolucion.ts`, `horario-importar-lectura.ts`, `tutores-*.ts`) | pendiente | Fuera de las líneas de D. D4 no las ve: no son anclas `ruta::símbolo` |
+| `criterios.prompts` §26 como remisión a ORDEN §6 punto 10 · «16 principios» y «21 copias sobrantes» | pendiente | La Parte C los dejó como candidatos para D, pero el prompt de D no los nombra |
+| Aviso de lint en `gen-panel.mjs:41` (`MARCA`) | previo | Ajeno a la Parte D |

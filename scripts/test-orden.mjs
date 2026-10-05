@@ -47,7 +47,7 @@ import path from "node:path";
 const root = path.join(import.meta.dirname, "..");
 const DETALLE = process.argv.includes("--detalle");
 // `--json` existe para que otra herramienta lea el resultado sin re-implementar
-// las once reglas. Lo consume `gen-estado.mjs`: si el panel las midiera por
+// las reglas. Lo consume `gen-estado.mjs`: si el panel las midiera por
 // su cuenta habría dos fuentes para la misma verdad (R6), y divergirían.
 const JSON_OUT = process.argv.includes("--json");
 
@@ -276,7 +276,6 @@ comprobar("C8", "app/actions/** no habla con Supabase directamente", 0, () =>
   listar("app/actions", ES_TS)
     .filter((f) => /\.from\s*\(/.test(codigoDesnudo(leer(f))))
     .map((f) => ({ archivo: f, detalle: "usa .from()" })),
-  "PROMPT_E_CAPAS_Y_TAMANO.md · R-1 lo baja a 0",
 );
 
 // ── C9 · ningún archivo es intocable ───────────────────────────────────────
@@ -291,12 +290,11 @@ comprobar("C9", `ningún archivo de app/ o lib/ supera ${LIMITE_LINEAS} líneas`
     .filter((x) => x.n > LIMITE_LINEAS)
     .sort((a, b) => b.n - a.n)
     .map((x) => ({ archivo: x.f, detalle: `${x.n} líneas` })),
-  "PROMPT_E_CAPAS_Y_TAMANO.md · R-3 los parte por responsabilidad",
 );
 
 // ── C10 · todo script está inventariado ────────────────────────────────────
 // ORDEN.md §4: «Todo script nuevo: … y una fila en scripts/README.md. Sin eso,
-// no está terminado». TRINQUETE: hoy faltan 35, casi todos anteriores a la
+// no está terminado». TRINQUETE: los que faltan son casi todos anteriores a la
 // regla. Lo que importa es que no crezca.
 comprobar("C10", "todo scripts/*.mjs tiene fila en scripts/README.md", 19, () => {
   const readme = fs.existsSync(path.join(root, "scripts/README.md")) ? leer("scripts/README.md") : "";

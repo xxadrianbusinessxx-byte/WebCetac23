@@ -1,8 +1,8 @@
 # Flujo técnico de `mi-web-escolar`
 
 Nota acompañante del canvas [[flujo-tecnico]]. El canvas es el mapa; esto es el índice
-buscable. Todo lo de aquí está medido sobre el código real (174 archivos `.ts`/`.tsx`
-en `app/` + `lib/`, 40 `.sql` en `supabase/`), no sobre documentación histórica.
+buscable. Todo lo de aquí está medido sobre el código real, no sobre documentación
+histórica.
 
 ---
 
@@ -11,19 +11,21 @@ en `app/` + `lib/`, 40 `.sql` en `supabase/`), no sobre documentación históric
 | Capa | Lenguaje / runtime | Dónde vive |
 |---|---|---|
 | Entrada / render inicial | React Server Components (TSX, corre en Node) | `app/**/page.tsx`, `app/layout.tsx`, `proxy.ts` |
-| UI | React 19.2 en el navegador (`"use client"`) | `app/components/**`, `*-client.tsx` |
+| UI | React 19.2 en el navegador (`"use client"`) | `app/components/**` (el portal: `app/components/oceano/`) |
 | Transporte | Server Actions de Next 16.2 — un POST que Next enruta solo | `app/actions/*.ts` (`"use server"`) |
 | Dominio | TypeScript 5 puro + orquestación | `lib/**` |
 | Acceso a datos | `@supabase/supabase-js` → HTTP PostgREST | `lib/supabase/*`, cualquier `.from()` |
 | Base de datos | PostgreSQL + PL/pgSQL | `supabase/*.sql` |
 | Archivos | Supabase Storage (3 buckets) | justificaciones, documentos, calificaciones |
-| Imágenes | **Cloudinary** (única API externa) | `lib/cloudinary/**` |
+| Imágenes | **Cloudinary** | `lib/cloudinary/**` |
+| Video de cada carrera (portada) | oEmbed de YouTube y TikTok: pregunta si el video existe y se puede insertar, y sigue los enlaces cortos de TikTok, con tiempo límite | `lib/oembed/oembed.ts` |
 | Excel/CSV | SheetJS `xlsx` — se usa en cliente **y** servidor | `horario-importar.ts`, `asistencias.ts`, `csv.ts` |
 | Cripto | `node:crypto` — HMAC-SHA256 (sesión), scrypt (tutores), `timingSafeEqual` | `lib/auth/*`, `lib/escolar/tutores/tutores.ts` |
 
 **No hay REST API propia.** No existe `app/api/`. Todo lo que el navegador pide pasa por
-una Server Action; el único `fetch()` a mano del repo es contra el spec OpenAPI de
-PostgREST (`lib/escolar/openapi.ts`) para descubrir el esquema en runtime.
+una Server Action. Los `fetch()` a mano van contra el spec OpenAPI de PostgREST
+(`lib/escolar/openapi.ts`), para descubrir el esquema en runtime, y contra YouTube y
+TikTok (`lib/oembed/oembed.ts`: el oEmbed y el seguimiento de enlaces cortos de TikTok).
 
 ---
 
@@ -55,11 +57,15 @@ e inscritos > 0 antes de activar.
 
 Ejemplo real: un profesor sube asistencia.
 
-1. `app/profesor/page.tsx` (RSC) → `obtenerSesionPortal()` lee la cookie firmada y
-   renderiza `ProfesorClient` con el rol ya resuelto.
+1. `app/oceano/page.tsx` (RSC) → `obtenerSesionPortal()` lee la cookie firmada, el
+   servidor resuelve los datos del rol (`datosDocente`, con las capacidades ya calculadas
+   por `puede()`) y renderiza `ShellOceano`. En `Materias › Asistencia`,
+   `lib/navegacion/contenido-docente.ts::piezaDe` da la pieza `materia-asistencia` y
+   `app/components/oceano/contenido-docente-oceano.tsx` monta `AsistenciasPanel`.
+   (`/profesor` solo redirige a `/oceano`.)
 2. `AsistenciasPanel` (`"use client"`) llama `actionDescargarPlantillaAsistencia()`.
 3. `app/actions/asistencias.ts` valida sesión y delega en
-   `lib/escolar/asistencia/asistencias.ts::generarPlantillaAsistencia()` → XLSX con SheetJS.
+   `lib/escolar/asistencia/asistencia-plantillas.ts::generarPlantillaAsistencia()` → XLSX con SheetJS.
 4. El profesor sube el archivo → `actionPrevisualizarAsistencias()` →
    `analizarPlantillaAsistencia()` + `previsualizarAsistencias()`. **Nada se escribe aún.**
 5. Confirmación → `actionConfirmarAsistencias()` → `confirmarAsistencias()` construye el
@@ -91,20 +97,22 @@ alumnos y etiquetas. Es la forma del repo.
 - `orquestador-ciclo.ts` — `crearCicloConContexto`, `registrarTransicionCiclo`.
 
 ### Catálogo académico
-- `catalogo-academico.ts` (1029 L) — `resolverGrupoAlumno`, `resolverMateriasAlumno`,
+- `catalogo-academico.ts` — `resolverGrupoAlumno`, `resolverMateriasAlumno`,
   `resolverGrupoMateriasBatch`, `validarAccesoAlumno`, `validarAccesoProfesor`.
 - `contexto-ciclo.ts` — `clonarContextoAcademico`, `planRepararTablaLegacy`.
 - `carga-academica.ts` / `inscripciones-borrador.ts` / `migracion-catalogo.ts`.
 
 ### Horario
-- `horario-importar.ts` (1267 L) — `leerLibroExcel`, `localizarHojaDetalle`,
+- `horario-importar.ts` — `leerLibroExcel`, `localizarHojaDetalle`,
   `analizarFilasHorario`, `advertenciasResumenVsDetalle`, `aplicarImportacionHorario`.
-- `horario-semanal.ts` (858 L) — `consultarHorarioAlumno`, `bloquesDeGrupoEnFecha`,
+- `horario-semanal.ts` — `consultarHorarioAlumno`, `bloquesDeGrupoEnFecha`,
   `bloquesDelProfesorEnGrupo`, más helpers puros (`horaAMinutos`, `duracionMinutos`).
 
 ### Asistencia
-- `asistencias.ts` (1685 L) — el módulo más grande del repo. Plantilla → análisis →
-  preview → confirmación → consulta de estados → `calcularPorcentajeAsistencia`.
+- `asistencias.ts` — grupos, identidad del alumno por inscripción y aportes del profesor;
+  además re-exporta los `asistencia-*.ts`. Plantilla → análisis →
+  preview → confirmación en `asistencia-plantillas.ts`; consulta de estados →
+  `calcularPorcentajeAsistencia` en `asistencia-estados.ts`.
 - `atribucion-profesor.ts` — puro. Define las claves de conflicto del UPSERT y la regla
   congelada: sin `profesor_id` de sesión **no se escribe nada**.
 - `asistencia-parcial.ts`, `fechas.ts` (`serialExcelAFechaISO`).
@@ -117,7 +125,11 @@ alumnos y etiquetas. Es la forma del repo.
   El efecto en la asistencia es derivado: lo cuenta `resolverDiaMateria` al leer.
 
 ### Materias y calificaciones
-- `mapeo-columnas-materia.ts` (612 L) — `calcularPromedioPonderado`, `validarPesosActividades`,
+- **Modelo B** (rige): `app/actions/calificaciones-normalizadas.ts` →
+  `calificaciones.ts` (tabla `calificaciones` por `grupo_materia_id` + CURP) y
+  `calificaciones-puro.ts` (Excel → filas, `promedioActividades`). Lo de abajo son las
+  tablas físicas por materia: legado (R8), lo usa la vista del profesor.
+- `mapeo-columnas-materia.ts` — `calcularPromedioPonderado`, `validarPesosActividades`,
   `resolverColumnaFisica`, `detectarColisionesEncabezados`.
 - `columnas-calificaciones.ts`, `materia-avance.ts`, `schema-tabla.ts`, `hoja-tabla.ts`.
 
@@ -127,7 +139,7 @@ alumnos y etiquetas. Es la forma del repo.
 - `alumnos.ts` — `analizarRoster`, `previsualizarSincronizacionAlumnos`.
 
 ### Tutores
-- `tutores.ts` (1064 L, `server-only`) — scrypt, contraseña inicial derivada del CURP del
+- `tutores.ts` (`server-only`) — scrypt, contraseña inicial derivada del CURP del
   hijo, `generarTutoresAutomaticos`, `desactivarTutoresHuerfanos`.
 
 ---
@@ -163,7 +175,8 @@ la base. Es una decisión, pero conviene saberla.
    `roster-validacion.ts::profesoresClaveAmbiguos()` sigue siendo necesario.
 3. **Una tabla física por materia.** Nombres en texto (`"1RO A MATEMATICAS"`) con columnas
    creadas en caliente. De ahí salen las RPC de DDL, `materias_mapeo_columnas`,
-   `materias_nombres_visibles` y todo el descubrimiento de esquema en runtime.
+   `materias_nombres_visibles` y todo el descubrimiento de esquema en runtime. En
+   retirada: las calificaciones ya van por el modelo B (§4).
 
 ---
 
@@ -181,5 +194,5 @@ Regla del repo: la decisión se prueba sin base de datos, el I/O queda fuera.
 | `fechas.ts` | `scripts/test-fechas.mjs` |
 | `roster-validacion.ts` | `scripts/test-roster-validacion.mjs` |
 
-Además `scripts/` tiene ~40 `probe-*.mjs` y `diag-*.mjs` de solo lectura contra Supabase:
+Además `scripts/` tiene los `probe-*.mjs` y `diag-*.mjs` de solo lectura contra Supabase:
 son el instrumental para medir antes de tocar, tal como pide `AGENTS.md`.

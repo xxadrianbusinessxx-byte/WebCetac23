@@ -82,7 +82,8 @@ manda el ciclo seleccionado por el directivo (nada de constantes hardcodeadas).
 - «parcial» en calificaciones (`columnaParciales`, `Parcial 1…`) es una
   categoría de columnas de los Excel de materia, sin fechas ni identidad
   temporal; no se reutilizó como estructura.
-- `calendario_escolar` (ciclo_escolar texto + fechas por día) sigue siendo la
+- `calendario_escolar` (fechas por día, identificado por `periodo_id` (F5);
+  `ciclo_escolar` es legado) sigue siendo la
   autoridad de días/hábiles; `periodos.fecha_inicio/fin` son un RANGO
   administrativo opcional (no reemplazan el calendario por día).
 - No se agregó `parcial_id` a asistencias/clases: la fecha resuelve el parcial

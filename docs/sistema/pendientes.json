@@ -13,7 +13,7 @@
     "comprueba este pendiente. Un pendiente falso cuesta lo mismo de leer que uno real y",
     "entrena a ignorar la lista — el 09-16 cuatro de ocho ya estaban resueltos.",
     "",
-    "Sembrado desde docs/sistema/PENDIENTES-2026-09-16.md §1 y §3."
+    "Sembrado desde docs/historial/auditorias/PENDIENTES-2026-09-16.md §1 y §3."
   ],
   "pendientes": [
     {
@@ -105,13 +105,24 @@
       "estado": "abierto"
     },
     {
+      "id": "rotar-pat-y-bypass",
+      "titulo": "Confirmar que se rotaron el PAT de Supabase y el secreto de bypass de Vercel",
+      "detalle": "Solo constan en el historial de rendimiento (FASES 4-5) como «rotar al terminar». Confirmar en los paneles.",
+      "riesgo": "medio",
+      "quien": "persona — responsable de Supabase y Vercel",
+      "verificar": null,
+      "doc": "docs/historial/OPTIMIZACION_RENDIMIENTO_400_500.md",
+      "revisado": "2026-10-04",
+      "estado": "abierto"
+    },
+    {
       "id": "o1-rpc-sin-acotar",
       "titulo": "O-1: la RPC de perfil de alumno no acota por grupo",
       "detalle": "Falta AND gm.grupo_id = v_grupo_id en crear-rpc-obtener-perfil-alumno.sql:208. Sigue siendo UNA línea, abierta desde el 09-08. Con un solo ciclo el sobrecoste es ×1 y no se nota: vuelve multiplicado el día que exista el ciclo 2027-2028. Un bug latente que se esconde solo es peor que uno visible.",
       "riesgo": "medio",
       "quien": "Cline — prompt de una línea",
       "verificar": "node scripts/diag-sql-aplicado.mjs",
-      "doc": "docs/sistema/PENDIENTES-2026-09-16.md",
+      "doc": "docs/historial/auditorias/PENDIENTES-2026-09-16.md",
       "revisado": "2026-09-16",
       "estado": "abierto"
     },
@@ -133,19 +144,19 @@
       "riesgo": "medio",
       "quien": "Cline — una sentencia SQL",
       "verificar": "node scripts/diag-relaciones-supabase.mjs",
-      "doc": "docs/sistema/PENDIENTES-2026-09-16.md",
+      "doc": "docs/historial/auditorias/PENDIENTES-2026-09-16.md",
       "revisado": "2026-09-16",
       "estado": "abierto"
     },
     {
       "id": "remedir-rendimiento",
       "titulo": "Re-medir rendimiento (FASE 11)",
-      "detalle": "Las cifras de OPTIMIZACION_RENDIMIENTO_400_500.md son de la FASE 10. Desde entonces: reorganización del repo, 9 FK nuevas, asistencia por materia y el rediseño visual de los 5 roles. Hoy se optimizaría a ciegas. asistencia_alumnos pasó de ~1000 a 3863 filas.",
+      "detalle": "Las cifras de OPTIMIZACION_RENDIMIENTO_400_500.md son de la FASE 10. Desde entonces: reorganización del repo, 9 FK nuevas, asistencia por materia y el rediseño visual de todos los roles. Hoy se optimizaría a ciegas. Sigue abierto en el código (revisado el 2026-10-04): C-1 lib/escolar/alumno/alumnos.ts:76-78 (buscarAlumnoPorNombre descarga ALUMNOS con .range(0, 4999) en cada login por nombre); C-2 lib/escolar/materia/materia-vista-alumno.ts:167, :187 y :223 (select(*) de la tabla física de la materia); C-3 lib/escolar/openapi.ts:53 (descarga el spec OpenAPI entero en frío); P0-3/6B lib/escolar/alumno/foto-perfil.ts:18-27 (guardarUrlFotoPerfil es un stub: sin URL persistida, la existencia se pregunta a la Admin API de Cloudinary cada vez que caduca la caché O5, 10 min por instancia; lib/cloudinary/urls-server.ts:12-16). Sin comando de verificación: las consultas de fase10-perfil-datos son anteriores al refactor, y el instrumento lo decidirá la FASE 11.",
       "riesgo": "medio",
       "quien": "merece su propio prompt",
       "verificar": null,
       "doc": "docs/historial/OPTIMIZACION_RENDIMIENTO_400_500.md",
-      "revisado": "2026-09-16",
+      "revisado": "2026-10-04",
       "estado": "abierto"
     },
     {
@@ -155,7 +166,7 @@
       "riesgo": "bajo",
       "quien": "persona — decisión",
       "verificar": "node scripts/diag-asistencia-periodo.mjs",
-      "doc": "docs/sistema/PENDIENTES-2026-09-16.md",
+      "doc": "docs/historial/auditorias/PENDIENTES-2026-09-16.md",
       "revisado": "2026-09-16",
       "estado": "abierto"
     },
@@ -188,7 +199,7 @@
       "riesgo": "bajo",
       "quien": "Cline — prompt nuevo (B4)",
       "verificar": "node scripts/test-orden.mjs --detalle",
-      "doc": "docs/normativo/PROMPT_E_CAPAS_Y_TAMANO.md",
+      "doc": "docs/historial/prompts/PROMPT_CLINE_B4_PURO_VS_IO.md",
       "revisado": "2026-09-16",
       "estado": "abierto"
     },

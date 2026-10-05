@@ -96,7 +96,7 @@ function pendientes() {
 /** Dónde estamos: rama y HEAD salen de git, no de la cabecera manual.
  *
  *  Vivían escritos a mano en la cabecera y no los verificaba nadie: coincidían el día
- *  que se escribieron. Es exactamente el fallo que documentó `PENDIENTES-2026-09-16.md`
+ *  que se escribieron. Es exactamente el fallo que documentó `docs/historial/auditorias/PENDIENTES-2026-09-16.md`
  *  §4 sobre `ESTADO-ACTUAL.md`, cuya cabecera llegó a estar 31 commits atrás. No son
  *  decisiones, son hechos que este script ya tiene delante (corre `git`).
  */

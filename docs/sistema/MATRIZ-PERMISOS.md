@@ -78,10 +78,11 @@ roster, tutores y calendario — todo eso pasa al rol técnico.
 
 ## 4. La matriz — IMPLEMENTADA (PROMPT-3, 2026-09-06)
 
-62 capacidades cubren las 138 Server Actions activas. Esta tabla es la matriz
-**implementada**: `lib/auth/permisos.ts` y `scripts/test-permisos.mjs` la
-verifican contra el código (sección «Código ⇄ §4 (los 6 roles)»). Se regenera
-con `node scripts/gen-seccion4.mjs` si la matriz cambia.
+Las capacidades de `lib/auth/capacidades.ts` cubren las Server Actions activas (el
+inventario es la §5, generada). Esta tabla es la matriz **implementada**:
+`lib/auth/permisos.ts` y `scripts/test-permisos.mjs` la verifican contra el código
+(sección «Código ⇄ §4 (los 6 roles)»). §4 se decide a mano; `gen-seccion4` es una ayuda
+código → doc; `test-permisos` vigila que coincidan.
 
 > **PROMPT-3 ejecutado (2026-09-06):** se creó el rol **técnico** (`Permisos =
 > 'Tecnico'`) y se aplicó el recorte de la §4 a **directivo** (T5), que era el
@@ -644,7 +645,7 @@ cuando cambia. Dos mitades con dueños distintos:
 
 | Sección | Quién la mantiene |
 |---|---|
-| §4 — la matriz | **A mano.** Es la decisión, y es lo que se edita al añadir o quitar un rol. |
+| §4 — la matriz | §4 se decide a mano; `gen-seccion4` es una ayuda código → doc; `test-permisos` vigila que coincidan. Es la decisión, y es lo que se edita al añadir o quitar un rol. |
 | §5 — el inventario | **Generada.** `npm run gen:matriz` la reescribe desde `app/actions/**`. Nunca se edita a mano. |
 
 Regenerar §5 tras cualquier cambio en las actions. El generador respeta las

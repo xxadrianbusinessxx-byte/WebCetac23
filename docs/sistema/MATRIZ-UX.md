@@ -101,7 +101,7 @@ relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 
 ```
 
 > **La tabla siguiente es legado (R8).** Las rutas `/perfil`…`/tutor` siguen existiendo
-> como fallback, pero ya no son la navegación: esa es el shell (descrito en «Quién ve
+> (R8), pero solo redirigen a `/oceano` y ya no son la navegación: esa es el shell (descrito en «Quién ve
 > qué» y en el árbol, abajo). Las piezas retiradas (`MainTabButton`, `BubblePill`,
 > `barra-navegacion`, `glossy-nav-pill`) ya no existen.
 
@@ -109,13 +109,13 @@ relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 
 |---|---|---|---|---|
 | `/` | `app/page.tsx` | `portada-carrusel.tsx` | **a sangre**, sin contenedor: el hero y las bandas de carrera ocupan todo el ancho | frame «Pantalla de bienvenida» (prompt O, 2026-09-24): barra de contacto con redes · carrusel 7:3 (4:5 en teléfono) o portada institucional si no hay imágenes · una banda por carrera con su video 16:9 · pie con ubicación, contactos, redes y logos SEMS / DGETAyCM / SEP. Lo administrable llega de `leerPortadaPublica`; si falla, se pinta lo fijo. **Sin barra de navegación.** |
 | `/login` | `app/login/page.tsx` | — | — | `redirect("/")`; no pinta nada |
-| `/oceano` | `oceano/page.tsx` (94) | `components/oceano/shell-oceano.tsx` (179) + 8 piezas | **propio:** el shell pinta su fondo (`--oc-bg`) y el rail va anclado a x=0; no usa el contenedor estándar | **Fases 1-4** — shell único: barra superior por rol (nivel 1) + rail de apartados (nivel 2) con **selector de alumno vinculado** por encima (Fase 4) + barra de modo (nivel 3), desde `lib/navegacion/mapa-navegacion.ts`. El contenido de los huecos con pieza lo decide `lib/navegacion/contenido-alumno.ts` y lo montan `contenido-alumno-oceano.tsx`, `asistencia-tabular-alumno.tsx` y `notificaciones-alumno.tsx`; las MISMAS piezas sirven al alumno y al tutor (reciben el `curp` del alumno elegido, no el rol). No sustituye a ninguna ruta viva: convive con ellas (R8). |
-| `/perfil` | `perfil/page.tsx` | `perfil-client.tsx` (822) | estándar (+ variante centrada `items-center justify-center` para el estado vacío) | 4 pestañas `MainTabButton`: materia · estatus · comentarios · boleta. `BubblePill`, `materia-selector`, `materia-tabla-vista`, `materia-calificaciones-alumno`, `calendario-asistencia-alumno`, `horario-alumno-resumen`, `etiquetas-dinamicas-panel` |
-| `/profesor` | `profesor/page.tsx` | `profesor-client.tsx` (301) | estándar | `GreyActionPill`, `buscador-alumno-profesor`, `asistencias-panel`, `materia-selector`, `materia-tabla-vista`, `materia-mapeo-columnas` |
-| `/directivo` | `directivo/page.tsx` | `directivo-client.tsx` (606) | estándar | `PanelTab`, `GreyActionPill`, `PreviewPanel`, 3 `<section>`, `justificaciones-admin`, `materias-config-panel`, `profesores-credenciales-panel`, `materia-*` |
-| `/configuracion` | `configuracion/page.tsx` | `configuracion-client.tsx` (938) | estándar **+ 5 envoltorios repetidos** `mx-auto max-w-5xl px-4 pb-4 …` inyectados desde el server | `ciclo-configurador/` (7 pasos), `tutores-panel`, `asignaciones-admin`, `baja-roster-panel`, `deshacer-paso-panel`, `materias-config-panel`, `profesores-credenciales-panel` |
-| `/documentos` | `documentos/page.tsx` | `documentos-client.tsx` (57) | estándar | todo vive en `documentos-panel.tsx` (700 líneas) |
-| `/tutor` | `tutor/page.tsx` | `tutor-client.tsx` (596) | estándar | 4 pestañas `MainTabButton`: datos · alumnos · asistencia · mensajes. `BubblePill`, `GreyActionPill`, `calendario-asistencia-alumno`, `horario-alumno-resumen` |
+| `/oceano` | `oceano/page.tsx` (94) | `components/oceano/shell-oceano.tsx` (179) + 8 piezas | **propio:** el shell pinta su fondo (`--oc-bg`) y el rail va anclado a x=0; no usa el contenedor estándar | **Fases 1-4** — shell único: barra superior por rol (nivel 1) + rail de apartados (nivel 2) con **selector de alumno vinculado** por encima (Fase 4) + barra de modo (nivel 3), desde `lib/navegacion/mapa-navegacion.ts`. El contenido de los huecos con pieza lo decide `lib/navegacion/contenido-alumno.ts` y lo montan `contenido-alumno-oceano.tsx`, `asistencia-tabular-alumno.tsx` y `notificaciones-alumno.tsx`; las MISMAS piezas sirven al alumno y al tutor (reciben el `curp` del alumno elegido, no el rol). Las rutas viejas solo redirigen aquí (Fase 9). |
+| `/perfil` | `perfil/page.tsx`: solo `redirect("/oceano")` | hoy, en el shell: `components/oceano/contenido-alumno-oceano.tsx` | el del shell (`/oceano`) | sus pestañas (materia · estatus · comentarios · boleta) son apartados del alumno; qué pieza va en cada hueco lo decide `lib/navegacion/contenido-alumno.ts` |
+| `/profesor` | `profesor/page.tsx`: solo `redirect("/oceano")` | hoy, en el shell: `components/oceano/contenido-docente-oceano.tsx` | el del shell (`/oceano`) | lo decide `lib/navegacion/contenido-docente.ts` (maestro y directivo) |
+| `/directivo` | `directivo/page.tsx`: solo `redirect("/oceano")` | hoy, en el shell: `components/oceano/contenido-directivo-oceano.tsx` + `contenido-docente-oceano.tsx` | el del shell (`/oceano`) | lo decide `lib/navegacion/contenido-directivo.ts` |
+| `/configuracion` | `configuracion/page.tsx`: solo `redirect("/oceano")` | hoy, en el shell: `components/oceano/contenido-tecnico-oceano.tsx` | el del shell (`/oceano`) | lo decide `lib/navegacion/contenido-tecnico.ts`; los paneles de la ruta vieja están en Personas, Ciclo escolar y Catálogo |
+| `/documentos` | `documentos/page.tsx`: solo `redirect("/oceano")` | hoy, en el shell: `documentos-panel.tsx`, montado por `contenido-tecnico-oceano.tsx` (Contenido › Documentos) | el del shell (`/oceano`) | el mismo panel sirve Materias › Recursos y Documentos de Administración escolar |
+| `/tutor` | `tutor/page.tsx`: solo `redirect("/oceano")` | hoy, en el shell: `components/oceano/contenido-alumno-oceano.tsx` (las mismas piezas que el alumno) | el del shell (`/oceano`) | el selector de alumno vinculado del rail fija el alcance; los mensajes, en Perfil › Mis mensajes |
 
 ### Quién ve qué en la barra
 
@@ -125,7 +125,7 @@ relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 
 > navega por rutas: todo cuelga de `/oceano` y la barra superior conmuta
 > **pestañas**.
 
-La fuente única es **`lib/navegacion/mapa-navegacion.ts`** (`MAPA_POR_ROL`). La
+La fuente única es **`lib/navegacion/mapa-navegacion.ts`** (`MAPA`, que se lee con `pestanasDe`). La
 barra (`app/components/oceano/nav-superior-oceano.tsx`) es presentación pura:
 recibe las pestañas ya resueltas y no decide nada.
 
@@ -402,7 +402,7 @@ sitios toca. Todos son de solo lectura.
 | **Intensidad del movimiento del fondo** | `--app-bg-animation-duration*` en `globals.css` | 1 archivo | bajo |
 | **Quitar/mover burbujas** | `BURBUJAS` en `ui/decoracion-fondo.tsx` + `.app-bg-bubble` | 2 archivos | bajo |
 | **Barra superior (aspecto)** | `app/components/oceano/nav-superior-oceano.tsx` | 1 archivo — presentación pura | bajo |
-| **Qué pestañas salen y para quién** | `lib/navegacion/mapa-navegacion.ts` (`MAPA_POR_ROL`) | 1 archivo — los apartados siguen a `puede()` | **alto**: un apartado que el servidor rechaza es un bug |
+| **Qué pestañas salen y para quién** | `lib/navegacion/mapa-navegacion.ts::pestanasDe` | 1 archivo — los apartados siguen a `puede()` | **alto**: un apartado que el servidor rechaza es un bug |
 | **Color de los botones primarios** | 3 copias de `PillButton` + gradientes sueltos | `grep -rn "from-sky-500 via-sky-600 to-sky-700" app --include=*.tsx` (7) | medio |
 | **Color de los botones neutros** | 7 copias de `GreyActionPill` + rótulos `PanelTab` | `grep -rn "from-slate-400 via-slate-500 to-slate-600" app --include=*.tsx` (77) | medio |
 | **Forma de los botones** (dejar de ser cápsula) | las 3 piezas de §5.2 | `grep -rn "rounded-full" app --include=*.tsx` (192; incluye avatares y chips) | medio |

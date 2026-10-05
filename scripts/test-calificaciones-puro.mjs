@@ -8,7 +8,7 @@
  * CÓMO SE EJECUTA: node scripts/test-calificaciones-puro.mjs
  *
  * ── Por qué esta suite es la que decide ────────────────────────────────────
- * La Opción B de `docs/sistema/MIGRACION-MATERIAS-A-ID.md` cambia dónde viven
+ * La Opción B de `docs/historial/auditorias/MIGRACION-MATERIAS-A-ID.md` cambia dónde viven
  * las calificaciones: de 241 tablas físicas a una tabla normalizada. El riesgo
  * no está en la tabla —es un CREATE TABLE— sino en la CONVERSIÓN: si una nota
  * acaba en el alumno equivocado, nadie lo nota hasta que alguien reclama.
