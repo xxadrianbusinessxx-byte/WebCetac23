@@ -6,7 +6,7 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-10-04 (PROMPT V, Parte C: una sola verdad en el arranque)
+- **Última revisión:** 2026-10-06 (PROMPT V: documentación para agentes)
 
 ---
 

@@ -19,6 +19,50 @@ Las cifras son fotos del 2026-10-04: la fuente viva es el script que las mide.
 
 | Parte | Estado | Commit | Agentes | Veredicto filosofía |
 |---|---|---|---|---|
+| A — Las herramientas de contexto fallan en voz alta | COMPLETA | `48b8d53` | implementador · auditor (ACEPTAR_CON_CAMBIOS, 2 ajustes) · cierre | Respeta. Si una herramienta no puede leer su fuente, sale con 1 y lo dice; local y CI miden igual (sin CR) |
+| B — Scripts: ni secretos ni una cuarentena desarmable | COMPLETA | `03eb384` | implementador · auditor (1 issue medio y 3 bajos) · cierre | Respeta, con una salvedad: la cuarentena (C18) y «los diagnósticos no escriben» (C6) pasan a ser guardianes que fallan; 13 diagnósticos operativos siguen imprimiendo CURPs, marcados y a la espera del usuario |
+| C — Una sola verdad en el arranque y en las normas | COMPLETA | `5e4e8c9` | implementador · auditor (4 bajos) · cierre | Respeta: arranque 10 347 → 9 720 tokens y 11 → 0 cifras copiadas; modelo B, `periodo_id`, `test:ci` y la DECISIÓN 10 se dicen una sola vez |
+| D — docs/sistema y el mapa describen el presente | COMPLETA | `67863b7` | implementador · auditor (2 medios y 8 bajos) · cierre | Respeta tras el cierre: anclas rotas 4 → 0, nombres sueltos 13 → 0, 7 documentos fechados al historial y `verificar-docs` vigila las anclas |
+| E — La recuperación se comprueba sola | COMPLETA | `84c26aa` | implementador · auditor (1 medio y 3 bajos) · cierre 1 (cortado por el límite de uso) · cierre 2 | Respeta tras el cierre: suite nueva (49 rojas → 138/138), paquetes de Cline más pequeños y `--diag` rechazado para Cline si el script escribe, carga o imprime CURPs |
+| F — Tareas de Claude sobre el historial | COMPLETA | `62ee492` | un único agente, sin auditor | Respeta (autoevaluación): el historial de rendimiento ya no se lee como presente; Q–T tienen informe reconstruido desde git |
+| Cierre final | COMPLETA | el que contiene este Resumen («Prompt V: informe final y retroalimentación») | un único agente, sin auditor | Solo documentación: este Resumen, la retroalimentación al final del prompt, sus casillas de PARA CLAUDE y la fecha de ESTADO-ACTUAL |
+
+Fuera de las partes, el prompt y la RETRO entraron en `19dc335`, entre A y B. En conjunto: arranque **10 345 → 9 732** tokens sin CR (−613: F lo dejó en 9 735 y la fecha nueva de ESTADO-ACTUAL resta 3; `TECHO_TOKENS = 10500` sin tocar), `test-orden` 17 → 18 reglas (C10 34 → 19), suites 51 → 52 y `npm run test:ci` en verde en el cierre de cada parte. Los auditores de A–E propusieron 24 issues (4 medios, 20 bajos, ninguno alto). Lo que E §7 y F §7 dejaban al cierre final (el Resumen y las casillas del prompt) queda hecho aquí. Ningún commit está subido: `main` va por delante de `origin/main`.
+
+### Lo que los agentes pudieron y no pudieron hacer, en conjunto
+
+- **Base de datos: nunca.** Ningún agente conectó con Supabase. Lo que depende de datos reales quedó sin verificar o comprobado solo leyendo el código: las 4 inscripciones de 2DO A RH, el SQL de `portada_carreras`, que la `obtener_perfil_alumno` desplegada sea solo lectura, los `diag-*` que citan las filas nuevas del MAPA y la línea base de rendimiento.
+- **Scripts prohibidos: tampoco para validar.** Nadie ejecutó `_peligrosos/`, `_archivo/`, `fase10-*`, los de credenciales ni `gen-estado.mjs` (escribe `.panel/`). Lo que B y E cambiaron en ellos se validó en estático: `node --check`, diff línea a línea, mutaciones restauradas y copias aisladas en el scratchpad, con la versión anterior como control positivo.
+- **Medir sí, y probar que los guardianes muerden.** Cada parte midió antes y después con el mismo script. A, B, D y E inyectaron fallos para ver salir con 1 a C18, C6, D4 y la suite nueva. Los auditores encontraron huecos que el implementador no vio: el import sin `;` en C18, `rpc(variable)` en C6, el módulo sin `git add` en D4 y el `--diag` de escritura con exit 0 en E.
+- **El auditor propone y el cierre aplica.** En A–E ningún auditor editó. El cierre aplicó sus issues, salvo dos que dejó con motivo: el de `MAPA:90` de B, para D1, y el de §26 de C, solo en su forma mínima. F y el cierre final no tuvieron auditor: su §5 es una autoevaluación.
+- **Lo que no se podía delegar se marcó, no se decidió.** Las CURPs de los diagnósticos operativos y las claves que hay que rotar quedan para el usuario (abajo). Solo una vez un agente pasó por encima de una REGLA: en D faltaban los `[LITERALES]` que Claude debía escribir antes. El implementador, que también es Claude, los redactó en vez de detenerse, lo declaró, y el auditor encontró 4 errores que se corrigieron en el cierre.
+- **Sin push y con la red de por medio.** El CI de GitHub (Linux) no ha visto ningún commit del Prompt V: que local y CI midan igual se dedujo de los blobs de HEAD, no se observó. El build de `test:ci` falló una vez al descargar las fuentes de Google (E) y pasó al repetirlo.
+- **Tres cortes por límite de uso.** El tercero consta en el registro del flujo; los dos primeros se fechan por los huecos entre los commits y los archivos del scratchpad. (1) 2026-10-04, hacia las 09:50, con el implementador de B terminado: se reanudó hacia las 13:40, tras `19dc335`. (2) Hacia las 14:50, con el implementador de D terminado: a las 18:42 el flujo se relanzó, reutilizó lo ya hecho (A–C y el implementador de D) y siguió por el auditor de D. (3) A las 20:29, por el límite semanal, en el cierre de E, después de escribir su sección y antes del commit. El 2026-10-06, un flujo de continuación (`ejecutar-prompt-v-cierre`) dio al cierre 2 lo que habían devuelto el implementador y el auditor, guardado en el scratchpad; el cierre 2 comprobó en el diff que los 4 issues estaban aplicados, repitió la validación y firmó. Ningún corte dejó un commit a medias, porque la unidad de reanudación fue la parte.
+
+### Decisiones que quedan para el usuario
+
+**Credenciales y datos personales**
+1. CURPs en 13 diagnósticos operativos (B §6): (a) sustituirlas por nombre + grupo o por el id de la fila, o (b) conservarlas con la marca «salida sensible», como ahora. En los dos `migrar-*` y en `probe-curp` la CURP es la clave de trabajo: ahí lo razonable es (b).
+2. Rotar lo que sigue en el historial de git (B §7): la clave del técnico y la contraseña del tutor que usaba `6i` ya no están en el árbol, pero siguen en el historial (`b184b01`). Purgar el historial es destructivo; lo razonable es forzar el cambio.
+3. CURPs reales versionadas (B §7): 5 CSV de `scripts/_archivo/`, los fixtures de `test-rediseno-oceano.mjs:652-653`, 7 probes de `_peligrosos/` y `docs/historial/`. Ocultarlas en la salida protege poco mientras estén en el repo: la medida real es rotar las claves que se derivan de la CURP.
+4. La clave compartida de profesores, que el arranque publica (B §7): forzar el cambio (pendiente `claves-compartidas-profesores`). En la misma línea, el pendiente nuevo `rotar-pat-y-bypass` (D6).
+
+**Lo que solo puede hacer una persona (con acceso a la base o a GitHub)**
+5. Confirmar en la base las 4 inscripciones de 2DO A RH (`inscripciones-2do-a-rh`) y si el SQL de `portada_carreras` sigue sin aplicar (`sql-portada-carreras`) (C §7).
+6. Volver a medir el rendimiento: la FASE 11, pendiente `remedir-rendimiento` (F §7).
+7. Hacer push cuando lo decida: hasta entonces, el CI de GitHub no ha validado el Prompt V (A §7, E §7).
+
+**Trabajo fuera del alcance de este prompt: decidir si va en otro**
+8. «800 KB de docs» en la cabecera de `gen-contexto.mjs`, y el `git stash` que sugiere el brief de Claude, que choca con la regla de no hacer stash con cambios ajenos en el árbol (E §7).
+9. `criterios.prompts` §26 como remisión a ORDEN §6 (punto INFORME), y las cifras a mano «16 principios» y «21 copias sobrantes» (C §7, D §7).
+10. Afirmaciones caducadas que ningún guardián ve: MATRIZ-UX `:97`, `:77` y `:416`; MAPA §3, paso 5 (tsc + build, no `test:ci`); FLUJO §4, con símbolos que hoy viven en archivos partidos (D §7).
+11. La RETRO en el índice de `docs/historial/auditorias/README.md` (F §7) y la revisión de C-4, el payload del panel directivo (F §7).
+
+**De la RETRO §7, sin tomar** (no bloqueaban ninguna parte): la 5 (cabecera de RUMBO: sigue la campaña «cerrar las UIs pendientes del Océano»), la 7 (dónde arrancan las sesiones de Claude: no hay `CLAUDE.md` en `Desktop/web/`), la 8 (que los escritores en base impriman el host y pidan `--apply=<ref>`) y la 9 (autorizar el diagnóstico de la hipótesis del calendario docente, #20).
+
+### Cómo repetir este formato
+
+Las 7 secciones por parte son el punto 10 (INFORME) de `docs/normativo/ORDEN.md` §6: cada prompt las pide, y su informe va a `docs/historial/informes/INFORME-PROMPT-<X>.md`.
 
 ---
 

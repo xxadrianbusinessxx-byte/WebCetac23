@@ -732,29 +732,70 @@ CONTRATO (obligatorio):
 
 ## PARA CLAUDE — no se envía a Cline
 
-- [ ] Pedir al usuario las DECISIONES 1, 2, 6 y 10 (RETRO §7) y escribirlas en el bloque
+- [x] Pedir al usuario las DECISIONES 1, 2, 6 y 10 (RETRO §7) y escribirlas en el bloque
   DECISIONES antes de enviar C.
-- [ ] Antes de C: copiar tal cual `REGLAS_NO_HACER.md:13-36` y `:186-214` a
+- [x] Antes de C: copiar tal cual `REGLAS_NO_HACER.md:13-36` y `:186-214` a
   `docs/historial/BITACORA-2026-09.md`, bajo «Incidente P0 — movido de REGLAS
   (AAAA-MM-DD)».
-- [ ] Antes de D: escribir `[LITERALES D1]`, una fila «síntoma → 2-4 archivos → suite» por
+- [x] Antes de D (no aquí: los redactó el implementador de D en los documentos; ver
+  EJECUCIÓN): escribir `[LITERALES D1]`, una fila «síntoma → 2-4 archivos → suite» por
   cada dominio (administración, portada/oEmbed, seguimiento médico, mensajes y
   notificaciones, navegación Océano y calificaciones B); `[LITERALES D2]`, el paso 1 sobre
   `/oceano` (`app/oceano/page.tsx` → `contenido-docente-oceano.tsx:130`) y la línea del
   modelo B; `[LITERALES D3]`, las 6 rutas actuales de `MATRIZ-UX:113-118`; y la cuarta
   ancla rota.
-- [ ] Después de D:
-  - [ ] índice de `docs/historial/auditorias/README.md` con lo movido en D5;
-  - [ ] bloque «Vigencia (revisado AAAA-MM-DD)» al principio de
+- [x] Después de D:
+  - [x] índice de `docs/historial/auditorias/README.md` con lo movido en D5;
+  - [x] bloque «Vigencia (revisado AAAA-MM-DD)» al principio de
     `OPTIMIZACION_RENDIMIENTO_400_500.md`: la línea base que se puede volver a medir, lo
     superado y lo abierto con su archivo:línea;
-  - [ ] en ese mismo bloque, cómo buscar por id las optimizaciones aplicadas
+  - [x] en ese mismo bloque, cómo buscar por id las optimizaciones aplicadas
     (`git grep` de O1, O5, O9 y 6A-n en `lib/` y `app/`);
-  - [ ] en ese mismo bloque, que en FASE 10 hubo ≤ 300 peticiones en vuelo, no 1 000; que
+  - [x] en ese mismo bloque, que en FASE 10 hubo ≤ 300 peticiones en vuelo, no 1 000; que
     `:1400` dice «FASE 6» donde debe decir «FASE PRE-3»; y que O1 ≠ O-1;
-  - [ ] en `docs/historial/README.md:28`: «las mediciones son anteriores al refactor».
-- [ ] Archivar los informes de Q, R, S y T (a partir de sus commits) y el de V.
+  - [x] en `docs/historial/README.md:28`: «las mediciones son anteriores al refactor».
+- [x] Archivar los informes de Q, R, S y T (a partir de sus commits) y el de V.
 - [x] Memoria propia corregida el 2026-10-04: los hechos de proyecto remiten a
   `pendientes.json` o a ESTADO.
 - [ ] Revisar cada parte contra CONTRATO §2. En B, comprobar a mano que
   `--confirmar-carga` va antes de leer `.env.local` y que ningún script imprime una CURP.
+  (Parcial: ver EJECUCIÓN.)
+
+---
+
+## EJECUCIÓN Y RETROALIMENTACIÓN (2026-10-04 → 2026-10-06)
+
+No lo ejecutó Cline. Lo ejecutó Claude (Opus 5.5) a pedido del usuario, con las DECISIONES
+recomendadas, en un flujo de agentes. En A–E hubo tres agentes por parte: un
+**implementador**, sin commit; un **auditor** independiente, que solo propone, contra
+CONTRATO §2/§3 y la filosofía; y un **cierre**, que aplica la auditoría, repite
+`npm run test:ci` y firma. F y el cierre final, un único agente. Antes de enviarlo, dos
+críticos revisaron la RETRO y este prompt, y sus correcciones ya están en el texto de arriba:
+por ejemplo, la cabecera prohíbe ejecutar `_peligrosos/` y `fase10-*` «tampoco para
+validar», cuando el borrador de la VALIDACIÓN de B lo pedía.
+
+Commits: A `48b8d53` · prompt y RETRO `19dc335` · B `03eb384` · C `5e4e8c9` · D `67863b7` ·
+E `84c26aa` · F (casillas de PARA CLAUDE) `62ee492` · informe final, el commit que añade esta
+sección. Informe: `docs/historial/informes/INFORME-PROMPT-V.md`. El límite de uso cortó la
+ejecución tres veces, una de ellas en mitad del cierre de E; se reanudó por partes, porque
+cada parte es un commit (detalle en el Resumen del informe).
+
+| Punto del prompt | Qué pasó | Corrección que la ejecución le hace al prompt |
+|---|---|---|
+| Cabecera: «se envía una parte por mensaje» (a Cline) | Lo ejecutó Claude con implementador, auditor y cierre. Los auditores encontraron 24 issues que el implementador no vio (4 medios, 20 bajos) | Si lo ejecuta Claude, decirlo en la cabecera y mantener un auditor independiente por parte: el implementador no se audita a sí mismo |
+| Cabecera: base «~10 344», y el delta de cada parte «contra esa base» | A midió 10 345 (redondeo por archivo); B subió a 10 347 por RUMBO, y C partió de ahí | La base de cada parte es el cierre de la anterior, medida con `verificar-docs`, no una cifra de la cabecera |
+| A4: «`:262` y `:235`» | Solo `:262`: en `:235`, `irreversible` sería una variable sin usar | Antes de citar dos líneas para un mismo arreglo, comprobar que el símbolo se usa en las dos |
+| A: el alcance no nombraba `scripts/README.md` | La fila de `gen-contexto` describía un uso que pasaba a salir con 1; la corrigió el cierre | Una parte que cambia el contrato de un script nombra también su fila del README (ORDEN §4) |
+| B1: ocultar «el valor impreso» en las líneas citadas | El grep no veía volcados de filas ni literales (`6i` llevaba la contraseña real de un tutor), y la CURP es credencial. Se amplió a más scripts, y 13 operativos quedaron marcados, no enmascarados | Separar en el OBJETIVO los scripts de credenciales de los operativos, y pedir la decisión sobre las CURPs antes de enviar |
+| B2 y B4: C18 y C6 con su control positivo | El auditor abrió huecos: el import sin `;`, `rpc(variable)` y el método con backtick o en minúsculas | La VALIDACIÓN de un guardián nuevo pide también las mutaciones que debe rechazar, no solo el hallazgo conocido |
+| B → D1: «`MAPA:90` y `:93`, para D1» | El implementador de D no lo recogió; lo hizo el cierre | Lo que una parte deja a otra se copia a la lista de la parte que lo recibe, no solo al informe |
+| C7: `verificar-estado-actual` cuenta los commits desde la última edición | El comentario y el paso del workflow, y la señal de `gen-estado`, seguían describiendo el check viejo | Al cambiar lo que mide un verificador, nombrar todos los textos que lo describen (workflow, panel, README) |
+| C10 y §26 de `criterios.prompts` | §26 decía «Tests, TypeScript y ESLint», contra CONTRATO §1.5. Se arregló en su forma mínima, y la remisión a ORDEN §6 quedó sin dueño, porque D no la nombraba | Si una parte fija una lista que otro normativo duplica, la deduplica en esa misma parte |
+| PARA CLAUDE «Antes de D: `[LITERALES]`» y la REGLA de D, «si falta alguno, detente» | No se escribieron aquí. El implementador de D (Claude) los redactó en los documentos, y el auditor encontró 4 errores que corrigió el cierre | Una parte que depende de una casilla de PARA CLAUDE sin marcar no se envía. Si la ejecuta Claude, la casilla es el paso 0 de la parte y pasa por la auditoría |
+| Líneas citadas: `gen-rumbo.mjs:90`, `docs/historial/README.md:28`, «`:1400` dice FASE 6» | Estaban en `:99` y `:30`; la tercera, tras insertar el bloque de Vigencia, en `:1425` | Citar por texto o por encabezado. En un documento al que se le inserta un bloque, nunca por línea |
+| D4: los nombres sueltos, contra lo que hay «en el repo» | Con `git ls-files` a secas, un módulo nuevo sin `git add` contaba como ausente | «En el repo» = lo indexado más lo no ignorado sin seguimiento (`--others --exclude-standard`), si existe en disco |
+| E1(b): `--diag` cita el script y su fila | Le decía a Cline «Córrelo» también con `fase10-carga` o `migrar-*`. El cierre lo vetó por prefijo y por la marca de la fila | Todo mecanismo que mande correr un script aplica la Clasificación del README (`ESCRIBE`, `CARGA`, `DESTRUCTIVO`, salida sensible) |
+| E2: coste de la suite, «2-3 s, una ejecución de test-orden» | ≈ 9,5-20 s y 19 ejecuciones de `test-orden --json` | Medir el coste de una suite antes de declararlo |
+| E: el literal «Dos de las 52» para ESTADO-ACTUAL | Se escribió «Dos de ellas»: `verificar-estado-actual` no vigila esa segunda cifra | Revisar los literales del prompt contra su propia DECISIÓN «Cifras» |
+| PARA CLAUDE: «revisar cada parte contra CONTRATO §2… que ningún script imprime una CURP» | Los auditores revisaron A–E contra §2/§3; F y el cierre final no tuvieron auditor. `--confirmar-carga` está en `:30`, antes de leer `.env.local` (`:65`). 13 operativos siguen imprimiendo CURPs, marcados | La casilla queda parcial hasta que el usuario decida sobre las CURPs (decisión 1 del Resumen del informe) |
+| Ejecución en un solo flujo largo | Tres cortes por el límite de uso; el tercero, entre la sección del informe y el commit de E | Un commit por parte como unidad de reanudación, y guardar en el scratchpad lo que devuelve cada agente, para que otro cierre pueda retomarlo |
