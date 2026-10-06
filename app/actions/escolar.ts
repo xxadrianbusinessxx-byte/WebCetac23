@@ -1,5 +1,6 @@
 "use server";
-
+
+
 import { leerNumeroControl } from "@/lib/escolar/alumno/numero-control";
 import { exigir } from "@/lib/auth/exigir";
 import { esRol } from "@/lib/auth/permisos";
