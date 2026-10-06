@@ -748,3 +748,115 @@ Del checklist del auditor; la columna «Cumple» es la suya, con lo que hizo el 
 | El cierre 1 se cortó por el límite de uso antes del commit | resuelto | El cierre 2 comprobó sobre el diff que sus cambios estaban completos, repitió la validación y firmó el commit |
 | Tareas de PARA CLAUDE («Después de D», archivar los informes de Q, R, S y T, marcar las casillas del prompt) y el Resumen de este informe | pendiente | Cierre final del Prompt V |
 | Aviso de lint en `gen-panel.mjs:41` (`MARCA`) | previo | Ajeno a la Parte E |
+
+---
+
+## Parte F — tareas de Claude sobre el historial
+
+**Estado:** COMPLETA · **Commit:** el que contiene este informe («Prompt V, Parte F: …»; el sha va en el Resumen) · **Auditoría:** ninguna independiente (un único agente; ver §2)
+
+No es una parte del prompt para Cline: son las casillas de «PARA CLAUDE — no se envía a Cline» que quedaban después de D, salvo lo ya hecho (la memoria, la BITACORA de C y los literales de D).
+
+### 1. Qué se hizo
+
+| Archivo | Cambio | Casilla de PARA CLAUDE |
+|---|---|---|
+| `docs/historial/auditorias/README.md` | Sección «Movidos aquí en el Prompt V, Parte D (`67863b7`)»: una fila por cada uno de los 5 documentos que D llevó a `auditorias/` (CALIFICACIONES-Y-BOLETAS, EVALUACION-REPO-2026-09-08, MIGRACION-MATERIAS-A-ID, PENDIENTES-2026-09-16, SOSTENIBILIDAD-DEL-REPARTO), con su fecha y su base; una línea remite los dos prompts movidos (PROMPT_E, PROMPT_F) a `docs/historial/prompts/`; la entrada avisa de que van aparte | Después de D · índice |
+| `docs/historial/OPTIMIZACION_RENDIMIENTO_400_500.md` | Bloque «Vigencia (revisado 2026-10-06)» de 25 líneas tras el título: línea base re-medible por FASE y encabezado, lo superado, lo abierto en el código con `archivo:línea`, cómo buscar por id lo aplicado y tres correcciones (≤ 300 peticiones en vuelo en FASE 10, «FASE 6» → FASE PRE-3, O1 ≠ O-1). En la cabecera original, «única fuente de verdad» → «registro histórico». El cuerpo, intacto y sin renumerar | Después de D · las tres de vigencia |
+| `docs/historial/README.md` | La fila del documento: «Las mediciones (FASES 9/10) son anteriores al refactor: no describen el presente hasta la FASE 11 (pendiente `remedir-rendimiento`)»; remite al bloque «Vigencia»; fuera «(1 928 líneas)» | Después de D · `README:28` |
+| `docs/historial/informes/INFORME-PROMPT-Q.md`, `-R.md`, `-S.md`, `-T.md` (nuevos) | Reconstruidos desde los commits (`git log --grep`, `git show --stat`): qué se pidió con enlace al prompt archivado, qué se hizo por commit, la validación declarada y lo pendiente | Archivar los informes de Q, R, S y T |
+| `docs/historial/informes/INFORME-PROMPT-V.md` | Esta sección | Archivar el de V (sigue abierto: falta el Resumen) |
+
+Diff sin contar este informe: 3 archivos editados (+43/−3) y 4 nuevos (183 líneas).
+
+### 2. Quién lo ejecutó y qué pudo / no pudo hacer
+
+| Agente | Rol | Pudo | No pudo y por qué |
+|---|---|---|---|
+| Claude (Opus 5.5), único agente, lanzado por el guion de flujo de trabajo | Hacer las casillas, validar, escribir esta sección y el commit | Leer el código, `docs/historial/` y git; comprobar cada `archivo:línea` del bloque contra el árbol; leer (no ejecutar) `fase10-carga.mjs`; reconstruir los informes con `git log` y `git show`; `verificar-docs`, `test-orden` y `test:ci`; commit con rutas concretas | Volver a medir la línea base: `fase10-*` y los `diag-*` conectan a producción. Saber si la RPC del perfil está desplegada: solo se lee el código. Push: lo prohíben las reglas duras |
+
+**No hubo auditor independiente ni cierre separado**, a diferencia de A-E: el mismo agente hizo, comprobó y firmó. La revisión contra la filosofía (§5) es una autoevaluación. Ningún paso conectó con Supabase, ejecutó `scripts/_peligrosos/`, `scripts/_archivo/` o `fase10-*`, editó un `.sql` o tocó los 7 cambios ajenos.
+
+### 3. Cómo se ejecutó y se midió
+
+Orden: el prompt (cabecera, DECISIONES, PARA CLAUDE, CONTRATO) → medición antes → comprobar en el código cada afirmación del bloque → editar → reconstruir los informes → VALIDACIÓN → `test:ci` → esta sección → commit.
+
+| Medición | Antes (`84c26aa` + ajenos) | Después |
+|---|---|---|
+| `node scripts/verificar-docs.mjs` | exit 0 · 9 735 tokens · 20 documentos · 0 rutas muertas · 0 anclas rotas, pendientes, listas y nombres sueltos | igual: `docs/historial/` no se escanea |
+| `node scripts/test-orden.mjs` | 18 reglas | 18 reglas |
+| Finales de línea del documento de rendimiento | 1 928 líneas, todas CRLF en el árbol | 1 953, todas CRLF |
+| `npm run test:ci` | verde (cierre de E) | verde, exit 0 (abajo) |
+
+**Tokens del arranque:** 9 735 → 9 735. Delta 0: F no toca ningún archivo del arranque. `TECHO_TOKENS = 10500` sin tocar.
+
+**Comprobaciones del bloque «Vigencia»**, todas sobre el árbol del 2026-10-06:
+
+| Afirmación | Cómo | Resultado |
+|---|---|---|
+| C-1 `alumnos.ts:76-78` | lectura | `buscarAlumnoPorNombre` (`:68`): `.from(TABLA_ALUMNOS)` … `.range(0, 4999)` |
+| C-2 `materia-vista-alumno.ts:167`, `:187`, `:223` | `grep 'select("*")'` | las tres, y ninguna más |
+| C-3 `openapi.ts:53` | lectura | `fetch` del spec entero; la caché O3 dura 60 s (`TTL_OPENAPI_MS`) |
+| P0-3/6B `foto-perfil.ts:18-27` | lectura | `guardarUrlFotoPerfil` descarta sus argumentos y devuelve `{ ok: true }` (`:26`); su único consumidor es `:50` |
+| ≤ 300 en vuelo en FASE 10 | lectura de `fase10-carga.mjs`: `BUDGET` 300 por defecto (`:49`); `corrida()` (`:134-160`) reparte `budget` peticiones entre `conc` workers, que paran al agotarse; FASE 10 › «6.» declara un budget de 200–300 | con `conc` > `budget`, nunca más de `budget` en vuelo |
+| «FASE 6» → FASE PRE-3 | lectura de FASE 9 › «0.» y de FASE PRE-3 | la rampa 20 → 600 es de FASE PRE-3; la FASE 6 es la auditoría de materias, Cloudinary y noticias |
+| O1 ≠ O-1 | `git grep -w` y `ANALISIS-OPTIMIZACION-ESTRUCTURA-CICLO.md:13`, `:255` | O1 es el `Promise.all` del perfil («Flujo directo O1» en `app/actions/escolar.ts`); O-1 acota por `grupo_id` las identidades de la RPC del perfil |
+| Superado: Lote 1, A-1, RPC con fallback, 6A-n | `git grep` de los ids; `alumnos-estrella.ts` (`.in("CURP", …)`); `obtener_perfil_alumno` en `escolar.ts` | O1 3 · O3 5 · O5 5 · O8 3 · O9 2 · 6A-2 3 · 6A-3 4 · 6A-4 2 · **6A-1 0**: `evento-visor.tsx` pasó a `app/_borrador/` en `c2a035e` y hoy está en `scripts/_archivo/borrador/`, sin importadores |
+
+**`npm run test:ci`** (después, sobre el árbol final salvo esta sección): **verde, exit 0**: tsc; lint 0 errores y 1 aviso previo (`gen-panel.mjs:41` `MARCA`); 52/52 suites; test-permisos 738/0; auditoría de permisos 201 actions, 309/0; `--check` de matriz, invariantes y rumbo al día (RUMBO viene de `5e4e8c9`, 2 commits atrás, tolerado hasta 10); `verificar:estado` OK; `verificar:docs` OK; build OK. Esta sección se escribió después: está en `docs/historial/`, que ninguna comprobación lee, y `verificar-docs` y `test-orden` se repitieron con ella.
+
+### 4. Qué normas respetó
+
+| Norma | Cumple | Evidencia |
+|---|---|---|
+| Tarea: solo lo pedido | sí | Las 4 rutas editadas y los 4 informes nombrados. Extras pequeños y declarados en §6: «(1 928 líneas)» fuera, la frase de entrada del índice, «C-4 no se revisó» y la nota sobre el «Bloque 6B» de tutores |
+| No crear documentos salvo los nombrados | sí | Solo `INFORME-PROMPT-Q/R/S/T.md` |
+| No reescribir el historial | sí | El cuerpo del documento de rendimiento no cambia (+26/−1: la única línea cambiada es la de «única fuente de verdad», que pedía la tarea). Los informes reconstruidos lo dicen en su primera línea |
+| No inventar | sí | Los informes citan solo commits y los prompts archivados que esos commits añadieron; las cifras van como «declaradas»; donde un commit no declara validación, se dice |
+| R6 · fuente única | sí, con una copia a propósito | Lo abierto repite el `detalle` de `remedir-rendimiento` porque la tarea lo pide en el bloque; va fechado («comprobado en el código el 2026-10-06»), así que si caduca se ve |
+| §2 Capas · Datos · Identidad | n/a | Solo documentos de `docs/historial/` |
+| §2 Verificación: `test:ci`, medición antes/después, nada de `_peligrosos/` ni `_archivo/` | sí | §3; `fase10-carga.mjs` solo se leyó |
+| `pendientes.json` → `gen-rumbo` | n/a | No se tocó |
+| Ajenos, `git add`, finales de línea | sí | `git diff --ignore-cr-at-eol --ignore-blank-lines` vacío en los 7; `git add` con rutas concretas; el documento de rendimiento sigue CRLF en el árbol y los README e informes, LF |
+| `TECHO_TOKENS` y umbrales | sí | Intactos |
+
+### 5. ¿Sigue la filosofía y la arquitectura?
+
+Autoevaluación (no hubo auditor):
+
+| Principio | Veredicto | Nota |
+|---|---|---|
+| §15 · lo fechado no se lee como presente | respeta | El documento de rendimiento deja de llamarse «única fuente de verdad», y su bloque y el README del historial dicen que sus mediciones son anteriores al refactor |
+| §16 · medir antes y después | respeta, con un límite | Cada `archivo:línea` se comprobó hoy. La línea base no se re-midió: no se puede sin producción, y el bloque dice con qué script y quién la repite |
+| R8 · el legacy no se retira | respeta | Nada borrado |
+| Historial como registro | respeta | El bloque va encima, fechado, sin tocar el cuerpo; cita por FASE y encabezado, no por línea |
+| Economía del arranque | respeta | Delta 0 |
+
+**Veredicto global:** la Parte F sigue la filosofía del repo: el historial de rendimiento ya no se puede leer como presente sin ver primero qué caducó, qué sigue abierto y cómo se vuelve a medir, y los prompts Q-T tienen su informe con lo que consta en git.
+
+### 6. Desviaciones y decisiones propias
+
+| Ítem | Qué cambió | Por qué |
+|---|---|---|
+| `docs/historial/README.md` | La frase estaba en `:30`, no en `:28` | Las líneas se movieron desde que se escribió el prompt |
+| Ídem | Fuera «(1 928 líneas)» | El bloque nuevo la hacía falsa, y es una cifra derivable (DECISIÓN «Cifras» de la Parte C) |
+| Bloque «Vigencia» | Cita la FASE y el encabezado, nunca la línea del propio documento | Insertar el bloque mueve el cuerpo 25 líneas: el «`:1400`» del prompt es hoy `:1425` |
+| Ídem | 6A-1 aparece como salido de `app/` | Hallazgo al buscar por id: `git grep` no lo encuentra porque el visor se retiró en `c2a035e` |
+| Ídem | «Bloque 6B» de `tutores` aclarado y C-4 «no se revisó» | La búsqueda por id confundiría las dos numeraciones; C-4 no estaba en la tarea y callarlo parecería que no existe |
+| Índice de `auditorias/` | Los dos prompts que movió D van en una línea que remite a `prompts/`, no en filas | No están en esa carpeta |
+| Informes | Nombres cortos `INFORME-PROMPT-X.md` | Los pide la tarea, como los de U y V |
+| Ídem | Quién implementó, solo si el commit lo dice | Las partes de R y la Parte A de S no llevan firma: se dice, con lo que atribuyen sus revisiones |
+| Ídem | R y T citan `d7415a7` y `d9055e0`, que no nombran el prompt | Son los commits que cierran sus pendientes de SQL |
+
+### 7. Lo no verificado y lo pendiente
+
+| Qué | Estado | Por qué / quién |
+|---|---|---|
+| La línea base del documento de rendimiento | no re-medida | FASE 11 (`remedir-rendimiento`); `fase10-*` conecta a producción |
+| Que la RPC del perfil esté desplegada | no verificado | Solo se leyó el código |
+| C-4 (payload del panel directivo) | sin revisar | Fuera de la tarea |
+| `RETRO-AUDITORIA-DOCS-IA-2026-10-04.md` en el índice de `auditorias/` | pendiente | Está en la carpeta, pero no la movió D; fuera de la tarea |
+| Los informes Q-T, contra quien implementó | no contrastados | Reconstruidos de git; las cifras son las declaradas en cada commit |
+| PARA CLAUDE: revisar cada parte contra CONTRATO §2 y, en B, que `--confirmar-carga` vaya antes de leer `.env.local` y que ningún script imprima una CURP | pendiente (parcial) | Fuera de esta tarea. De paso: en `fase10-carga.mjs` el corte está en `:30` y la lectura de `.env.local` en `:55` |
+| Las casillas del prompt archivado y el Resumen de este informe | pendiente | Cierre final del Prompt V |
+| Lo que dejaron D §7 y E §7 | pendiente | Sin cambios en F |

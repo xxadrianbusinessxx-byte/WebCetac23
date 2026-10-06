@@ -2,7 +2,8 @@
 
 Veinte documentos (~180 KB) del trabajo de **orquestación de ciclos escolares**
 (`CicloConfigurador`). Son históricos: describen un trabajo terminado y ninguno se
-lee al arrancar. Este README existe para poder entrar sin abrir veinte.
+lee al arrancar. Este README existe para poder entrar sin abrir veinte. Al final, aparte,
+los cinco que el Prompt V sacó de `docs/sistema/`, que no son del ciclo.
 
 > **Lo primero que hay que saber — contradice la lectura de «20 fases F1–F10, todas
 > cerradas»:** estos 20 archivos NO son una serie. Son tres capas que se
@@ -61,6 +62,20 @@ lee al arrancar. Este README existe para poder entrar sin abrir veinte.
 |---|---|
 | `CIERRE_UNIFICACION_CICLOS_INFORME.md` | Auditoría final: lo demostrado vs lo pendiente. **Su afirmación de que nada se fusionó a `main` era cierta el 2026-09-03 y hoy es falsa** (ver la nota de entrada). |
 | `ESTADO_Y_AUDITORIA_UNIFICACION_CICLOS.md` | Estado para otra IA que audite el repo: qué se hizo, qué falta, bugs conocidos. |
+
+## Movidos aquí en el Prompt V, Parte D (`67863b7`)
+
+Salieron de `docs/sistema/` porque describen un día concreto, no el presente. No son del ciclo.
+
+| Archivo | Qué es |
+|---|---|
+| `CALIFICACIONES-Y-BOLETAS.md` | Por qué las ~240 tablas físicas por materia son deliberadas (2026-09-07, PROMPT-5/B7). Antes en `docs/sistema/modulos/`. |
+| `EVALUACION-REPO-2026-09-08.md` | Nota del repositorio el 2026-09-08 (8.2/10), medida sobre `c2a035e` y comparada con la del 09-04. |
+| `MIGRACION-MATERIAS-A-ID.md` | Opciones para migrar las materias legacy a `materias.id`, medidas contra la base el 2026-09-30. |
+| `PENDIENTES-2026-09-16.md` | Lo que decían los documentos frente a lo que había en la base el 2026-09-16 (`c47c040`). |
+| `SOSTENIBILIDAD-DEL-REPARTO.md` | Cómo se repartía de verdad el trabajo Claude / Cline el 2026-09-28 (`c9453c7`) y qué cambiar. |
+
+Los dos prompts que movió la misma parte, `PROMPT_E_CAPAS_Y_TAMANO.md` y `PROMPT_F_HIGIENE_FINAL.md`, están en `docs/historial/prompts/`.
 
 ## A qué archivo ir desde aquí
 

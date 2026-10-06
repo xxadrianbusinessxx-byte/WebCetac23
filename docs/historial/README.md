@@ -27,7 +27,7 @@ Para saber qué es verdad hoy: `ESTADO-ACTUAL.md`, el código, o un diagnóstico
 | `prompts/` | Los prompts que se le enviaron a Cline, tal cual. Sirven de plantilla para escribir los siguientes. |
 | `contexto.feliz.md` | Bitácora append-only desde mayo. Contiene afirmaciones ya falsas. **No es contexto de arranque**: se conserva para responder «por qué se hizo así». |
 | `BITACORA-2026-09.md` | Relato de septiembre de 2026 (antes en `ESTADO-ACTUAL.md` §7) y el incidente P0 movido de `REGLAS_NO_HACER.md` en el PROMPT V. |
-| `OPTIMIZACION_RENDIMIENTO_400_500.md` | Benchmark real con 461 alumnos (1 928 líneas). Las **mediciones** siguen siendo válidas y son difíciles de reproducir; las **recomendaciones** pueden estar aplicadas ya. Leer solo la sección que aplique. |
+| `OPTIMIZACION_RENDIMIENTO_400_500.md` | Benchmark real con 461 alumnos. Las mediciones (FASES 9/10) son anteriores al refactor: no describen el presente hasta la FASE 11 (pendiente `remedir-rendimiento`). Las **recomendaciones** pueden estar aplicadas ya: su bloque «Vigencia», al principio, dice cuáles y lo que sigue abierto. Leer solo la sección que aplique. |
 
 ## Dónde archivar lo nuevo
 

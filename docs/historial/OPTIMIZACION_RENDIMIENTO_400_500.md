@@ -1,8 +1,33 @@
 # Estrategia de Optimización de Rendimiento — WebCETAC 23
 
+> **Vigencia (revisado 2026-10-06).** Registro histórico de las FASES 0–10 (2026-08-30 → 2026-09-01). Sus cifras son
+> anteriores al refactor del repo, a las FK nuevas, a la asistencia por materia y al rediseño Océano: no describen el
+> presente hasta la FASE 11 (pendiente `remedir-rendimiento`). El cuerpo no se reescribe; este bloque dice qué sigue en pie.
+>
+> - **Línea base re-medible.** FASE 9 › «2. Métrica principal — JS inicial por ruta» (`npx next experimental-analyze`, en
+>   local; salvo `/`, esas rutas hoy redirigen a `/oceano` o ya no existen: se compara por pieza del shell). FASE 10 ›
+>   «3. OpenAPI — medición warm/cold real» y «4. Latencia y payload por operación crítica» (`scripts/fase10-perfil-datos.mjs`,
+>   `LEE(red)` contra producción, con las consultas de antes del refactor). FASE 10 › «6. Pruebas de carga»
+>   (`scripts/fase10-carga.mjs --confirmar-carga`, `CARGA`: una persona, autorizada y fuera de horario). §4 «Resumen de
+>   la FASE 0» y FASE PRE-3 › «Rampa de carga mixta 20 → 600» no tienen script en el repo: no se repiten igual.
+> - **Superado.** Lote 1 (O3, O5, O9, O1, O8; FASE 2) y A-1 (FASE 10), en el código; `/perfil` va por la RPC de las
+>   FASES 3-4 con O1 de fallback; 6A-2 a 6A-4 (FASE 7), en el código; 6A-1 (visor de noticias) salió de `app/` y quedó
+>   en `scripts/_archivo/borrador/evento-visor.tsx`.
+> - **Abierto** (comprobado en el código el 2026-10-06): C-1 `lib/escolar/alumno/alumnos.ts:76-78` (ALUMNOS
+>   `.range(0, 4999)` en cada login por nombre); C-2 `lib/escolar/materia/materia-vista-alumno.ts:167`, `:187` y `:223`
+>   (`select("*")` de la tabla física); C-3 `lib/escolar/openapi.ts:53` (el spec entero en frío; O3 solo cachea 60 s);
+>   P0-3/6B `lib/escolar/alumno/foto-perfil.ts:18-27` (`guardarUrlFotoPerfil` es un stub que devuelve `ok` sin guardar:
+>   la foto se sigue preguntando a Cloudinary cada vez que caduca la caché O5). C-4 (panel directivo) no se revisó.
+> - **Buscar por id lo aplicado:** `git grep -n -w -e O1 -e O3 -e O5 -e O8 -e O9 -- lib app` y
+>   `git grep -n -e "6A-" -- lib app` (el «Bloque 6B» de `tutores` es otra numeración: la generación masiva).
+> - **Correcciones.** FASE 10 › «6.»: el budget por nivel (200–300; 300 por defecto en `corrida()` de `fase10-carga.mjs`)
+>   deja ≤ 300 peticiones en vuelo: los niveles 500, 750 y 1 000 nunca tuvieron 1 000. FASE 9 › «0.» dice «FASE 6» donde
+>   debe decir **FASE PRE-3** (la rampa 20 → 600). **O1 ≠ O-1**: O1 paraleliza el perfil (aquí); O-1 acota por grupo las
+>   identidades de la RPC del perfil (`docs/historial/auditorias/ANALISIS-OPTIMIZACION-ESTRUCTURA-CICLO.md`).
+
 > **Objetivo:** estructura suficientemente rápida y estable para el tope académico actual de ~400 alumnos reales, con capacidad objetivo de hasta **500 alumnos**, sin romper ninguna funcionalidad.
 >
-> **Fuente:** FASE 0 (benchmark) + FASE 1 (priorización/descarte). Este archivo es la única fuente de verdad de la estrategia.
+> **Fuente:** FASE 0 (benchmark) + FASE 1 (priorización/descarte). Este archivo es el registro histórico de la estrategia.
 >
 > **Estado del repositorio:** HEAD `af4d518` (C4.28). Verificado: sin cambios de código entre FASE 0 y FASE 1.
 
