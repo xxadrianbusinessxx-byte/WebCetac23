@@ -137,10 +137,11 @@ const resultados = [];
  * @param {number} umbral   0 = dura; N = trinquete con deuda declarada
  * @param {() => {archivo:string, detalle:string}[]} buscar
  * @param {string} [deuda]  por qué el umbral no es 0, y quién lo baja
+ * @param {object} [extra]  campos ADITIVOS para `--json` (p. ej. `limite` en C9)
  */
-function comprobar(id, regla, umbral, buscar, deuda) {
+function comprobar(id, regla, umbral, buscar, deuda, extra) {
   const hallazgos = buscar();
-  resultados.push({ id, regla, umbral, hallazgos, deuda });
+  resultados.push({ id, regla, umbral, hallazgos, deuda, extra });
 }
 
 const ES_TS = (f) => /\.tsx?$/.test(f) && !/\.d\.ts$/.test(f);
@@ -283,6 +284,9 @@ comprobar("C8", "app/actions/** no habla con Supabase directamente", 0, () =>
 // a 7). Al cerrar la parte 4 de `PROMPT_CLINE_E` llegó a 0 partiendo los seis
 // gigantes por responsabilidad, así que pasa a regla DURA: un archivo nuevo de
 // más de 1 000 líneas vuelve a fallar.
+//
+// `limite` va también en el `--json`: `gen-contexto.mjs` lo lee de ahí para avisar
+// de un archivo en alcance que está cerca, sin copiar la cifra (R6).
 const LIMITE_LINEAS = 1000;
 comprobar("C9", `ningún archivo de app/ o lib/ supera ${LIMITE_LINEAS} líneas`, 0, () =>
   [...listar("app", ES_TS), ...listar("lib", ES_TS)]
@@ -290,6 +294,8 @@ comprobar("C9", `ningún archivo de app/ o lib/ supera ${LIMITE_LINEAS} líneas`
     .filter((x) => x.n > LIMITE_LINEAS)
     .sort((a, b) => b.n - a.n)
     .map((x) => ({ archivo: x.f, detalle: `${x.n} líneas` })),
+  undefined,
+  { limite: LIMITE_LINEAS },
 );
 
 // ── C10 · todo script está inventariado ────────────────────────────────────
@@ -639,6 +645,7 @@ if (JSON_OUT) {
       : r.hallazgos.length < r.umbral ? "bajo" : "ok",
     deuda: r.deuda ?? null,
     archivos: r.hallazgos.map((h) => `${h.archivo} — ${h.detalle}`),
+    ...(r.extra ?? {}),
   }));
   process.stdout.write(JSON.stringify({ medido: new Date().toISOString(), reglas }, null, 2) + "\n");
   process.exit(reglas.some((r) => r.estado === "falla" || r.estado === "subio") ? 1 : 0);

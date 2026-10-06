@@ -13,11 +13,17 @@
  *   node scripts/gen-contexto.mjs --tarea=crear,permisos app/actions/escolar.ts
  *   node scripts/gen-contexto.mjs --agente=claude lib/escolar/asistencia/
  *   node scripts/gen-contexto.mjs --salida=docs/historial/prompts/X.md <rutas>
+ *   node scripts/gen-contexto.mjs --diag=diag-calendario-periodo.mjs <rutas>
  *   node scripts/gen-contexto.mjs --tareas        (lista las tareas válidas)
  * SALE CON 1, en vez de entregar algo incompleto que parece completo, si: una
  *   ruta no existe, una `--tarea` no casa con ninguna fila (palabra completa,
- *   sin tildes), el presupuesto da 0 filas, falta el CONTRATO (rama cline) o
- *   `--salida` no es válida.
+ *   sin tildes), el presupuesto da 0 filas, falta el CONTRATO (rama cline),
+ *   `--salida` no es válida, el script de `--diag` no existe o no tiene fila en
+ *   `scripts/README.md`, o se pide a Cline una tarea de Claude (auditar,
+ *   escribir un prompt) o un `--diag` que escribe, carga producción o tiene
+ *   salida sensible (prefijo `migrar-`/`fase10-`, o su fila del README).
+ * SU SUITE: `scripts/test-gen-contexto.mjs` (inclusión y exclusión sobre la
+ *   estructura del paquete, por tarea representativa).
  *
  * ── Por qué DOS agentes y no uno ───────────────────────────────────────────
  * `AGENTS.md` §Reparto dice que el presupuesto de contexto no es el mismo, y
@@ -82,6 +88,9 @@ const opt = (nombre) => {
 const rutas = args.filter((a) => !a.startsWith("--")).map((r) => r.replace(/\\/g, "/"));
 const tareasPedidas = (opt("tarea") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const salida = opt("salida");
+// `--diag=<script>`: el diagnóstico de solo lectura que el prompt manda correr
+// antes y después (CONTRATO §1, pasos 1 y 6). Sin el flag no se añade nada.
+const diagsPedidos = (opt("diag") ?? "").split(",").map((s) => s.trim().replace(/\\/g, "/")).filter(Boolean);
 
 // `--salida` solo escribe en la carpeta de los prompts, y no pisa uno que ya
 // existe sin `--forzar`: el paquete de un prompt archivado es la constancia de
@@ -183,6 +192,23 @@ if (sinFila.length) {
   process.exit(1);
 }
 
+// Auditar un cambio y escribir un prompt son de Claude (`AGENTS.md` §Reparto:
+// Claude redacta el prompt y revisa lo entregado). Un paquete de Cline para eso
+// le encargaría juzgar su propio trabajo, o decidir lo que tiene que llegarle
+// decidido. La fila se reconoce por sus palabras, no por la `--tarea` exacta:
+// «--tarea=escribir» elige la misma fila que «--tarea=prompt».
+const PALABRAS_DE_CLAUDE = ["auditar", "prompt"];
+if (agente === "cline") {
+  const deClaude = tareasPedidas.filter((t) =>
+    PRESUPUESTO.some((f) => casa(f, t) && PALABRAS_DE_CLAUDE.some((w) => casa(f, w))),
+  );
+  if (deClaude.length) {
+    console.error(`--tarea=${deClaude.join(",")} es tarea de Claude (AGENTS.md §Reparto): auditar un cambio`);
+    console.error("y escribir un prompt no se delegan a Cline. Usa --agente=claude.");
+    process.exit(1);
+  }
+}
+
 // El paquete de Cline termina en el CONTRATO; sin él no se entrega.
 const CONTRATO = agente === "cline" ? contrato() : null;
 if (agente === "cline" && CONTRATO === null) {
@@ -192,7 +218,7 @@ if (agente === "cline" && CONTRATO === null) {
 }
 
 if (rutas.length === 0) {
-  console.error("Uso: node scripts/gen-contexto.mjs [--agente=cline|claude] [--tarea=a,b] [--salida=docs/historial/prompts/X.md [--forzar]] <rutas...>");
+  console.error("Uso: node scripts/gen-contexto.mjs [--agente=cline|claude] [--tarea=a,b] [--diag=script.mjs[,…]] [--salida=docs/historial/prompts/X.md [--forzar]] <rutas...>");
   console.error("     node scripts/gen-contexto.mjs --tareas   (qué tareas existen)");
   process.exit(1);
 }
@@ -202,6 +228,64 @@ if (faltan.length) {
   console.error(`No existen: ${faltan.join(", ")}`);
   console.error("El paquete describe archivos REALES. Si vas a crear uno nuevo, pasa la carpeta donde irá.");
   process.exit(1);
+}
+
+// `--diag`: el script tiene que existir en la raíz de `scripts/` y tener fila en
+// `scripts/README.md`, que es donde dice si solo lee. Un diagnóstico sin fila se
+// trata como `ESCRIBE` (cabecera del README): no se le manda correr a nadie.
+const README_SCRIPTS = existe("scripts/README.md") ? leer("scripts/README.md").split("\n") : [];
+const diags = diagsPedidos.map((d) => {
+  const nombre = d.replace(/^scripts\//, "");
+  if (nombre.includes("/") || !/\.m?js$/.test(nombre) || !existe(`scripts/${nombre}`)) {
+    console.error(`--diag=${d}: no es un script de la raíz de scripts/ (las carpetas _peligrosos/ y _archivo/ no valen).`);
+    process.exit(1);
+  }
+  const i = README_SCRIPTS.findIndex((l) => l.startsWith("|") && (l.split("|")[1] ?? "").includes(`\`${nombre}\``));
+  if (i < 0) {
+    console.error(`--diag=${d}: no tiene fila en scripts/README.md. Sin fila se trata como ESCRIBE: no se manda correr.`);
+    process.exit(1);
+  }
+  if (agente === "cline") {
+    const veto = vetoCline(nombre, README_SCRIPTS[i]);
+    if (veto) {
+      console.error(`--diag=${d}: ${veto}. No se le manda correr a Cline: usa --agente=claude.`);
+      process.exit(1);
+    }
+  }
+  const seccion = README_SCRIPTS.slice(0, i).reverse().find((l) => /^#{2,3} /.test(l));
+  return { nombre, fila: README_SCRIPTS[i], seccion: seccion ? seccion.replace(/^#+\s*/, "") : null };
+});
+
+/** Por qué un `--diag` no se le puede mandar a Cline, o `null` si se puede. Un
+ *  aviso en prosa no basta: el paquete diría «córrelo» y la salvedad iría
+ *  después. (1) El prefijo, cuando ORDEN §4 lo define como escritura o carga
+ *  real (`migrar-`, `fase10-`); `p0-` no, porque mezcla diagnósticos `LEE`
+ *  (`p0-diag-contexto`) con la herramienta que escribe, y esa lleva su
+ *  etiqueta en la fila. (2) La fila: una etiqueta de la Clasificación
+ *  (`ESCRIBE`, `CARGA`, `DESTRUCTIVO`) o «no ejecutar desde Cline» (Parte B: su
+ *  salida lleva CURPs). En una fila de varios scripts, la marca vale para los
+ *  que nombra la misma frase; si no nombra a ninguno, para todos. */
+function vetoCline(nombre, fila) {
+  if (/^migrar-/.test(nombre)) return "es una migración de datos (ORDEN.md §4: escribe con --apply)";
+  if (/^fase10-/.test(nombre)) return "es rendimiento contra producción (ORDEN.md §4: fase10-*)";
+  const marca = (s) =>
+    (s.match(/\b(ESCRIBE|CARGA|DESTRUCTIVO)\b/) ?? [])[1] ?? (/no ejecutar desde Cline/i.test(s) ? "«no ejecutar desde Cline»" : null);
+  const celdas = fila.split("|").slice(1, -1);
+  const delGrupo = [...(celdas[0] ?? "").matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+  const resto = celdas.slice(1).join("|");
+  if (delGrupo.length <= 1) {
+    const m = marca(resto);
+    return m ? `su fila de scripts/README.md lo marca ${m}` : null;
+  }
+  const nombra = (frase, s) => frase.includes(`\`${s}\``) || frase.includes(`\`${s.replace(/\.m?js$/, "")}\``);
+  for (const frase of resto.split(/\.\s+/)) {
+    const m = marca(frase);
+    if (!m) continue;
+    const nombrados = delGrupo.filter((s) => nombra(frase, s));
+    if (nombrados.length === 0) return `su fila de scripts/README.md agrupa varios scripts y marca ${m} sin decir a cuál`;
+    if (nombrados.includes(nombre)) return `su fila de scripts/README.md lo marca ${m}`;
+  }
+  return null;
 }
 
 // ── 2) Capa y reglas de cada archivo ───────────────────────────────────────
@@ -234,6 +318,26 @@ function capaDe(p) {
   return { capa: "—", exige: "revisar la tabla de ORDEN.md §1: si no encaja en ninguna fila, el concepto está mal planteado." };
 }
 
+/**
+ * Por qué tocar esta ruta requiere revisión de Claude (`AGENTS.md` §Qué nunca se
+ * delega sin revisión). Lista vacía si no la requiere. Un archivo con
+ * `@deprecated` o un fallback se marca entero: no se distingue si el cambio
+ * toca justo esa parte, y retirarla de paso es lo que la marca evita.
+ */
+function revisionDe(rel, src) {
+  const motivos = [];
+  if (/^lib\/auth(\/|$)/.test(rel)) motivos.push("tocar `lib/auth/`");
+  if (/^supabase(\/|$)/.test(rel)) motivos.push("decidir el esquema (`supabase/`)");
+  if (rel === "scripts/test-orden.mjs") motivos.push("los umbrales de `test-orden.mjs`");
+  if (rel === "scripts/verificar-docs.mjs") motivos.push("`TECHO_TOKENS` y la lista del arranque");
+  if (/@deprecated/.test(src) || /fallback/i.test(src)) motivos.push("tiene `@deprecated` o un fallback: retirarlo no se delega");
+  return motivos;
+}
+
+// C9 de test-orden mide `app/` y `lib/` (TypeScript, sin `.d.ts`); el aviso de
+// tamaño se da sobre los mismos archivos.
+const MIDE_C9 = (rel) => /^(app|lib)\//.test(rel) && /\.tsx?$/.test(rel) && !/\.d\.ts$/.test(rel);
+
 // ── 3) Qué suite cubre cada archivo ────────────────────────────────────────
 // Se busca el módulo dentro de las suites: si una lo transpila o lo nombra, es
 // la red de seguridad de ese archivo.
@@ -243,11 +347,17 @@ function capaDe(p) {
 // porque la cadena «escolar» está en todas (`lib/escolar/…`). «Corre las 35»
 // equivale a «corre todo», que es exactamente lo que este script evita.
 const SUITES = fs.readdirSync(path.join(root, "scripts")).filter((f) => /^test-.+\.mjs$/.test(f));
+// `test-gen-contexto` nombra rutas reales como ENTRADA de sus casos, no como
+// módulos que prueba: contarla por eso la pondría en la red de seguridad de cada
+// archivo de sus casos. Sí es la red del generador y del índice que lee.
+const SUITE_DEL_GENERADOR = "test-gen-contexto.mjs";
+const CUBRE_EL_GENERADOR = ["scripts/gen-contexto.mjs", "docs/00-INDICE.md"];
 function suitesDe(p) {
   const sinExt = p.replace(/\.(tsx?|mjs)$/, "");
   const carpeta = sinExt.split("/").slice(-2).join("/"); // «materia/facetas-materia»
   const candidatos = [p, `${sinExt}.js`, `${sinExt}.ts`, `${carpeta}.js`, `"${carpeta}"`, `'${carpeta}'`];
   return SUITES.filter((s) => {
+    if (s === SUITE_DEL_GENERADOR) return CUBRE_EL_GENERADOR.includes(p);
     const src = leer(`scripts/${s}`);
     return candidatos.some((c) => src.includes(c));
   });
@@ -306,6 +416,10 @@ function reglasOrden() {
     return null;
   }
 }
+// Una sola ejecución por invocación: la usan el brief (tabla de reglas) y los
+// dos agentes (límite de C9 para el aviso de tamaño).
+let reglasCache;
+const reglasDeOrden = () => (reglasCache === undefined ? (reglasCache = reglasOrden()) : reglasCache);
 
 /** El panel, si alguien lo ha generado. Con su edad: es una foto, no un invariante. */
 function panel() {
@@ -362,7 +476,7 @@ const fichas = rutas.map((rel) => {
   const src = leer(rel);
   const { capa, exige } = capaDe(rel);
   return { rel, capa, exige, lineas: src.split("\n").length, src, suites: suitesDe(rel) };
-});
+}).map((f) => ({ ...f, revision: revisionDe(f.rel.replace(/\/$/, ""), f.src) }));
 
 // Presupuesto: la fila obligatoria siempre + las que el usuario pidió. Cada
 // `--tarea` ya casó con alguna fila (se comprobó al leer los argumentos).
@@ -376,8 +490,15 @@ const filasElegidas = [PRESUPUESTO[0], ...PRESUPUESTO.slice(1).filter((f) =>
 const auto = [];
 const hay = (re) => fichas.some((f) => re.test(f.rel));
 if (hay(/^app\/actions\//) || hay(/^lib\/auth\//)) auto.push("permisos");
-if (hay(/^app\/components\/|^app\/.*-client\.tsx$/)) auto.push("apariencia");
-if (hay(/ciclo|periodo/i)) auto.push("ciclo escolar");
+// Apariencia: tocar un componente no es cambiar su aspecto. Con `--tarea` el
+// prompt ya dijo qué se hace; MATRIZ-UX (43 KB) solo entra si lo pide
+// (`--tarea=apariencia`). Sin `--tarea`, se sugiere como antes.
+const pideApariencia = tareasPedidas.some((t) => palabras(t).includes("apariencia"));
+if (hay(/^app\/components\/|^app\/.*-client\.tsx$/) && (tareasPedidas.length === 0 || pideApariencia)) auto.push("apariencia");
+// Ciclo: solo el dominio del ciclo y su SQL. Con `/ciclo|periodo/` en cualquier
+// ruta, el nombre de un diagnóstico (`diag-calendario-periodo.mjs`) arrastraba
+// el módulo del ciclo a una tarea que solo iba a ejecutar un script.
+if (hay(/^lib\/escolar\/ciclo\//) || hay(/^supabase\/.*(ciclo|periodo)/i)) auto.push("ciclo escolar");
 if (hay(/horario/i)) auto.push("horario");
 if (hay(/^scripts\//)) auto.push("ejecutar cualquier script");
 for (const a of auto) {
@@ -399,6 +520,14 @@ if (agente === "cline") {
   L.push("");
   L.push("> No cargues documentación fuera de esta lista. Si con esto no alcanza, el");
   L.push("> índice está mal y hay que arreglarlo — no leer todo por si acaso.\n");
+  // El brief de Claude cierra con la regla del historial; el paquete de Cline
+  // la necesita en cuanto una fila le cita un documento de `docs/historial/`.
+  const historial = [...new Set(filasElegidas.flatMap((f) => f.docs.filter((d) => d.startsWith("docs/historial/"))))];
+  if (historial.length) {
+    L.push(`> **Aviso de historial:** ${historial.map((d) => `\`${d}\``).join(", ")} ${historial.length > 1 ? "describen" : "describe"} un momento`);
+    L.push("> pasado, no el presente. No lo cargues para saber qué es verdad hoy: para eso, el");
+    L.push("> código o un diagnóstico de `scripts/`. Si su fila dice que lo consulta Claude, no lo abras.\n");
+  }
 } else {
   L.push("## BRIEF DE DIAGNÓSTICO\n");
   L.push("Generado por `node scripts/gen-contexto.mjs --agente=claude`.\n");
@@ -412,7 +541,7 @@ if (agente === "cline") {
 
   // 1) Lo ya medido. El desperdicio característico de un diagnóstico es volver
   //    a contar a mano algo que un script ya cuenta y que además tiene histórico.
-  const reglas = reglasOrden();
+  const reglas = reglasDeOrden();
   const pnl = panel();
   L.push("## YA ESTÁ MEDIDO — no lo cuentes a mano\n");
   if (reglas === null) {
@@ -497,11 +626,55 @@ if (agente === "cline") {
   }
 }
 
+if (diags.length) {
+  L.push("## DIAGNÓSTICO (pasos 1 y 6 del CONTRATO)\n");
+  L.push("Su fila de `scripts/README.md` va debajo, tal cual. Si dice ESCRIBE, CARGA o «no");
+  L.push("ejecutar desde Cline», no lo corras y repórtalo. Si no, córrelo antes de tocar nada");
+  L.push("y otra vez al terminar.\n");
+  for (const d of diags) {
+    L.push(`- \`node scripts/${d.nombre}\`${d.seccion ? ` — sección «${d.seccion}»` : ""}`);
+    L.push(`  > ${d.fila}`);
+  }
+  L.push("");
+}
+
 L.push("## ARCHIVOS EN ALCANCE\n");
 L.push("| Archivo | Líneas | Capa | Qué exige esa capa |");
 L.push("|---|---|---|---|");
 for (const f of fichas) L.push(`| \`${f.rel}\` | ${f.carpeta ? "(carpeta destino)" : f.lineas} | ${f.capa} | ${f.exige} |`);
 L.push("");
+
+// Tamaño: C9 es DURA, así que un archivo que la cruza rompe el CI en mitad del
+// cambio. Se avisa antes, a menos del 5 % del límite, que se lee de
+// `test-orden --json` (C9.limite) para no tener aquí una segunda cifra (R6).
+const midenC9 = fichas.filter((f) => !f.carpeta && MIDE_C9(f.rel));
+if (midenC9.length) {
+  const c9 = (reglasDeOrden() ?? []).find((r) => r.id === "C9");
+  const limite = Number.isInteger(c9?.limite) ? c9.limite : null;
+  if (limite === null) {
+    L.push("**Tamaño (C9): no se pudo leer test-orden** (`node scripts/test-orden.mjs --json`, campo");
+    L.push("`limite` de C9): el tamaño de estos archivos no se comprobó.\n");
+  } else {
+    const cerca = midenC9.filter((f) => limite - f.lineas < limite * 0.05);
+    for (const f of cerca) {
+      const d = limite - f.lineas;
+      const dice = d < 0 ? `ya supera el límite de C9 (${limite})` : `a ${d} línea${d === 1 ? "" : "s"} del límite de C9 (${limite})`;
+      L.push(`⚠️ **Tamaño (C9):** \`${f.rel}\` tiene ${f.lineas} líneas, ${dice}. C9 es una regla DURA: si el`);
+      L.push("cambio lo hace crecer, pártelo por responsabilidad; el límite no se sube.");
+    }
+    if (cerca.length) L.push("");
+  }
+}
+
+const conRevision = fichas.filter((f) => f.revision.length);
+if (conRevision.length) {
+  L.push("## REQUIERE REVISIÓN DE CLAUDE\n");
+  L.push("Se puede implementar, pero no se acepta sin que Claude revise el cambio.\n");
+  for (const f of conRevision) {
+    L.push(`- \`${f.rel}\` — requiere revisión de Claude (AGENTS §Qué nunca se delega): ${f.revision.join("; ")}.`);
+  }
+  L.push("");
+}
 
 const conSuite = fichas.filter((f) => f.suites.length);
 const sinSuite = fichas.filter((f) => !f.suites.length);
@@ -536,13 +709,12 @@ L.push("  Eso es apagar el detector. Para y repórtalo.");
 L.push("- Si un elemento sale de una lista porque dejó de cumplir el rol que la lista audita,");
 L.push("  demuéstralo: dónde vive ahora y qué otra comprobación lo sigue cubriendo.\n");
 
+// Solo el nombre: el GLOSARIO ya está en la lectura obligatoria (fila
+// «Cualquier cambio»), y pegar aquí sus filas lo cargaba dos veces (hasta 2,6 KB).
 if (glosario.length) {
   L.push("## TÉRMINOS — usa estos nombres, no sinónimos\n");
-  L.push("Aparecen en los archivos que vas a tocar. `docs/normativo/GLOSARIO.md` es");
-  L.push("la fuente; aquí solo los que aplican.\n");
-  L.push("| Término | Qué es realmente |");
-  L.push("|---|---|");
-  for (const t of glosario.slice(0, 14)) L.push(`| \`${t.termino}\` | ${t.que} |`);
+  L.push("Aparecen en los archivos que vas a tocar; definición en `docs/normativo/GLOSARIO.md`.\n");
+  L.push(glosario.map((t) => `\`${t.termino}\``).join(" · "));
   L.push("");
 }
 

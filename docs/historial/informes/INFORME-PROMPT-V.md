@@ -610,3 +610,141 @@ Del checklist del auditor; la columna «Cumple» es la suya, con lo que hizo el 
 | Afirmaciones caducadas que la parte no nombra: MATRIZ-UX `:97` («7 de 8 rutas») y `:77`/`:416` (mandan al `*-client.tsx` de la ruta); MAPA §3 paso 5 (tsc + build, no `test:ci`); FLUJO §4 (símbolos que hoy viven en archivos partidos: `catalogo-academico-resolucion.ts`, `horario-importar-lectura.ts`, `tutores-*.ts`) | pendiente | Fuera de las líneas de D. D4 no las ve: no son anclas `ruta::símbolo` |
 | `criterios.prompts` §26 como remisión a ORDEN §6 punto 10 · «16 principios» y «21 copias sobrantes» | pendiente | La Parte C los dejó como candidatos para D, pero el prompt de D no los nombra |
 | Aviso de lint en `gen-panel.mjs:41` (`MARCA`) | previo | Ajeno a la Parte D |
+
+---
+
+## Parte E — La recuperación se comprueba sola
+
+**Estado:** COMPLETA · **Commit:** el que contiene este informe («Prompt V, Parte E: …»; el sha va en el Resumen) · **Auditoría:** ACEPTAR_CON_CAMBIOS (el issue medio y los tres bajos, aplicados en el cierre 1; el cierre 2, tras el corte por el límite de uso, los comprobó, volvió a validar y firmó el commit)
+
+### 1. Qué se hizo
+
+| Archivo | Cambio | Ítem |
+|---|---|---|
+| `scripts/test-gen-contexto.mjs` (nuevo) | Suite del índice y del generador: T1-T14 de la tabla E2 escritos en la propia suite; aserciones de inclusión y exclusión sobre las filas «- **X** →» y sus rutas; en todo paquete de Cline, CONTRATO y ≤ 8 KB; negativos N1-N4; R1 (no es red de seguridad de las rutas de sus casos); D1-D2 (`--diag`); S1 (aviso de C9, relacional); C1 (smoke de la rama claude). Nunca `--salida` (lanza si se le pasa). `ROJAS_CONOCIDAS = []` | E2 |
+| ídem | D3: `--diag` de `fase10-carga`, `p0-restaurar-ciclo-operativo` y `p0-verificar-restauracion` para Cline → exit ≠ 0; `p0-verificar-profesor` y `p0-diag-contexto` → exit 0; `fase10-carga` para Claude → exit 0 | Cierre 1: issue 1 |
+| `scripts/gen-contexto.mjs` | (a) aviso de historial en el paquete de Cline; (b) `--diag=a.mjs[,b.mjs]` cita el script y pega su fila del README con su sección, exit 1 si no está en la raíz de `scripts/` o no tiene fila; (c) sección «REQUIERE REVISIÓN DE CLAUDE»; (d) aviso a menos del 5 % del límite de C9, leído de `test-orden --json` una vez por invocación; (e) TÉRMINOS en una línea, solo nombres, con «definición en `docs/normativo/GLOSARIO.md`»; (f) «ciclo» solo con `lib/escolar/ciclo/` o `supabase/` con ciclo/periodo en el nombre; (g) fila de auditar o prompt para Cline → exit 1; (h) apariencia solo sin `--tarea` o con `--tarea=apariencia`. `suitesDe()` ya no cuenta esta suite como red de cada ruta que nombra. Cabecera al día | E1 |
+| ídem | `vetoCline()`: para Cline, `--diag` sale con 1 si el prefijo es `migrar-`/`fase10-` (ORDEN §4) o si la fila del README lo marca `ESCRIBE`, `CARGA`, `DESTRUCTIVO` o «no ejecutar desde Cline»; en una fila de varios scripts, la marca vale para los que nombra la misma frase y, si no nombra a ninguno, para todos. El texto de la sección se invierte: primero «si dice ESCRIBE… no lo corras», después «córrelo». Cabecera SALE CON 1 al día | Cierre 1: issue 1 |
+| ídem | El mensaje «Uso: …» incluye `[--diag=script.mjs[,…]]` | Cierre 1: issue 2 |
+| `scripts/test-orden.mjs` | `comprobar()` gana un 6.º parámetro opcional `extra`, que se esparce en el `--json`; C9 publica `limite: 1000`. Ninguna regla ni umbral cambia | E1 (d) |
+| `scripts/README.md` | Fila de `test-gen-contexto.mjs` junto a `test-orden` («no prueba un módulo: prueba el índice y el generador»); fila de `gen-contexto.mjs` con `--diag`, las marcas, el aviso de C9, las salidas con 1 y su suite | E2 · E1 |
+| ídem | La fila de `gen-contexto.mjs` describe el veto; la de la suite, los `--diag` vetados; la fila `verificar-credenciales-iniciales.mjs` · … nombra los dos scripts sensibles en vez de «Los dos primeros» | Cierre 1: issue 1 |
+| `ESTADO-ACTUAL.md` | «**52 suites**»; «Dos de ellas no prueban un módulo: `test-orden` (el repo) y `test-gen-contexto` (el índice y el generador)», sin líneas nuevas | Mismo commit (E) · cierre 1: issue 4 |
+| `docs/historial/informes/INFORME-PROMPT-V.md` | Esta sección | Cierre |
+
+Diff de la parte sin contar los CR ni este informe: 5 archivos, +493/−18 (la suite nueva, 295 líneas; `gen-contexto` +184/−12).
+
+### 2. Quién lo ejecutó y qué pudo / no pudo hacer
+
+| Agente | Rol | Pudo | No pudo y por qué |
+|---|---|---|---|
+| Claude (Opus 5.5), implementador | Hacer E1 y E2 en lugar de Cline, sin commit | Escribir la suite primero y medirla contra el generador sin tocar; implementar E1; respetar los finales de línea de cada archivo; VALIDACIÓN y `test:ci` | Ejecutar `diag-calendario-periodo.mjs` (conecta a Supabase): `--diag` se probó leyendo el README. Corregir la cifra «800 KB» de la cabecera y el `git stash` del brief de Claude: fuera de E. Commit: lo hace el cierre. CI de GitHub: sin push |
+| Claude, auditor independiente | Revisar contra CONTRATO §2/§3, el RESULTADO de E y la filosofía | Re-ejecutar la suite (132/132) y reproducir el «antes» con una copia de HEAD por `git archive` (46 rojas); test-orden, verificar-docs, los tres `--check`, `verificar:estado`, eslint y `diag-peso-cambio`; comprobar ajenos y finales de línea; probar a mano `--diag=fase10-carga.mjs,migrar-eliminar-ciclos.mjs` (exit 0: issue 1) | Corregir: un auditor solo propone (1 issue medio, 3 bajos). `test:ci` completo: se apoyó en el del implementador |
+| Claude, cierre 1 (cortado por el límite de uso) | Aplicar la auditoría, volver a validar, informe y commit | Los 4 issues, con D3 en la suite; medir el coste real de la suite (19 ejecuciones de `test-orden --json`, contadas con un `--import` en el scratchpad); repetir la medición «antes» con la suite final contra una copia de HEAD; VALIDACIÓN; escribir esta sección | Terminar: el límite de uso lo cortó después de escribir esta sección y antes del commit, así que su validación no se da por buena sin repetirla. Ejecutar ningún `--diag` de verdad: conectan a Supabase. Tocar la cifra «800 KB» y el `git stash` del brief: el auditor los dejó fuera de alcance (§7) |
+| Claude, cierre 2 | Retomar el cierre: comprobar qué issues estaban aplicados, volver a validar sobre el árbol final, corregir esta sección y commit | Comprobar sobre el diff que los 4 issues ya estaban aplicados (no faltaba ninguno); repetir la suite (138/138), test-orden, `verificar:estado`, verificar-docs, eslint de los 3 scripts y el veto a mano (exit 1: `fase10-carga`, `verificar-credenciales-iniciales`, `diagnostico-ciclo-activo-bug`; exit 0: `verificar-tablas-tutores`, `diag-duplicados-ciclos`); `test:ci` completo; los ajenos y los finales de línea; commit con rutas concretas | Push: lo prohíben las reglas duras. Ejecutar ningún `--diag` de verdad, por la misma razón. Lo de §7 queda igual: no es de la parte |
+
+Ninguno de los cuatro conectó con Supabase, ejecutó `scripts/_peligrosos/`, `scripts/_archivo/` o `fase10-*`, editó un `.sql` o tocó los 7 cambios ajenos del árbol.
+
+### 3. Cómo se ejecutó y se midió
+
+Orden del implementador: suite E2 con `ROJAS_CONOCIDAS = []` → MEDICIÓN contra el generador sin tocar → E1 → suite en verde → README y ESTADO → VALIDACIÓN → `test:ci`. El cierre 1: issues → D3 → la suite final contra una copia de HEAD → VALIDACIÓN → informe (se cortó antes del commit). El cierre 2: diff contra los issues → VALIDACIÓN → `test:ci` → esta sección → commit.
+
+| Medición | Antes (`67863b7` + ajenos) | Después del implementador | Después del cierre (1 y 2) |
+|---|---|---|---|
+| `node scripts/test-gen-contexto.mjs` | Suite del implementador: 74/117 en verde, **43 rojas**, exit 1. Suite final (cierre 1, repetido por el cierre 2 con una copia nueva de HEAD): 81/130, **49 rojas**, exit 1 (las 3 de D3 incluidas) | 132/132, exit 0 | **138/138**, 0 rojas conocidas, exit 0 |
+| Rojas del «antes», por tipo | T1 cita MATRIZ-UX; T6 cita CICLO_EVALUACIONES_MODULO; T2, T3, T5 y T9 ×2 sin marca de revisión; T4 y T7 sin aviso de historial; T10 y T13 salen con 0; TÉRMINOS pega filas del GLOSARIO en 12 paquetes (24); `--diag` ignorado (D1 ×2, D2); C9 sin `limite` (S1) | — | — |
+| `--diag=fase10-carga.mjs,migrar-eliminar-ciclos.mjs` (Cline) | exit 0: el flag se ignoraba | exit 0, con «Córrelo antes de tocar nada» | **exit 1**: «es rendimiento contra producción…», «usa --agente=claude» |
+| Bytes del paquete de Cline (T1 · T2 · T3 · T4 · T5 · T6 · T9 · T11 · T12) | 7 069 · 5 832 · 4 447 · 4 235 · 4 280 · 4 251 · 4 943 · 5 731 · 3 721 | 5 450 · 4 137 · 4 089 · 3 713 · 3 471 · 3 357 · 4 134 · 3 991 · 3 202 | iguales (el cierre solo cambia la sección DIAGNÓSTICO) |
+| `node scripts/test-orden.mjs` | 18 reglas · C10 19/19 | igual (la suite nueva tiene fila) · C9 publica `limite` | igual |
+| `npm run verificar:estado` | 51 suites | 52, al día | 52, al día · 144 líneas |
+| Coste de la suite | — | declarado «2-3 s, una ejecución de test-orden»; el auditor midió 8,8 s | **≈ 9,5 s** en local (cierre 1); **≈ 19-20 s** en dos corridas del cierre 2, en la misma máquina con más carga. 19 ejecuciones de `test-orden --json`: 16 del generador para Cline con un archivo que mide C9, 2 de la rama claude (C1 y D3) y 1 de la propia suite (S1); el cierre 2 las recontó caso por caso y salen las mismas |
+| `npm run test:ci` | verde (cierre de D) | verde | Cierre 2, primera corrida: todo en verde hasta el build, que falló al descargar Nunito de `next/font/google` (25 errores «Can't resolve …/font/google/font»; no toca nada de la parte). `npm run build` solo: exit 0. **Segunda corrida completa: verde, exit 0**: tsc; lint 0 errores y 1 aviso previo (`gen-panel.mjs:41` `MARCA`); **52/52** suites (`test-gen-contexto` 138/138); test-permisos 738/0; auditoría de permisos 201 actions, 309/0; `--check` de matriz, invariantes y rumbo al día; `verificar:estado` OK; `verificar:docs` OK; build OK |
+
+**Tokens del arranque:** 9 720 → **9 735** (+15, todo de ESTADO-ACTUAL; el cierre no lo mueve: «de las 52» → «de ellas» no cambia el redondeo). Contra la base LF de la cabecera (~10 344): −609. `TECHO_TOKENS = 10500` sin tocar.
+
+### 4. Qué normas respetó
+
+Del checklist del auditor; la columna «Cumple» es la suya, con lo que hizo el cierre donde cambió algo.
+
+| Norma (CONTRATO §2 / §3) | Cumple | Evidencia |
+|---|---|---|
+| E1 (a) aviso de historial en el paquete de Cline | sí | T4 y T7 lo llevan; la suite comprueba en todos los paquetes «aviso ⇔ alguna fila cita `docs/historial/`» |
+| E1 (b) `--diag` cita el script y su fila; sin el flag, nada | sí → **cerrado en el cierre** | D1, D2 y N4. El riesgo residual del auditor (`fase10-*`/`migrar-*` con exit 0 y «Córrelo») es ahora exit 1 para Cline (D3) |
+| E1 (c) marca de revisión (`lib/auth/**`, `supabase/**`, `test-orden`, `verificar-docs`, `@deprecated`/fallback) | sí | T9 marca `lib/auth/permisos.ts` y `scripts/test-orden.mjs`; el criterio literal de fallback marca 26 de 255 `.ts` de app/lib |
+| E1 (d) aviso a menos del 5 % de C9; `limite` aditivo y leído del `--json` | sí | `extra` solo en C9; el generador cuenta líneas como C9 (`split("\n")`); S1 relacional (pasa con `escolar.ts` en 999 por el cambio ajeno) |
+| E1 (e) TÉRMINOS solo por nombre | sí | Una línea con « · »; sin tope de 14, en las dos ramas (§6) |
+| E1 (f) «ciclo» limitado a `lib/escolar/ciclo/` y `supabase/` | sí | T6 ya no cita el módulo; T3 sí; T2 no lo arrastra |
+| E1 (g) auditar/prompt con Cline → «es tarea de Claude» | sí | T10 y T13 exit 1; C1 (claude) exit 0. `--tarea=cambio` también se rechaza (§7) |
+| E1 (h) apariencia solo sin `--tarea` o con `apariencia` | sí | T1 sin MATRIZ-UX; T14 con ella |
+| E2: casos en el test, estructura, nunca `--salida` ni snapshot, negativos, CONTRATO y ≤ 8 KB, smoke claude, `ROJAS_CONOCIDAS` | sí | 138/138; contra HEAD, 49 rojas; `gen()` lanza con `--salida` |
+| Mismo commit: «52 suites» y la frase de las dos suites, sin líneas nuevas | sí | 143 líneas (144 por `split`); `verificar:estado` al día. La cifra repetida se quitó en el cierre (issue 4) |
+| §2 Alcance: solo lo pedido, legacy en pie, sin módulo paralelo | sí | Las 5 rutas que pide E (más este informe). Nada borrado; ninguna fuente nueva |
+| §2 Capas · Datos · Identidad | n/a | Solo `scripts/` y documentación; sin SQL ni base |
+| §2 Verificación: `test:ci`, medición antes/después, nada de `_peligrosos/`/`_archivo/` | sí | `test:ci` en verde en el cierre; medición con la misma suite antes y después; `--diag` solo lee el README |
+| §2 Documentación: ESTADO-ACTUAL, README, informe, `gen:matriz`/`gen-rumbo` | sí | Sin Server Actions ni `pendientes.json`: no hace falta regenerar; los `--check` al día |
+| §3: `_peligrosos/`, migración, cifra copiada a mano, fuente paralela | sí | El límite de C9 se lee del `--json`. La única cifra a mano («de las 52») se quitó en el cierre |
+| Ajenos intactos | sí | `git diff --ignore-cr-at-eol --ignore-blank-lines` vacío en los 7 |
+| Finales de línea | sí | `gen-contexto` y `test-orden` 100 % CRLF; README, ESTADO y la suite, LF; `git diff --check` limpio |
+
+### 5. ¿Sigue la filosofía y la arquitectura?
+
+| Principio | Veredicto | Nota |
+|---|---|---|
+| R6 / §15 · fuente única | respeta | El límite de C9 sale de `test-orden --json`; los términos remiten al GLOSARIO; `--diag` pega la fila del README y el veto la lee, no la copia. Duplicaciones menores y comentadas: `MIDE_C9` repite el filtro de alcance de C9, y los prefijos vetados (`migrar-`, `fase10-`) son los de ORDEN §4 |
+| §16 · medir antes y después | respeta | Suite escrita primero y corrida contra el generador sin tocar (43 rojas); el auditor (46) y el cierre (49, con D3) lo repitieron contra HEAD |
+| R8 · el legacy no se retira | respeta | Nada borrado; la marca de `@deprecated`/fallback lo hace visible en el paquete |
+| Reutilizar antes de crear | respeta | `casa()`, `palabras()`, `leer()` y `reglasOrden()` con caché; el veto reutiliza la fila ya leída para `--diag` y las etiquetas de la Clasificación del README |
+| No aflojar umbrales ni `TECHO_TOKENS` | respeta | Ninguna regla ni umbral cambia; `ROJAS_CONOCIDAS` vacía y solo puede menguar |
+| Economía del arranque | respeta | +15 tokens; los casos viven en la suite, no en el 00-INDICE; los paquetes adelgazan (T1 −23 %, T11 −30 %) |
+| ORDEN · dónde va cada cosa | respeta | La suite en `scripts/` con prefijo `test-`, cabecera y fila (C10 en verde); el CI la recoge sola |
+| Fallar en voz alta | respeta (tras el cierre) | La excepción que señaló el auditor (`--diag` de escritura o carga con exit 0) sale ahora con 1; una fila de varios scripts que marca sin nombrar falla cerrada |
+
+**Veredicto global:** la Parte E sigue la filosofía y la arquitectura del repo: el paquete de cada tarea es más pequeño y más preciso, lo que no es de Cline se rechaza en voz alta, y una suite impide que el índice o el generador retrocedan.
+
+### 6. Desviaciones y decisiones propias
+
+**Desviaciones del implementador**
+
+| Ítem | Qué cambió | Por qué |
+|---|---|---|
+| E2 N2 (`--tarea=ui`) | Comprueba que ninguna fila «- **X** →» contenga «arquitectura», no todo el stdout | Es la aserción estructural que pide E2 y no da un falso rojo por un texto fijo |
+| E1 (e) TÉRMINOS | Una línea de nombres con « · »; sin el tope de 14, en las ramas cline y claude | Con solo nombres el tope no ahorraba nada; el GLOSARIO está en el arranque de los dos |
+| E1 (b) `--diag` | Lista separada por comas, `scripts/x.mjs` o `scripts\x.mjs`; exit 1 fuera de la raíz o sin fila; pega la fila y su sección; también en el brief de Claude | Fallar en voz alta (Parte A); sin fila = `ESCRIBE`; la fila evita cargar el README entero |
+
+**Desviaciones y decisiones del cierre 1** (el cierre 2 no añadió ninguna: solo validó y corrigió este informe)
+
+| Ítem | Qué cambió | Por qué |
+|---|---|---|
+| Issue 1 · `p0-` | No se veta por prefijo: decide su fila | `p0-diag-contexto` es «el primero a correr ante cualquier duda» (`LEE`) y `p0-verificar-profesor` también lee; la herramienta que escribe (`p0-restaurar-ciclo-operativo`) lleva `ESCRIBE --apply` en su fila y se veta por ella. `fase10-perfil-datos` (`LEE(red)`) sí se veta por prefijo: la cabecera del prompt prohíbe `fase10-*` |
+| Issue 1 · filas de varios scripts | Se vetan los que nombra la frase de la marca, en vez de dejarlas pasar con la salvedad | Dejarlas pasar mandaba correr a Cline `p0-verificar-restauracion`, `diagnostico-ciclo-activo-bug` y `7-diagnostico-materias-alumnos`, que imprimen CURPs. Si la frase no nombra a ninguno, se vetan todos (falla cerrada) |
+| Issue 1 · etiquetas | `ESCRIBE`, `CARGA` y `DESTRUCTIVO` en mayúsculas (como en la Clasificación); «no ejecutar desde Cline» sin distinguir caja | Sin distinguir caja, «escribe» y «carga» casan con «No escribe en la base» o «carga académica». Comprobado sobre el README: las mayúsculas solo casan con las filas `migrar-*`, `p0-restaurar-ciclo-operativo` y `fase10-carga`; el resto de los vetos son filas con «no ejecutar desde Cline» |
+| README · fila `verificar-credenciales-iniciales.mjs` · … | «Los dos primeros» → los dos nombres | Con la regla anterior, la fila vetaba también `verificar-tablas-tutores`, que no imprime credenciales |
+| Issue 4 · ESTADO-ACTUAL | «Dos de las 52» → «Dos de ellas» | El prompt dictaba el literal, pero `verificar-estado-actual` solo vigila la primera «N suites»: la copia caducaría con la suite 53 sin que nada fallara (DECISIÓN «Cifras» de la Parte C) |
+| Issue 3 | Ningún cambio de código | El coste (≈ 9,5 s) es aceptable; se corrige la cifra aquí y en el commit |
+
+**Decisiones propias del implementador**
+- (f) «ciclo»: cualquier ruta bajo `lib/escolar/ciclo/`; en `supabase/`, solo si el nombre contiene ciclo o periodo (T3 sí, T2 no).
+- (g) La tarea de Claude se reconoce por la fila elegida, no por el texto de `--tarea`: `--tarea=escribir` y `--tarea=cambio` también se rechazan para Cline.
+- (h) Apariencia: sin `--tarea`, o con alguna `--tarea` que contenga «apariencia».
+- (c) Sección «## REQUIERE REVISIÓN DE CLAUDE», una línea por archivo con sus motivos; una carpeta en alcance se marca por su ruta; «fallback» literal y sin caja en todo el fuente, comentarios incluidos.
+- (d) «A menos del 5 %» = `limite − líneas < 0,05 × limite`; solo los archivos que mide C9; si `test-orden --json` no se puede leer, lo dice; una sola ejecución por invocación, y solo si hay algo que medir.
+- (a) Marca fija «**Aviso de historial:**» con las rutas de `docs/historial/` que citan las filas, solo en el paquete de Cline.
+- `suitesDe()` cuenta `test-gen-contexto` solo para `scripts/gen-contexto.mjs` y `docs/00-INDICE.md` (R1 lo vigila).
+- Comprobaciones añadidas a la tabla E2 para cubrir todo E1: aviso de historial ⇔ cita, TÉRMINOS sin tabla, D1/D2, S1 y R1.
+
+### 7. Lo no verificado y lo pendiente
+
+| Qué | Estado | Por qué / quién |
+|---|---|---|
+| Ejecutar de verdad un `--diag` (`diag-calendario-periodo.mjs` y los demás) | no ejecutado | Conectan a Supabase; `--diag` y el veto solo leen el README |
+| La suite y el generador en el CI de GitHub (Linux) | no verificado | Sin push. La suite normaliza CRLF y `\`, y su smoke de claude no depende de `.panel/` |
+| «con 800 KB de docs» en la cabecera de `gen-contexto.mjs` (rama cline) | pendiente | Cifra a mano que la Parte C quitó de AGENTS; fuera de E según el auditor. Otro prompt |
+| El brief de Claude sugiere `git stash` para saber si una regla que falla venía de antes | pendiente | Choca con la regla de no hacer stash con cambios ajenos en el árbol; fuera de E. Otro prompt |
+| Veto en filas de varios scripts | a vigilar | Depende de que la marca nombre el script en la misma frase; si no lo nombra, veta a todos (falla cerrada, no abierta) |
+| `--tarea=cambio` con Cline sale con 1 | asumido | Casa con «Auditar un cambio…»; la Parte A ya lo había anticipado |
+| Ruido de la marca «fallback» (26 de 255 `.ts` de app/lib) | aceptado | Criterio literal del prompt; `app/actions/asistencias.ts` se marca aunque diga «Sin fallback» |
+| Coste de `test-gen-contexto` (≈ 9,5-20 s según la carga, 19 ejecuciones de `test-orden --json`) | aceptado | Crece con cada caso que mide C9; si molesta, `test-orden` podría leerse una vez en la suite y pasarse al generador |
+| El build de `test:ci` depende de descargar las fuentes de Google (`next/font/google`) | a vigilar | En el cierre 2 falló una vez por eso y pasó al repetirlo. No es de la parte: lo anoto porque un rojo así no es un fallo del código |
+| El cierre 1 se cortó por el límite de uso antes del commit | resuelto | El cierre 2 comprobó sobre el diff que sus cambios estaban completos, repitió la validación y firmó el commit |
+| Tareas de PARA CLAUDE («Después de D», archivar los informes de Q, R, S y T, marcar las casillas del prompt) y el Resumen de este informe | pendiente | Cierre final del Prompt V |
+| Aviso de lint en `gen-panel.mjs:41` (`MARCA`) | previo | Ajeno a la Parte E |
