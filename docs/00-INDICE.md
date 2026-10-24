@@ -38,7 +38,7 @@ hay que arreglarlo — no cargar todo por si acaso.
 | Optimizar rendimiento | + pendiente `remedir-rendimiento` (`docs/sistema/pendientes.json`) · `filosofia.estructural` §11 y §16 · línea base histórica (la consulta Claude): `docs/historial/OPTIMIZACION_RENDIMIENTO_400_500.md` |
 | Auditar un cambio antes de aceptarlo | + `docs/normativo/CONTRATO-DE-CAMBIO.md` · `docs/normativo/ORDEN.md` («La prueba del algodón» y «Cómo se rompe este orden») |
 | Tocar permisos, roles o una Server Action | + `docs/sistema/MATRIZ-PERMISOS.md` (§3 y la entrada de §5 del archivo) |
-| Cambiar apariencia: color, forma, tipografía, o dónde va una zona de la UI | + `docs/sistema/MATRIZ-UX.md` (**§6 dice qué archivo tocar y a qué afecta**) |
+| Tocar apariencia (color, forma, tipografía) o un asset de imagen | + `docs/sistema/MATRIZ-UX.md` (**§3: las tres reglas; §2: la deuda viva**) |
 
 ---
 
@@ -69,7 +69,7 @@ hay que arreglarlo — no cargar todo por si acaso.
 |---|---|
 | `MAPA-DEL-SISTEMA.md` | **Síntoma → archivos a abrir.** El índice inverso. |
 | `MATRIZ-PERMISOS.md` | Matriz de permisos: §3 alcance por rol, §4 **implementada** (código ⇄ §4 verificada por `test-permisos`), §5 inventario generado de las Server Actions con su guardia HOY (`exigir: capacidad`), §6 decisiones del PROMPT-2. |
-| `MATRIZ-UX.md` | **Matriz de UX.** Dónde vive cada decisión visual: §2 capas, §3 mapa de rutas y zonas, §4 tokens medidos (color, glass, radios, sombras, tipografía, movimiento), §5 catálogo de piezas y sus recetas, §6 «quiero cambiar X → toco Y», §7 deuda medida + plan de consolidación, §8 invariantes, §10 bitácora. Se actualiza en el mismo cambio que lo vuelve falso. |
+| `MATRIZ-UX.md` | Lo que sobrevive de la medición visual: §1 qué deuda se saldó sola al rehacer la portada, §2 la que sigue viva (16 copias a mano de 3 piezas), §3 **las tres reglas que nacieron de los fallos** (dónde va una pieza; un defecto del archivo no se parchea en CSS; un asset se publica al tamaño en que se ve), §4 cómo re-medir. El mapa completo de rutas que tuvo antes se retiró: caducaba más rápido de lo que se actualizaba. |
 | `FLUJO-TECNICO.md` | Recorrido completo: stack, petición paso a paso, inventario por módulo, deudas. |
 | `flujo-tecnico.canvas` | El mismo mapa en visual (Obsidian). |
 | `modulos/CICLO_EVALUACIONES_MODULO.md` | Ciclo y parciales. |

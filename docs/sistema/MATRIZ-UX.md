@@ -1,659 +1,129 @@
-# MATRIZ-UX — dónde vive cada decisión visual
+# MATRIZ-UX — lo que sobrevive de la medición visual
 
 Describe el **presente**, medido sobre el código (`docs/sistema/`, no normativo).
-Responde una sola pregunta: **«quiero cambiar tal cosa de la apariencia, ¿qué archivo
-toco y a qué más afecta?»**
 
-- **Última medición:** 2026-09-08, sobre `app/**/*.tsx` (53 archivos, 13 100 líneas,
-  sin `app/_borrador/`). **Delta posterior:** 2026-09-10, las fases 1, 1.1, 2, 3, 3.1 y 4 del
-  rediseño Océano añadieron 10 archivos y 1 533 líneas (hoy 63 archivos, 14 643 líneas;
-  ver §1).
-- **Hermano normativo:** `docs/normativo/ORDEN.md` §1 (dónde va un archivo nuevo).
-- **Hermano funcional:** `docs/sistema/MAPA-DEL-SISTEMA.md` (síntoma → archivo).
+La primera versión de este archivo (2026-09-08) era un mapa completo de la UI: 459
+líneas con el inventario de cada color, radio, sombra y zona de cada ruta. **Ese mapa
+murió** cuando se rehízo la portada pública (PROMPT O y U) y con ella la capa de
+estilos: describía pantallas que ya no existen. Mantener un mapa así al día cuesta más
+de lo que da.
 
-> **Regla de mantenimiento.** Este archivo se actualiza **en el mismo cambio** que lo
-> vuelve falso. Si tocas un color, un radio, una sombra o mueves una zona de la
-> pantalla y no actualizas la fila correspondiente, el cambio está incompleto
-> (`docs/normativo/CONTRATO-DE-CAMBIO.md`).
+Lo que queda aquí es lo único que no caduca: **la medición re-hecha, la deuda que sigue
+viva, y las tres reglas que nacieron de los fallos**. Si vuelve a hacer falta el mapa
+completo, se regenera con §4 — no se escribe a mano.
 
----
-
-## 0. Cómo se usa
-
-| Quiero… | Voy a |
-|---|---|
-| Pedir un cambio de apariencia | §6 — copio la fila y el `grep` de alcance al prompt |
-| Saber dónde está una zona de la pantalla | §3 — mapa de navegación |
-| Saber qué valor usa hoy un color / radio / sombra | §4 — tokens medidos |
-| Reutilizar una pieza en vez de inventarla | §5 — catálogo de piezas |
-| Entender por qué un cambio «no se aplica en todos lados» | §7 — deuda medida |
-| Registrar lo que acabo de cambiar | §10 — bitácora |
-
-**Hecho central que explica casi todo lo demás:** hoy **no existe capa de tokens**.
-Las decisiones visuales viven como clases Tailwind escritas a mano dentro de cada
-`.tsx` (unas 10 195 clases utilitarias, 966 valores arbitrarios `[...]` de 97 formas distintas). El único
-sitio con variables reales es `app/globals.css` (`:root`), y solo cubre el **fondo** y
-la **barra de navegación** — nada de lo que hay dentro de los paneles. Por eso
-«cambiar el azul de los botones» hoy son N archivos y no uno.
+- **Medición vigente:** 2026-10-24 · `app/**/*.tsx` (76 archivos, sin `app/_borrador/`).
+- **Dónde va un archivo nuevo:** `docs/normativo/ORDEN.md` §1.
+- **Síntoma → archivo:** `docs/sistema/MAPA-DEL-SISTEMA.md`.
 
 ---
 
-## 1. Estado del sistema visual (cifras de hoy)
+## 1. Qué se saldó entre el 2026-09-08 y hoy
 
-| Medida | Valor | Lectura |
-|---|---|---|
-| Archivos `.tsx` de UI | 63 | — |
-| `className=` escritos | 1 565 | — |
-| Clases utilitarias | ~10 195 | — |
-| Valores arbitrarios `[...]` en `className` | 966 (97 distintos) | cada forma distinta es una decisión sin nombre |
-| Variables CSS declaradas | 37 (`app/globals.css`) | 20 de fondo/nav + **17 de la paleta Océano** (§4.8) |
-| Radios distintos | 13 | §4.3 |
-| Sombras `shadow-[...]` distintas | 40 | §4.4 (7 concentran el grueso) |
-| Tamaños de texto distintos | 12 | §4.5 |
-| Opacidades de blanco (`bg-white/NN`) | 16 | §4.2 |
-| Opacidades de borde (`border-white/NN`) | 10 | §4.2 |
-| Piezas duplicadas a mano | 5 nombres, 25 copias | §5.2 / §7 |
-| Archivos con `style={{...}}` inline | 6 | posiciones de decoración, no color |
-| `focus:` / `focus-visible:` | 101 / 11 | §8 |
+Sirve como prueba de que medir funciona: sin ninguna fase dedicada a «limpiar CSS», la
+mitad de la deuda se fue sola al rehacer la portada con una capa de tokens.
 
-> **Fases 1, 1.1, 2, 3, 3.1 y 4 del rediseño Océano (2026-09-10).** Añadieron 10 archivos
-> (1 533 líneas) y los 17 tokens de §4.8. Las dos filas de conteo directo (archivos `.tsx`,
-> variables CSS) van actualizadas; las cifras **compuestas** (`className=`, clases
-> utilitarias, arbitrarios, radios, sombras, tamaños, opacidades y piezas duplicadas)
-> siguen siendo la medición del **2026-09-08 sobre 53 archivos**: se re-miden con los
-> greps de §9, no a ojo.
-
----
-
-## 2. Las capas (orden de apilado)
-
-Todo lo visual se apila en este orden. Cambiar una capa **no** debería obligar a tocar
-otra; hoy se cumple.
-
-| # | Capa | Archivo | Clase / marca | z |
-|---|---|---|---|---|
-| 1 | Fondo vivo (7 subcapas: base, luz, glows, ribbons, sheen, burbujas, viñeta) | `app/components/ui/decoracion-fondo.tsx` + `app/globals.css` (bloque C4.27) | `.app-bg-*` | `z-0`, `fixed` |
-| 2 | Shell de contenido (crea el stacking context) | `app/components/ui/frutiger-backdrop.tsx` | `relative isolate z-[1]` | `z-[1]` |
-| 3 | Contenedor de página (ancho, padding, rejilla) | cada `*-client.tsx` / `page.tsx` | `relative z-10 mx-auto …` | `z-10` |
-| 4 | Paneles glass y sus piezas | `app/components/*` | §5 | — |
-| 5 | Barra superior y sidebar | `app/components/oceano/nav-superior-oceano.tsx` · `app/components/oceano/sidebar-oceano.tsx`, montados por `app/components/oceano/shell-oceano.tsx` | — | `z-40` |
-| 6 | Pantalla de cambio forzado de clave (sustituye TODO) | `app/components/cambio-clave-forzado.tsx`, montada en `app/layout.tsx` | — | — |
-| 7 | Diálogos / overlays | inline en los paneles que los tienen | 2 usos | `z-50` |
-
-**Montaje único:** `app/layout.tsx` monta las capas 1 y 6 una sola vez para todas las
-rutas. La capa 5 la monta el shell Océano, que solo existe bajo `/oceano`: por eso
-no hay barra en `/` ni en `/login`.
-
-> **Retirado en `8d17188`:** `ui/barra-navegacion.tsx` y `ui/glossy-nav-pill.tsx`
-> ya no existen; `.app-nav-bar*` sigue en `app/globals.css` (8 reglas) sin nadie
-> que lo use. §§3, 5 y 6 se reauditaron contra el shell el 2026-09-30
-> (`PROMPT Q · Parte 2 · D-1`); las cifras compuestas de §1 y §5.2 se re-miden
-> con los greps de §9, no a ojo.
-
----
-
-## 3. Mapa de navegación — cómo está dividida la UX
-
-Contenedor **estándar** (7 de 8 rutas, idéntico carácter por carácter):
-
-```
-relative z-10 mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-24 pt-6 sm:px-6 lg:max-w-6xl lg:px-8 lg:pt-8
-```
-
-> **La tabla siguiente es legado (R8).** Las rutas `/perfil`…`/tutor` siguen existiendo
-> (R8), pero solo redirigen a `/oceano` y ya no son la navegación: esa es el shell (descrito en «Quién ve
-> qué» y en el árbol, abajo). Las piezas retiradas (`MainTabButton`, `BubblePill`,
-> `barra-navegacion`, `glossy-nav-pill`) ya no existen.
-
-| Ruta | Server | Client (líneas) | Contenedor | Zonas / piezas propias |
-|---|---|---|---|---|
-| `/` | `app/page.tsx` | `portada-carrusel.tsx` | **a sangre**, sin contenedor: el hero y las bandas de carrera ocupan todo el ancho | frame «Pantalla de bienvenida» (prompt O, 2026-09-24): barra de contacto con redes · carrusel 7:3 (4:5 en teléfono) o portada institucional si no hay imágenes · una banda por carrera con su video 16:9 · pie con ubicación, contactos, redes y logos SEMS / DGETAyCM / SEP. Lo administrable llega de `leerPortadaPublica`; si falla, se pinta lo fijo. **Sin barra de navegación.** |
-| `/login` | `app/login/page.tsx` | — | — | `redirect("/")`; no pinta nada |
-| `/oceano` | `oceano/page.tsx` (94) | `components/oceano/shell-oceano.tsx` (179) + 8 piezas | **propio:** el shell pinta su fondo (`--oc-bg`) y el rail va anclado a x=0; no usa el contenedor estándar | **Fases 1-4** — shell único: barra superior por rol (nivel 1) + rail de apartados (nivel 2) con **selector de alumno vinculado** por encima (Fase 4) + barra de modo (nivel 3), desde `lib/navegacion/mapa-navegacion.ts`. El contenido de los huecos con pieza lo decide `lib/navegacion/contenido-alumno.ts` y lo montan `contenido-alumno-oceano.tsx`, `asistencia-tabular-alumno.tsx` y `notificaciones-alumno.tsx`; las MISMAS piezas sirven al alumno y al tutor (reciben el `curp` del alumno elegido, no el rol). Las rutas viejas solo redirigen aquí (Fase 9). |
-| `/perfil` | `perfil/page.tsx`: solo `redirect("/oceano")` | hoy, en el shell: `components/oceano/contenido-alumno-oceano.tsx` | el del shell (`/oceano`) | sus pestañas (materia · estatus · comentarios · boleta) son apartados del alumno; qué pieza va en cada hueco lo decide `lib/navegacion/contenido-alumno.ts` |
-| `/profesor` | `profesor/page.tsx`: solo `redirect("/oceano")` | hoy, en el shell: `components/oceano/contenido-docente-oceano.tsx` | el del shell (`/oceano`) | lo decide `lib/navegacion/contenido-docente.ts` (maestro y directivo) |
-| `/directivo` | `directivo/page.tsx`: solo `redirect("/oceano")` | hoy, en el shell: `components/oceano/contenido-directivo-oceano.tsx` + `contenido-docente-oceano.tsx` | el del shell (`/oceano`) | lo decide `lib/navegacion/contenido-directivo.ts` |
-| `/configuracion` | `configuracion/page.tsx`: solo `redirect("/oceano")` | hoy, en el shell: `components/oceano/contenido-tecnico-oceano.tsx` | el del shell (`/oceano`) | lo decide `lib/navegacion/contenido-tecnico.ts`; los paneles de la ruta vieja están en Personas, Ciclo escolar y Catálogo |
-| `/documentos` | `documentos/page.tsx`: solo `redirect("/oceano")` | hoy, en el shell: `documentos-panel.tsx`, montado por `contenido-tecnico-oceano.tsx` (Contenido › Documentos) | el del shell (`/oceano`) | el mismo panel sirve Materias › Recursos y Documentos de Administración escolar |
-| `/tutor` | `tutor/page.tsx`: solo `redirect("/oceano")` | hoy, en el shell: `components/oceano/contenido-alumno-oceano.tsx` (las mismas piezas que el alumno) | el del shell (`/oceano`) | el selector de alumno vinculado del rail fija el alcance; los mensajes, en Perfil › Mis mensajes |
-
-### Quién ve qué en la barra
-
-> **Reescrito el 2026-09-19.** Hasta el commit `8d17188` («la UI antigua se
-> retira») esta sección describía la barra retirada en §2: eran *pills* que
-> apuntaban a rutas (`/perfil`, `/profesor`, `/directivo`…). El shell Océano no
-> navega por rutas: todo cuelga de `/oceano` y la barra superior conmuta
-> **pestañas**.
-
-La fuente única es **`lib/navegacion/mapa-navegacion.ts`** (`MAPA`, que se lee con `pestanasDe`). La
-barra (`app/components/oceano/nav-superior-oceano.tsx`) es presentación pura:
-recibe las pestañas ya resueltas y no decide nada.
-
-| Rol | Pestañas, en orden |
-|---|---|
-| alumno | Perfil · Materias · Calendario · Chat |
-| tutor | Perfil (+ «Mis mensajes») · Materias · Calendario · Chat |
-| maestro | Materias · Calendario y asistencias · Mensajes |
-| directivo | Materias · Grupos y boleta · Calendario y asistencias · Administración · Configuración · Mensajes |
-| técnico | Ciclo escolar · Catálogo · Personas · Contenido · Configuración · Mensajes |
-| administración escolar | Alumnos · Tutores · Trámites escolares · Documentos · Mensajes |
-
-**Configuración** (prompt N, 2026-09-23) es la MISMA pestaña para los dos roles: un apartado,
-«Video e imágenes» → `portada-medios-panel.tsx`, que administra el carrusel, los videos por
-carrera y los enlaces de contacto de la portada pública. Sustituye al apartado apagado
-«Noticias» de Contenido.
-
-**Administración escolar** (2026-09-24). «Alumnos» es un EXPEDIENTE: un buscador en el
-sidebar (`buscador-expediente-oceano.tsx`, en el sitio del selector del tutor) fija el
-alumno, y cada apartado es la MISMA pieza que ven el alumno y su tutor
-(`contenido-administracion.ts` los empareja). «Trámites escolares» tiene Constancias de
-estudios —la constancia con el **formato oficial** del plantel, lista para imprimir o
-guardar en PDF (`constancia-estudios-vista-previa.tsx`: una sola hoja en unidades `cqw`,
-tamaño carta al imprimir), y las solicitudes— y
-Reportes, que se elaboran sobre el alumno elegido.
-
-**Constancias de estudios** (2026-09-25). Alumno y tutor las piden en **Perfil › Constancias
-de estudios** (`solicitudes-constancia-panel.tsx`), el mismo sistema que «Sesiones
-programadas»: asunto, motivo y día para recogerla. Solo Administración escolar las acepta
-(«Trámites escolares › Constancias › Solicitudes»). Dirección no las atiende: en
-«Administración escolar › Recursos administrativos» genera la constancia directamente con la
-CURP (`constancia-por-curp-panel.tsx`), con la misma hoja oficial.
-
-Dentro de cada pestaña, **los apartados** sí se filtran por **capacidad**
-(`puede()`), no por rol: un apartado visible que el servidor rechaza es un bug
-(`docs/sistema/MATRIZ-PERMISOS.md`).
-
-> La tabla de rutas de arriba es **legado (R8)**: las rutas siguen existiendo como
-> fallback, pero ya no son la navegación. El árbol de abajo describe el shell, que es
-> lo que de verdad se monta.
-
-### Árbol de uso de componentes
-
-```
-layout.tsx ─ decoracion-fondo · frutiger-backdrop · cambio-clave-forzado · web-vitals
-page.tsx (/) ─ portada-carrusel
-oceano ─ shell-oceano ─ nav-superior-oceano (pestañas por rol) · sidebar-oceano (apartados)
-                       · barra-modo-oceano (sub-vistas) · selector-alumno-oceano (tutor)
-                       · buscador-expediente-oceano (administración escolar)
-        └ contenido-{alumno,directivo,docente,tecnico,administracion}-oceano
-          · contenido-marcador-oceano (huecos sin pieza)
-          · asistencia-tabular-alumno · notificaciones-alumno · numero-control-alumno
-```
-
-`frutiger-backdrop` y `glossy-person-icon` los usan **8 archivos cada uno**: son las
-dos piezas realmente compartidas del sistema.
-
----
-
-## 4. Tokens — los valores que hoy existen
-
-> Ninguno de estos valores tiene nombre en el código todavía (salvo los del fondo y,
-> desde la Fase 1, la paleta Océano de §4.8).
-> La columna «dónde se cambia» dice la verdad de hoy, no el ideal.
-
-### 4.1 Color
-
-**Familias usadas** (ocurrencias en `bg-/text-/border-/ring-/from-/via-/to-`):
-
-| Familia | Usos | Papel real en el producto |
-|---|---|---|
-| `slate` | 627 | texto secundario + **todos los botones neutros** (gradiente 400→600) |
-| `sky` | 529 | identidad de marca: títulos, acciones primarias, foco |
-| `emerald` | 186 | éxito / confirmación / estado «bien» |
-| `red` | 144 | error / destructivo |
-| `amber` | 124 | aviso / pendiente |
-| `rose` | 44 | error alternativo — **duplica el papel de `red`** |
-| `indigo`, `violet`, `teal`, `orange` | 92 | usos sueltos sin papel definido |
-
-**Superficies de mensaje** (patrón `border-X-N/NN bg-X-N`):
-
-| Tono | Receta más usada | Variantes distintas hoy |
-|---|---|---|
-| Éxito | `border-emerald-400/50 bg-emerald-100` | 11 |
-| Aviso | `border-amber-400/50 bg-amber-100` | 13 |
-| Error | `border-red-200 bg-red-50` | 7 (+ 44 usos de `rose`) |
-
-**Tonos de texto más usados:** `text-sky-900` (160) · `text-slate-600` (123) ·
-`text-slate-700` (84) · `text-slate-800` (50, es el color base del `<body>`) ·
-`text-emerald-900` (39) · `text-amber-900` (27).
-
-**Dónde se cambia hoy:** en cada `.tsx`. No hay archivo de paleta.
-**Lo único centralizado:** las variables de fondo en `app/globals.css` `:root`
-(`--app-bg-base #0a2242`, `--app-bg-secondary #0e2c52`, `--app-bg-deep #061729`,
-`--app-bg-glow #38bdf8`, `--app-bg-glow-aqua #67e8f9`, `--app-bg-glow-cyan #22d3ee`,
-`--app-bg-glow-teal #14b8a6`, `--app-bg-glow-blue #3b82f6`) y la paleta del icono de
-persona en `ui/glossy-person-icon.tsx` (`PALETAS`: masculino `#7dd3fc/#38bdf8/#0369a1`,
-femenino `#f9a8d4/#ec4899/#be185d`).
-
-### 4.2 Superficie glass
-
-| Decisión | Valores en uso | Canónico de facto |
-|---|---|---|
-| Relleno | `bg-white/` 80 (38), 70 (28), 90 (26), 60 (21), 50 (20) + 11 valores más | `bg-white/80` |
-| Borde | `border-white/` 70 (136), 55 (68), 60 (51) + 7 más | `border-white/70` |
-| Desenfoque | `backdrop-blur-md` (77), `-sm` (26), `-xl` (26) | `backdrop-blur-md` |
-| Halo del panel | `shadow-[0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)]` (20) | ese |
-
-Receta de panel grande (`GlassShell` de `/`):
-`rounded-[1.75rem] border border-white/60 bg-white/30 shadow-[0_8px_32px_rgba(56,189,248,0.14),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl backdrop-saturate-150`
-
-### 4.3 Radios
-
-| Radio | Usos | Se usa para |
-|---|---|---|
-| `rounded-full` | 192 | pills, botones, chips, avatares |
-| `rounded-xl` | 105 | campos, celdas, cajas pequeñas |
-| `rounded-2xl` | 83 | sub-paneles |
-| `rounded-3xl` | 74 | paneles |
-| `rounded-[2rem]` | 31 | paneles grandes |
-| `rounded-lg` | 19 | residual |
-| `rounded-[1.5rem]` (13) · `[1.75rem]` (8) · `[1.35rem]` (3) · `[1.25rem]` (1) | 25 | **cuatro radios a medida para el mismo papel que `rounded-3xl`/`[2rem]`** |
-| `rounded-b` · `rounded-t` · `rounded-tl` | 25 | pestañas y bordes parciales |
-
-**La forma de los botones es `rounded-full` en todo el sistema.** Cambiarla a
-rectangular o suave es un cambio de una línea **por pieza** (§5), no global.
-
-### 4.4 Sombras
-
-40 sombras arbitrarias distintas; siete cubren el grueso:
-
-| Sombra | Usos | Papel |
-|---|---|---|
-| `inset_0_2px_0_rgba(255,255,255,0.35)` | 58 | brillo superior de pill/botón |
-| `inset_0_2px_0_rgba(255,255,255,0.5)` | 52 | brillo superior de superficie clara |
-| `inset_0_2px_0_rgba(255,255,255,0.6)` | 20 | idem, más marcado |
-| `0_12px_40px_rgba(56,189,248,0.15),inset_0_1px_0_rgba(255,255,255,0.9)` | 20 | halo azul de panel |
-| `inset_0_1px_0_rgba(255,255,255,0.95)` | 18 | línea de luz de campo |
-| `inset_0_2px_0_rgba(255,255,255,0.35),0_3px_10px_rgba(2,6,23,0.12)` | 14 | botón con elevación |
-| `inset_0_3px_12px_rgba(0,0,0,0.06)` | 11 | hundido (zonas de lista) |
-
-Las 33 restantes tienen entre 1 y 7 usos: son el ruido a consolidar (§7).
-
-### 4.5 Tipografía
-
-- **Fuente:** Nunito (`next/font/google`, pesos 400/500/600/700/800), declarada en
-  `app/layout.tsx` como `--font-nunito` y expuesta a Tailwind con
-  `@theme inline { --font-sans: var(--font-nunito) }` en `globals.css`.
-- **Color base:** `text-slate-800` en el `<body>` (`app/layout.tsx`).
-
-| Tamaño | Usos | Papel |
-|---|---|---|
-| `text-[10px]` | 269 | rótulos de pill, etiquetas, cabeceras de tabla |
-| `text-xs` | 239 | texto de panel |
-| `text-[11px]` | 170 | rótulo de botón |
-| `text-sm` | 64 | texto normal / pill de navegación |
-| `text-[9px]` (17) · `text-[8px]` (3) | 20 | micro-rótulos — límite de legibilidad |
-| `text-lg` (8) · `text-xl` (7) · `text-2xl` (1) | 16 | los únicos títulos grandes de todo el portal |
-
-**Diagnóstico de producto:** más del 60 % del texto mide 10–11 px y solo 16 elementos
-en todo el sistema pasan de 18 px. La escala está comprimida hacia abajo: no hay
-jerarquía tipográfica, la jerarquía la llevan el color y la forma de la pill.
-
-Rótulos: casi todo botón/pill es `font-extrabold uppercase tracking-wide` (o
-`tracking-wider` / `tracking-widest` en los tres tamaños de pill).
-
-### 4.6 Espaciado y contenedor
-
-| Decisión | Valor | Dónde |
-|---|---|---|
-| Ancho de página | `max-w-5xl` → `lg:max-w-6xl` | 7 rutas |
-| Ancho de `/` | a sangre (sin `max-w`) | `app/page.tsx` |
-| Padding lateral | `px-4 sm:px-6 lg:px-8` | todas |
-| Padding superior | `pt-6 lg:pt-8` | todas |
-| Padding inferior | `pb-24` | todas (deja aire bajo el último panel) |
-| Padding de panel | `p-5 sm:p-6` (paneles medianos) · `p-6 sm:p-8` (panel de login) | — |
-| Separación entre paneles | `gap-5 lg:gap-6` | rejilla de `/` |
-
-Puntos de corte: solo `sm:` (640 px) y `lg:` (1024 px). No hay `md:` ni `xl:`
-sistemáticos.
-
-### 4.7 Movimiento
-
-Todo el movimiento vive en `app/globals.css`. Ningún componente anima con JS.
-
-| Grupo | Keyframes | Duración |
-|---|---|---|
-| Fondo: respiración | `app-bg-breathe` | 24 s (`--app-bg-animation-duration`) |
-| Fondo: glows | `app-bg-drift-a…d` | 25–37 s (`--app-bg-animation-duration-slow` ×0.85–1.25) |
-| Fondo: ribbons | `app-bg-ribbon-a…d` | 26–36 s |
-| Fondo: sheen | `app-bg-sheen` | 44 s |
-| Fondo: burbujas | `app-bg-float` | 22–40 s, 12 burbujas (6 en ≤640 px) |
-| Decoraciones | `decor-drift-a/b/c` | según elemento |
-| Interacción | `transition hover:brightness-105` / `110` | por defecto de Tailwind |
-
-`@media (prefers-reduced-motion: reduce)` desactiva **todas** las animaciones de fondo,
-nav y decoración, y deja las burbujas estáticas a `opacity: 0.1`. Cualquier animación
-nueva debe entrar en ese bloque.
-
-### 4.8 Paleta Océano — los primeros tokens con nombre (Fase 1, 2026-09-10)
-
-`app/globals.css` declara **17 variables `--oc-*`** en un bloque **aditivo**: los
-`--app-bg-*` de §4.1/§4.2 siguen ahí y no se tocan (R8). Los **valores** no se repiten
-aquí: viven en `docs/sistema/TOKENS-OCEANO.css`, que es la fuente versionada (12 medidos
-píxel a píxel de los PNG de Figma, 4 derivados por el diseño, más el fondo compuesto).
-
-| Papel | Token | Quién lo usa hoy |
-|---|---|---|
-| Fondo de la firma (gradiente navy→teal) | `--oc-bg` | la raíz del shell |
-| Superficie de contenido | `--oc-surface` | panel de contenido del shell |
-| Panel lateral | `--oc-sidebar` | el rail lateral (fondo) |
-| Campos y grupos | `--oc-input` | chip de usuario, barra de modo |
-| Acento (único) | `--oc-mint` / `--oc-mint-ink` | CTA primario y pestaña activa del nivel 1 (**como texto, sin fondo**: es un toque, no un bloque) |
-| Texto / secundario | `--oc-text` / `--oc-muted` | todo el shell |
-| Estado | `--oc-ok` · `--oc-alert` · `--oc-alert-text` | estados de asistencia y justificación (fondo/borde + texto), aviso de columna duplicada |
-| Bordes | `--oc-border` · `--oc-border-active` | separadores y ítem activo (1 px) |
-
-Dos reglas que viajan con los tokens (están en el comentario de `globals.css` y en
-`TOKENS-OCEANO.css`): `--oc-alert` es **solo punto** —da 2.24:1 sobre `--oc-surface`,
-ilegible como texto— y su versión en texto es `--oc-alert-text`; y los componentes
-referencian el **papel** (`var(--oc-surface)`), nunca el hex, porque un hex literal en un
-componente reabre la deuda D11.
-
----
-
-## 5. Catálogo de piezas
-
-Estado real: **`app/components/ui/` solo contiene 4 archivos**, y ninguno es un botón,
-un panel ni un campo. Las piezas de interfaz están **definidas dentro de los archivos
-que las usan** y copiadas a mano.
-
-### 5.1 Piezas compartidas de verdad (`app/components/ui/`)
-
-| Pieza | Archivo | La usan | Receta clave |
+| Medida | 2026-09-08 | 2026-10-24 | |
 |---|---|---|---|
-| `FrutigerBackdrop` | `ui/frutiger-backdrop.tsx` | 8 archivos | `relative isolate z-[1] min-h-dvh overflow-x-hidden font-sans` |
-| `DecoracionFondo` | `ui/decoracion-fondo.tsx` | `layout.tsx` | 7 capas CSS + 12 burbujas con posición inline |
-| `GlossyPersonIcon` | `ui/glossy-person-icon.tsx` | 8 archivos | SVG con `PALETAS` por género |
-| `WebVitals` | `ui/web-vitals.tsx` | `layout.tsx` | sin render |
+| Variables CSS declaradas | 23 (solo fondo/nav) | 39, de ellas **19 `--oc-*`** con papel propio | saldado |
+| Sombras `shadow-[...]` distintas | 40 | **9** | saldado |
+| Usos de `rose-*` compitiendo con `red-*` para «error» | 44 | **0** | saldado |
+| Piezas visuales duplicadas a mano | 25 copias / 5 nombres | **16 copias / 3 nombres** | a medias |
+| Radios distintos | 13 | 11 | a medias |
+| Archivos `.tsx` de UI | 53 | 76 | — |
 
-### 5.2 Piezas duplicadas a mano (fuente actual: C11)
-
-> **Reauditado el 2026-09-30.** La fuente ya no es esta tabla (medición del 2026-09-08
-> sobre 53 archivos): es la regla **C11** de `scripts/test-orden.mjs`, que cuenta las
-> definiciones sobrantes (copias menos una) y hoy marca **21**; el desglose está en §7.
-> De los cinco nombres que listaba esta sección, **dos se retiraron con la UI antigua**
-> —`MainTabButton` y `BubblePill` (0 archivos)— y quedan **tres**: `GreyActionPill`
-> (7 copias), `PanelTab` (6) y `PillButton` (3).
-
-### 5.3 Recetas (el CSS literal de cada pieza)
-
-| Pieza | Receta |
-|---|---|
-| **Botón neutro** (`GreyActionPill`) | `rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35),0_3px_10px_rgba(2,6,23,0.12)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60` |
-| **Botón primario** (`PillButton`) | igual, cambiando el gradiente por `from-sky-500 via-sky-600 to-sky-700` |
-| **Rótulo de sección** (`PanelTab`) | `rounded-full border border-white/70 bg-linear-to-b from-slate-400 via-slate-500 to-slate-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.35)] sm:text-[11px]` |
-| **Rótulo destacado** (`SectionPill`, solo `/`) | `rounded-full border border-white/70 bg-linear-to-b from-sky-200/90 via-sky-100/80 to-white/70 px-6 py-2 text-xs font-extrabold uppercase tracking-widest text-sky-900 shadow-[0_4px_16px_rgba(14,165,233,0.2),inset_0_1px_0_rgba(255,255,255,0.95)]` |
-| *(retirado con la UI antigua: `BubblePill`, `MainTabButton` y `GlossyNavPill` — 0 archivos)* | — |
-| **Campo compacto** (select/input) | `rounded-xl border border-white/70 bg-white/85 px-2 py-1.5 text-[10px] font-bold text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] outline-none focus:ring-2 focus:ring-sky-400/50` |
-| **Campo ancho** | `w-full min-w-[7rem] rounded-xl border border-white/70 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-inner outline-none focus:border-sky-600 disabled:bg-white/50 disabled:text-slate-600` |
-| **Sub-panel** | `rounded-2xl border border-white/55 bg-white/50 p-3` |
-| **Mensaje éxito / aviso / error** | `border-emerald-400/50 bg-emerald-100` · `border-amber-400/50 bg-amber-100` · `border-red-200 bg-red-50` |
+`MainTabButton`, `BubblePill`, `GlassShell` y `SectionPill` desaparecieron con las
+pantallas que los copiaban. `ui/barra-navegacion.tsx` y `ui/glossy-nav-pill.tsx` ya no
+existen: se retiraron en `8d17188`.
 
 ---
 
-## 6. Matriz de cambio — «quiero cambiar X»
+## 2. La deuda que sigue viva
 
-El `grep` de alcance se ejecuta **antes** de encargar el cambio, para saber cuántos
-sitios toca. Todos son de solo lectura.
+### D2 — 16 copias a mano de 3 piezas
 
-| Quiero cambiar… | Se toca hoy | Alcance | Riesgo |
-|---|---|---|---|
-| **Color/animación del fondo** | `app/globals.css` `:root` (`--app-bg-*`) | 1 archivo, global | bajo |
-| **Intensidad del movimiento del fondo** | `--app-bg-animation-duration*` en `globals.css` | 1 archivo | bajo |
-| **Quitar/mover burbujas** | `BURBUJAS` en `ui/decoracion-fondo.tsx` + `.app-bg-bubble` | 2 archivos | bajo |
-| **Barra superior (aspecto)** | `app/components/oceano/nav-superior-oceano.tsx` | 1 archivo — presentación pura | bajo |
-| **Qué pestañas salen y para quién** | `lib/navegacion/mapa-navegacion.ts::pestanasDe` | 1 archivo — los apartados siguen a `puede()` | **alto**: un apartado que el servidor rechaza es un bug |
-| **Color de los botones primarios** | 3 copias de `PillButton` + gradientes sueltos | `grep -rn "from-sky-500 via-sky-600 to-sky-700" app --include=*.tsx` (7) | medio |
-| **Color de los botones neutros** | 7 copias de `GreyActionPill` + rótulos `PanelTab` | `grep -rn "from-slate-400 via-slate-500 to-slate-600" app --include=*.tsx` (77) | medio |
-| **Forma de los botones** (dejar de ser cápsula) | las 3 piezas de §5.2 | `grep -rn "rounded-full" app --include=*.tsx` (192; incluye avatares y chips) | medio |
-| **Tamaño de la letra de los botones** | `text-[11px]` en las piezas de §5.2 | `grep -rn "text-\[11px\]" app --include=*.tsx` (170) | medio |
-| **Legibilidad general del texto** | `text-[10px]`/`[9px]`/`[8px]` repartidos | `grep -rn "text-\[10px\]" app --include=*.tsx` (269) | **alto**: cambia todas las rejillas |
-| **La fuente** | `Nunito` en `app/layout.tsx` + `--font-sans` en `globals.css` | 2 archivos, global | bajo |
-| **Transparencia/blur de los paneles** | `bg-white/NN` + `backdrop-blur-*` repartidos | `grep -rn "backdrop-blur" app --include=*.tsx` (129) | medio |
-| **Redondeo de los paneles** | `rounded-3xl` · `[2rem]` · `[1.75rem]` · `[1.5rem]` | 4 greps (§4.3) | medio |
-| **Colores de éxito/aviso/error** | pares `border-X bg-X` en cada panel | `grep -rnE "bg-(emerald\|amber\|red\|rose)-[0-9]+" app --include=*.tsx` | medio |
-| **Ancho de las páginas** | contenedor estándar en 7 clientes + 5 envoltorios de `/configuracion` | `grep -rn "max-w-5xl" app --include=*.tsx` (14) | bajo |
-| **Reordenar zonas dentro de una ruta** | el `*-client.tsx` de esa ruta (§3) | 1 archivo | bajo |
-| **Mover un panel de una ruta a otra** | quitar el import de un cliente, añadirlo en otro | 2 archivos (+ `ORDEN.md` §1 si cambia de carpeta) | medio |
-| **Aspecto de los campos de formulario** | receta repetida en cada panel | `grep -rn "focus:ring-sky-400/50" app --include=*.tsx` | medio |
-| **Aspecto de las pestañas** | `app/components/oceano/nav-superior-oceano.tsx` (las pestañas del shell) | 1 archivo | bajo |
-| **La pantalla de cambio forzado de clave** | `components/cambio-clave-forzado.tsx` | 1 archivo | bajo |
-| **La portada `/`** | `app/page.tsx` + `portada-carrusel.tsx`; el contenido, en «Configuración → Video e imágenes» | 2 archivos | bajo |
-| **Icono de persona / avatares** | `PALETAS` en `ui/glossy-person-icon.tsx` | 1 archivo, 8 consumidores | bajo |
-| **Logo de la esquina** | `LOGO_ESQUINAS_ARCHIVO` en `lib/decoraciones/config.ts` + `npm run sync:decoraciones` | 1 archivo + el binario en `decoraciones imagenes/` | bajo |
-
----
-
-## 7. Deuda de UX medida (2026-09-08)
-
-No es opinión de estilo: son los puntos donde **un cambio visual no se propaga solo**.
-
-| # | Deuda | Medida | Consecuencia |
-|---|---|---|---|
-| D1 | No hay capa de tokens | 23 variables CSS, todas de fondo | cambiar un color de marca = N archivos |
-| D2 | 25 copias manuales de 5 piezas | §5.2 | 3 de esas piezas ya tienen variantes divergentes |
-| D3 | 40 sombras distintas | 33 con ≤7 usos | ninguna «sombra del sistema» reconocible |
-| D4 | 13 radios | 4 a medida para el mismo papel | esquinas visiblemente desiguales entre paneles |
-| D5 | 16 opacidades de blanco + 10 de borde | §4.2 | los paneles no parecen del mismo material |
-| D6 | Escala tipográfica comprimida | >60 % del texto a 10–11 px; 16 elementos >18 px | no hay jerarquía; se lee denso y plano |
-| D7 | `red` y `rose` compiten para «error» | 144 vs 44 usos | el mismo estado se ve de dos colores |
-| D8 | `app/components/ui/` no contiene piezas de interfaz | 6 archivos, ninguno botón/panel/campo | quien escribe un panel nuevo copia y pega |
-| D9 | `/configuracion` repite el envoltorio de ancho 5 veces desde el server | `configuracion/page.tsx` | el ancho de esa ruta se cambia en 6 sitios |
-| D10 | `focus-visible:` solo 11 usos frente a 101 `focus:` | — | el anillo de foco aparece también al hacer clic con ratón |
-| D11 | Tema claro sobre fondo oscuro | 905 ocurrencias en 38 archivos (`diag-restyle-oceano.mjs`, 2026-09-10) | los paneles son glass CLARO (`bg-white/30`, `text-sky-900`) sobre un fondo navy; el diseño Océano los quiere oscuros, así que el rediseño toca los 38 archivos |
-
-### Migración Océano (2026-09-10)
-
-Rediseño visual completo sobre el archivo de Figma `CkEJzPJejUZLeByX7ErdWm`. **D11 es su
-medida.** No es una deuda a saldar por separado: se salda *siendo* la migración.
-
-**Línea base medida el 2026-09-10** (`node scripts/diag-restyle-oceano.mjs`):
-
-| Fase | Alcance | Ocurrencias de tema claro |
+| Pieza | Copias | Archivos |
 |---|---|---|
-| 1 | Tokens y shell global (5 roles) | 11 |
-| 2 | Reubicar lo que funciona · alumno | 214 |
-| 4 | Tutor | 51 |
-| 5 | Profesor | 187 |
-| 6 | Directivo | 76 |
-| 7 | Técnico | 284 |
-| — | Sin fase (incluye `documentos-panel`, que queda apagado) | 82 |
-| | **Total** | **905** |
+| `GreyActionPill` | 7 | `calendario-asistencia-alumno`, `calendario-escolar-panel`, `cambio-clave-forzado`, `documentos-panel`, `justificaciones-admin`, `roster-alumnos-panel`, `tutores-panel` |
+| `PanelTab` | 6 | los mismos menos `cambio-clave-forzado` |
+| `PillButton` | 3 | `asistencias-panel`, `etiquetas-dinamicas-panel`, `horario-escolar-panel` |
 
-**Invariante de la migración:** cada fase debe **bajar** su cifra de «claro» y **subir** la
-de `--oc-*`. Una fase que no mueve ninguna de las dos no tocó la superficie que decía tocar.
+Todas viven **dentro** del archivo que las usa, y ya divergieron entre sí (una
+`GreyActionPill` perdió la sombra exterior; una `PillButton` usa `disabled:opacity-50`
+donde las otras usan `60`). Consecuencia práctica: **cambiar el color o la forma de un
+botón del portal son 16 ediciones, y la que se olvide se queda distinta.**
 
-**Fase 1 ejecutada (2026-09-10; corrección visual 1.1 el mismo día).** Tokens Océano
-aplicados a `app/globals.css` y shell único creado (`app/components/oceano/` + ruta de
-previsualización `/oceano`). La corrección 1.1 ajusta **presentación** contra los PNG de
-Figma y no toca arquitectura: el ítem activo del nivel 1 pasa de píldora menta rellena a
-**texto menta sin fondo** (la menta es un toque, no un bloque), el rail queda **anclado a
-x=0 y a todo el alto** (divide la pantalla en dos zonas, ya no flota), el chip de usuario
-pasa a **dos líneas** (nombre / rol, sin `uppercase`) y las pestañas se **reparten a lo
-ancho** de la barra con el chip al extremo derecho. Medición con `diag-restyle-oceano.mjs`
-(antes → después): `--oc-*` **0 → 93**; Fase 1 **11 claro / 0 oscuro (0 %) → 11 claro /
-93 oscuro (89 %)**; total de tema claro **905 → 905**. El descenso de 96 a 93 es
-exactamente lo que la corrección autoriza: al retirar el relleno menta del ítem activo
-desaparecen dos referencias a token.
+Arreglo, cuando toque: `app/components/ui/pill.tsx` con las tres, imports en los 10
+archivos, y como canónica la variante **con** sombra exterior. Aceptación:
+`npx tsc --noEmit` y `next build` limpios, `grep -rc "^function GreyActionPill" app` = 0,
+y capturas antes/después sin diferencia salvo el botón de `cambio-clave-forzado`, que
+gana la sombra que le falta.
 
-> ⚠ **La mitad «bajar claro» del invariante no se cumple en esta fase, y es deliberado:**
-> las 11 ocurrencias de tema claro que la Fase 1 tiene asignadas están **todas** en
-> `app/page.tsx` —la portada pública / login—, y el prompt de la fase prohíbe
-> reestructurarla («NO reestructurar la ruta publica ni el login todavia»). Fase 1 sube
-> `--oc-*` y deja el claro intacto; esa cifra baja cuando la portada entre en la migración.
+### D6 — la escala tipográfica del portal sigue comprimida
 
-**Fase 2 ejecutada (2026-09-10).** El shell monta las **piezas reales del alumno** (los
-seis componentes que ya funcionaban en `/perfil`) y los seis se convierten a Océano oscuro:
-`materia-selector` (27→0 claro), `calendario-asistencia-alumno` (47→0),
-`etiquetas-dinamicas-panel` (25→0), `horario-alumno-resumen` (15→0),
-`materia-calificaciones-alumno` (12→0) y `materia-tabla-vista` (7→0). La decisión
-hueco→pieza vive en `lib/navegacion/contenido-alumno.ts` (módulo puro) y el cableado en
-`app/components/oceano/contenido-alumno-oceano.tsx`. Medición (antes → después): Fase 2
-**214 claro / 0 oscuro → 81 claro / 222 oscuro**; total de claro **905 → 772**; avance
-global **0 % → 30 %**; Fase 1 sigue en **11 claro / 93 oscuro**.
+255 usos de `text-[10px]`, 245 de `text-xs`, 160 de `text-[11px]`, y 20 de
+`text-[8px]`/`text-[9px]`. La portada pública ya tiene jerarquía real (`3xl`–`6xl`); las
+rutas internas no: ahí la jerarquía la llevan el color y la forma de la pill, no el
+tamaño. No es un bug — es la razón por la que el portal «se lee denso».
 
-> **Esta es la primera fase donde el invariante se cumple ENTERO** (el claro baja y `--oc-*`
-> sube). Los **81 claro** que quedan en la Fase 2 son todos de `perfil/perfil-client.tsx`,
-> que la fase **conserva a propósito** por R8 («no se borra en esta fase… su retiro es una
-> decisión posterior y explícita»): restylearlo sería trabajo que se tira al retirarlo.
-> Cuando se retire, la Fase 2 cerrará en 0 claro sin tocar nada más.
+### D10 — foco
 
-**Fase 3 ejecutada (2026-09-10).** «Contenido nuevo, cero Supabase»: los cinco apartados
-del alumno que aún no tenían superficie ya la tienen, sobre las superficies de la Fase 1 y
-las piezas de la Fase 2. `Seguimiento médico` e `Información personal` renderizan su grupo
-de campos estructurados desde `grupos-campos-personales.ts` (la UI no decide qué es
-médico); `Seguimiento semestral` es una lista de solo lectura del array ya cargado;
-`Calendario › Asistencia` tiene sus dos sub-vistas («Calendario visual» reutiliza el
-calendario existente; «Datos crudos» usa `asistencia-tabular.ts`, sin recalcular nada); y
-`Notificaciones` compone comentarios + justificaciones con la decisión en el módulo puro
-`notificaciones-alumno.ts` (**29 pruebas nuevas**: la suite pasa de 140 a **169**).
-
-Medición (antes → después): claro **772 → 772** y Fase 2 **81 → 81** (la fase no restylea
-nada: no toca `/perfil`, que conserva sus 81 a propósito); `--oc-*` **326 → 359**; avance
-global 30 % → 32 %. Cero consultas nuevas y `app/actions/` sin una línea de lógica nueva.
-
-**Fase 3.1 ejecutada (2026-09-10).** Cierra el alumno. Dos correcciones, ninguna de
-arquitectura:
-1. **El mapa**, que era la única fuente del error: `act("asistencia", "Asistencia")` pierde
-   sus dos modos («Calendario visual» · «Datos crudos»). El apartado es la **tabla de datos
-   crudos**; el calendario visual sigue viviendo, **único**, en «Calendario escolar». Con
-   esto desaparece la redundancia que la Fase 3 reportó. La suite gana la aserción que
-   refleja el estado nuevo (`modos === []`): **170/170**.
-2. **Los cuatro datos** que faltaban en `Perfil › Información personal`, todos leídos del
-   payload de la MISMA acción (cero consultas nuevas): **foto de perfil** (con marcador
-   cuando no hay URL o la imagen no carga), **identidad** (CLAVE y CURP), **contacto del
-   tutor** (o la frase «Sin tutor vinculado») y **comentario personal** del alumno.
-
-Medición (antes → después): **claro 772 → 772** y **Fase 2 81 → 81** (esta fase no restylea
-nada), oscuro **359 → 370**, avance 32 %. `app/actions/` y `lib/escolar/` sin tocar;
-`/perfil` intacto con sus 81.
-
-**Fase 4 ejecutada (2026-09-10).** El tutor tiene datos en el mismo shell. **No es una fase de
-estilo**: no toca `tutor-client.tsx` (sus 51 claro se quedan; se retira entero en la Fase 9),
-así que **claro 772 → 772**, **Fase 4 51 → 51** y **Fase 2 81 → 81**; `--oc-*` sube
-**370 → 392** por las piezas del alumno que ahora se cablean también para el tutor. Lo
-sustantivo es de **alcance**, no visual: `actionObtenerVistaMateria` dejó de entregar la
-tabla del grupo a un tutor (ver `ESTADO-ACTUAL.md` §7). El shell gana un **selector de alumno
-vinculado** en el rail (nivel 2) y las mismas piezas del alumno reciben el `curp` elegido: ni
-un componente duplicado por rol.
-
-**Fase 4.1 ejecutada (2026-09-10).** Cierra el **segundo** hueco de alcance:
-`actionObtenerVistaRegistro` entregaba la tabla COMPLETA del grupo a cualquier rol con
-`calificacion.ver` (incluido **alumno**). Ahora niega a quien no sea directivo ni maestro.
-No toca interfaz: diag **idéntico** (772 claro / 392 oscuro), Fase 4 **51**, Fase 2 **81**,
-Fase 1 **11** y la §5 del MATRIZ sin moverse.
-
-**Lo que la migración NO cambia:** ni un permiso (salvo la Fase 0, que es explícitamente un
-cambio de matriz y va sola), ni un modelo de datos, ni la firma de ningún componente. Las
-fases 2 y 5-7 son reubicación y estilo; las fases 3 y 4 añaden presentación sobre datos que
-ya existen.
-
-**La paleta está versionada:** `docs/sistema/TOKENS-OCEANO.css`. Es **referencia, no se
-importa** — aplicarla a `app/globals.css` es trabajo de la Fase 1. Distingue los doce
-valores **medidos** (muestreados de los PNG de Figma) de los cuatro **derivados** (que el
-diseño no define y hay que confirmar). Lleva dentro las tres reglas que no se pueden
-perder: aditivo sobre los `--app-bg-*` actuales, `--oc-alert` solo como punto —da 2.24:1
-sobre `--oc-surface`, ilegible como texto— y componentes que referencian el papel
-(`var(--oc-surface)`), nunca el hex.
-
-**Especificación completa** (gramática de tres niveles, mapa de navegación de los cinco
-roles, registro de lo desactivado y los ocho prompts): artefacto *Rediseño Océano*, fuera
-del repo.
-
-### Plan de consolidación (PROPUESTA — aún NO ejecutada)
-
-Cuatro fases independientes, cada una encargable por separado y verificable sin base de
-datos. Ninguna cambia comportamiento: solo dónde vive el CSS.
-
-| Fase | Qué hace | Contrato de aceptación |
-|---|---|---|
-| **F-UX1 — Piezas** | Crear `app/components/ui/pill.tsx` (`GreyActionPill`, `PillButton`, `PanelTab`, `BubblePill`) y `app/components/ui/tab.tsx` (`MainTabButton`); sustituir las 25 copias por imports. Canónica = la variante **con** sombra exterior. | `npx tsc --noEmit` y `next build` limpios; `grep -rc "^function GreyActionPill" app` = 0; capturas antes/después de `/perfil`, `/tutor` y `/documentos` sin diferencia salvo el botón de `cambio-clave-forzado`, que gana la sombra que le falta |
-| **F-UX2 — Tokens** | Declarar en `globals.css` (`@theme`) los valores canónicos de §4.2/4.3/4.4 con nombre (`--surface-glass`, `--radius-panel`, `--shadow-pill`…) y usarlos desde las piezas de F-UX1 | ningún `.tsx` nuevo con `shadow-[...]`; el número de sombras distintas baja de 40 |
-| **F-UX3 — Semántica** | Un solo tono de error (`red`, retirar `rose`), una sola receta por tono, un componente `Mensaje({tono})` | `grep -rc "rose-" app` = 0 |
-| **F-UX4 — Jerarquía** | Subir la escala tipográfica (cuerpo mínimo 12 px, títulos reales de panel) y retirar `text-[8px]`/`[9px]` | ninguna clase `text-[8px]`/`text-[9px]`; revisión visual de las 8 rutas |
-
-**Estado (2026-09-20) — F-UX1 ya tiene detector.** El PROMPT I añadió la regla **C11** a
-`scripts/test-orden.mjs`: cuenta las definiciones **sobrantes** de componentes en `app/`
-(copias menos una por nombre, fuera de `app/components/ui/` que es el destino) y hoy marca
-**21**, como **trinquete**: no falla por existir, falla si sube. El reparto medido es
-`GreyActionPill` 7 copias (6 sobran) · `Aviso` 7 (6) · `PanelTab` 6 (5) · `PillButton` 3 (2) ·
-`Boton` 2 (1) · `Campo` 2 (1).
-
-Dos avisos para cuando se ejecute F-UX1: (1) la cifra de §5.2 —«5 nombres, 25 copias»,
-2026-09-08— es anterior a esta medición y **no** la sustituye; el detector es la fuente, y
-además aparece **`Aviso`**, que §5 no lista y es la pieza más copiada; (2) al bajar el número
-hay que **apretar el umbral de C11 en el mismo cambio**, o el guardián queda flojo.
-
-Orden obligatorio: **F-UX1 antes que F-UX2** (no tiene sentido dar nombre a un valor que
-está copiado 25 veces). F-UX3 y F-UX4 son independientes entre sí.
+70 `focus:` frente a 8 `focus-visible:`. El anillo de foco aparece también al hacer clic
+con el ratón, no solo al tabular.
 
 ---
 
-## 8. Invariantes de UX (no se rompen sin decisión explícita)
+## 3. Las tres reglas que nacieron de los fallos
 
-1. **El fondo y la barra se montan una sola vez**, en `app/layout.tsx`. Ninguna página
-   los vuelve a montar (regla de no duplicar fuentes, `REGLAS_NO_HACER.md`).
-2. **`/` y `/login` no llevan barra de navegación.**
-3. **Lo que la barra ofrece lo gobierna `puede()`**, la misma función del servidor.
-4. **Toda animación nueva entra en `@media (prefers-reduced-motion: reduce)`.**
-5. **El fondo es decorativo:** `aria-hidden` + `pointer-events-none`. No lleva contenido
-   ni foco.
-6. **Nada de `public/` a mano** para decoración: es salida de
-   `npm run sync:decoraciones` (`ORDEN.md` §1).
-7. **Un componente visual sin dominio va en `app/components/ui/`**, no dentro del
-   archivo que lo usa (`ORDEN.md` §1). Las 25 copias de §5.2 son la deuda de haber
-   incumplido esto, no un permiso para repetirlo.
-8. **Objetivo táctil mínimo 44 px** en controles de uso frecuente. Hoy lo cumplen las
-   pestañas y las opciones de `materia-selector` (mínimo 48 px, decisión tomada para
-   evitar misclicks); las pills `px-4 py-2` se quedan en el límite.
-9. **Texto blanco `font-extrabold` sobre los gradientes `slate-500` / `sky-600`**; no
-   bajar el peso sin comprobar contraste.
+Esto es lo que de verdad había que rescatar del documento viejo.
+
+**R-UX1 — Una pieza visual sin dominio va en `app/components/ui/`, nunca dentro del
+archivo que la usa.** Lo dice `ORDEN.md` §1; las 16 copias de §2 son exactamente el
+coste de haberlo incumplido 16 veces. Copiar una pieza es barato el día que se copia y
+caro cada día siguiente.
+
+**R-UX2 — Un defecto del ARCHIVO no se compensa en CSS.** Caso real (corregido el
+2026-10-24): los cuatro iconos de red de la portada traían cada uno su propio margen
+vacío dentro del PNG — el de WhatsApp ocupaba el 60 % del ancho de su lienzo — así que
+en la misma caja se veían de distinto tamaño. El parche fue un `transform: scale(1.6)`
+sobre uno de ellos. Un parche así no se propaga: el siguiente icono vuelve a desentonar
+y nadie recuerda por qué hay un número mágico. El arreglo correcto fue normalizar los
+archivos (recortar el margen, ajustar el dibujo al lienzo cuadrado por su lado largo) y
+borrar el `scale`. Mismo criterio para la forma: el logo de WhatsApp era de contorno
+entre tres de relleno; se rellenó el archivo, no se tocó el CSS.
+
+**R-UX3 — Un asset se publica a la resolución a la que se ve, no a la que llegó.** Los
+mismos cuatro iconos se servían a 500–2084 px para verse a 24–32 px, y el sello CETAC
+pesaba 377 KB. Normalizados a 128 px y re-codificados con paleta: **738 KB → 73 KB
+(−90 %)**, sin diferencia visible. El origen vive en `decoraciones imagenes/` y
+`npm run sync:decoraciones` lo copia a `public/` — nunca a mano (`ORDEN.md` §1).
 
 ---
 
-## 9. Cómo se mantiene este documento
+## 4. Cómo se re-mide (solo lectura, sin Supabase)
 
-**Cuándo se actualiza:** en el mismo cambio que lo vuelve falso.
-
-| Si el cambio… | Actualiza |
-|---|---|
-| Añade, mueve o quita una ruta o una zona | §3 |
-| Añade un color, radio, sombra o tamaño nuevo | §4 (y explica por qué no valía uno existente) |
-| Crea o consolida una pieza | §5 |
-| Cambia dónde se toca algo | §6 |
-| Salda o crea deuda | §7 y §1 |
-
-**Avance de la migración Océano** (solo lectura, sin Supabase). Sustituye a contar
-`grep` a mano y es el diagnóstico que exige el CONTRATO en las fases 1-7:
+Desde la raíz del repo. Si hace falta el inventario completo que tenía la versión vieja,
+sale de aquí, no de reescribirlo a mano.
 
 ```bash
-node scripts/diag-restyle-oceano.mjs            # todo, con desglose por fase
-node scripts/diag-restyle-oceano.mjs --fase=2   # solo los archivos de una fase
-node scripts/diag-restyle-oceano.mjs --json     # para comparar antes/después
-```
-
-**Cómo se re-miden las cifras de §1 y §4** (desde la raíz del repo, solo lectura, sin
-Supabase):
-
-```bash
-grep -rhoE 'rounded-(\[[^]]*\]|[a-z0-9]+)' app --include=*.tsx | sort | uniq -c | sort -rn
+for n in GreyActionPill PanelTab PillButton; do echo "$n: $(grep -rlE "^function $n" app --include=*.tsx | grep -v _borrador | wc -l)"; done
 grep -rhoE 'shadow-\[[^]]*\]' app --include=*.tsx | sort | uniq -c | sort -rn
-grep -rhoE 'text-(\[[0-9]+px\]|xs|sm|base|lg|xl|2xl|3xl)' app --include=*.tsx | sort | uniq -c | sort -rn
-grep -rhoE 'bg-white/[0-9]+' app --include=*.tsx | sort | uniq -c | sort -rn
+grep -rhoE 'rounded-(\[[^]]*\]|[a-z0-9]+)' app --include=*.tsx | sort | uniq -c | sort -rn
+grep -rhoE 'text-(\[[0-9]+px\]|xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl)' app --include=*.tsx | sort | uniq -c | sort -rn
 grep -rhoE '\b(bg|text|border|ring|from|via|to)-[a-z]+-[0-9]{2,3}' app --include=*.tsx | sed -E 's/^[a-z]+-//; s/-[0-9]+$//' | sort | uniq -c | sort -rn
 ```
 
+Peso de los assets de la portada:
+
+```bash
+ls -l public/decoraciones-imagenes/ | sort -k5 -n -r | head
+```
+
 ---
 
-## 10. Bitácora
+## 5. Bitácora
 
-Append-only. Una línea por cambio visual aceptado: fecha · qué cambió · secciones
-tocadas.
-
-| Fecha | Cambio | Secciones |
-|---|---|---|
-| 2026-09-08 | Creación del documento. Primera medición completa del sistema visual. | todas |
-| 2026-09-10 | Rediseño Océano: línea base medida (905 ocurrencias de tema claro en 38 archivos, 0 % migrado) y alta de `scripts/diag-restyle-oceano.mjs`. Sin cambios de código todavía. | §7, §9, §10 |
-| 2026-09-10 | Paleta Océano versionada en `docs/sistema/TOKENS-OCEANO.css` (referencia, no se importa): 12 valores medidos + 4 derivados. Sigue sin aplicarse a `globals.css`. | §7, §10 |
-| 2026-09-10 | Cuatro módulos puros del rediseño, con suite (`test-rediseno-oceano.mjs`, 140 verificaciones): `materia/facetas-materia`, `alumno/grupos-campos-personales`, `asistencia/asistencia-tabular` y `navegacion/mapa-navegacion`. Ningún componente los consume todavía: la línea base sigue en 905 / 0 %. | §7, §10 |
-| 2026-09-11 | Corrección de cableado tras revisión del responsable: **Grupos/Boleta listaba materias** (lo que hace Materias) y ahora lista **grupos** —`gruposDelCatalogo()` en `facetas-materia`—, que es por lo que esa pantalla filtra. Y `Calendario › Calendario escolar` deja de estar vacío para maestro y directivo: el panel del técnico gana modo `soloLectura` en vez de escribirse un segundo calendario (R6). Suite 308/308. | §5, §6, §10 |
+| Fecha | Cambio |
+|---|---|
+| 2026-09-08 | Primera medición completa del sistema visual (459 líneas, mapa de rutas incluido). |
+| 2026-10-24 | El mapa de rutas queda obsoleto al rehacerse la portada. Se re-mide, se conserva solo la deuda viva y las tres reglas, y se documenta la normalización de los iconos de la portada. |

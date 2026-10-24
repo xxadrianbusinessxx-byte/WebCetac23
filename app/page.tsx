@@ -73,28 +73,35 @@ const CARRERAS_RESPALDO: CarreraPortada[] = Object.entries(ROTULOS_CARRERA).map(
 /** Las bandas del frame alternan estos dos azules. */
 const FONDOS_CARRERA = ["#4C7CBC", "#3D6CAA"];
 
+/**
+ * Los tres se ven a la misma ALTURA (`h-12 sm:h-16`), no al mismo ancho: son
+ * marcas con proporción propia. `ancho`/`alto` son los del archivo, para que el
+ * navegador reserve el hueco exacto y la fila no salte al cargar.
+ */
 const LOGOS_OFICIALES = [
-  { archivo: "SEMSLogo.png", alt: "Subsecretaría de Educación Media Superior", ancho: 2048, alto: 913 },
+  { archivo: "SEMSLogo.png", alt: "Subsecretaría de Educación Media Superior", ancho: 359, alto: 160 },
   {
     archivo: "DGTAyCMLogo.png",
     alt: "Dirección General de Educación Tecnológica Agropecuaria y Ciencias del Mar",
-    ancho: 1024,
-    alto: 226,
+    ancho: 725,
+    alto: 160,
   },
-  { archivo: "SEPLogo.png", alt: "Secretaría de Educación Pública", ancho: 542, alto: 239 },
+  { archivo: "SEPLogo.png", alt: "Secretaría de Educación Pública", ancho: 364, alto: 160 },
 ];
 
 /**
- * `escala`: el PNG de WhatsApp es 1600 × 1136 y el dibujo ocupa ~60 % del ancho; sin
- * compensar, en la misma caja se ve la mitad de grande que los otros.
+ * Los cuatro iconos son PNG de 128 × 128 con el dibujo recortado y ajustado al
+ * lienzo por su lado largo (2026-10-24). Por eso aquí no hay compensación de
+ * tamaño: en la misma caja se ven iguales. Si se sustituye uno, hay que darle
+ * ese mismo trato o volverá a desentonar.
  */
-type Red = { nombre: string; href: string; icono: string; escala?: number };
+type Red = { nombre: string; href: string; icono: string };
 
 function redesDe(enlaces: PortadaPublica["enlaces"] | null): Red[] {
   if (!enlaces) return [];
   const todas: (Red | null)[] = [
     enlaces.tiktok ? { nombre: "TikTok", href: enlaces.tiktok, icono: "TikTokLogo.png" } : null,
-    enlaces.whatsapp ? { nombre: "WhatsApp", href: enlaces.whatsapp, icono: "WhatsAppLogo.png", escala: 1.6 } : null,
+    enlaces.whatsapp ? { nombre: "WhatsApp", href: enlaces.whatsapp, icono: "WhatsAppLogo.png" } : null,
     enlaces.facebook ? { nombre: "Facebook", href: enlaces.facebook, icono: "FacebookLogo.png" } : null,
     enlaces.correo ? { nombre: "Correo", href: enlaces.correo, icono: "GmailLogo.png" } : null,
   ];
@@ -129,7 +136,6 @@ function IconoRedPortada({ red, tamano }: { red: Red; tamano: number }) {
         width={tamano}
         height={tamano}
         className="object-contain"
-        style={red.escala ? { transform: `scale(${red.escala})` } : undefined}
       />
     </a>
   );
