@@ -109,6 +109,7 @@ Correr las que apliquen **antes y después** de cualquier cambio de dominio.
 | `test-permisos.mjs` | (PROMPT-2/T1/T2 + PROMPT-3 + PROMPT-4) pruebas puras de `lib/auth/permisos.ts`: transpila los módulos puros de `lib/auth`, valida `puede()` con los **6 roles** (desde el 2026-09-24, con Administración escolar: lo que puede y, sobre todo, lo que NO — calificar, pasar lista, configurar, resolver o solicitar justificaciones) y compara el código contra la §4 completa del MATRIZ («Código ⇄ §4 (los 6 roles)», regla: la matriz implementada coincide con el documento) |
 | `test-reactivacion-inscripciones.mjs` | (PROMPT-4/T1) suite pura (16 checks) que transpila `ciclo-estado-puro.ts`: la fila marcada con `decision_manual` jamás se reactiva/desactiva; sin marcas se conserva el comportamiento previo |
 | `test-borrar-paso.mjs` | (PROMPT-4/T4) suite pura (10 checks) que transpila `borrar-paso-puro.ts` (`calcularBloqueosPaso`): académico con inscripciones bloquea, horario con actividad bloquea, roster del OPERATIVO bloquea, BORRADOR permite, evaluaciones nunca bloquea |
+| `test-alta-manual-alumno.mjs` | (PROMPT W) `lib/escolar/alumno/alta-manual-alumno-puro.ts` — el alta manual de un alumno: CURP (vacía, 17/19 caracteres, formato roto), número de control obligatorio (vacío es error, no «quitarlo»), nombres en mayúsculas conservando acentos y Ñ, apellido materno opcional, grupo obligatorio, rótulo del grupo con carrera y su orden, y la traducción del choque de UNIQUE. CURPs sintéticas. |
 | `test-calendario-periodo-f5.mjs` · `test-ciclo-calendario.mjs` · `test-asistencia-contexto.mjs` · `test-activacion-ciclo-f8.mjs` | ciclo / calendario / contexto |
 
 ### Verificadores de documentación (`LEE(fs)`) — que los documentos no mientan
@@ -130,6 +131,7 @@ medición en vez de recalcularla.
 | `p0-diag-contexto.mjs` | ciclo activo + contexto académico completo. **El primero a correr ante cualquier duda.** |
 | `p0-verificar-profesor.mjs` · `p0-verificar-restauracion.mjs` | identidad de profesor y estado tras una restauración. `p0-verificar-restauracion`: **salida sensible: no ejecutar desde Cline** (imprime CURPs) |
 | `diag-calendario-periodo.mjs` | días de clase por periodo/parcial (deuda 1) |
+| `diag-alta-manual-alumno.mjs` | (PROMPT W) `LEE(red)`. Conteos que toca el alta manual de alumno: filas de `ALUMNOS` y con `numero_control`, `inscripciones_alumno` activas, `tutor_alumnos` activas, periodo operativo y sus grupos activos. Solo conteos: no imprime CURP, claves ni nombres. Medición 2026-10-24: 472 · 1 · 357 · 458 · `2026-2027` · 24. |
 | `diag-calendario-canonico.mjs` | (PROMPT-1/T2) qué pasaría si cada bucket textual de `calendario_escolar` fuera el canónico del operativo: días por tipo, solapes, huérfanos y filas sin `periodo_id` |
 | `diag-eliminar-ciclo.mjs` | (PROMPT-1/T4) conteos exactos y bloqueos previos al borrado de periodos (replica `diagnosticoEliminarCiclo`). Uso: `node scripts/diag-eliminar-ciclo.mjs <id>...` |
 | `diag-asistencia-periodo.mjs` | (PROMPT-1/T6) conteo exacto (count=exact) y relleno de `periodo_id`/`periodo_evaluacion_id` en asistencia |

@@ -101,6 +101,9 @@ Lo que de aquí es un **pendiente** —68 filas sin `periodo_id`, claves compart
 `inscripciones_alumno.decision_manual` congela la decisión humana por CURP y las
 cuentas de profesor quedaron marcadas con `debe_cambiar_credenciales`. El **qué** está
 en el GLOSARIO y en el código; el **relato** del cambio, en la BITACORA.
+**Alta manual (2026-10-24, PROMPT W)**: Personas › Alumnos › Inscripciones da de alta a UN alumno
+(`ALUMNOS` + inscripción en el operativo + tutor opcional) componiendo las escrituras que ya
+existían (`alta-manual-alumno.ts`); capacidad `alumno.cargar_roster`, +`tutor.crear` si lleva tutor.
 
 ## 6. Pendiente humano (no lo puede hacer un agente)
 
@@ -120,7 +123,7 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **52 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **53 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
 **Dos de ellas no prueban un módulo: `test-orden` (el repo) y `test-gen-contexto` (el índice y el generador).** `scripts/test-orden.mjs` es la

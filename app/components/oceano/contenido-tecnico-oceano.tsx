@@ -15,6 +15,7 @@
  */
 import type { ReactNode } from "react";
 import { AliasesVolumenPanel } from "@/app/components/aliases-volumen-panel";
+import { AltaAlumnoPanel } from "@/app/components/alta-alumno-panel";
 import { AsignacionesProfesorAdmin } from "@/app/components/asignaciones-admin";
 import { BajaRosterPanel } from "@/app/components/baja-roster-panel";
 import { CalendarioEscolarPanel } from "@/app/components/calendario-escolar-panel";
@@ -123,9 +124,13 @@ export function ContenidoTecnicoOceano({
       // Roster y carga académica van en el MISMO panel a propósito: comparten
       // el archivo subido y el mapeo de columnas, así que son un solo flujo.
       // Los modos del mapa deciden cuál se muestra.
+      //
+      // Inscripciones es el alta manual de UN alumno (PROMPT W): sin archivo.
+      // La carga masiva sigue en Roster.
       const m = (modo ?? "").toLowerCase();
       if (m.startsWith("baja")) return <BajaRosterPanel />;
       if (m.startsWith("etiquetas")) return <ImportarEtiquetasPanel />;
+      if (m.startsWith("inscripciones")) return <AltaAlumnoPanel />;
       return <RosterAlumnosPanel periodos={periodos} />;
     }
 

@@ -439,3 +439,24 @@ export const esquemaCurpConstancia = v.object(
   { curp: textoMayusculas("Escribe la CURP del alumno.", 25) },
   "Escribe la CURP del alumno.",
 );
+
+/**
+ * `alta-alumno.ts` · actionDarDeAltaAlumnoManual (PROMPT W, 2026-10-24). Aquí solo
+ * se exige FORMA y tamaño de cordura: qué es una CURP, un número de control o un
+ * nombre válidos —y sus mensajes— lo decide `validarAltaManualAlumno`
+ * (alta-manual-alumno-puro), igual que `esquemaNumeroControl` deja el formato a
+ * `validarNumeroControl`. Por eso los textos son opcionales: vacío llega al módulo
+ * puro, que dice «Escribe la CURP del alumno.» en vez de un mensaje genérico.
+ */
+export const esquemaAltaManualAlumno = v.object(
+  {
+    curp: textoOpcional("La CURP no es válida.", 40),
+    numeroControl: textoOpcional("El número de control no es válido.", 40),
+    nombre: textoOpcional("El nombre es demasiado largo.", 120),
+    pApellido: textoOpcional("El apellido paterno es demasiado largo.", 120),
+    sApellido: textoOpcional("El apellido materno es demasiado largo.", 120),
+    grupoId: textoOpcional("El grupo no es válido.", 64),
+    crearTutor: v.optional(v.boolean("La opción de tutor no es válida."), false),
+  },
+  "Faltan datos del alumno.",
+);

@@ -203,7 +203,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 201 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 203 Server Actions.
 
 ### `actividades.ts`
 
@@ -245,6 +245,13 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 201 Server Actions.
 | `actionMarcarBuzonLeido` | exigir: buzon.ver | `buzon.ver` |
 | `actionBuscarAlumnosExpediente` | exigir: alumno.ver_expediente | `alumno.ver_expediente` |
 | `actionGuardarNumeroControl` | exigir: alumno.editar_numero_control | `alumno.editar_numero_control` |
+
+### `alta-alumno.ts`
+
+| Action | Guardia hoy | Capacidad |
+|---|---|---|
+| `actionContextoAltaManual` | exigir: alumno.cargar_roster | `alumno.cargar_roster` |
+| `actionDarDeAltaAlumnoManual` | exigir: alumno.cargar_roster | `alumno.cargar_roster` |
 
 ### `asignaciones-profesor.ts`
 
