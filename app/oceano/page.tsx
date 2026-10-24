@@ -19,7 +19,7 @@ import { obtenerSesionPortal } from "@/lib/auth/session-server";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "AulaNube — Shell Océano",
+  title: "Cetac23",
   description:
     "Shell único del rediseño Océano: tres niveles de navegación parametrizados por rol, sin lógica de datos.",
 };
