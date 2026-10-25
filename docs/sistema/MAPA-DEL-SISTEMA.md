@@ -74,7 +74,7 @@ Excepciones (dominios cuya lógica está repartida):
 | «Falta una columna en la tabla de materia» | DDL en caliente: `materia-avance.ts` → RPC `escolar_agregar_columnas`; `schema-tabla.ts` → `escolar_sync_columns` | `probe-schema-tabla.mjs`, `probe-columnas-materia.mjs` |
 | «El nombre de la materia sale raro» | `nombreVisible` (presentación) vs `idInterno` (tabla real): `materia-identidad.ts`, `nombres-visibles.ts` | `test-materia-identidad.mjs` |
 | «Se traspasó mal una materia entre profesores» | `lib/escolar/materia/traspaso-materia.ts` → RPC `traspasar_materia_a_profesor` | `test-traspaso-materia.mjs` |
-| «El perfil del alumno carga incompleto o lento» | `app/actions/escolar.ts::actionObtenerPerfilAlumno` tiene **dos caminos**: primero la RPC `supabase/crear-rpc-obtener-perfil-alumno.sql` (una llamada); si falla o no existe, el flujo directo O1 (consultas en paralelo, mismo resultado). Un fallo puede estar en cualquiera de los dos | `fase10-perfil-datos.mjs` (consultas anteriores al refactor: ver pendiente `remedir-rendimiento`) |
+| «El perfil del alumno carga incompleto o lento» | `app/actions/escolar.ts::actionObtenerPerfilAlumno` tiene **dos caminos**: primero la RPC `supabase/crear-rpc-obtener-perfil-alumno.sql` (una llamada); si falla o no existe, el flujo directo O1 (consultas en paralelo, mismo resultado). Un fallo puede estar en cualquiera de los dos | `fase11-perfil.mjs --solo=entrada_alumno` (ejecuta la action real y da viajes, bytes y latencia por paso) |
 
 ### Horario
 

@@ -128,14 +128,14 @@
     },
     {
       "id": "o1-rpc-sin-acotar",
-      "titulo": "O-1: la RPC de perfil de alumno no acota por grupo",
-      "detalle": "Falta AND gm.grupo_id = v_grupo_id en crear-rpc-obtener-perfil-alumno.sql:208. Sigue siendo UNA línea, abierta desde el 09-08. Con un solo ciclo el sobrecoste es ×1 y no se nota: vuelve multiplicado el día que exista el ciclo 2027-2028. Un bug latente que se esconde solo es peor que uno visible.",
-      "riesgo": "medio",
-      "quien": "Cline — prompt de una línea",
+      "titulo": "O-1: la RPC de perfil de alumno no acota por grupo (cerrado en 6809024, confirmado en la base el 2026-10-24)",
+      "detalle": "Cerrado: 6809024 (2026-09-16) añadió AND gm.grupo_id = v_grupo_id a crear-rpc-obtener-perfil-alumno.sql (hoy línea 212) y el grupoId opcional a resolverIdentidadesCatalogo (fallback TS). La FASE 11 (2026-10-24) lo confirmó en la función viva: pg_get_functiondef('obtener_perfil_alumno') contiene el filtro. diag-sql-aplicado no lo puede ver (solo comprueba que la RPC exista).",
+      "riesgo": "bajo",
+      "quien": "cerrado",
       "verificar": "node scripts/diag-sql-aplicado.mjs",
       "doc": "docs/historial/auditorias/PENDIENTES-2026-09-16.md",
-      "revisado": "2026-09-16",
-      "estado": "abierto"
+      "revisado": "2026-10-24",
+      "estado": "cerrado"
     },
     {
       "id": "lint-fuera-del-ci",
@@ -161,13 +161,57 @@
     },
     {
       "id": "remedir-rendimiento",
-      "titulo": "Re-medir rendimiento (FASE 11)",
-      "detalle": "Las cifras de OPTIMIZACION_RENDIMIENTO_400_500.md son de la FASE 10. Desde entonces: reorganización del repo, 9 FK nuevas, asistencia por materia y el rediseño visual de todos los roles. Hoy se optimizaría a ciegas. Sigue abierto en el código (revisado el 2026-10-04): C-1 lib/escolar/alumno/alumnos.ts:76-78 (buscarAlumnoPorNombre descarga ALUMNOS con .range(0, 4999) en cada login por nombre); C-2 lib/escolar/materia/materia-vista-alumno.ts:167, :187 y :223 (select(*) de la tabla física de la materia); C-3 lib/escolar/openapi.ts:53 (descarga el spec OpenAPI entero en frío); P0-3/6B lib/escolar/alumno/foto-perfil.ts:18-27 (guardarUrlFotoPerfil es un stub: sin URL persistida, la existencia se pregunta a la Admin API de Cloudinary cada vez que caduca la caché O5, 10 min por instancia; lib/cloudinary/urls-server.ts:12-16). Sin comando de verificación: las consultas de fase10-perfil-datos son anteriores al refactor, y el instrumento lo decidirá la FASE 11.",
+      "titulo": "Re-medir rendimiento (FASE 11) — cerrado el 2026-10-24",
+      "detalle": "Cerrado: la FASE 11 re-midió con el código vivo (instrumento nuevo scripts/fase11-*.mjs, que ejecuta las Server Actions reales). CI en verde y las optimizaciones O1/O3/O5/O8/O9/A-1/6A y el lazy-load de xlsx siguen en pie sin romper nada. Capacidad: 250 usuarios simultáneos en ráfaga con 0 fallos; a 500 colapsa (504 y PGRST003 del pool de PostgREST, plan free). Lo que queda abierto se reparte en capacidad-500-plan-supabase, foto-perfil-cupo-cloudinary y fase11-reducir-viajes.",
+      "riesgo": "bajo",
+      "quien": "cerrado",
+      "verificar": "node scripts/fase11-perfil.mjs --sujetos=3 --runs=3",
+      "doc": "docs/historial/informes/INFORME-FASE-11-RENDIMIENTO.md",
+      "revisado": "2026-10-24",
+      "estado": "cerrado"
+    },
+    {
+      "id": "capacidad-500-plan-supabase",
+      "titulo": "500 usuarios simultáneos en el plan free: ya no colapsa (PROMPT Y), falta holgura en el minuto pico",
+      "detalle": "Decisión del usuario (2026-10-24): no pasar a Supabase Pro. FASE 11: con el código de entonces, 500 usuarios (perfil realista) colapsaban: 70/500 sesiones, 22 % de pasos fallidos. Tras el PROMPT Y, mismo plan y mismo perfil: 471/500 sesiones, 0,8 % fallidos, 0 errores 5xx en edge_logs; p50 bien (perfil 2,7 s, boleta 1,7 s) pero p95 de 15-55 s en el minuto pico (9 600 peticiones, pool de PostgREST lleno). Siguiente palanca (prompt Z): RPC de boleta + asistencia (SQL que aplica la persona) y el ciclo operativo resuelto una vez por petición; sesión de alumno ~48 → ~28 peticiones. La carga a 500 satura producción unos minutos: avisar antes.",
       "riesgo": "medio",
-      "quien": "merece su propio prompt",
+      "quien": "Claude — prompt Z (RPC de boleta y asistencia); la persona aplica el SQL",
+      "verificar": "node scripts/fase11-carga.mjs --confirmar-carga --usuarios=500 --rampa=30 --pausa=5000",
+      "doc": "docs/historial/informes/INFORME-PROMPT-Y-MENOS-VIAJES.md",
+      "revisado": "2026-10-24",
+      "estado": "abierto"
+    },
+    {
+      "id": "foto-perfil-cupo-cloudinary",
+      "titulo": "La foto de perfil gastaba el cupo de la Admin API de Cloudinary (cerrado en el PROMPT Y)",
+      "detalle": "Cerrado el 2026-10-24: obtenerUrlFotoPerfilSiExiste (lib/cloudinary/urls-server.ts) pregunta a la CDN con HEAD del original (200/404, con un parámetro que evita guardar un 404 previo a una subida) en vez de cld.api.resource. La Admin API (cupo 500/hora) ya no se llama al leer perfiles. guardarUrlFotoPerfil sigue siendo un stub; no hace falta persistir la URL para el cupo. Sin verificar: una subida real seguida de abrir el perfil en otra instancia.",
+      "riesgo": "bajo",
+      "quien": "cerrado",
+      "verificar": "node scripts/fase11-perfil.mjs --solo=entrada_alumno (los viajes «otros» del perfil son un HEAD a res.cloudinary.com)",
+      "doc": "docs/historial/informes/INFORME-PROMPT-Y-MENOS-VIAJES.md",
+      "revisado": "2026-10-24",
+      "estado": "cerrado"
+    },
+    {
+      "id": "fase11-reducir-viajes",
+      "titulo": "Menos viajes por sesión (cerrado en el PROMPT Y; lo que queda pasa a capacidad-500-plan-supabase)",
+      "detalle": "Cerrado el 2026-10-24 (PROMPT Y, ejecutado por Claude): spec OpenAPI con descarga única y fuera del perfil; sin sondeos de esquema en calendario y parciales; pertenencia del perfil desde la RPC; foto en paralelo; roster único en la boleta; login con filtro ILIKE superconjunto (C-1: 57,7 → ~5 KB; 1 891/1 891 textos reales dan el mismo alumno); buscador de expediente con 4 columnas; scrypt asíncrono; /oceano con next/dynamic por rol (1 082 → 676 KB). Sesión de alumno 55 → ~48 peticiones y 266 → ~105 KB. Fuera, a propósito: catálogo del docente, sondeos de justificaciones, C-2 y C-4.",
+      "riesgo": "bajo",
+      "quien": "cerrado",
+      "verificar": "node scripts/fase11-perfil.mjs --sujetos=3 --runs=3",
+      "doc": "docs/historial/informes/INFORME-PROMPT-Y-MENOS-VIAJES.md",
+      "revisado": "2026-10-24",
+      "estado": "cerrado"
+    },
+    {
+      "id": "funcion-etiquetas-inexistente",
+      "titulo": "Algo llama cada ~10 min a actualizar_etiquetas_personales_desde_materias(), que no existe",
+      "detalle": "Visto en postgres_logs durante la FASE 11 (2026-10-24, 04:00-04:40 UTC, 5 veces): «function actualizar_etiquetas_personales_desde_materias() does not exist». No es de la medición. Quien la llama (consultado el mismo día): el job de pg_cron «actualizar-etiquetas-automatizado», schedule */10 * * * *, activo, comando SELECT actualizar_etiquetas_personales_desde_materias(); — ningún trigger. Falla 144 veces al día sin efecto. Si nadie la echa de menos: SELECT cron.unschedule('actualizar-etiquetas-automatizado');",
+      "riesgo": "bajo",
+      "quien": "persona — decide si se retira el job y lo ejecuta en el SQL Editor",
       "verificar": null,
-      "doc": "docs/historial/OPTIMIZACION_RENDIMIENTO_400_500.md",
-      "revisado": "2026-10-04",
+      "doc": "docs/historial/informes/INFORME-FASE-11-RENDIMIENTO.md",
+      "revisado": "2026-10-24",
       "estado": "abierto"
     },
     {

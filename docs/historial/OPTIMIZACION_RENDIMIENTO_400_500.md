@@ -1,8 +1,12 @@
 # Estrategia de Optimización de Rendimiento — WebCETAC 23
 
+> **FASE 11 y PROMPT Y hechos (2026-10-24):** la línea base vigente está en
+> `docs/historial/informes/INFORME-PROMPT-Y-MENOS-VIAJES.md` (el diagnóstico, en `INFORME-FASE-11-RENDIMIENTO.md`), medida con `scripts/fase11-perfil.mjs` y
+> `scripts/fase11-carga.mjs` (sesiones completas con las actions reales). Este archivo queda como historia.
+>
 > **Vigencia (revisado 2026-10-06).** Registro histórico de las FASES 0–10 (2026-08-30 → 2026-09-01). Sus cifras son
 > anteriores al refactor del repo, a las FK nuevas, a la asistencia por materia y al rediseño Océano: no describen el
-> presente hasta la FASE 11 (pendiente `remedir-rendimiento`). El cuerpo no se reescribe; este bloque dice qué sigue en pie.
+> presente. El cuerpo no se reescribe; este bloque dice qué sigue en pie.
 >
 > - **Línea base re-medible.** FASE 9 › «2. Métrica principal — JS inicial por ruta» (`npx next experimental-analyze`, en
 >   local; salvo `/`, esas rutas hoy redirigen a `/oceano` o ya no existen: se compara por pieza del shell). FASE 10 ›

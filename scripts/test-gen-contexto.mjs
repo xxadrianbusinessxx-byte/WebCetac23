@@ -118,7 +118,7 @@ const CASOS = [
   { id: "T1", tarea: "bug", rutas: ["app/components/calendario-asistencia-alumno.tsx", "app/actions/asistencias.ts", "lib/escolar/asistencia/asistencias.ts", "lib/escolar/ciclo/calendario.ts"], debe: [MAPA], noDebe: [UX] },
   { id: "T2", tarea: "crear", rutas: ["lib/escolar/alumno/informacion-personal.ts", "supabase/crear-rpc-obtener-perfil-alumno.sql"], debe: [ORDEN], revision: ["supabase/"] },
   { id: "T3", tarea: "ciclo", rutas: ["lib/escolar/ciclo/calendario.ts", "supabase/agregar-fk-calendario-periodo.sql"], debe: [CICLO], revision: ["supabase/agregar-fk-calendario-periodo.sql"] },
-  { id: "T4", tarea: "rendimiento", rutas: ["lib/escolar/materia/materia-vista-alumno.ts", "app/actions/calificaciones.ts"], debe: ["remedir-rendimiento"], noDebe: [UX], historial: true },
+  { id: "T4", tarea: "rendimiento", rutas: ["lib/escolar/materia/materia-vista-alumno.ts", "app/actions/calificaciones.ts"], debe: ["capacidad-500-plan-supabase"], noDebe: [UX], historial: true },
   { id: "T5", tarea: "permisos", rutas: ["lib/auth/permisos.ts"], debe: ["docs/sistema/MATRIZ-PERMISOS.md"], revision: ["lib/auth/permisos.ts"] },
   { id: "T6", tarea: null, rutas: ["scripts/diag-calendario-periodo.mjs"], debe: ["scripts/README.md"], noDebe: [CICLO] },
   { id: "T7", tarea: "rendimiento", rutas: ["lib/escolar/materia/materia-vista-alumno.ts"], historial: true },

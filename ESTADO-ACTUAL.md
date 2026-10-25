@@ -125,7 +125,7 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **54 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **55 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
 **Dos de ellas no prueban un módulo: `test-orden` (el repo) y `test-gen-contexto` (el índice y el generador).** `scripts/test-orden.mjs` es la
