@@ -35,7 +35,7 @@ hay que arreglarlo — no cargar todo por si acaso.
 | Escribir un prompt para Cline | + `criterios.prompts` |
 | Decidir arquitectura o quién implementa (nuevo módulo, nueva tabla, decisión humana) | + `filosofia.estructural` §1-§3 · `scripts/diag-peso-cambio.mjs` · `AGENTS.md` §Qué nunca se delega |
 | Ejecutar cualquier script | + `scripts/README.md` (**obligatorio**, hay scripts que borran tablas) |
-| Optimizar rendimiento | + `docs/historial/informes/INFORME-PROMPT-Y-MENOS-VIAJES.md` (línea base vigente; el diagnóstico, en `INFORME-FASE-11-RENDIMIENTO.md`) · pendiente `capacidad-500-plan-supabase` · `filosofia.estructural` §11 y §16 · medir con `scripts/fase11-perfil.mjs` |
+| Optimizar rendimiento | + `docs/historial/informes/INFORME-PROMPT-Z-CAPACIDAD-GRADUAL.md` (línea base vigente: la escalera 100→800) y `INFORME-PROMPT-Z-BIS-RAFAGA-LOGIN.md` (la ráfaga) · pendiente `ajustar-tope-supabase` · `filosofia.estructural` §11 y §16 · medir con `scripts/fase11-perfil.mjs` |
 | Auditar un cambio antes de aceptarlo | + `docs/normativo/CONTRATO-DE-CAMBIO.md` · `docs/normativo/ORDEN.md` («La prueba del algodón» y «Cómo se rompe este orden») |
 | Tocar permisos, roles o una Server Action | + `docs/sistema/MATRIZ-PERMISOS.md` (§3 y la entrada de §5 del archivo) |
 | Tocar apariencia (color, forma, tipografía) o un asset de imagen | + `docs/sistema/MATRIZ-UX.md` (**§3: las tres reglas; §2: la deuda viva**) |

@@ -172,13 +172,46 @@
     },
     {
       "id": "capacidad-500-plan-supabase",
-      "titulo": "500 usuarios simultáneos en el plan free: ya no colapsa (PROMPT Y), falta holgura en el minuto pico",
-      "detalle": "Decisión del usuario (2026-10-24): no pasar a Supabase Pro. FASE 11: con el código de entonces, 500 usuarios (perfil realista) colapsaban: 70/500 sesiones, 22 % de pasos fallidos. Tras el PROMPT Y, mismo plan y mismo perfil: 471/500 sesiones, 0,8 % fallidos, 0 errores 5xx en edge_logs; p50 bien (perfil 2,7 s, boleta 1,7 s) pero p95 de 15-55 s en el minuto pico (9 600 peticiones, pool de PostgREST lleno). Siguiente palanca (prompt Z): RPC de boleta + asistencia (SQL que aplica la persona) y el ciclo operativo resuelto una vez por petición; sesión de alumno ~48 → ~28 peticiones. La carga a 500 satura producción unos minutos: avisar antes.",
-      "riesgo": "medio",
-      "quien": "Claude — prompt Z (RPC de boleta y asistencia); la persona aplica el SQL",
-      "verificar": "node scripts/fase11-carga.mjs --confirmar-carga --usuarios=500 --rampa=30 --pausa=5000",
-      "doc": "docs/historial/informes/INFORME-PROMPT-Y-MENOS-VIAJES.md",
-      "revisado": "2026-10-24",
+      "titulo": "500–600 usuarios simultáneos en el plan free (cerrado en el PROMPT Z: la escalera 100→800 pasa con 0 fallos)",
+      "detalle": "Cerrado el 2026-10-25 (PROMPT Z, sin Supabase Pro): escalera realista 100, 200, 250, 300, 400, 500, 600, 700 y 800 usuarios simultáneos (llegada en 30 s, 0-5 s entre pantallas, descanso entre escalones): todas las sesiones completas, 0 pasos fallidos, 0 PGRST003, 0 5xx; p95 ≤ ~2 s (un minuto lento ajeno a la carga en el primer 300, que repetido salió limpio). Sesión de alumno 55 → ~29 peticiones; perfil v2 aplicado por la persona. Lo que queda: la ráfaga extrema, en rafaga-login-500.",
+      "riesgo": "bajo",
+      "quien": "cerrado",
+      "verificar": "node scripts/fase11-carga.mjs --confirmar-carga --usuarios=100,200,250,300,400,500,600 --rampa=30 --pausa=5000 --descanso=30",
+      "doc": "docs/historial/informes/INFORME-PROMPT-Z-CAPACIDAD-GRADUAL.md",
+      "revisado": "2026-10-25",
+      "estado": "cerrado"
+    },
+    {
+      "id": "rafaga-login-500",
+      "titulo": "Ráfaga extrema: 500 usuarios en 10 s (cerrado en el PROMPT Z-bis: 500/500 sesiones, 0 fallos)",
+      "detalle": "Cerrado el 2026-10-25 (PROMPT Z-bis): RPC candidatos_login (aplicada por la persona; 2 358/2 358 identificadores reales con los mismos candidatos) y tope de 12 peticiones simultáneas a Supabase por instancia (lib/supabase/fetch-con-tope.ts). La ráfaga de 500 en 10 s pasa de 0/500 sesiones a 500/500, 0 fallos, en 37 s (login p95 1,6 s, boleta p95 6,9 s); Supabase sano (p95 420 ms en origen). Queda afinar el tope: ajustar-tope-supabase.",
+      "riesgo": "bajo",
+      "quien": "cerrado",
+      "verificar": "node scripts/fase11-carga.mjs --confirmar-carga --usuarios=500 --rampa=10 --pausa=1000",
+      "doc": "docs/historial/informes/INFORME-PROMPT-Z-BIS-RAFAGA-LOGIN.md",
+      "revisado": "2026-10-25",
+      "estado": "cerrado"
+    },
+    {
+      "id": "ajustar-tope-supabase",
+      "titulo": "Afinar el tope de peticiones simultáneas a Supabase (12 por instancia)",
+      "detalle": "PROMPT Z-bis (2026-10-25): con SUPABASE_MAX_PETICIONES_SIMULTANEAS=12 la ráfaga de 500 en 10 s ya no colapsa y hasta 500 usuarios realistas todo queda igual o mejor, pero a 800 realistas el tope es el límite (226 req/s frente a 287 sin él; boleta p95 6,7 s frente a 0,8 s, 0 fallos igual). Probar 16 y 20 con la ráfaga y con 800 realistas (avisando: carga producción) y, si en Vercel se ve el número real de instancias en un pico, fijar el valor con eso. Se cambia en la variable de entorno, sin tocar código.",
+      "riesgo": "bajo",
+      "quien": "Claude mide; la persona fija la variable en Vercel",
+      "verificar": "node scripts/fase11-carga.mjs --confirmar-carga --usuarios=500 --rampa=10 --pausa=1000",
+      "doc": "docs/historial/informes/INFORME-PROMPT-Z-BIS-RAFAGA-LOGIN.md",
+      "revisado": "2026-10-25",
+      "estado": "abierto"
+    },
+    {
+      "id": "rls-tablas-publicas",
+      "titulo": "401 tablas públicas sin RLS y políticas ALL true: con la clave anon se lee y modifica casi todo",
+      "detalle": "Visto el 2026-10-25 con get_advisors security (ERROR rls_disabled_in_public, 401 tablas): sin RLS, entre otras, ALUMNOS, PROFESORES (con CLAVE, la contraseña de login), ETIQUETAS PERSONALES (datos médicos), COMENTARIOS y asistencia_alumnos; las demás consultadas (tutores con password_hash, tutor_credenciales_iniciales, inscripciones_alumno, grupos, portada_*) tienen políticas ALL USING (true) para public. Quien tenga la clave anon puede leer y escribir por la API REST. Mitigante medido: la clave anon no está en el JavaScript del navegador (solo la usa el servidor). 2026-10-25, hecho en el repo (sin commit): lib/supabase/server.ts devuelve el cliente service_role (los ~230 await createClient() no cambian; C19 de test-orden impide volver a la clave anon), fase11-perfil 25/25 pasos iguales y 0 viajes de más, y con la clave anon invalidada el código nuevo sigue 25/25 mientras el anterior rompía 23. FALTA, EN ESTE ORDEN: (1) commit y despliegue en Vercel; (2) la persona ejecuta supabase/crear-rls-cerrar-anon.sql en el SQL Editor (RLS sin políticas en todo public, quita las 32 políticas true, EXECUTE de escolar_agregar_columnas y escolar_sync_columns solo para service_role, event trigger ensure_rls para tablas nuevas). Aplicarlo ANTES del despliegue deja sin datos la portada, el login y casi toda la app. Re-ejecutar un .sql antiguo con políticas true reabre su tabla (C20).",
+      "riesgo": "alto",
+      "quien": "persona: desplegar el commit y, después, aplicar supabase/crear-rls-cerrar-anon.sql",
+      "verificar": "consulta final de supabase/crear-rls-cerrar-anon.sql (0 · 0 · 0 · 1) · node scripts/diag-rls-anon.mjs (anon ve 0) · get_advisors security sin rls_disabled_in_public · node scripts/fase11-perfil.mjs --sujetos=3 --runs=3",
+      "doc": "docs/historial/informes/INFORME-RLS-CERRAR-ANON.md",
+      "revisado": "2026-10-25",
       "estado": "abierto"
     },
     {

@@ -65,8 +65,8 @@ propia migración verificada (R8).
 
 - Sesión: cookie httpOnly firmada con HMAC-SHA256, 7 días (`lib/auth/session.ts`).
 - Tutores: scrypt + `timingSafeEqual`. Contraseña inicial derivada del CURP del hijo.
-- **RLS no autoriza nada.** Las policies son `*_all USING (true)`. La autorización real
-  vive en TypeScript. Desde el PROMPT-2, la decisión «qué puede un rol» está
+- **RLS no autoriza nada: solo cierra la puerta a `anon`.** El servidor usa `service_role` (`lib/supabase/server.ts`, C19); `supabase/crear-rls-cerrar-anon.sql` (**sin aplicar**, pendiente
+  `rls-tablas-publicas`) deja RLS sin políticas en todo `public`. La autorización real vive en TypeScript. Desde el PROMPT-2, la decisión «qué puede un rol» está
   centralizada en `lib/auth/permisos.ts` (`exigir()` al inicio de cada Server Action);
   las decisiones de alcance «sobre quién» se conservan ortogonales
   (`resolverAccesoAlumno`, `nivelAccesoProfesor`). Es una decisión consciente, pero
@@ -125,7 +125,7 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **55 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **59 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
 **Dos de ellas no prueban un módulo: `test-orden` (el repo) y `test-gen-contexto` (el índice y el generador).** `scripts/test-orden.mjs` es la
