@@ -38,6 +38,23 @@ type PertenenciaBoleta = {
 };
 
 /**
+ * PROMPT Y — La pertenencia a partir de un grupo YA resuelto desde la inscripción
+ * activa (p. ej. el `grupoCatalogo` de la RPC `obtener_perfil_alumno`, que también
+ * exige grupo activo). Misma forma que `resolverPertenenciaBoleta`, sin consultas.
+ * null si no hay grupo: entonces el registro lo resuelve por su cuenta.
+ */
+export function pertenenciaDesdeCatalogo(
+  catalogo: { grupo: { grado?: string | null; nombre?: string | null }; carrera?: { clave?: string | null } | null } | null,
+): { grado: string; grupo: string; carrera: string } | null {
+  if (!catalogo) return null;
+  return {
+    grado: String(catalogo.grupo.grado ?? ""),
+    grupo: String(catalogo.grupo.nombre ?? ""),
+    carrera: String(catalogo.carrera?.clave ?? ""),
+  };
+}
+
+/**
  * C4.4/C4.24 — Resuelve la pertenencia académica de la boleta.
  * SOLO desde la inscripción ACTIVA → grupos → carreras del catálogo.
  * Sin inscripción válida (o múltiples activas / grupo inexistente) NO se
@@ -91,12 +108,16 @@ export async function obtenerVistaRegistroAlumno(
   supabase: SupabaseClient,
   curp: string | null | undefined,
   nombreCompleto: string,
+  /**
+   * PROMPT Y — la pertenencia YA resuelta desde la misma fuente (inscripción
+   * activa → grupos → carreras), p. ej. por la RPC `obtener_perfil_alumno`. Si
+   * viene, no se repiten esas tres consultas; si no, se resuelve como siempre.
+   */
+  pertenencia?: { grado: string; grupo: string; carrera: string } | null,
 ): Promise<VistaRegistroAlumno> {
   // C4.4 — Fuente única: inscripción activa → grupos/carreras del catálogo.
-  const { grado, grupo, carrera } = await resolverPertenenciaBoleta(
-    supabase,
-    curp ?? "",
-  );
+  const { grado, grupo, carrera } =
+    pertenencia ?? (await resolverPertenenciaBoleta(supabase, curp ?? ""));
   const criterio = criterioDesdeAlumno(curp, nombreCompleto);
 
   const vacio = (): VistaRegistroAlumno => ({

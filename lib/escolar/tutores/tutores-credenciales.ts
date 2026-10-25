@@ -1,5 +1,6 @@
 import "server-only";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, scrypt, scryptSync, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { TABLA_TUTORES, TABLA_TUTOR_CREDENCIALES_INICIALES } from "../tables.ts";
 import type { TutorRow } from "./tutores-types.ts";
@@ -59,6 +60,7 @@ export function contraseñaInicialTutorDesdeCurp(curp: string): string {
 // ---------------------------------------------------------------------------
 
 const SCRYPT_KEYLEN = 64;
+const scryptAsync = promisify(scrypt);
 
 /** Genera el hash scrypt de una contraseña con un salt aleatorio. */
 export function hashContraseñaTutor(contraseña: string): string {
@@ -77,10 +79,10 @@ export function hashContraseñaTutor(contraseña: string): string {
  * mayúsculas (CSS `uppercase`); sin esto, un tutor que escribe su contraseña
  * inicial en minúsculas no podría iniciar sesión.
  */
-export function verificarContraseñaTutor(
+export async function verificarContraseñaTutor(
   contraseña: string,
   hashAlmacenado: string | null,
-): boolean {
+): Promise<boolean> {
   if (!hashAlmacenado) return false;
   const [saltB64, hashB64] = hashAlmacenado.split(":");
   if (!saltB64 || !hashB64) return false;
@@ -89,7 +91,10 @@ export function verificarContraseñaTutor(
     const esperado = Buffer.from(hashB64, "base64url");
     const candidatos = [contraseña, contraseña.toUpperCase()];
     for (const candidato of candidatos) {
-      const calculado = scryptSync(candidato, salt, SCRYPT_KEYLEN);
+      // PROMPT Y — scrypt asíncrono: corre en el pool de libuv y no bloquea el
+      // hilo (~30 ms por cálculo, ×2 por hijo con la contraseña inicial), así que
+      // las demás peticiones de la misma instancia siguen atendiéndose.
+      const calculado = (await scryptAsync(candidato, salt, SCRYPT_KEYLEN)) as Buffer;
       if (esperado.length === calculado.length && timingSafeEqual(esperado, calculado)) {
         return true;
       }
@@ -203,7 +208,7 @@ export async function verificarContraseñaInicialMultiHijo(
     .eq("tutor_id", tutorId);
   if (error || !data) return false;
   for (const r of data as { password_hash: string }[]) {
-    if (verificarContraseñaTutor(contraseña, r.password_hash)) return true;
+    if (await verificarContraseñaTutor(contraseña, r.password_hash)) return true;
   }
   return false;
 }

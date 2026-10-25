@@ -47,6 +47,19 @@ export function urlCloudinaryDesdePublicId(
   return `https://res.cloudinary.com/${cloud}/${tipo}/upload/${transformaciones}/${version}${id}`;
 }
 
+/**
+ * PROMPT Y — URL del ORIGINAL de la foto de perfil, sin transformación, para
+ * preguntar a la CDN si existe (`HEAD`: 200 o 404). No es la que se pinta: la que
+ * se pinta es `urlFotoPerfilAvatar`. "" si falta el cloud name.
+ */
+export function urlComprobacionFotoPerfil(curp: string): string {
+  const cloud =
+    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME?.trim() ||
+    process.env.CLOUDINARY_CLOUD_NAME?.trim();
+  if (!cloud) return "";
+  return `https://res.cloudinary.com/${cloud}/image/upload/${publicIdPerfil(curp)}`;
+}
+
 export function urlFotoPerfil(curp: string): string {
   return urlCloudinaryDesdePublicId(publicIdPerfilUpload(curp));
 }

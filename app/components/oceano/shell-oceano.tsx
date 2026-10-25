@@ -24,6 +24,7 @@
  * carpeta; las piezas de los tres niveles son presentacionales.
  */
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { PortalRole } from "@/lib/auth/types";
 import { opcionesDePieza, piezaDe } from "@/lib/navegacion/contenido-alumno";
@@ -43,27 +44,33 @@ import {
 } from "@/lib/navegacion/mapa-navegacion";
 import { BarraModoOceano } from "./barra-modo-oceano";
 import { BuscadorExpedienteOceano } from "./buscador-expediente-oceano";
-import {
-  ContenidoAdministracionOceano,
-  type DatosAdministracionOceano,
-} from "./contenido-administracion-oceano";
-import {
-  ContenidoAlumnoOceano,
-  type DatosAlumnoOceano,
-} from "./contenido-alumno-oceano";
-import {
-  ContenidoDirectivoOceano,
-  type DatosDirectivoOceano,
-} from "./contenido-directivo-oceano";
-import {
-  ContenidoDocenteOceano,
-  type DatosDocenteOceano,
-} from "./contenido-docente-oceano";
-import { ContenidoTecnicoOceano } from "./contenido-tecnico-oceano";
+import type { DatosAdministracionOceano } from "./contenido-administracion-oceano";
+import type { DatosAlumnoOceano } from "./contenido-alumno-oceano";
+import type { DatosDirectivoOceano } from "./contenido-directivo-oceano";
+import type { DatosDocenteOceano } from "./contenido-docente-oceano";
 import { ContenidoMarcadorOceano } from "./contenido-marcador-oceano";
 import { NavSuperiorOceano } from "./nav-superior-oceano";
 import { SelectorAlumnoOceano } from "./selector-alumno-oceano";
 import { SidebarOceano } from "./sidebar-oceano";
+
+// PROMPT Y — el contenido de cada rol en su propio chunk: un alumno ya no
+// descarga los paneles del técnico ni del directivo (antes, un solo chunk de
+// 413 KB con los seis roles). Con SSR, lo que se pinta llega en el HTML igual.
+const ContenidoAdministracionOceano = dynamic(() =>
+  import("./contenido-administracion-oceano").then((m) => m.ContenidoAdministracionOceano),
+);
+const ContenidoAlumnoOceano = dynamic(() =>
+  import("./contenido-alumno-oceano").then((m) => m.ContenidoAlumnoOceano),
+);
+const ContenidoDirectivoOceano = dynamic(() =>
+  import("./contenido-directivo-oceano").then((m) => m.ContenidoDirectivoOceano),
+);
+const ContenidoDocenteOceano = dynamic(() =>
+  import("./contenido-docente-oceano").then((m) => m.ContenidoDocenteOceano),
+);
+const ContenidoTecnicoOceano = dynamic(() =>
+  import("./contenido-tecnico-oceano").then((m) => m.ContenidoTecnicoOceano),
+);
 
 /** Datos ya resueltos por el servidor para las piezas reales. */
 export type { DatosAdministracionOceano, DatosAlumnoOceano, DatosDirectivoOceano, DatosDocenteOceano };

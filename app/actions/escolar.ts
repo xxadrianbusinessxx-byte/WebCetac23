@@ -65,8 +65,7 @@ import {
   materiasVisiblesDesdeCatalogo,
   type MateriaConNombreVisible,
 } from "@/lib/escolar/materia/nombres-visibles";
-import { obtenerVistaRegistroAlumno } from "@/lib/escolar/alumno/registro-alumno";
-import type { VistaRegistroAlumno } from "@/lib/escolar/alumno/registro-alumno";
+import { obtenerVistaRegistroAlumno, pertenenciaDesdeCatalogo, type VistaRegistroAlumno } from "@/lib/escolar/alumno/registro-alumno";
 import { reemplazarContenidoStatusDesdeArchivo } from "@/lib/escolar/alumno/etiquetas-status";
 import {
   obtenerVistaMateria,
@@ -215,6 +214,7 @@ export async function actionObtenerPerfilAlumno(
   // service_role no está disponible, se cae al flujo directo O1 (mismo
   // resultado). La RPC NO decide roles: la autorización sigue aquí.
   const supabaseLectura = await clienteLecturaEscolar(supabase);
+  const fotoPromesa = obtenerFotoPerfilAlumno(supabase, curp); // PROMPT Y: en paralelo con la RPC
 
   let rpcData: RpcPerfilAlumno | null = null;
   try {
@@ -242,7 +242,7 @@ export async function actionObtenerPerfilAlumno(
     alumno = rpcData.alumno;
     etiquetas = rpcData.etiquetas;
     comentarios = rpcData.comentarios;
-    fotoPerfilUrl = await obtenerFotoPerfilAlumno(supabase, curp);
+    fotoPerfilUrl = await fotoPromesa;
     // inscripción → grupo → periodo (carrera opcional): misma semántica que
     // resolverGrupoAlumno (null si falta inscripción/grupo/periodo).
     grupoCatalogo =
@@ -275,7 +275,7 @@ export async function actionObtenerPerfilAlumno(
         resolverGrupoAlumno(supabaseLectura, curp),
         listarNombresVisiblesMaterias(supabaseLectura),
         listarComentariosAlumno(supabase, curp),
-        obtenerFotoPerfilAlumno(supabase, curp),
+        fotoPromesa,
       ]);
     semestreActivo =
       grupoCatalogo && gradoASemestre(grupoCatalogo.grupo.grado) !== null
@@ -309,6 +309,7 @@ export async function actionObtenerPerfilAlumno(
     supabaseLectura,
     curp,
     nombreCompleto,
+    rpcData ? pertenenciaDesdeCatalogo(grupoCatalogo) : null,
   );
 
   // C4.1 — Fuente primaria: catálogo académico nuevo.

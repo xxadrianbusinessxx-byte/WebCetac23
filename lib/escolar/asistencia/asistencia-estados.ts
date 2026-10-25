@@ -34,6 +34,7 @@ import {
 import { listarJustificacionesAprobadasDeCurp } from "./justificacion-dias.ts";
 import {
   materiasDelAlumno,
+  type MateriaDelAlumno,
 } from "../materia/calificaciones.ts";
 /**
  * Deriva el estado de asistencia de un alumno para una fecha concreta.
@@ -117,6 +118,10 @@ export async function obtenerEstadosAsistenciaAlumno(
     /** PROMPT S (B) — id del grupo ya resuelto por la action; evita que
      *  `materiasDelAlumno` repita la consulta a `inscripciones_alumno`. */
     grupoId?: string | null;
+    /** PROMPT Y — el roster de materias del alumno (TODAS, activas o no: lo que
+     *  devuelve `materiasDelAlumno(…, false, …)`) si quien llama ya lo pidió, como
+     *  la boleta. Puede ser la promesa en curso. Sin él, se consulta aquí. */
+    roster?: Promise<MateriaDelAlumno[]> | MateriaDelAlumno[];
   },
 ): Promise<DiaEstadoAsistencia[]> {
   const g = norm(input.grado);
@@ -179,7 +184,7 @@ export async function obtenerEstadosAsistenciaAlumno(
   const [resClases, resAsist, roster, aprobadas] = await Promise.all([
     qClases,
     qAsist,
-    materiasDelAlumno(supabase, input.curp, false, grupoIds),
+    input.roster ?? materiasDelAlumno(supabase, input.curp, false, grupoIds),
     listarJustificacionesAprobadasDeCurp(supabase, input.curp),
   ]);
   const justificadasPorFecha = justificacionesPorFecha(aprobadas);

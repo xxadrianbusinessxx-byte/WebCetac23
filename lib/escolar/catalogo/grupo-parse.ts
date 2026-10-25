@@ -46,21 +46,38 @@ function carreraCoincideConTabla(
 /**
  * Nombre exacto de la tabla REGISTRO en Supabase.
  * Usa lista generada + OpenAPI (Vercel a veces no devuelve OpenAPI).
+ *
+ * PROMPT Y — el nombre EXACTO candidato se busca primero en la lista generada
+ * (`REGISTROS_ESCOLAR`, la misma que ya era el respaldo): es el caso de todos los
+ * grupos de hoy y evita que cada perfil descargue el spec OpenAPI (1 MB) solo para
+ * encontrar su tabla. Lo demás (normalizado, flexible) sigue yendo contra el spec.
  */
 export async function nombreTablaRegistroDesdeGrupo(
   grado: string,
   grupo: string,
   carrera: string,
 ): Promise<string | null> {
-  const registros = await listarRegistrosCompletos();
   const g = grado.trim().toUpperCase();
   const gr = grupo.trim().toUpperCase();
   const c = carrera.trim().toUpperCase();
-  if (!g || !gr || !registros.length) return null;
+  if (!g || !gr) return null;
 
   const candidatos = c
     ? [`${g} ${gr} ${c}${SUFIJO_REGISTRO}`, `${g} ${gr}${SUFIJO_REGISTRO}`]
     : [`${g} ${gr}${SUFIJO_REGISTRO}`];
+
+  // Mismo orden que abajo (candidato por candidato, exacto y luego normalizado),
+  // pero contra la lista generada: si da con uno, el spec no hace falta.
+  const { REGISTROS_ESCOLAR } = await import("../materia/registros-list.ts");
+  for (const candidato of candidatos) {
+    if (REGISTROS_ESCOLAR.includes(candidato)) return candidato;
+    const norm = normalizarNombre(candidato);
+    const porNorm = REGISTROS_ESCOLAR.find((r) => normalizarNombre(r) === norm);
+    if (porNorm) return porNorm;
+  }
+
+  const registros = await listarRegistrosCompletos();
+  if (!registros.length) return null;
 
   for (const candidato of candidatos) {
     const exacta = registros.find((r) => r === candidato);

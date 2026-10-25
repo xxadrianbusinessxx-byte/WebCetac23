@@ -97,14 +97,19 @@ export async function verificarEsquemaEvaluaciones(
     .limit(1);
   if (!error) return { ok: true };
   const mensaje = String(error.message ?? "");
-  if (
-    /does not exist/i.test(mensaje) ||
-    /could not find the table/i.test(mensaje) ||
-    /in the schema cache/i.test(mensaje)
-  ) {
+  if (esErrorDeEsquemaPendiente(mensaje)) {
     return { ok: false, error: ERROR_ESQUEMA_EVALUACIONES_PENDIENTE };
   }
   return { ok: false, error: mensaje };
+}
+
+/** ¿El error de PostgREST dice que la tabla (o una columna) todavía no existe? */
+function esErrorDeEsquemaPendiente(mensaje: string): boolean {
+  return (
+    /does not exist/i.test(mensaje) ||
+    /could not find the table/i.test(mensaje) ||
+    /in the schema cache/i.test(mensaje)
+  );
 }
 
 /** Parciales de un ciclo (todos, activos e inactivos) ordenados por número. */
@@ -115,14 +120,18 @@ export async function listarEvaluacionesDePeriodo(
   | { ok: true; evaluaciones: PeriodoEvaluacionRow[] }
   | { ok: false; error: string }
 > {
-  const esquema = await verificarEsquemaEvaluaciones(supabase);
-  if (!esquema.ok) return { ok: false, error: esquema.error ?? "Esquema pendiente." };
+  // PROMPT Y — lectura directa: el «esquema pendiente» se deduce del error de la
+  // propia consulta (mismo criterio que `verificarEsquemaEvaluaciones`), en lugar
+  // de sondear la tabla en un viaje aparte en cada boleta y cada asistencia.
   const { data, error } = await supabase
     .from(TABLA_PERIODOS_EVALUACION)
     .select("*")
     .eq("periodo_id", periodoId)
     .order("numero", { ascending: true });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    const mensaje = String(error.message ?? "");
+    return { ok: false, error: esErrorDeEsquemaPendiente(mensaje) ? ERROR_ESQUEMA_EVALUACIONES_PENDIENTE : mensaje };
+  }
   return {
     ok: true,
     evaluaciones: (data ?? []) as PeriodoEvaluacionRow[],

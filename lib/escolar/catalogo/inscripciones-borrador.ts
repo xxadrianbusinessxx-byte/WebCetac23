@@ -218,7 +218,12 @@ export async function buscarAlumnosCandidatos(
       .toUpperCase();
   const t = normTexto(texto);
   if (!t) return { ok: true, alumnos: [] };
-  const { data, error } = await supabase.from(TABLA_ALUMNOS).select("*").limit(2000);
+  // PROMPT Y — solo las cuatro columnas que se comparan y devuelven (antes `*`:
+  // 65 KB por búsqueda en el buscador de expediente).
+  const { data, error } = await supabase
+    .from(TABLA_ALUMNOS)
+    .select("CURP, NOMBRE, P_APELLIDO, S_APELLIDO")
+    .limit(2000);
   if (error) return { ok: false, error: error.message };
 
   type FilaAlumno = { CURP?: string; NOMBRE?: string; P_APELLIDO?: string; S_APELLIDO?: string };

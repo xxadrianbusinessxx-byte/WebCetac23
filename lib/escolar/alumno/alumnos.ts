@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { archivoCsvAFilas } from "../csv.ts";
 import { pareceCurp } from "../buscar-en-filas.ts";
-import { nombresCoinciden, normalizarNombre } from "../nombres.ts";
+import { nombresCoinciden, normalizarNombre, patronFiltroNombre } from "../nombres.ts";
 import {
   detectarColumnasRoster,
   mapeoRosterValido,
@@ -72,10 +72,19 @@ export async function buscarAlumnoPorNombre(
   const q = nombreCompleto.trim();
   if (!q) return null;
 
-  const { data, error } = await supabase
+  // PROMPT Y (C-1) — en lugar de descargar ALUMNOS entero (55 KB en cada login,
+  // también en el de profesores y tutores), la base devuelve un superconjunto de
+  // las filas que el emparejamiento de abajo aceptaría; el emparejamiento no cambia.
+  const patron = patronFiltroNombre(q);
+  let consulta = supabase
     .from(TABLA_ALUMNOS)
-    .select("CURP, P_APELLIDO, S_APELLIDO, NOMBRE, CLAVE")
-    .range(0, 4999);
+    .select("CURP, P_APELLIDO, S_APELLIDO, NOMBRE, CLAVE");
+  if (patron) {
+    consulta = consulta.or(
+      ["NOMBRE", "P_APELLIDO", "S_APELLIDO"].map((c) => `${c}.ilike.${patron}`).join(","),
+    );
+  }
+  const { data, error } = await consulta.range(0, 4999);
 
   if (error || !data?.length) return null;
 

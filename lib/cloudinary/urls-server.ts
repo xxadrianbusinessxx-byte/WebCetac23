@@ -1,7 +1,7 @@
 import "server-only";
 
-import { cloudinaryConfigurado, getCloudinary } from "./config.ts";
-import { publicIdPerfil, urlFotoPerfilAvatar } from "./urls.ts";
+import { cloudinaryConfigurado } from "./config.ts";
+import { urlComprobacionFotoPerfil, urlFotoPerfilAvatar } from "./urls.ts";
 
 /**
  * O5 — Caché en memoria de la existencia/URL de la foto de perfil (por CURP).
@@ -36,12 +36,20 @@ export async function obtenerUrlFotoPerfilSiExiste(
 
   let url: string | null = null;
   try {
-    const cld = getCloudinary();
-    // api.resource lanza si el recurso NO existe: llegar más allá significa
-    // que la foto existe.
-    await cld.api.resource(publicIdPerfil(key), {
-      resource_type: "image",
+    // PROMPT Y — se pregunta a la CDN (`HEAD` del original), no a la Admin API.
+    // La Admin API tiene un cupo de 500 llamadas por HORA para todo producción y
+    // cada perfil abierto gastaba una: 500 usuarios lo agotaban en su primera
+    // visita (FASE 11) y, agotado, las fotos dejaban de verse. La CDN no tiene
+    // ese cupo. El parámetro `_` evita que un 404 anterior a una subida quede
+    // guardado en la CDN para esta misma URL.
+    const comprobacion = urlComprobacionFotoPerfil(key);
+    if (!comprobacion) throw new Error("sin cloud name");
+    const r = await fetch(`${comprobacion}?_=${ahora}`, {
+      method: "HEAD",
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
     });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     // FASE 7 (6A-2) — URL determinista con transformación de AVATAR
     // (w_256,c_fill,f_auto,q_auto) en lugar del secure_url original sin
     // transformar. La identidad del recurso (public_id) NO cambia; solo se

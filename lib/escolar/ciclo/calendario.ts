@@ -294,7 +294,11 @@ export async function establecerCalendarioBase(
 
 const ERROR_COL = /42703|does not exist|could not find the table|in the schema cache/i;
 
-/** ¿Existe `calendario_escolar.periodo_id`? (una consulta de 1 fila). */
+/**
+ * ¿Existe `calendario_escolar.periodo_id`? (una consulta de 1 fila).
+ * @deprecated PROMPT Y: sin consumidores; `obtenerCalendarioDePeriodo` deduce lo
+ * mismo del error de su propia lectura. Se conserva por CONTRATO 3 (no borrar legacy).
+ */
 export async function verificarColumnaPeriodoIdCalendario(
   supabase: SupabaseClient,
 ): Promise<boolean> {
@@ -308,22 +312,32 @@ export async function verificarColumnaPeriodoIdCalendario(
  * Días de un calendario por PERIODO. Si la columna `periodo_id` existe usa
  * esa relación; si no (migración F5 pendiente) cae al texto legacy por nombre
  * exacto del periodo (compatibilidad; NUNCA heurística inventada).
+ *
+ * PROMPT Y — se lee directo por `periodo_id` y solo si la base contesta que la
+ * columna no existe se cae al texto. Antes se sondeaba la columna en una consulta
+ * aparte cada vez (`verificarColumnaPeriodoIdCalendario`): el doble de viajes en
+ * cada boleta y cada asistencia, para una columna poblada al 100 % desde la F5.
  */
 export async function obtenerCalendarioDePeriodo(
   supabase: SupabaseClient,
   periodoId: string,
   periodoNombre: string,
 ): Promise<DiaCalendarioRow[]> {
-  const conColumna = await verificarColumnaPeriodoIdCalendario(supabase);
-  const base = supabase.from(TABLA_CALENDARIO_ESCOLAR).select(SELECT_DIA);
-  if (conColumna) {
-    const { data, error } = await base.eq("periodo_id", periodoId).order("fecha", { ascending: true });
-    if (error) return [];
-    return (data ?? []) as DiaCalendarioRow[];
-  }
+  const porPeriodo = await supabase
+    .from(TABLA_CALENDARIO_ESCOLAR)
+    .select(SELECT_DIA)
+    .eq("periodo_id", periodoId)
+    .order("fecha", { ascending: true });
+  if (!porPeriodo.error) return (porPeriodo.data ?? []) as DiaCalendarioRow[];
+  if (!ERROR_COL.test(String(porPeriodo.error.message ?? ""))) return [];
+
   const nombre = normalizarCicloEscolar(periodoNombre);
   if (!nombre) return [];
-  const { data, error } = await base.eq("ciclo_escolar", nombre).order("fecha", { ascending: true });
+  const { data, error } = await supabase
+    .from(TABLA_CALENDARIO_ESCOLAR)
+    .select(SELECT_DIA)
+    .eq("ciclo_escolar", nombre)
+    .order("fecha", { ascending: true });
   if (error) return [];
   return (data ?? []) as DiaCalendarioRow[];
 }

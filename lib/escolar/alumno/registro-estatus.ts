@@ -52,7 +52,6 @@ export async function leerVistaRegistroEstatus(
   criterio: CriterioAlumnoEnFila,
 ): Promise<VistaRegistroEstatus | null> {
   const tabla = nombreTabla.trim();
-  const columnasDb = await listarColumnasTabla(tabla);
 
   const { data: todas, error } = await supabase
     .from(tabla)
@@ -60,6 +59,11 @@ export async function leerVistaRegistroEstatus(
     .order("id", { ascending: true });
 
   if (error || !todas?.length) return null;
+
+  // PROMPT Y — las columnas (spec OpenAPI, 1 MB en frío) solo se piden si la
+  // tabla tiene filas: con la tabla vacía el resultado era null de todos modos, y
+  // cada perfil descargaba el spec para nada.
+  const columnasDb = await listarColumnasTabla(tabla);
 
   const colsDatos = columnasDesdeFilasDb(
     columnasDb,

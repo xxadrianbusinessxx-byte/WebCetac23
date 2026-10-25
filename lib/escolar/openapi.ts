@@ -29,6 +29,14 @@ type SpecOpenAPI = {
 
 let specCache: { spec: SpecOpenAPI; expiresAt: number } | null = null;
 
+/**
+ * PROMPT Y — la descarga EN CURSO. Sin ella, cada petición que llega con la caché
+ * vacía o caducada descargaba su propia copia del spec (1 MB): bajo carga se pidió
+ * 57 veces en un minuto y tardó 34–135 s (FASE 11), ocupando a PostgREST justo
+ * cuando más falta hacía. Ahora las simultáneas esperan la misma promesa.
+ */
+let descargaEnCurso: Promise<SpecOpenAPI> | null = null;
+
 const TTL_OPENAPI_MS = 60_000;
 
 function leerEnvSupabase(): { urlBase: string; key: string } | null {
@@ -46,28 +54,44 @@ export async function obtenerSpecOpenAPI(): Promise<SpecOpenAPI> {
   if (specCache && specCache.expiresAt > now) {
     return specCache.spec;
   }
+  if (descargaEnCurso) return descargaEnCurso;
 
   const cfg = leerEnvSupabase();
   if (!cfg) return {};
 
-  const r = await fetch(`${cfg.urlBase}/rest/v1/`, {
-    headers: {
-      apikey: cfg.key,
-      Authorization: `Bearer ${cfg.key}`,
-    },
-    cache: "no-store",
+  const descarga: Promise<SpecOpenAPI> = descargarSpec(cfg).then((spec) => {
+    // Una invalidación (DDL) llegada durante la descarga gana: no se guarda un
+    // spec que pudo leerse antes del cambio de esquema.
+    if (descargaEnCurso === descarga) {
+      descargaEnCurso = null;
+      // No se guarda caché en caso de fallo: el siguiente intento reintenta.
+      if (spec) specCache = { spec, expiresAt: Date.now() + TTL_OPENAPI_MS };
+    }
+    return spec ?? {};
   });
-  if (!r.ok) {
-    // No se guarda caché en caso de fallo: el siguiente intento reintenta.
-    return {};
-  }
+  descargaEnCurso = descarga;
+  return descarga;
+}
 
-  const spec = (await r.json()) as SpecOpenAPI;
-  specCache = { spec, expiresAt: now + TTL_OPENAPI_MS };
-  return spec;
+/** Una descarga del spec; null si falla (red o HTTP). */
+async function descargarSpec(cfg: { urlBase: string; key: string }): Promise<SpecOpenAPI | null> {
+  try {
+    const r = await fetch(`${cfg.urlBase}/rest/v1/`, {
+      headers: {
+        apikey: cfg.key,
+        Authorization: `Bearer ${cfg.key}`,
+      },
+      cache: "no-store",
+    });
+    if (!r.ok) return null;
+    return (await r.json()) as SpecOpenAPI;
+  } catch {
+    return null;
+  }
 }
 
 /** Invalida la caché del spec (tras cambios de esquema/DDL). */
 export function invalidarCacheOpenAPI(): void {
   specCache = null;
+  descargaEnCurso = null;
 }

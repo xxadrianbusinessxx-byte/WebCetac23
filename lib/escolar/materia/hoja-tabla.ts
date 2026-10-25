@@ -79,9 +79,10 @@ export async function leerHojaDesdeTabla(
   const tabla = nombreTabla.trim();
   if (!tabla) return null;
 
-  const columnasDb = await listarColumnasTabla(tabla);
   const { data, error } = await supabase.from(tabla).select("*");
   if (error || !data?.length) return null;
+  // PROMPT Y — el spec (columnas) solo si hay filas: vacía, el resultado ya era null.
+  const columnasDb = await listarColumnasTabla(tabla);
 
   const filas = data as FilaHojaDb[];
 

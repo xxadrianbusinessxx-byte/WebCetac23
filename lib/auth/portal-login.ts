@@ -92,7 +92,7 @@ export async function validarAccesoPortal(
   //    se acepta la contraseña personalizada almacenada en `tutores`.
   let pwValida = false;
   if (tutor) {
-    pwValida = verificarContraseñaTutor(clave, tutor.password_hash);
+    pwValida = await verificarContraseñaTutor(clave, tutor.password_hash);
     if (!pwValida && tutor.debe_cambiar_credenciales) {
       pwValida = await verificarContraseñaInicialMultiHijo(supabase, tutor.id, clave);
     }

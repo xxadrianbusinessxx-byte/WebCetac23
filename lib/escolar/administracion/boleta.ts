@@ -316,9 +316,14 @@ export async function boletaDeAlumno(
   }
   const elegido: ParcialBoleta = parcial;
 
+  // PROMPT Y — UN roster para las dos cosas: el de la asistencia (todas las
+  // materias, también las inactivas, para nombrar sus días) y el de la boleta
+  // (solo activas, el mismo filtro `activo` que aplicaba `materiasDelAlumno(…, true)`).
+  const roster = materiasDelAlumno(supabase, curp, false, [grupoId]);
   const [materias, dias] = await Promise.all([
-    materiasDelAlumno(supabase, curp, true, [grupoId]),
+    roster.then((todas) => todas.filter((m) => m.activo)),
     obtenerEstadosAsistenciaAlumno(supabase, {
+      roster,
       curp,
       grado,
       grupo,
