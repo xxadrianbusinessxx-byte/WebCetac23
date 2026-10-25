@@ -23,6 +23,8 @@
  * Client Components.
  */
 
+import { fetchConTope } from "../supabase/fetch-con-tope.ts";
+
 type SpecOpenAPI = {
   definitions?: Record<string, { properties?: Record<string, unknown> }>;
 };
@@ -76,7 +78,8 @@ export async function obtenerSpecOpenAPI(): Promise<SpecOpenAPI> {
 /** Una descarga del spec; null si falla (red o HTTP). */
 async function descargarSpec(cfg: { urlBase: string; key: string }): Promise<SpecOpenAPI | null> {
   try {
-    const r = await fetch(`${cfg.urlBase}/rest/v1/`, {
+    // PROMPT Z-bis — también el spec pasa por el tope de peticiones simultáneas.
+    const r = await fetchConTope(`${cfg.urlBase}/rest/v1/`, {
       headers: {
         apikey: cfg.key,
         Authorization: `Bearer ${cfg.key}`,

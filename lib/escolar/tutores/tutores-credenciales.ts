@@ -207,8 +207,23 @@ export async function verificarContraseñaInicialMultiHijo(
     .select("password_hash")
     .eq("tutor_id", tutorId);
   if (error || !data) return false;
-  for (const r of data as { password_hash: string }[]) {
-    if (await verificarContraseñaTutor(contraseña, r.password_hash)) return true;
+  return verificarContraseñaEntreHashes(
+    contraseña,
+    (data as { password_hash: string }[]).map((r) => r.password_hash),
+  );
+}
+
+/**
+ * ¿La contraseña coincide con ALGUNO de estos hashes de contraseña inicial?
+ * El bucle de `verificarContraseñaInicialMultiHijo`, sin I/O. PROMPT Z-bis: lo usa
+ * también el login cuando los hashes llegan de la RPC `candidatos_login`.
+ */
+export async function verificarContraseñaEntreHashes(
+  contraseña: string,
+  hashes: readonly (string | null)[],
+): Promise<boolean> {
+  for (const h of hashes) {
+    if (await verificarContraseñaTutor(contraseña, h)) return true;
   }
   return false;
 }

@@ -1,22 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { timingSafeEqual } from "node:crypto";
-import {
-  buscarAlumnoPorNombre,
-  nombreCompletoAlumno,
-} from "@/lib/escolar/alumno/alumnos";
-import {
-  buscarProfesorPorNombre,
-  nombreProfesor,
-  rolDesdePermisos,
-} from "@/lib/escolar/catalogo/profesores";
-import {
-  buscarTutorPorClaveTutor,
-  buscarTutorPorUsuario,
-  nombreCompletoTutor,
-  verificarContraseñaInicialMultiHijo,
-  verificarContraseñaTutor,
-} from "@/lib/escolar/tutores/tutores";
+import { nombreCompletoAlumno } from "../escolar/alumno/alumnos.ts";
+import { nombreProfesor, rolDesdePermisos } from "../escolar/catalogo/profesores.ts";
+import { nombreCompletoTutor } from "../escolar/tutores/tutores-types.ts";
+import { verificarContraseñaTutor } from "../escolar/tutores/tutores-credenciales.ts";
 
+import { fuenteLogin, type FuenteLogin } from "./fuente-login.ts";
 import type { PortalRole } from "./types.ts";
 
 export type LoginResult = {
@@ -49,11 +38,16 @@ export async function validarAccesoPortal(
   supabase: SupabaseClient,
   identificadorRaw: string,
   clave: string,
+  /** PROMPT Z-bis — de dónde salen los candidatos (`fuente-login.ts`); por
+   *  defecto, la RPC `candidatos_login` en UNA petición o, sin ella, las
+   *  consultas de siempre. La decisión de abajo es la misma con las dos. */
+  fuenteDada?: FuenteLogin,
 ): Promise<LoginResult | null> {
   const identificador = identificadorRaw.trim();
   if (!identificador || !clave) return null;
+  const fuente = fuenteDada ?? (await fuenteLogin(supabase, identificador));
 
-  const profesor = await buscarProfesorPorNombre(supabase, identificador);
+  const profesor = await fuente.profesor(identificador);
   if (profesor && clavesCoinciden(clave, profesor.CLAVE)) {
     const nombre = nombreProfesor(profesor);
     return {
@@ -67,7 +61,7 @@ export async function validarAccesoPortal(
     };
   }
 
-  const alumno = await buscarAlumnoPorNombre(supabase, identificador);
+  const alumno = await fuente.alumno(identificador);
   if (alumno && clavesCoinciden(clave, alumno.CLAVE)) {
     return {
       matricula: alumno.CLAVE,
@@ -80,8 +74,8 @@ export async function validarAccesoPortal(
   // Tutor: el campo "identificador" recibe el `usuario` (o la `clave_tutor`)
   // y el campo "clave" recibe la contraseña. La contraseña se verifica contra
   // el hash scrypt almacenado (nunca en texto plano).
-  const tutorPorUsuario = await buscarTutorPorUsuario(supabase, identificador);
-  const tutorPorClave = tutorPorUsuario ? null : await buscarTutorPorClaveTutor(supabase, identificador);
+  const tutorPorUsuario = await fuente.tutorPorUsuario(identificador);
+  const tutorPorClave = tutorPorUsuario ? null : await fuente.tutorPorClave(identificador);
   const tutor = tutorPorUsuario ?? tutorPorClave;
 
   // Bloque 6L: verificación de contraseña del tutor.
@@ -94,7 +88,7 @@ export async function validarAccesoPortal(
   if (tutor) {
     pwValida = await verificarContraseñaTutor(clave, tutor.password_hash);
     if (!pwValida && tutor.debe_cambiar_credenciales) {
-      pwValida = await verificarContraseñaInicialMultiHijo(supabase, tutor.id, clave);
+      pwValida = await fuente.coincideInicial(tutor.id, clave);
     }
   }
 

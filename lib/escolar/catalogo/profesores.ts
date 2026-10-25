@@ -46,11 +46,21 @@ export async function buscarProfesorPorNombre(
     .range(0, 4999);
 
   if (error || !data?.length) return null;
+  return elegirProfesorPorNombre(data as ProfesorRow[], nombreCompleto);
+}
 
-  for (const row of data as ProfesorRow[]) {
-    if (nombresCoinciden(nombreProfesor(row), nombreCompleto)) {
-      return row;
-    }
+/**
+ * El emparejamiento de `buscarProfesorPorNombre`, sin I/O: la primera fila cuyo
+ * nombre coincide (normalizado o mismos tokens). PROMPT Z-bis: lo usa también el
+ * login cuando los candidatos llegan de la RPC `candidatos_login`.
+ */
+export function elegirProfesorPorNombre(
+  filas: readonly ProfesorRow[],
+  nombreCompleto: string,
+): ProfesorRow | null {
+  if (!normalizarNombre(nombreCompleto)) return null;
+  for (const row of filas) {
+    if (nombresCoinciden(nombreProfesor(row), nombreCompleto)) return row;
   }
   return null;
 }

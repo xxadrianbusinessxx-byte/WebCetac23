@@ -58,6 +58,7 @@ async function tablaExiste(tabla) {
 // Artefacto observable por archivo SQL. Solo los que crean algo verificable.
 const CHECKS = [
   ["crear-rpc-obtener-perfil-alumno.sql", { rpc: "obtener_perfil_alumno" }],
+  ["crear-rpc-candidatos-login.sql", { rpc: "candidatos_login" }],
   ["crear-rpc-activar-ciclo-f4.sql", { rpc: "activar_ciclo_operativo" }],
   ["crear-rpc-eliminar-ciclo.sql", { rpc: "eliminar_ciclo" }],
   ["crear-rpc-traspasar-materia.sql", { rpc: "traspasar_materia_a_profesor" }],

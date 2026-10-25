@@ -1,6 +1,7 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseUrl } from "./env.ts";
+import { fetchConTope } from "./fetch-con-tope.ts";
 
 /** Cliente con service role (solo servidor). Omite RLS en lecturas/escrituras escolares. */
 export function createServiceClient(): SupabaseClient | null {
@@ -8,6 +9,8 @@ export function createServiceClient(): SupabaseClient | null {
   if (!key) return null;
   return createSupabaseClient(getSupabaseUrl(), key, {
     auth: { persistSession: false, autoRefreshToken: false },
+    // PROMPT Z-bis — mismo tope que el cliente de sesión: comparten la cola.
+    global: { fetch: fetchConTope },
   });
 }
 

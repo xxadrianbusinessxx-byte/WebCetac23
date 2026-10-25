@@ -87,12 +87,25 @@ export async function buscarAlumnoPorNombre(
   const { data, error } = await consulta.range(0, 4999);
 
   if (error || !data?.length) return null;
+  return elegirAlumnoPorNombre(data as AlumnoRow[], q);
+}
 
-  for (const row of data as AlumnoRow[]) {
+/**
+ * El emparejamiento de `buscarAlumnoPorNombre`, sin I/O: primero nombre igual o
+ * mismos tokens; si no, el primero cuyo nombre contiene el texto. PROMPT Z-bis:
+ * lo usa también el login con los candidatos de la RPC `candidatos_login`.
+ */
+export function elegirAlumnoPorNombre(
+  filas: readonly AlumnoRow[],
+  nombreCompleto: string,
+): AlumnoRow | null {
+  const q = nombreCompleto.trim();
+  if (!q) return null;
+  for (const row of filas) {
     if (nombresCoinciden(nombreCompletoAlumno(row), q)) return row;
   }
   const buscado = normalizarNombre(q);
-  for (const row of data as AlumnoRow[]) {
+  for (const row of filas) {
     if (normalizarNombre(nombreCompletoAlumno(row)).includes(buscado)) {
       return row;
     }
