@@ -9,6 +9,9 @@ import {
 } from "../materia/mapeo-columnas.ts";
 import { TABLA_ALUMNOS } from "../tables.ts";
 import type { AlumnoRow } from "../types.ts";
+// La MISMA regla que la captura manual y que el CHECK de la base: un número de
+// control que la carga acepte no puede rechazarlo después Postgres.
+import { normalizarNumeroControl, validarNumeroControl } from "./numero-control-puro.ts";
 
 
 export function nombreCompletoAlumno(row: AlumnoRow): string {
@@ -153,14 +156,23 @@ function campoVacio(valor: string | null | undefined): boolean {
 }
 
 /** Columnas descriptivas del roster que pueden completarse (nunca CURP/CLAVE). */
-type CampoCompletable = "NOMBRE" | "P_APELLIDO" | "S_APELLIDO";
+type CampoCompletable = "NOMBRE" | "P_APELLIDO" | "S_APELLIDO" | "numero_control";
 
 /** Etiqueta legible de un campo para el detalle de completados. */
 const ETIQUETA_CAMPO: Record<CampoCompletable, string> = {
   NOMBRE: "Nombre",
   P_APELLIDO: "Apellido paterno",
   S_APELLIDO: "Apellido materno",
+  numero_control: "Número de control",
 };
+
+/**
+ * Fila de ALUMNOS tal como la lee la sincronización: `AlumnoRow` más el número
+ * de control, que desde el 2026-10-25 también se carga desde el archivo.
+ * `numero_control` es ÚNICO cuando existe, así que la sincronización tiene que
+ * mirar quién lo tiene ya antes de asignarlo (si no, el INSERT revienta).
+ */
+type AlumnoConNumeroControl = AlumnoRow & { numero_control?: string | null };
 
 /**
  * Trae todos los alumnos existentes (CURP + campos descriptivos) paginando,
@@ -172,18 +184,18 @@ const ETIQUETA_CAMPO: Record<CampoCompletable, string> = {
  */
 export async function traerAlumnosExistentes(
   supabase: SupabaseClient,
-): Promise<AlumnoRow[]> {
+): Promise<AlumnoConNumeroControl[]> {
 
-  const todos: AlumnoRow[] = [];
+  const todos: AlumnoConNumeroControl[] = [];
   let desde = 0;
   while (true) {
     const { data, error } = await supabase
       .from(TABLA_ALUMNOS)
-      .select("CURP, NOMBRE, P_APELLIDO, S_APELLIDO")
+      .select("CURP, NOMBRE, P_APELLIDO, S_APELLIDO, numero_control")
       .range(desde, desde + TAMANO_PAGINA_EXISTENTES - 1);
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) break;
-    todos.push(...(data as AlumnoRow[]));
+    todos.push(...(data as AlumnoConNumeroControl[]));
     if (data.length < TAMANO_PAGINA_EXISTENTES) break;
     desde += TAMANO_PAGINA_EXISTENTES;
   }
@@ -328,6 +340,7 @@ export async function analizarRoster(
   const idxP = mapeoFinal.pApellido;
   const idxS = mapeoFinal.sApellido;
   const idxN = mapeoFinal.nombre;
+  const idxNC = mapeoFinal.numeroControl ?? -1;
 
   if (idxCurp < 0) {
     return {
@@ -337,7 +350,7 @@ export async function analizarRoster(
   }
 
   // Traer existentes (CURP + campos descriptivos) paginando.
-  let existentes: AlumnoRow[];
+  let existentes: AlumnoConNumeroControl[];
   try {
     existentes = await traerAlumnosExistentes(supabase);
   } catch (e) {
@@ -345,11 +358,20 @@ export async function analizarRoster(
     return { ok: false, error: `No se pudo leer la tabla ALUMNOS: ${msg}` };
   }
 
-  const porCurp = new Map<string, AlumnoRow>();
+  const porCurp = new Map<string, AlumnoConNumeroControl>();
+  // Quién tiene ya cada número de control: `numero_control` es ÚNICO cuando
+  // existe, así que asignar uno ocupado rompería la escritura entera. Se
+  // detecta antes y esa fila se omite con su motivo, como un CURP inválido.
+  const curpPorNumeroControl = new Map<string, string>();
   for (const r of existentes) {
     const c = String(r?.CURP ?? "").trim().toUpperCase();
-    if (c) porCurp.set(c, r);
+    if (!c) continue;
+    porCurp.set(c, r);
+    const nc = normalizarNumeroControl(String(r?.numero_control ?? ""));
+    if (nc) curpPorNumeroControl.set(nc, c);
   }
+  /** Números de control asignados en ESTE archivo (para no repetirlos entre filas). */
+  const numerosDelArchivo = new Map<string, string>();
 
   const aInsertar: Record<string, string>[] = [];
   const aActualizar: {
@@ -382,6 +404,35 @@ export async function analizarRoster(
     const sApellido = idxS >= 0 ? (fila[idxS] ?? "").trim() : "";
     const nombre = idxN >= 0 ? (fila[idxN] ?? "").trim() : "";
 
+    // Número de control (2026-10-25). Se valida con la MISMA regla que la
+    // captura manual y que el CHECK de la base, y se descarta —con su motivo—
+    // si choca con el de otro alumno: `numero_control` es único cuando existe.
+    let numeroControl = "";
+    if (idxNC >= 0) {
+      const crudo = (fila[idxNC] ?? "").trim();
+      if (crudo) {
+        const v = validarNumeroControl(crudo);
+        if (!v.ok) {
+          omitidosDetalle.push(`CURP ${curp}: número de control «${crudo}» descartado — ${v.error}`);
+        } else if (v.valor) {
+          const dueñoPrevio = curpPorNumeroControl.get(v.valor);
+          const dueñoArchivo = numerosDelArchivo.get(v.valor);
+          if (dueñoPrevio && dueñoPrevio !== curp) {
+            omitidosDetalle.push(
+              `CURP ${curp}: número de control «${v.valor}» descartado — ya es de ${dueñoPrevio}`,
+            );
+          } else if (dueñoArchivo && dueñoArchivo !== curp) {
+            omitidosDetalle.push(
+              `CURP ${curp}: número de control «${v.valor}» descartado — repetido en el archivo (${dueñoArchivo})`,
+            );
+          } else {
+            numeroControl = v.valor;
+            numerosDelArchivo.set(v.valor, curp);
+          }
+        }
+      }
+    }
+
     const existente = porCurp.get(curp);
 
     // CURP inexistente → insertar alumno nuevo.
@@ -393,6 +444,7 @@ export async function analizarRoster(
       if (pApellido) registro.P_APELLIDO = pApellido;
       if (sApellido) registro.S_APELLIDO = sApellido;
       if (nombre) registro.NOMBRE = nombre;
+      if (numeroControl) registro.numero_control = numeroControl;
       aInsertar.push(registro);
       continue;
     }
@@ -412,6 +464,12 @@ export async function analizarRoster(
     if (campoVacio(existente.S_APELLIDO) && sApellido) {
       cambios.S_APELLIDO = sApellido;
       camposCompletados.push(ETIQUETA_CAMPO.S_APELLIDO);
+    }
+    // Se COMPLETA, nunca se sobrescribe: un número de control ya capturado
+    // manda sobre el del archivo, igual que con el nombre.
+    if (campoVacio(existente.numero_control) && numeroControl) {
+      cambios.numero_control = numeroControl;
+      camposCompletados.push(ETIQUETA_CAMPO.numero_control);
     }
 
     if (Object.keys(cambios).length === 0) {

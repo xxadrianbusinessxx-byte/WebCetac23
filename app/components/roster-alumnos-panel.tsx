@@ -26,6 +26,7 @@ import {
   actionPrevisualizarSincronizacionAlumnos,
   actionSincronizarAlumnosDesdeArchivo,
 } from "@/app/actions/escolar";
+import { actionDescargarPlantillaRoster } from "@/app/actions/roster";
 import {
   actionAplicarCargaAcademica,
   actionPrevisualizarCargaAcademica,
@@ -100,6 +101,10 @@ const CAMPOS_ROSTER: { campo: CampoRoster; etiqueta: string }[] = [
   { campo: "pApellido", etiqueta: "Apellido paterno" },
   { campo: "sApellido", etiqueta: "Apellido materno" },
   { campo: "nombre", etiqueta: "Nombre(s)" },
+  // 2026-10-25: el número de control va impreso en la constancia y la carga
+  // nunca lo traía. Es opcional, pero se enseña siempre para que se vea que
+  // se puede cargar — que era justo lo que no se sabía.
+  { campo: "numeroControl", etiqueta: "Número de control (opcional)" },
   { campo: "grado", etiqueta: "Grado (opcional)" },
   { campo: "grupo", etiqueta: "Grupo (opcional)" },
   { campo: "carrera", etiqueta: "Carrera (opcional)" },
@@ -115,7 +120,38 @@ export function RosterAlumnosPanel({ periodos }: { periodos: string[] }) {
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [preview, setPreview] = useState<Resultado | null>(null);
+  const [descargando, setDescargando] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * Baja el roster del ciclo como hoja rellenable. El archivo se arma en el
+   * servidor (`generarPlantillaRoster`) y llega en base64, como el resto de
+   * los entregables .xlsx del sistema.
+   */
+  async function onDescargarPlantilla() {
+    setDescargando(true);
+    setMensaje(null);
+    const res = await actionDescargarPlantillaRoster();
+    setDescargando(false);
+    if (!res.ok) {
+      setMensaje(res.error);
+      return;
+    }
+    const bytes = Uint8Array.from(atob(res.base64), (c) => c.charCodeAt(0));
+    const blob = new Blob([bytes], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = res.nombreArchivo;
+    a.click();
+    URL.revokeObjectURL(url);
+    setMensaje(
+      `Roster descargado: ${res.alumnos} alumnos del ciclo ${res.ciclo ?? "operativo"}` +
+        (res.sinNumeroControl > 0 ? ` · ${res.sinNumeroControl} sin número de control.` : "."),
+    );
+  }
 
   // --- Carga académica (C3.1) ---
   const [contexto, setContexto] = useState({ periodoNombre: "", grado: "", grupo: "", carrera: "" });
@@ -324,10 +360,27 @@ export function RosterAlumnosPanel({ periodos }: { periodos: string[] }) {
                 opcionalmente,{" "}
                 <span className="font-extrabold text-[var(--oc-text)]">P_APELLIDO</span>,{" "}
                 <span className="font-extrabold text-[var(--oc-text)]">S_APELLIDO</span> y{" "}
-                <span className="font-extrabold text-[var(--oc-text)]">NOMBRE</span>.
+                <span className="font-extrabold text-[var(--oc-text)]">NOMBRE</span>,{" "}
+                <span className="font-extrabold text-[var(--oc-text)]">NUMERO DE CONTROL</span>,{" "}
+                <span className="font-extrabold text-[var(--oc-text)]">GRADO</span>,{" "}
+                <span className="font-extrabold text-[var(--oc-text)]">GRUPO</span> y{" "}
+                <span className="font-extrabold text-[var(--oc-text)]">CARRERA</span>.
                 Solo se <span className="font-extrabold text-[var(--oc-ok)]">AGREGAN</span>{" "}
-                alumnos cuyo CURP aún no exista; no se borra ni reemplaza nada.
+                alumnos cuyo CURP aún no exista; de los que ya existen solo se{" "}
+                <span className="font-extrabold text-[var(--oc-text)]">completan los campos vacíos</span>:
+                nada se borra ni se sobrescribe.
               </p>
+              <p className="mb-3 text-center text-xs font-semibold text-[var(--oc-muted)]">
+                ¿No tienes el archivo a la mano? Descarga el roster actual con el grado, grupo y
+                carrera de cada alumno, rellena lo que falte —el número de control, por ejemplo— y
+                vuelve a subirlo aquí: sus columnas ya vienen con los nombres que esta carga
+                reconoce.
+              </p>
+              <div className="mb-3 flex justify-center">
+                <GreyActionPill onClick={onDescargarPlantilla} className={descargando ? "opacity-70" : ""}>
+                  {descargando ? "Preparando…" : "Descargar roster actual (.xlsx)"}
+                </GreyActionPill>
+              </div>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <GreyActionPill
                   onClick={onSincronizar}

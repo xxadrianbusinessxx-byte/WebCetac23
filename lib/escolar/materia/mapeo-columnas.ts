@@ -14,6 +14,10 @@ export type CampoRoster =
   | "nombre"
   | "pApellido"
   | "sApellido"
+  // 2026-10-25: el número de control va impreso en la constancia de estudios y
+  // la carga masiva nunca lo traía (356 de los 357 alumnos del ciclo no lo
+  // tienen). OPCIONAL como los académicos: una carga sin él sigue valiendo.
+  | "numeroControl"
   | "grado"
   | "grupo"
   | "carrera";
@@ -28,6 +32,7 @@ export type MapeoRoster = {
   nombre: number;
   pApellido: number;
   sApellido: number;
+  numeroControl: number;
   grado: number;
   grupo: number;
   carrera: number;
@@ -74,6 +79,21 @@ export const CAMPO_ROSTER_ALIASES: Record<CampoRoster, string[]> = {
     "2DO APELLIDO",
     "2DO_APELLIDO",
     "APELLIDO MATERNO DEL ALUMNO",
+  ],
+  numeroControl: [
+    "NUMERO DE CONTROL",
+    "NUMERO_CONTROL",
+    "NUMERO CONTROL",
+    "NO CONTROL",
+    "NO. CONTROL",
+    "NO_CONTROL",
+    "NUM CONTROL",
+    "NUM. CONTROL",
+    "NUM_CONTROL",
+    "N CONTROL",
+    "MATRICULA",
+    "NUMERO DE MATRICULA",
+    "CONTROL",
   ],
   grado: [
     "GRADO",
@@ -128,6 +148,7 @@ export function detectarColumnasRoster(encabezados: string[]): MapeoRoster {
     nombre: -1,
     pApellido: -1,
     sApellido: -1,
+    numeroControl: -1,
     grado: -1,
     grupo: -1,
     carrera: -1,
@@ -156,8 +177,8 @@ export function mapeoRosterValido(
 
   // Campos de identidad/nombre: OBLIGATORIOS en el mapeo.
   const camposBase: CampoRoster[] = ["curp", "nombre", "pApellido", "sApellido"];
-  // Campos académicos: OPCIONALES (si faltan se interpretan como -1).
-  const camposAcademicos: CampoRoster[] = ["grado", "grupo", "carrera"];
+  // Campos académicos y número de control: OPCIONALES (si faltan → -1).
+  const camposAcademicos: CampoRoster[] = ["numeroControl", "grado", "grupo", "carrera"];
 
   const validarIndice = (v: unknown): boolean =>
     typeof v === "number" && Number.isInteger(v) && v >= -1 && v < numColumnas;
@@ -187,6 +208,7 @@ export function crearMapeoRoster(parcial: Partial<MapeoRoster>): MapeoRoster {
     nombre: parcial.nombre ?? -1,
     pApellido: parcial.pApellido ?? -1,
     sApellido: parcial.sApellido ?? -1,
+    numeroControl: parcial.numeroControl ?? -1,
     grado: parcial.grado ?? -1,
     grupo: parcial.grupo ?? -1,
     carrera: parcial.carrera ?? -1,

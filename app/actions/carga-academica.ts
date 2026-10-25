@@ -73,7 +73,7 @@ function previewError(error: string): PreviewCargaAcademica {
   return {
     ok: false,
     error,
-    mapeo: { curp: -1, nombre: -1, pApellido: -1, sApellido: -1, grado: -1, grupo: -1, carrera: -1 },
+    mapeo: { curp: -1, nombre: -1, pApellido: -1, sApellido: -1, numeroControl: -1, grado: -1, grupo: -1, carrera: -1 },
     periodoUtilizado: null,
     alumnos: {
       totalFilas: 0,

@@ -977,8 +977,3 @@ export async function actionRestaurarEnRoster(curpRaw: string) {
   const supabase = await createClient();
   return restaurarEnRoster(supabase, curpRaw);
 }
-
-
-
-
-
