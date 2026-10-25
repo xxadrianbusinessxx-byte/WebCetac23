@@ -29,10 +29,10 @@
     },
     {
       "id": "sql-boletas-activacion",
-      "titulo": "Boleta generada: ejecutar crear-boletas-activacion.sql para poder activar boletas por parcial",
-      "detalle": "PROMPT X (2026-10-24): la boleta ya no se sube; el directivo la activa por parcial (plantel, grado o grupo) y alumno/tutor la ven en Perfil › Boleta, armada al leer. Lo único que se guarda es la activación, en la tabla nueva boletas_activacion, y se escribe por la RPC activar_boleta. El agente no pudo aplicarlo (el clasificador de seguridad bloqueó execute_sql). Hasta que una persona ejecute el .sql en el SQL Editor: Grupos/Boleta › Activación avisa y no deja activar, alumno y tutor ven «aún no está disponible», y Consultar boleta de alumno SÍ funciona. Después: activar un parcial para un grupo con sesión de directivo, entrar como un alumno de ese grupo y como su tutor, y desactivarla. diag-boletas debe dejar de decir «la tabla no existe».",
+      "titulo": "Boleta generada: probar una activación real con sesión (SQL ya aplicado)",
+      "detalle": "crear-boletas-activacion.sql aplicado por persona el 2026-10-24. Verificado ese día: diag-boletas ve la tabla (0 activaciones vigentes, 0 cerradas); el esquema coincide con el .sql (11 columnas, CHECK de alcance y de cierre, índice único parcial ux_boletas_activacion_vigente, política permisiva, RLS activo); PostgREST expone la RPC activar_boleta y, con un parcial inexistente, la rechaza con 22023 sin escribir. Falta lo operativo, con sesión real: el directivo activa un parcial para un grupo en Grupos/Boleta › Boleta › Activación; un alumno de ese grupo y su tutor la ven en Perfil › Boleta; se desactiva y vuelven a ver «aún no está disponible». diag-boletas debe contar la activación vigente y, tras desactivarla, una cerrada.",
       "riesgo": "medio",
-      "quien": "persona — ejecuta el SQL y prueba con sesión de directivo, alumno y tutor",
+      "quien": "persona — prueba con sesión de directivo, alumno y tutor",
       "verificar": "node scripts/diag-boletas.mjs",
       "doc": "supabase/crear-boletas-activacion.sql",
       "revisado": "2026-10-24",
