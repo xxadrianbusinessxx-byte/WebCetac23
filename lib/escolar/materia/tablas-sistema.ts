@@ -27,6 +27,7 @@ import {
   TABLA_ASIGNACIONES_PROFESOR,
   TABLA_ASISTENCIA_ALUMNOS,
   TABLA_ASISTENCIA_TRASPASOS_HISTORICO,
+  TABLA_BOLETAS_ACTIVACION,
   TABLA_BUZON_MENSAJES,
   TABLA_CALENDARIO_ESCOLAR,
   TABLA_CARPETAS,
@@ -127,6 +128,8 @@ export const TABLAS_SISTEMA: readonly string[] = [
   TABLA_CALIFICACIONES,
   // Quién editó el seguimiento médico y cuándo (2026-10-01).
   TABLA_SEGUIMIENTO_MEDICO_HISTORIAL,
+  // Qué parcial tiene la boleta activada y para quién (PROMPT X, 2026-10-24).
+  TABLA_BOLETAS_ACTIVACION,
 ];
 
 /** Registros de calificaciones finales por grupo: tampoco son materias. */

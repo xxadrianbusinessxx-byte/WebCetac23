@@ -172,6 +172,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `calificacion.ver` | Ver materia, registro y boleta (6 actions) | ✅ | ✅ | X | ✅ | ✅ | ✅ |
 | `calificacion.subir` | Subir Excel de materia y registro (4 actions) | ✅ | ✅ | X | X | X | X |
 | `calificacion.eliminar` | Eliminar calificaciones de una materia | ✅ | ✅ | X | X | X | X |
+| `boleta.activar` | **2026-10-24 (PROMPT X)**: activar y desactivar la boleta de un parcial para el plantel, un grado o un grupo, y consultar la de cualquier alumno. Verla es `calificacion.ver` + alcance; el alumno y el tutor, solo con activación. | ✅ | X | X | X | X | X |
 | `noticia.publicar` | Publicar noticia de portada | ✅ | X | ✅ | X | X | X |
 | `portada.ver` | Alumnos estrella y noticias de inicio | público | público | público | público | público | público |
 | `actividad.ver` | Ver las actividades (tareas) de una materia y su estado. El alcance —qué materias— lo resuelve la action, no la capacidad. | ✅ | ✅ | X | ✅ | ✅ | X |

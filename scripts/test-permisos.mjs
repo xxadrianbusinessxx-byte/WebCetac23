@@ -245,6 +245,11 @@ ok(puede("administracion", "constancia.emitir"), "Administración escolar tambi�
 ok(!puede("maestro", "constancia.emitir") && !puede("tutor", "constancia.emitir") && !puede("alumno", "constancia.emitir"), "maestro, tutor y alumno no emiten");
 ok(JSON.stringify(rolesDe("constancia.gestionar")) === '["administracion"]', "constancia.gestionar es SOLO de Administración escolar");
 
+// PROMPT X (2026-10-24): la boleta la ACTIVA solo el directivo. Verla sigue
+// siendo `calificacion.ver` con su alcance; activar no se reparte.
+ok(JSON.stringify(rolesDe("boleta.activar")) === '["directivo"]', "boleta.activar es SOLO del directivo");
+ok(puede("administracion", "calificacion.ver") && !puede("administracion", "boleta.activar"), "Administración escolar ve la boleta pero no la activa");
+
 // Lectura de la §4: cada fila `| capacidad | ... | D | M | Tec | T | A | AE |`.
 // PROMPT-3/T5: el código = §4 completa (directivo recortado). Desde el 2026-09-24,
 // seis roles: AE = Administración escolar.

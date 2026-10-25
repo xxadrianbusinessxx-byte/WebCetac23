@@ -41,6 +41,10 @@ export const TABLA_PORTADA_CARRERAS = "portada_carreras";
 /** Calificaciones normalizadas (migración Opción B, 2026-09-30). Sustituye a
  *  las tablas físicas por materia: una fila = una nota de un alumno. */
 export const TABLA_CALIFICACIONES = "calificaciones";
+/** Boleta generada (PROMPT X, 2026-10-24): qué parcial tiene la boleta ACTIVADA y
+ *  para quién (plantel, grado o grupo). La boleta en sí no se guarda: se arma al
+ *  leer. Ver supabase/crear-boletas-activacion.sql. */
+export const TABLA_BOLETAS_ACTIVACION = "boletas_activacion";
 export const TABLA_MATERIAS = "materias";
 export const TABLA_GRUPOS = "grupos";
 export const TABLA_GRUPO_MATERIAS = "grupo_materias";

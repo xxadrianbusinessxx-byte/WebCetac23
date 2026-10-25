@@ -190,6 +190,9 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "calificacion.ver",
     "calificacion.subir",
     "calificacion.eliminar",
+    // PROMPT X (2026-10-24): la boleta deja de subirse; el directivo la ACTIVA
+    // por parcial y el sistema la arma en el navegador. Solo él.
+    "boleta.activar",
     // Fase 0 (Océano): lectura de ciclos. Sin ella
     // actionListarCiclosEscolares rechazaba al directivo.
     "ciclo.ver",

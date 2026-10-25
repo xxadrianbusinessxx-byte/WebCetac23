@@ -46,6 +46,10 @@ export const CAPACIDADES = [
   "calificacion.ver",
   "calificacion.subir",
   "calificacion.eliminar",
+  // 2026-10-24 (PROMPT X): activar y desactivar la boleta de un parcial para el
+  // plantel, un grado o un grupo. VERLA no es esta capacidad: es `calificacion.ver`
+  // con su alcance, y el alumno solo la ve si hay una activación que lo cubra.
+  "boleta.activar",
   // Carga académica
   "carga_academica.aplicar",
   // Ciclo
