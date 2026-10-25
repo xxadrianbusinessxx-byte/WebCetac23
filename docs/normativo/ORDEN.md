@@ -281,6 +281,12 @@ ejecuta**, y una fila en `scripts/README.md`. Sin eso, no está terminado.
   de materias ofrece como materia toda tabla que no esté en esa lista. Lo vigila **C15**.
 - **Un `onConflict` apunta a una restricción UNIQUE o PK declarada en `supabase/`.** Lo
   vigila **C16** (mide el repo, no si la restricción está aplicada).
+- **Ninguna tabla se abre a `anon`.** RLS activada y sin políticas: el servidor lee y
+  escribe con `service_role` (`lib/supabase/server.ts`) y la autorización la hace la app.
+  Nada de `create policy … using (true)` ni `grant … to anon` en un `.sql` nuevo (lo
+  vigila **C20**); ningún cliente de datos con la clave anon/publicable (**C19**). Una
+  RPC `security definer` lleva `revoke execute … from public, anon, authenticated` y
+  `grant execute … to service_role`.
 - La lógica que deba ser atómica o exclusiva va en **PL/pgSQL**, no en TypeScript:
   la exclusividad de ciclo la impone `activar_ciclo_operativo()`, no el código.
 

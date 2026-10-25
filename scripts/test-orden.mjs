@@ -631,6 +631,68 @@ comprobar("C18", "todo scripts/_peligrosos/ lanza antes de ejecutar nada: la cua
     .map((f) => ({ archivo: f, detalle: "la primera sentencia tras los import no es el throw de CUARENTENA" }));
 });
 
+// ── C19 · la clave anon no abre un cliente de datos ────────────────────────
+// Pendiente `rls-tablas-publicas` (2026-10-25). La base deja a anon sin acceso
+// (`supabase/crear-rls-cerrar-anon.sql`: RLS en todas las tablas de public y sin
+// políticas), y el servidor lee y escribe con service_role desde
+// `lib/supabase/server.ts`. Un cliente nuevo con la clave anon/publicable no
+// falla al compilar ni en las suites: devuelve 0 filas en producción, en
+// silencio. Por eso se vigila el código, no la base.
+//
+// Permitidos, con su motivo: `proxy.ts` (solo `auth.getUser()`, que no pasa por
+// RLS), `lib/supabase/env.ts` (define la lectura) y `lib/escolar/openapi.ts`
+// (respaldo del spec si falta service_role: es el esquema, no datos). Se mide
+// sobre `codigoDesnudo()`: un comentario que nombre la clave no cuenta. DURA.
+const ANON_PERMITIDO = new Map([
+  ["proxy.ts", "solo auth.getUser(): Supabase Auth no pasa por RLS"],
+  ["lib/supabase/env.ts", "define getSupabasePublicKey"],
+  ["lib/escolar/openapi.ts", "respaldo del spec OpenAPI si falta service_role: esquema, no datos"],
+]);
+comprobar("C19", "la clave anon/publicable no abre ningún cliente de datos: el servidor usa service_role", 0, () => {
+  const archivos = [...listar("app", ES_TS), ...listar("lib", ES_TS), "proxy.ts"];
+  const hallazgos = [];
+  for (const f of archivos) {
+    if (ANON_PERMITIDO.has(f)) continue;
+    const src = codigoDesnudo(leer(f));
+    for (const [re, que] of [
+      [/\bcreate(?:Server|Browser)Client\s*\(/, "crea un cliente de @supabase/ssr (clave anon y cookies)"],
+      [/\bgetSupabasePublicKey\s*\(/, "lee la clave anon/publicable"],
+      [/\bNEXT_PUBLIC_SUPABASE_(?:ANON|PUBLISHABLE)_KEY\b/, "lee la clave anon/publicable del entorno"],
+    ]) {
+      if (re.test(src)) hallazgos.push({ archivo: f, detalle: que });
+    }
+  }
+  return hallazgos;
+});
+
+// ── C20 · ningún .sql nuevo vuelve a abrir una tabla a anon ────────────────
+// Mismo pendiente. Los `.sql` antiguos crean políticas `USING (true)` /
+// `WITH CHECK (true)` y dan GRANT a anon: son la memoria del esquema (ORDEN §5,
+// «nada se borra de supabase/») y `crear-rls-cerrar-anon.sql` los anula en la
+// base, pero RE-EJECUTAR uno reabre su tabla. Cuenta, fuera de comentarios,
+// cada `create policy … (true)` y cada `grant … to … anon`. TRINQUETE: la deuda
+// son los 27 de los archivos ya aplicados; un `.sql` nuevo no puede sumar.
+comprobar(
+  "C20",
+  "ningún supabase/*.sql nuevo crea una política `true` ni da GRANT a anon",
+  27,
+  () => {
+    const hallazgos = [];
+    for (const f of listar("supabase", (x) => x.endsWith(".sql"))) {
+      const sql = sinComentariosSql(leer(f));
+      for (const [re, detalle] of [
+        [/create\s+policy[^;]*?\(\s*true\s*\)/gi, "crea una política `true`: abre la tabla a anon"],
+        [/\bgrant\b[^;]*\bto\b[^;]*\banon\b/gi, "da GRANT a anon"],
+      ]) {
+        const n = sql.match(re)?.length ?? 0;
+        for (let i = 0; i < n; i++) hallazgos.push({ archivo: f, detalle });
+      }
+    }
+    return hallazgos;
+  },
+  "los .sql ya aplicados antes del 2026-10-25; re-ejecutar uno exige volver a ejecutar crear-rls-cerrar-anon.sql",
+);
+
 // ── Informe ────────────────────────────────────────────────────────────────
 
 if (JSON_OUT) {
