@@ -39,3 +39,7 @@ export {
 export * from "./tutores-credenciales.ts";
 export * from "./tutores-relacion.ts";
 export * from "./tutores-generacion.ts";
+// 2026-10-25 — editar, quitar y vaciar: la administración del roster de
+// tutores, simétrica a la del roster de alumnos. Su decisión pura, en
+// `./tutores-borrado-puro.ts`.
+export * from "./tutores-borrado.ts";

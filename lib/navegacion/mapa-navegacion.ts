@@ -295,7 +295,18 @@ const PERSONAS: Pestana = {
       "Estatus",
       "Inscripciones",
     ]),
-    act("tutores", "Tutores", ["Lista", "Crear", "Generar automáticos"]),
+    // 2026-10-25 — los tres últimos cierran la simetría con el roster de
+    // alumnos, que el técnico ya administraba entero: hasta hoy el de tutores
+    // solo se podía crecer. Administración escolar NO los ve: su pestaña de
+    // tutores no declara modos.
+    act("tutores", "Tutores", [
+      "Lista",
+      "Crear",
+      "Generar automáticos",
+      "Editar",
+      "Quitar tutor",
+      "Borrar roster",
+    ]),
     act("profesores", "Profesores", ["Credenciales", "Forzar cambio de clave"]),
   ],
 };
@@ -375,6 +386,27 @@ const TUTORES_ADMINISTRACION: Pestana = {
 };
 
 /**
+ * Notificaciones del rol (2026-10-25). NO es el apartado «Notificaciones» del
+ * expediente: aquel son los comentarios, justificaciones y reportes DEL ALUMNO
+ * que se eligió en el buscador. Este mira el roster entero y avisa de a quién
+ * le falta información primordial para tramitarlo, que es trabajo de este rol
+ * —es el que emite las constancias, y sin número de control no salen—.
+ * Por eso no lleva buscador de alumno: no habla de uno, habla de todos.
+ */
+const NOTIFICACIONES_ADMINISTRACION: Pestana = {
+  id: "notificaciones",
+  label: "Notificaciones",
+  apartados: [
+    act("datos-incompletos", "Datos incompletos", [
+      "Todos",
+      "Número de control",
+      "Nombre",
+      "CURP",
+    ]),
+  ],
+};
+
+/**
  * Trámites escolares. Los dos trabajan SOBRE el alumno elegido en el buscador.
  * Constancias emite la constancia de estudios con el formato oficial del plantel
  * (desde el 2026-09-24; antes era una vista previa beta). Se imprime o se guarda
@@ -421,7 +453,14 @@ const MAPA: Record<PortalRole, Pestana[]> = {
   maestro: [MATERIAS_DOCENTE, CALENDARIO_DOCENTE, MENSAJES_PERSONAL],
   directivo: [MATERIAS_DOCENTE, GRUPOS_BOLETA, CALENDARIO_DOCENTE, ADMINISTRACION, CONFIGURACION, MENSAJES_PERSONAL],
   tecnico: [CICLO_ESCOLAR, CATALOGO, PERSONAS, CONTENIDO, CONFIGURACION, MENSAJES_PERSONAL],
-  administracion: [EXPEDIENTE, TUTORES_ADMINISTRACION, TRAMITES, DOCUMENTOS, MENSAJES_PERSONAL],
+  administracion: [
+    EXPEDIENTE,
+    TUTORES_ADMINISTRACION,
+    TRAMITES,
+    NOTIFICACIONES_ADMINISTRACION,
+    DOCUMENTOS,
+    MENSAJES_PERSONAL,
+  ],
 };
 
 /** Pestañas visibles para un rol. Sin sesión, ninguna. */

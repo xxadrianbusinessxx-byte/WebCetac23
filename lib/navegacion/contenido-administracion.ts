@@ -19,6 +19,7 @@ import type { PiezaAlumno } from "./contenido-alumno.ts";
 export type PiezaAdministracion =
   | { tipo: "alumno"; pieza: PiezaAlumno }
   | { tipo: "tutores" }
+  | { tipo: "datos-incompletos" }
   | { tipo: "constancias" }
   | { tipo: "reportes" }
   | { tipo: "documentos" }
@@ -39,6 +40,9 @@ const HUECOS: Readonly<Record<string, PiezaAdministracion>> = {
   "expediente/notificaciones": alumno("perfil-notificaciones"),
 
   "tutores/tutores": { tipo: "tutores" },
+  // 2026-10-25 — el aviso de roster incompleto. No es del alumno elegido: es
+  // de todo el ciclo, así que no pasa por el buscador.
+  "notificaciones/datos-incompletos": { tipo: "datos-incompletos" },
   "tramites/constancias": { tipo: "constancias" },
   "tramites/reportes": { tipo: "reportes" },
   "documentos/documentos": { tipo: "documentos" },

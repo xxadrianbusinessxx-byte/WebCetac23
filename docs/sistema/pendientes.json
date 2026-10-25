@@ -17,6 +17,39 @@
   ],
   "pendientes": [
     {
+      "id": "roster-sin-numero-control",
+      "titulo": "356 de los 357 alumnos del ciclo no tienen número de control",
+      "detalle": "Medido el 2026-10-25. Sobre el roster ACTIVO del ciclo operativo (357 alumnos, que es lo que mira Notificaciones): 0 sin nombre, 0 con CURP mal formada y 356 sin numero_control. Sobre ALUMNOS entero, que incluye a quien ya no cursa: 472 filas y 471 sin numero_control. El número de control va impreso en la constancia de estudios, así que hoy la constancia solo se puede emitir para 1 alumno sin capturarlo antes a mano. No es un bug del código: la carga masiva del roster nunca lo trajo (el alta manual, PROMPT W, sí lo exige). Desde el 2026-10-25 Administración escolar lo ve en Notificaciones › Datos incompletos, con el desglose por dato y la lista filtrable; capturarlo sigue siendo Trámites escolares › Constancias, alumno por alumno. Decidir si se carga en volumen (haría falta la fuente: el archivo de control escolar) es de persona.",
+      "riesgo": "medio",
+      "quien": "persona: control escolar tiene la fuente de los números de control",
+      "verificar": "node scripts/diag-alta-manual-alumno.mjs",
+      "doc": "docs/historial/informes/INFORME-TUTORES-Y-NOTIFICACIONES.md",
+      "revisado": "2026-10-25",
+      "estado": "abierto"
+    },
+    {
+      "id": "tutores-sin-contacto",
+      "titulo": "Los 460 tutores activos no tienen teléfono, correo ni CURP",
+      "detalle": "Medido el 2026-10-25: de 460 tutores activos, 460 sin teléfono, 460 sin correo, 460 sin CURP y 458 sin nombre. Son las cuentas que creó «Generar automáticos» desde el roster: sirven para entrar, no para localizar a nadie. Desde el 2026-10-25 el técnico los corrige en Personas › Tutores › Editar (capacidad tutor.editar), uno a uno, buscando por el alumno. Reunir los datos es trabajo de persona.",
+      "riesgo": "medio",
+      "quien": "persona: capturar el contacto de cada tutor",
+      "verificar": "node scripts/diag-tutores.mjs",
+      "doc": "docs/historial/informes/INFORME-TUTORES-Y-NOTIFICACIONES.md",
+      "revisado": "2026-10-25",
+      "estado": "abierto"
+    },
+    {
+      "id": "probar-roster-tutores-con-sesion",
+      "titulo": "Administración del roster de tutores: probarla con sesión real de técnico",
+      "detalle": "2026-10-25: Personas › Tutores suma tres modos (Editar, Quitar tutor, Borrar roster) con sus capacidades (tutor.editar, tutor.borrar, tutor.borrar_roster, solo del técnico). La decisión pura tiene suite (33 checks) y el CI está en verde, pero NADIE las ha ejecutado con una sesión real contra la base: lo que falta probar es editar un tutor y ver el dato guardado, quitarle el tutor a un alumno que tenga hermanos (la cuenta debe seguir activa) y a uno que sea hijo único (la cuenta debe quedar desactivada). «Borrar roster» NO conviene probarlo en producción: desactivaría los 460 tutores de golpe; su guarda es la confirmación escrita con la cifra dentro.",
+      "riesgo": "medio",
+      "quien": "persona: entrar como técnico",
+      "verificar": "node scripts/diag-tutores.mjs",
+      "doc": "docs/historial/informes/INFORME-TUTORES-Y-NOTIFICACIONES.md",
+      "revisado": "2026-10-25",
+      "estado": "abierto"
+    },
+    {
       "id": "sql-portada-carreras",
       "titulo": "Portada: ejecutar crear-portada-carreras.sql para guardar el video (enlace) y el texto de cada carrera",
       "detalle": "PROMPT U, Parte A (2026-10-01): el video de cada carrera pasó de archivo subido a Cloudinary a ENLACE de YouTube o TikTok, con un texto lateral, guardados en la tabla nueva portada_carreras. Hasta que una persona ejecute el .sql en el SQL Editor, la portada se ve como antes (carrusel y nombres de carrera, sin videos ni textos) y «Configuración → Video e imágenes › Oferta educativa» avisa y no deja guardar. Después: guardar un enlace de YouTube, un Short y un TikTok desde la sesión de directivo o técnico, y verlos en / con su banda horizontal o vertical. diag-portada debe mostrar la tabla y las URL canónicas.",
@@ -205,14 +238,14 @@
     },
     {
       "id": "rls-tablas-publicas",
-      "titulo": "401 tablas públicas sin RLS y políticas ALL true: con la clave anon se lee y modifica casi todo",
-      "detalle": "Visto el 2026-10-25 con get_advisors security (ERROR rls_disabled_in_public, 401 tablas): sin RLS, entre otras, ALUMNOS, PROFESORES (con CLAVE, la contraseña de login), ETIQUETAS PERSONALES (datos médicos), COMENTARIOS y asistencia_alumnos; las demás consultadas (tutores con password_hash, tutor_credenciales_iniciales, inscripciones_alumno, grupos, portada_*) tienen políticas ALL USING (true) para public. Quien tenga la clave anon puede leer y escribir por la API REST. Mitigante medido: la clave anon no está en el JavaScript del navegador (solo la usa el servidor). 2026-10-25, hecho en el repo (sin commit): lib/supabase/server.ts devuelve el cliente service_role (los ~230 await createClient() no cambian; C19 de test-orden impide volver a la clave anon), fase11-perfil 25/25 pasos iguales y 0 viajes de más, y con la clave anon invalidada el código nuevo sigue 25/25 mientras el anterior rompía 23. FALTA, EN ESTE ORDEN: (1) commit y despliegue en Vercel; (2) la persona ejecuta supabase/crear-rls-cerrar-anon.sql en el SQL Editor (RLS sin políticas en todo public, quita las 32 políticas true, EXECUTE de escolar_agregar_columnas y escolar_sync_columns solo para service_role, event trigger ensure_rls para tablas nuevas). Aplicarlo ANTES del despliegue deja sin datos la portada, el login y casi toda la app. Re-ejecutar un .sql antiguo con políticas true reabre su tabla (C20).",
+      "titulo": "RLS: cerrar la clave anon (cerrado: aplicado y verificado, 2026-10-25)",
+      "detalle": "Visto el 2026-10-25 con get_advisors security (ERROR rls_disabled_in_public, 401 tablas): sin RLS, entre otras, ALUMNOS, PROFESORES (con CLAVE, la contraseña de login), ETIQUETAS PERSONALES (datos médicos), COMENTARIOS y asistencia_alumnos; las demás consultadas (tutores con password_hash, tutor_credenciales_iniciales, inscripciones_alumno, grupos, portada_*) tienen políticas ALL USING (true) para public. Quien tenga la clave anon puede leer y escribir por la API REST. Mitigante medido: la clave anon no está en el JavaScript del navegador (solo la usa el servidor). 2026-10-25, hecho en el repo (sin commit): lib/supabase/server.ts devuelve el cliente service_role (los ~230 await createClient() no cambian; C19 de test-orden impide volver a la clave anon), fase11-perfil 25/25 pasos iguales y 0 viajes de más, y con la clave anon invalidada el código nuevo sigue 25/25 mientras el anterior rompía 23. CERRADO el 2026-10-25: desplegado el commit y aplicado el SQL por la persona. Verificado por los cuatro caminos de `verificar`: la consulta final del .sql da 0 sin RLS · 0 politicas · 0 SECURITY DEFINER ejecutables por anon · 1 event trigger, sobre 432 tablas de public; diag-rls-anon.mjs: anon ve 0 filas en las 21 tablas con contrasenas o datos personales y service_role las mismas de antes (472 alumnos, 463 tutores, 4642 asistencias); get_advisors security ya no trae rls_disabled_in_public (quedan rls_enabled_no_policy, que es el diseno, y dos WARN anteriores: function_search_path_mutable y extension_in_public); fase11-perfil --sujetos=3 --runs=3 con todos los pasos en ok. Lo que fue, EN ESTE ORDEN: (1) commit y despliegue en Vercel; (2) la persona ejecuta supabase/crear-rls-cerrar-anon.sql en el SQL Editor (RLS sin políticas en todo public, quita las 32 políticas true, EXECUTE de escolar_agregar_columnas y escolar_sync_columns solo para service_role, event trigger ensure_rls para tablas nuevas). Aplicarlo ANTES del despliegue deja sin datos la portada, el login y casi toda la app. Re-ejecutar un .sql antiguo con políticas true reabre su tabla (C20).",
       "riesgo": "alto",
-      "quien": "persona: desplegar el commit y, después, aplicar supabase/crear-rls-cerrar-anon.sql",
+      "quien": "cerrado",
       "verificar": "consulta final de supabase/crear-rls-cerrar-anon.sql (0 · 0 · 0 · 1) · node scripts/diag-rls-anon.mjs (anon ve 0) · get_advisors security sin rls_disabled_in_public · node scripts/fase11-perfil.mjs --sujetos=3 --runs=3",
       "doc": "docs/historial/informes/INFORME-RLS-CERRAR-ANON.md",
       "revisado": "2026-10-25",
-      "estado": "abierto"
+      "estado": "cerrado"
     },
     {
       "id": "foto-perfil-cupo-cloudinary",

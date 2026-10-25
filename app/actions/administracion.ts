@@ -26,6 +26,10 @@ import { exigir } from "@/lib/auth/exigir";
 // lo resuelve `exigir()`.
 import { esRol } from "@/lib/auth/permisos";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
+import {
+  leerDatosIncompletosDelCiclo,
+  type DatosIncompletosDelCiclo,
+} from "@/lib/escolar/alumno/datos-incompletos";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo/ciclo-estado";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores-relacion";
@@ -661,5 +665,26 @@ export async function actionGuardarNumeroControl(
   } catch (err) {
     console.error("[administracion] actionGuardarNumeroControl", err);
     return fallo("No se pudo guardar el número de control. Inténtalo de nuevo.");
+  }
+}
+
+/**
+ * Notificaciones de Administración escolar (2026-10-25): qué alumnos del ciclo
+ * operativo no tienen la información primordial para tramitarlos — CURP, nombre
+ * completo y número de control.
+ *
+ * Es SOLO LECTURA y se apoya en `alumno.ver_expediente`, la capacidad que ya
+ * decide quién puede ver a cualquier alumno. No se crea una capacidad nueva
+ * para leer lo que ese rol ya puede abrir de uno en uno.
+ */
+export async function actionDatosIncompletosDelCiclo(): Promise<DatosIncompletosDelCiclo | null> {
+  const g = await exigir("alumno.ver_expediente");
+  if (!g.ok) return null;
+  try {
+    const supabase = await createClient();
+    return await leerDatosIncompletosDelCiclo(supabase);
+  } catch (err) {
+    console.error("[administracion] actionDatosIncompletosDelCiclo", err);
+    return null;
   }
 }

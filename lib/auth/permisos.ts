@@ -98,6 +98,13 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "tutor.crear",
     "tutor.generar_automaticos",
     "tutor.cambiar_credenciales_propias",
+    // 2026-10-25 — el técnico ya administra el roster de ALUMNOS (cargarlo,
+    // darlos de baja, borrar el paso entero); el de TUTORES solo lo podía
+    // crecer. Estas tres cierran la simetría. Administración escolar NO las
+    // recibe: consulta y crea tutores, no administra el roster.
+    "tutor.editar",
+    "tutor.borrar",
+    "tutor.borrar_roster",
     // UIs pendientes (2026-09-17): el técnico NO toca contenido académico
     // (regla del PROMPT-3). Solo entra en la mensajería interna.
     "mensaje_interno.usar",

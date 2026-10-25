@@ -12,6 +12,7 @@
  * uno exige su capacidad en el servidor.
  */
 import { AdministracionPanel } from "@/app/components/administracion-panel";
+import { DatosIncompletosPanel } from "@/app/components/datos-incompletos-panel";
 import { ConstanciaEstudiosVistaPrevia } from "@/app/components/constancia-estudios-vista-previa";
 import { DocumentosPanel } from "@/app/components/documentos-panel";
 import { MensajesInternosPanel } from "@/app/components/mensajes-internos-panel";
@@ -90,6 +91,11 @@ export function ContenidoAdministracionOceano({
 
     case "tutores":
       return <TutoresPanel />;
+
+    // 2026-10-25 — Notificaciones: a qué alumnos del ciclo les falta CURP,
+    // nombre completo o número de control. El modo filtra por dato.
+    case "datos-incompletos":
+      return <DatosIncompletosPanel modo={modo} />;
 
     case "documentos":
       return <DocumentosPanel />;

@@ -140,6 +140,12 @@ export const CAPACIDADES = [
   "tutor.generar_automaticos",
   "tutor.ver_propio",
   "tutor.cambiar_credenciales_propias",
+  // 2026-10-25: los 460 tutores activos se generaron automáticamente y no
+  // tienen teléfono, correo ni CURP (458 tampoco nombre). Capturar y corregir
+  // ese contacto es trabajo de persona, y hasta hoy no había por dónde.
+  "tutor.editar", // corregir los datos del tutor de un alumno
+  "tutor.borrar", // quitarle el tutor a un alumno (desactiva, no borra filas)
+  "tutor.borrar_roster", // desactivar el roster de tutores completo
 ] as const;
 
 export type Capacidad = (typeof CAPACIDADES)[number];

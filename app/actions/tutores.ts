@@ -20,7 +20,21 @@ import {
   type ResultadoGeneracionTutores,
   type ReemplazoTutor,
   type TutorRow,
+  // 2026-10-25 — administración del roster de tutores.
+  borrarRosterTutores,
+  editarDatosTutor,
+  obtenerTutorEditableDeAlumno,
+  previsualizarBorrarRosterTutores,
+  previsualizarQuitarTutor,
+  quitarTutorDeAlumno,
+  type PreviewQuitarTutor,
+  type TutorEditableDeAlumno,
+  type PreviewRosterTutores,
+  type ResultadoBorrarRosterTutores,
+  type ResultadoEditarTutor,
+  type ResultadoQuitarTutor,
 } from "@/lib/escolar/tutores/tutores";
+import type { DatosTutorEditables } from "@/lib/escolar/tutores/tutores-borrado-puro";
 
 
 
@@ -301,3 +315,78 @@ export async function actionGenerarTutoresAutomaticos(): Promise<
 }
 
 
+
+// ---------------------------------------------------------------------------
+// Administración del roster de tutores (2026-10-25).
+//
+// Simetría con el roster de ALUMNOS, que el técnico ya administraba entero. Las
+// tres capacidades son suyas y de nadie más: Administración escolar consulta y
+// crea tutores, no administra el roster. Las decisiones viven en
+// `lib/escolar/tutores/tutores-borrado.ts`; aquí solo se exige y se delega.
+// ---------------------------------------------------------------------------
+
+/** Qué arrastra quitarle el tutor a un alumno. No escribe nada. */
+export async function actionPrevisualizarQuitarTutor(
+  curpAlumno: string,
+): Promise<PreviewQuitarTutor | null> {
+  const g = await exigir("tutor.borrar");
+  if (!g.ok) return null;
+  const supabase = await createClient();
+  return previsualizarQuitarTutor(supabase, curpAlumno);
+}
+
+/** Quita el vínculo alumno↔tutor (lógico: `activo = false`, no borra filas). */
+export async function actionQuitarTutorDeAlumno(
+  curpAlumno: string,
+): Promise<ResultadoQuitarTutor> {
+  const g = await exigir("tutor.borrar");
+  if (!g.ok) return { ok: false, error: "No autorizado para quitar tutores." };
+  const supabase = await createClient();
+  return quitarTutorDeAlumno(supabase, curpAlumno);
+}
+
+/**
+ * Busca un alumno (CURP o nombre) y devuelve los datos editables de su tutor en
+ * el mismo viaje. Es lo que carga el formulario de corrección.
+ */
+export async function actionBuscarTutorDeAlumno(
+  texto: string,
+): Promise<TutorEditableDeAlumno | null> {
+  const g = await exigir("tutor.editar");
+  if (!g.ok) return null;
+  const supabase = await createClient();
+  return obtenerTutorEditableDeAlumno(supabase, texto);
+}
+
+/** Corrige los datos de contacto de un tutor (no toca credenciales ni vínculos). */
+export async function actionEditarDatosTutor(args: {
+  tutorId: string;
+  datos: DatosTutorEditables;
+}): Promise<ResultadoEditarTutor> {
+  const g = await exigir("tutor.editar");
+  if (!g.ok) return { ok: false, error: "No autorizado para editar tutores." };
+  const supabase = await createClient();
+  return editarDatosTutor(supabase, args.tutorId, args.datos);
+}
+
+/** Cuántas cuentas y vínculos desactivaría vaciar el roster. No escribe nada. */
+export async function actionPrevisualizarBorrarRosterTutores(): Promise<PreviewRosterTutores | null> {
+  const g = await exigir("tutor.borrar_roster");
+  if (!g.ok) return null;
+  const supabase = await createClient();
+  return previsualizarBorrarRosterTutores(supabase);
+}
+
+/**
+ * Vacía el roster de tutores. Pide la confirmación escrita que devolvió la
+ * previsualización: lleva dentro el número de tutores, así que si la cifra
+ * cambió entre mirar y confirmar, se rechaza.
+ */
+export async function actionBorrarRosterTutores(
+  confirmacion: string,
+): Promise<ResultadoBorrarRosterTutores> {
+  const g = await exigir("tutor.borrar_roster");
+  if (!g.ok) return { ok: false, error: "No autorizado para vaciar el roster de tutores." };
+  const supabase = await createClient();
+  return borrarRosterTutores(supabase, confirmacion);
+}

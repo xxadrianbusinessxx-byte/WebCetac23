@@ -872,18 +872,41 @@ eq(cTec.piezaDe("inventada", "inexistente"), null, "un hueco desconocido devuelv
 console.log("\nadministración escolar");
 eq(
   nav.pestanasDe("administracion").map((p) => p.id),
-  ["expediente", "tutores", "tramites", "documentos", "mensajes"],
+  // 2026-10-25: «notificaciones» entra entre Trámites y Documentos. NO es el
+  // apartado «Notificaciones» del expediente (ese es del alumno elegido): esta
+  // pestaña mira el roster entero y avisa de a quién le falta información.
+  ["expediente", "tutores", "tramites", "notificaciones", "documentos", "mensajes"],
   "pestañas de Administración escolar",
 );
 eq(
   nav.pestanasDe("administracion").map((p) => p.label),
-  ["Alumnos", "Tutores", "Trámites escolares", "Documentos", "Mensajes"],
+  ["Alumnos", "Tutores", "Trámites escolares", "Notificaciones", "Documentos", "Mensajes"],
   "con los rótulos pedidos: «Trámites escolares» arriba",
 );
 eq(
   nav.pestana("administracion", "tramites").apartados.map((a) => a.label),
   ["Constancias de estudios", "Reportes"],
   "Trámites escolares tiene sus dos apartados",
+);
+// Notificaciones (2026-10-25): a quién le falta información primordial.
+eq(
+  nav.pestana("administracion", "notificaciones").apartados.map((a) => a.label),
+  ["Datos incompletos"],
+  "Notificaciones tiene un solo apartado",
+);
+eq(
+  nav.pestana("administracion", "notificaciones").apartados[0].modos,
+  ["Todos", "Número de control", "Nombre", "CURP"],
+  "…que se filtra por el dato que falta",
+);
+eq(
+  cAdm.piezaDe("notificaciones", "datos-incompletos"),
+  { tipo: "datos-incompletos" },
+  "…y monta el aviso de roster incompleto",
+);
+ok(
+  cAdm.necesitaAlumno({ tipo: "datos-incompletos" }, null) === false,
+  "no pide alumno elegido: habla de todo el ciclo, no de uno",
 );
 ok(
   nav.pestana("administracion", "mensajes") === nav.pestana("tecnico", "mensajes"),

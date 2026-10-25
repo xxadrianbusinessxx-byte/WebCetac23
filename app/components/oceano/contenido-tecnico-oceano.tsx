@@ -31,6 +31,7 @@ import { MateriasConfigPanel } from "@/app/components/materias-config-panel";
 import { ParejasMateriasPanel } from "@/app/components/parejas-materias-panel";
 import { ProfesoresCredencialesPanel } from "@/app/components/profesores-credenciales-panel";
 import { TutoresPanel } from "@/app/components/tutores-panel";
+import { TutoresRosterPanel } from "@/app/components/tutores-roster-panel";
 import type { PiezaTecnico } from "@/lib/navegacion/contenido-tecnico";
 
 /** Hueco declarado: la pieza existe, pero no donde este apartado la necesita.
@@ -134,8 +135,16 @@ export function ContenidoTecnicoOceano({
       return <RosterAlumnosPanel periodos={periodos} />;
     }
 
-    case "tutores":
+    case "tutores": {
+      // Crear y generar siguen en TutoresPanel; corregir y retirar viven en su
+      // propio panel (2026-10-25). Aquel ya tiene 712 líneas y hace el trabajo
+      // contrario: poblar el roster, no administrarlo.
+      const m = (modo ?? "").toLowerCase();
+      if (m.startsWith("editar")) return <TutoresRosterPanel modo="editar" />;
+      if (m.startsWith("quitar")) return <TutoresRosterPanel modo="quitar" />;
+      if (m.startsWith("borrar")) return <TutoresRosterPanel modo="roster" />;
       return <TutoresPanel />;
+    }
 
     case "profesores-credenciales":
       // `ocultarId`: el técnico repone claves sin ver la identidad estructural

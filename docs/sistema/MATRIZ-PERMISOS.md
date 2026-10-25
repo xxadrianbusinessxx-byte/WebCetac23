@@ -204,7 +204,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 208 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 215 Server Actions.
 
 ### `actividades.ts`
 
@@ -246,6 +246,7 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 208 Server Actions.
 | `actionMarcarBuzonLeido` | exigir: buzon.ver | `buzon.ver` |
 | `actionBuscarAlumnosExpediente` | exigir: alumno.ver_expediente | `alumno.ver_expediente` |
 | `actionGuardarNumeroControl` | exigir: alumno.editar_numero_control | `alumno.editar_numero_control` |
+| `actionDatosIncompletosDelCiclo` | exigir: alumno.ver_expediente | `alumno.ver_expediente` |
 
 ### `alta-alumno.ts`
 
@@ -568,6 +569,12 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 208 Server Actions.
 | `actionListarAlumnosDelTutor` | exigir: tutor.ver_propio | `tutor.ver_propio` |
 | `actionPrevisualizarGeneracionTutores` | exigir: tutor.generar_automaticos | `tutor.generar_automaticos` |
 | `actionGenerarTutoresAutomaticos` | exigir: tutor.generar_automaticos | `tutor.generar_automaticos` |
+| `actionPrevisualizarQuitarTutor` | exigir: tutor.borrar | `tutor.borrar` |
+| `actionQuitarTutorDeAlumno` | exigir: tutor.borrar | `tutor.borrar` |
+| `actionBuscarTutorDeAlumno` | exigir: tutor.editar | `tutor.editar` |
+| `actionEditarDatosTutor` | exigir: tutor.editar | `tutor.editar` |
+| `actionPrevisualizarBorrarRosterTutores` | exigir: tutor.borrar_roster | `tutor.borrar_roster` |
+| `actionBorrarRosterTutores` | exigir: tutor.borrar_roster | `tutor.borrar_roster` |
 
 <!-- INVENTARIO:FIN -->
 
