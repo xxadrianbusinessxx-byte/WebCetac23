@@ -133,7 +133,10 @@ const PERFIL_ALUMNO: Pestana = {
     act("notificaciones", "Notificaciones", ["Comentarios", "Justificaciones", "Reportes"]),
     act("informacion-personal", "Información personal"),
     act("seguimiento-semestral", "Seguimiento semestral"),
-    act("estatus-academico", "Estatus académico"),
+    // PROMPT X (2026-10-24): era «Estatus académico» y enseñaba el registro legacy.
+    // Ahora es la boleta generada, que el alumno y el tutor ven solo cuando el
+    // directivo la activa. Mismo sitio en la lista.
+    act("boleta", "Boleta"),
     act("seguimiento-medico", "Seguimiento médico"),
     // ENCENDIDO (2026-09-17): ya hay datos. Lee la MISMA tabla `citas` que
     // «Administración escolar › Citas» del directivo — una entidad, dos vistas.
@@ -222,7 +225,9 @@ const GRUPOS_BOLETA: Pestana = {
   id: "grupos-boleta",
   label: "Grupos/Boleta",
   apartados: [
-    act("boleta", "Boleta", ["Descargar plantilla", "Previsualizar cambios"]),
+    // PROMPT X (2026-10-24): la subida manual de boletas desapareció. El directivo
+    // ACTIVA la boleta de un parcial y consulta la de cualquier alumno.
+    act("boleta", "Boleta", ["Activación", "Consultar boleta de alumno"]),
     act("grupo", "Grupo"),
   ],
 };
@@ -347,7 +352,9 @@ const EXPEDIENTE: Pestana = {
   label: "Alumnos",
   apartados: [
     act("datos-personales", "Datos personales"),
-    act("estatus-academico", "Estatus académico"),
+    // PROMPT X (2026-10-24): aquí estuvo «Estatus académico», el registro legacy
+    // que veía el alumno. El alumno ya no lo tiene —pasó a ser su Boleta— y el
+    // expediente enseña lo que ve el alumno, así que «Boleta» lo sustituye.
     act("boleta", "Boleta"),
     act("asistencia", "Asistencia"),
     act("calendario-asistencia", "Calendario de asistencia"),

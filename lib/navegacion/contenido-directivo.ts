@@ -26,16 +26,18 @@ export type PiezaDirectivo =
   | "admin-citas"
   | "constancia-directa"
   | "admin-buzon"
-  | "boleta-grupo"
+  | "boletas-directivo"
   | "grupo-visualizador"
   | "alumnos-tutores"
   | "portada-medios";
 
 /** Clave = `idPestana/idApartado`, tal cual los devuelve el mapa. */
 const HUECOS: Readonly<Record<string, PiezaDirectivo>> = {
-  // Grupos/Boleta — el panel Excel con el flujo previsualizar→confirmar que el
-  // CONTRATO ya exige: descargar plantilla, previsualizar cambios, confirmar.
-  "grupos-boleta/boleta": "boleta-grupo",
+  // Grupos/Boleta › Boleta (PROMPT X, 2026-10-24): la subida manual desapareció.
+  // El directivo ACTIVA la boleta de un parcial y consulta la de cualquier alumno;
+  // qué vista monta cada modo lo decide `vistaBoletas`, abajo.
+  "grupos-boleta/boleta": "boletas-directivo",
+  // «Grupo» sigue enseñando el registro de calificaciones del grupo, como antes.
   "grupos-boleta/grupo": "grupo-visualizador",
 
   // Administración escolar. Las cuatro pantallas que eran MAQUETA hasta el
@@ -100,6 +102,20 @@ export function vistaAlumnosTutores(modo: string | null): VistaAlumnosTutores {
   if (modo === MODO_REPORTES_ALUMNO) return { tipo: "reportes" };
   if (modo === MODO_CITAS_ALUMNO) return { tipo: "citas" };
   return { tipo: "alumno", pieza: "perfil-informacion-personal" };
+}
+
+/**
+ * Grupos/Boleta › Boleta tiene DOS vistas sobre el mismo hueco (PROMPT X): activar
+ * o desactivar la boleta de un parcial, y consultar la de un alumno (grupo →
+ * alumno). Por IGUALDAD con el rótulo, como Citas; sin modo, la activación.
+ */
+export const MODO_ACTIVACION_BOLETAS = "Activación";
+export const MODO_CONSULTAR_BOLETA = "Consultar boleta de alumno";
+
+export type VistaBoletas = "activacion" | "consultar";
+
+export function vistaBoletas(modo: string | null): VistaBoletas {
+  return modo === MODO_CONSULTAR_BOLETA ? "consultar" : "activacion";
 }
 
 /** Pieza que corresponde a un hueco, o `null` si ese hueco no tiene pieza. */

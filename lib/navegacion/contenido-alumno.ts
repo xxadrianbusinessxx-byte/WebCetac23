@@ -30,6 +30,8 @@ export type PiezaAlumno =
   | "calendario-asistencia"
   | "perfil-informacion-personal"
   | "perfil-registro-calificaciones"
+  // PROMPT X (2026-10-24) — la boleta generada, activada por parcial.
+  | "perfil-boleta"
   // Fase 3 — contenido nuevo (cierra el alumno en /oceano).
   | "perfil-notificaciones"
   | "perfil-seguimiento-semestral"
@@ -60,7 +62,9 @@ const HUECOS: Readonly<Record<string, PiezaAlumno>> = {
   "perfil/seguimiento-semestral": "perfil-seguimiento-semestral",
   "perfil/seguimiento-medico": "perfil-seguimiento-medico",
   "perfil/notificaciones": "perfil-notificaciones",
-  "perfil/estatus-academico": "perfil-registro-calificaciones",
+  // PROMPT X: «Estatus académico» (el registro legacy) pasó a ser «Boleta». La
+  // pieza del registro y su componente se quedan, sin hueco: se retiran aparte (R8).
+  "perfil/boleta": "perfil-boleta",
   "perfil/mensajes-tutor": "perfil-mensajes-tutor",
 };
 

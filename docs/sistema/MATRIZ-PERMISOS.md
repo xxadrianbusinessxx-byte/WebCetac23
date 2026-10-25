@@ -169,7 +169,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `documento.eliminar` | Eliminar documento | ✅ | ✅ | ✅ | X | X | ✅ |
 | `documento.gestionar_carpetas` | Crear, renombrar, eliminar carpetas | ✅ | X | ✅ | X | X | ✅ |
 | `documento.asignar_permisos` | Dar y quitar acceso a profesores | ✅ | X | ✅ | X | X | ✅ |
-| `calificacion.ver` | Ver materia, registro y boleta (6 actions) | ✅ | ✅ | X | ✅ | ✅ | ✅ |
+| `calificacion.ver` | Ver materia, registro y boleta (9 actions; la boleta generada del PROMPT X, con su alcance: la familia solo con activación, el maestro nada) | ✅ | ✅ | X | ✅ | ✅ | ✅ |
 | `calificacion.subir` | Subir Excel de materia y registro (4 actions) | ✅ | ✅ | X | X | X | X |
 | `calificacion.eliminar` | Eliminar calificaciones de una materia | ✅ | ✅ | X | X | X | X |
 | `boleta.activar` | **2026-10-24 (PROMPT X)**: activar y desactivar la boleta de un parcial para el plantel, un grado o un grupo, y consultar la de cualquier alumno. Verla es `calificacion.ver` + alcance; el alumno y el tutor, solo con activación. | ✅ | X | X | X | X | X |
@@ -204,7 +204,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 203 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 208 Server Actions.
 
 ### `actividades.ts`
 
@@ -278,6 +278,16 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 203 Server Actions.
 | `actionListarAlumnosGruposProfesor` | exigir: asistencia.ver_grupo | `asistencia.ver_grupo` |
 | `actionObtenerMateriasHorarioGrupo` | exigir: horario.ver_grupo | `horario.ver_grupo` |
 | `actionObtenerCicloActual` | exigir: ciclo.ver_operativo | `ciclo.ver_operativo` |
+
+### `boletas.ts`
+
+| Action | Guardia hoy | Capacidad |
+|---|---|---|
+| `actionBoletaAlumno` | exigir: calificacion.ver | `calificacion.ver` |
+| `actionContextoActivacionBoletas` | exigir: boleta.activar | `boleta.activar` |
+| `actionActivarBoleta` | exigir: boleta.activar | `boleta.activar` |
+| `actionDesactivarBoleta` | exigir: boleta.activar | `boleta.activar` |
+| `actionAlumnosDeGrupoBoleta` | exigir: boleta.activar | `boleta.activar` |
 
 ### `borrar-datos.ts`
 

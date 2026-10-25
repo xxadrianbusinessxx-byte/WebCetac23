@@ -154,6 +154,34 @@ export async function calificacionesDeAlumno(
   return (data ?? []) as CalificacionRow[];
 }
 
+/**
+ * La nota tipo «promedio» de UN alumno en varias materias, en UNA consulta
+ * (PROMPT X: la boleta). Si una materia tiene más de una —encabezados viejos que
+ * el profesor ya no usa—, gana la de `updated_at` más reciente, que es la que
+ * acaba de subir. Una materia sin fila no aparece en el mapa.
+ */
+export async function promediosDeAlumno(
+  supabase: SupabaseClient,
+  curp: string,
+  grupoMateriaIds: readonly string[],
+): Promise<Map<string, number | null>> {
+  const ids = [...new Set(grupoMateriaIds.filter(Boolean))];
+  const out = new Map<string, number | null>();
+  if (!curp || ids.length === 0) return out;
+  const { data, error } = await supabase
+    .from(TABLA_CALIFICACIONES)
+    .select("grupo_materia_id, valor, updated_at")
+    .eq("curp", curp)
+    .eq("tipo", "promedio")
+    .in("grupo_materia_id", ids)
+    .order("updated_at", { ascending: false });
+  if (error) return out;
+  for (const f of (data ?? []) as { grupo_materia_id: string; valor: number | null }[]) {
+    if (!out.has(f.grupo_materia_id)) out.set(f.grupo_materia_id, f.valor === null ? null : Number(f.valor));
+  }
+  return out;
+}
+
 /** Todas las de una materia-grupo: es la vista del profesor. */
 export async function calificacionesDeGrupoMateria(
   supabase: SupabaseClient,

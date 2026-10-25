@@ -734,6 +734,27 @@ eq(cDir.vistaCitas(cDir.MODO_CITAS_PROGRAMADAS), "programadas", "«Citas program
 eq(cDir.vistaCitas(null), "programadas", "sin modo, como antes: programadas");
 eq(cDir.vistaCitas(modosCitas[0]), "configurar", "la barra arranca en modos[0]: abrir Citas enseña la agenda");
 
+// PROMPT X (2026-10-24) — la boleta generada. La subida manual desapareció: el
+// directivo activa por parcial y consulta; el alumno, el tutor y Administración
+// escolar ven la MISMA pieza, y quién ve qué lo decide el servidor.
+console.log("\nBoleta generada (PROMPT X)");
+const modosBoleta = nav.apartado("directivo", "grupos-boleta", "boleta").modos;
+eq([cDir.MODO_ACTIVACION_BOLETAS, cDir.MODO_CONSULTAR_BOLETA], modosBoleta, "los dos modos de Boleta son los rótulos del mapa, en su orden");
+ok(!modosBoleta.some((m) => /plantilla|previsualizar/i.test(m)), "Boleta ya no ofrece la subida manual (plantilla / previsualizar)");
+eq(cDir.vistaBoletas(cDir.MODO_CONSULTAR_BOLETA), "consultar", "«Consultar boleta de alumno» → consultar");
+eq(cDir.vistaBoletas(cDir.MODO_ACTIVACION_BOLETAS), "activacion", "«Activación» → activación");
+eq(cDir.vistaBoletas(null), "activacion", "sin modo → activación");
+eq(cDir.vistaBoletas(modosBoleta[0]), "activacion", "la barra arranca en modos[0]: abrir Boleta enseña la activación");
+eq(cDir.piezaDe("grupos-boleta", "boleta"), "boletas-directivo", "Grupos/Boleta › Boleta monta el panel de activación");
+eq(cDir.piezaDe("grupos-boleta", "grupo"), "grupo-visualizador", "«Grupo» se queda con su vista");
+for (const rol of ["alumno", "tutor"]) {
+  const ids = nav.pestana(rol, "perfil").apartados.map((a) => a.id);
+  ok(ids.includes("boleta") && !ids.includes("estatus-academico"), `${rol}: «Estatus académico» pasó a ser «Boleta»`);
+}
+eq(cAl.piezaDe("perfil", "boleta"), "perfil-boleta", "Perfil › Boleta monta la boleta generada");
+eq(cAdm.piezaDe("expediente", "boleta"), { tipo: "alumno", pieza: "perfil-boleta" }, "Administración escolar › Alumnos › Boleta: la MISMA pieza");
+eq(cAdm.piezaDe("expediente", "estatus-academico"), null, "Administración escolar ya no tiene «Estatus académico»: el alumno tampoco");
+
 // PROMPT U (2026-10-01) — Alumnos / Tutores del directivo: el perfil de
 // cualquier alumno, un modo por sección, decidido por IGUALDAD con el rótulo.
 console.log("\nAlumnos / Tutores del directivo (PROMPT U)");

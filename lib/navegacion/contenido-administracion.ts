@@ -29,8 +29,8 @@ const alumno = (pieza: PiezaAlumno): PiezaAdministracion => ({ tipo: "alumno", p
 /** Clave = `idPestana/idApartado`, tal cual los devuelve el mapa. */
 const HUECOS: Readonly<Record<string, PiezaAdministracion>> = {
   "expediente/datos-personales": alumno("perfil-informacion-personal"),
-  "expediente/estatus-academico": alumno("perfil-registro-calificaciones"),
-  "expediente/boleta": alumno("materias-calificacion"),
+  // PROMPT X (2026-10-24): la misma boleta generada que ven el alumno y su tutor.
+  "expediente/boleta": alumno("perfil-boleta"),
   "expediente/asistencia": alumno("asistencia-tabular"),
   "expediente/calendario-asistencia": alumno("calendario-asistencia"),
   "expediente/horario": alumno("calendario-horario"),

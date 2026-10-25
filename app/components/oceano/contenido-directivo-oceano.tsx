@@ -8,6 +8,10 @@
  * `contenido-docente-oceano.tsx`, porque en el mapa son el MISMO objeto de
  * pestaña que las del maestro. Aquí no se duplican (R6).
  *
+ * Grupos/Boleta › Boleta (PROMPT X, 2026-10-24) ya no sube nada: es el panel de
+ * activación de la boleta generada (`BoletasActivacionPanel`). «Grupo» sigue
+ * enseñando el registro de calificaciones del grupo.
+ *
  * De Administración escolar, los cinco apartados operan. Alumnos / Tutores
  * (PROMPT U, 2026-10-01) es el perfil del alumno elegido en el buscador, con
  * las MISMAS piezas que el alumno y Administración escolar: no hay aquí una
@@ -22,6 +26,7 @@ import {
 } from "@/app/components/administracion-panel";
 import { PortadaMediosPanel } from "@/app/components/portada-medios-panel";
 import { ConstanciaPorCurpPanel } from "@/app/components/constancia-por-curp-panel";
+import { BoletasActivacionPanel } from "@/app/components/boletas-activacion-panel";
 import { AvisoBuscarAlumno } from "./buscador-expediente-oceano";
 import { ContenidoAlumnoOceano, type DatosAlumnoOceano } from "./contenido-alumno-oceano";
 import {
@@ -189,10 +194,16 @@ export function ContenidoDirectivoOceano({
     );
   }
 
-  // Grupos/Boleta filtra por GRUPO, no por materia: aquí se sube la boleta de
-  // «1RO A MECATRONICA», no la de una asignatura suelta. Esa es toda la
-  // diferencia con la pestaña Materias, y es el motivo de que esta pantalla
-  // exista aparte.
+  // Grupos/Boleta › Boleta (PROMPT X): activar la boleta de un parcial y
+  // consultar la de un alumno. Qué vista va en cada modo lo decide `vistaBoletas`.
+  if (pieza === "boletas-directivo") {
+    return <BoletasActivacionPanel modo={modo} />;
+  }
+
+  // Grupos/Boleta › Grupo filtra por GRUPO, no por materia: aquí se abre el
+  // registro de «1RO A MECATRONICA», no el de una asignatura suelta. Esa es toda
+  // la diferencia con la pestaña Materias. La boleta ya no se sube aquí: la arma
+  // el sistema (PROMPT X).
   const grupos = gruposDelCatalogo(datos.materias).filter((g) =>
     grupoCoincideAmbito(g, filtro),
   );
@@ -212,9 +223,8 @@ export function ContenidoDirectivoOceano({
                   key={g.clave}
                   type="button"
                   // El registro de un grupo es el de su primera materia: es la
-                  // tabla física donde vive la hoja de ese grupo. Mientras la
-                  // boleta consolidada no tenga su propia tabla, esto es lo que
-                  // hay, y se dice en el rótulo en vez de fingir otra cosa.
+                  // tabla física donde vive la hoja de ese grupo, y se dice en
+                  // el aviso en vez de fingir otra cosa.
                   onClick={() => {
                     const primera = datos.materias.find(
                       (m) => claveDeGrupo(m) === g.clave,
@@ -225,7 +235,7 @@ export function ContenidoDirectivoOceano({
                 >
                   <p className="text-base font-bold text-[var(--oc-text)]">{etiquetaGrupo(g)}</p>
                   <p className="mt-1 text-xs text-[var(--oc-muted)]">
-                    {g.materias} {g.materias === 1 ? "materia" : "materias"} · sube su boleta
+                    {g.materias} {g.materias === 1 ? "materia" : "materias"} · ver su registro
                   </p>
                 </button>
               ))}
@@ -246,11 +256,9 @@ export function ContenidoDirectivoOceano({
           ) : (
             <>
               {/* El registro que se abre es el de una materia del grupo: es la
-                  tabla física que hoy existe. Se dice, en vez de dejar creer
-                  que ya hay una boleta consolidada por grupo. */}
+                  tabla física que hoy existe. Se dice cuál. */}
               <Aviso>
-                Grupo {rotulo}. Se está leyendo el registro «{registro}»; la
-                boleta consolidada del grupo todavía no tiene tabla propia.
+                Grupo {rotulo}. Se está leyendo el registro «{registro}».
               </Aviso>
               <MateriaTablaVistaPanel
                 vista={vista}

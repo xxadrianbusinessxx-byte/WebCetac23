@@ -6,7 +6,7 @@ histórico —`contexto.feliz.md`, y todo `docs/historial/`— **no describe el 
 Regla de mantenimiento: **este archivo se actualiza en el mismo cambio que lo vuelve
 falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/historial/`.
 
-- **Última revisión:** 2026-10-06 (PROMPT V: documentación para agentes)
+- **Última revisión:** 2026-10-24 (PROMPT X: boleta generada)
 
 ---
 
@@ -44,6 +44,7 @@ Fuentes únicas que **no** se duplican (regla R6):
 | Identidad de profesor | `PROFESORES.ID` |
 | Identidad de materia | `grupo_materia_id` (modelo B); `idInterno` en el legado |
 | Parciales | `periodos_evaluacion` |
+| Boleta activada (qué parcial, para quién) | `boletas_activacion` — la boleta en sí no se guarda |
 
 ## 3. Deudas estructurales vivas
 
@@ -104,6 +105,7 @@ en el GLOSARIO y en el código; el **relato** del cambio, en la BITACORA.
 **Alta manual (2026-10-24, PROMPT W)**: Personas › Alumnos › Inscripciones da de alta a UN alumno
 (`ALUMNOS` + inscripción en el operativo + tutor opcional) componiendo las escrituras que ya
 existían (`alta-manual-alumno.ts`); capacidad `alumno.cargar_roster`, +`tutor.crear` si lleva tutor.
+**Boleta generada (2026-10-24, PROMPT X)**: la subida manual de boletas desapareció; el directivo activa la de un parcial (plantel, grado o grupo, `boleta.activar`) y alumno/tutor la ven en Perfil › Boleta, armada al leer con la nota `promedio` actual (`boleta-puro.ts`). SQL: `crear-boletas-activacion.sql`.
 
 ## 6. Pendiente humano (no lo puede hacer un agente)
 
@@ -123,7 +125,7 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **53 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **54 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
 **Dos de ellas no prueban un módulo: `test-orden` (el repo) y `test-gen-contexto` (el índice y el generador).** `scripts/test-orden.mjs` es la

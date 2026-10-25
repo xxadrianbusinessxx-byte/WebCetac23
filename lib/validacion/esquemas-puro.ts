@@ -460,3 +460,37 @@ export const esquemaAltaManualAlumno = v.object(
   },
   "Faltan datos del alumno.",
 );
+
+/**
+ * `boletas.ts` (PROMPT X, 2026-10-24) — la boleta generada. Como en el alta manual,
+ * aquí solo hay FORMA y tamaño de cordura: qué parcial, grado o grupo son válidos
+ * lo decide `validarActivacion` (boleta-puro) contra el ciclo operativo, y sobre
+ * QUÉ alumno se puede leer, `resolverAccesoAlumno`.
+ */
+export const esquemaBoletaAlumno = v.object(
+  {
+    curp: textoOpcional("La CURP no es válida.", 40),
+    evaluacionId: textoOpcional("El parcial no es válido.", 64),
+  },
+  "Faltan datos de la boleta.",
+);
+
+export const esquemaActivarBoleta = v.object(
+  {
+    evaluacionId: textoOpcional("El parcial no es válido.", 64),
+    alcance: textoOpcional("Elige para quién se activa.", 20),
+    grado: textoOpcional("El grado no es válido.", 20),
+    grupoId: textoOpcional("El grupo no es válido.", 64),
+  },
+  "Faltan datos de la activación.",
+);
+
+export const esquemaDesactivarBoleta = v.object(
+  { id: textoOpcional("La activación no es válida.", 64) },
+  "Falta la activación que se quiere desactivar.",
+);
+
+export const esquemaGrupoBoleta = v.object(
+  { grupoId: textoOpcional("El grupo no es válido.", 64) },
+  "Elige el grupo.",
+);

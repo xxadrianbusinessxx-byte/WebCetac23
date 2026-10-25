@@ -38,6 +38,7 @@ import type { AlumnoEtiquetaRow } from "@/lib/escolar/alumno/etiquetas-dinamicas
 import type { VistaRegistroAlumno } from "@/lib/escolar/alumno/registro-alumno";
 import { DocumentosPanel } from "@/app/components/documentos-panel";
 import { ActividadesPanel } from "@/app/components/actividades-panel";
+import { BoletaAlumnoPanel } from "@/app/components/boleta-vista";
 import { SesionesProgramadasPanel } from "@/app/components/sesiones-programadas-panel";
 import { SolicitudesConstanciaPanel } from "@/app/components/solicitudes-constancia-panel";
 import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
@@ -434,6 +435,14 @@ export function ContenidoAlumnoOceano({
 
   if (pieza === "perfil-constancias") {
     return <SolicitudesConstanciaPanel curpAlumno={curp} />;
+  }
+
+  // PROMPT X (2026-10-24) — la boleta generada. Se pide al servidor cada vez que
+  // se entra; si el alumno y el tutor la ven o no lo decide la activación del
+  // directivo, en el servidor. `key` por CURP: al cambiar de hijo no se queda la
+  // boleta del anterior bajo el nombre del nuevo.
+  if (pieza === "perfil-boleta") {
+    return <BoletaAlumnoPanel key={curp} curp={curp} />;
   }
 
   if (pieza === "materias-calificacion") {
