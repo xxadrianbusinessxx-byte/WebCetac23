@@ -117,7 +117,7 @@ export const ESCENARIOS = {
     rol: "maestro",
     pasos: [
       ["docente · catálogo de materias", async (m, s, memo) => (memo.materias = await m.materias.actionListarMateriasConNombreVisible())],
-      ["docente · ciclo operativo", async (m) => m.ciclo.obtenerCicloOperativoGlobal(await anon(m))],
+      ["docente · ciclo operativo", async (m) => m.ciclo.obtenerCicloOperativoGlobal(await anon(m), { cache: true })],
       ["docente · hoja de una materia", async (m, s, memo) => m.escolar.actionObtenerVistaMateria(memo.materias?.[0]?.idInterno ?? "")],
     ],
   },
@@ -125,7 +125,7 @@ export const ESCENARIOS = {
     rol: "directivo",
     pasos: [
       ["directivo · catálogo de materias", async (m) => m.materias.actionListarMateriasConNombreVisible()],
-      ["directivo · ciclo operativo", async (m) => m.ciclo.obtenerCicloOperativoGlobal(await anon(m))],
+      ["directivo · ciclo operativo", async (m) => m.ciclo.obtenerCicloOperativoGlobal(await anon(m), { cache: true })],
       ["directivo · buscar expediente", async (m) => m.admin.actionBuscarAlumnosExpediente("mar")],
     ],
   },
@@ -134,7 +134,7 @@ export const ESCENARIOS = {
   entrada_administracion: {
     rol: "administracion",
     pasos: [
-      ["administración · ciclo operativo", async (m) => m.ciclo.obtenerCicloOperativoGlobal(await anon(m))],
+      ["administración · ciclo operativo", async (m) => m.ciclo.obtenerCicloOperativoGlobal(await anon(m), { cache: true })],
       ["administración · panel de tutores", async (m) => m.tutores.actionListarTutoresConCredenciales()],
       ["administración · buscar expediente", async (m, s, memo) => (memo.busqueda = await m.admin.actionBuscarAlumnosExpediente("mar"))],
       ["administración · abrir expediente", async (m, s, memo) => m.escolar.actionObtenerPerfilAlumno(memo.busqueda?.alumnos?.[0]?.curp ?? null)],

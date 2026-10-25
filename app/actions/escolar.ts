@@ -1,7 +1,7 @@
 "use server";
 
 
-import { leerNumeroControl } from "@/lib/escolar/alumno/numero-control";
+import { extrasDelPerfil } from "@/lib/escolar/alumno/perfil-extras";
 import { exigir } from "@/lib/auth/exigir";
 import { esRol } from "@/lib/auth/permisos";
 import {
@@ -94,10 +94,7 @@ import {
   resolverAccesoAlumno,
   type AccesoAlumno,
 } from "@/lib/escolar/alumno/acceso-alumno";
-import { obtenerEtiquetasDinamicas } from "@/lib/escolar/alumno/etiquetas-dinamicas-servicio";
 import type { AlumnoEtiquetaRow } from "@/lib/escolar/alumno/etiquetas-dinamicas";
-import { obtenerTutorPrincipalDeAlumno } from "@/lib/escolar/tutores/tutores";
-import { nombreCompletoTutor } from "@/lib/escolar/tutores/tutores-types";
 
 /**
  * FASE 3 — Contrato de salida de la RPC `obtener_perfil_alumno(p_curp)`.
@@ -341,21 +338,9 @@ export async function actionObtenerPerfilAlumno(
       }
     : null;
 
-  // FASE 2 — etiquetas dinámicas (módulo separado, sin N+1) + contacto del
-  // tutor principal (fuente de verdad: tutores + tutor_alumnos).
-  // 2026-09-24 — y el número de control, en la misma ida (consulta propia: ver numero-control.ts).
-  const [etiquetasDinamicas, tutor, numeroControl] = await Promise.all([
-    obtenerEtiquetasDinamicas(supabaseLectura, curp),
-    obtenerTutorPrincipalDeAlumno(supabaseLectura, curp),
-    leerNumeroControl(supabaseLectura, curp),
-  ]);
-  const tutorContacto = tutor
-    ? {
-        nombre: nombreCompletoTutor(tutor),
-        telefono: tutor.telefono,
-        correo: tutor.correo,
-      }
-    : null;
+  // FASE 2 — etiquetas dinámicas + contacto del tutor principal (tutores +
+  // tutor_alumnos) + número de control. PROMPT Z: de la RPC v2 si los trae.
+  const { etiquetasDinamicas, tutorContacto, numeroControl } = await extrasDelPerfil(supabaseLectura, curp, rpcData);
 
   const puedeEditarEtiquetas = acceso.puedeEditarEtiquetas;
 

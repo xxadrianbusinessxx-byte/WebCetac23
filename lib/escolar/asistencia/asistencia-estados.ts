@@ -122,6 +122,8 @@ export async function obtenerEstadosAsistenciaAlumno(
      *  devuelve `materiasDelAlumno(…, false, …)`) si quien llama ya lo pidió, como
      *  la boleta. Puede ser la promesa en curso. Sin él, se consulta aquí. */
     roster?: Promise<MateriaDelAlumno[]> | MateriaDelAlumno[];
+    /** PROMPT Z — leer el calendario del periodo con la caché corta (solo lecturas que se pintan). */
+    cacheCalendario?: boolean;
   },
 ): Promise<DiaEstadoAsistencia[]> {
   const g = norm(input.grado);
@@ -133,7 +135,7 @@ export async function obtenerEstadosAsistenciaAlumno(
   //    el periodo operativo se lee POR PERIODO; si no, se conserva la lectura
   //    legacy por texto (ciclo_escolar).
   const calendario = input.periodoId
-    ? await obtenerCalendarioDePeriodo(supabase, input.periodoId, input.ciclo)
+    ? await obtenerCalendarioDePeriodo(supabase, input.periodoId, input.ciclo, { cache: input.cacheCalendario })
     : await obtenerCalendarioEscolar(supabase, ciclo);
   if (calendario.length === 0) return [];
 

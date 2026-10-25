@@ -96,10 +96,11 @@ import {
 type Fallo = { ok: false; error: string };
 const fallo = (error: string): Fallo => ({ ok: false, error });
 
-/** El ciclo operativo, que es el alcance temporal de todo lo de aquí. */
-async function cicloActual(): Promise<string | null> {
+/** El ciclo operativo, que es el alcance temporal de todo lo de aquí.
+ *  PROMPT Z — `cache` solo desde listados que se pintan; las escrituras, sin él. */
+async function cicloActual(cache = false): Promise<string | null> {
   const supabase = await createClient();
-  const c = await obtenerCicloOperativoGlobal(supabase);
+  const c = await obtenerCicloOperativoGlobal(supabase, { cache });
   return c.ok && c.periodo ? String(c.periodo.id) : null;
 }
 
@@ -152,7 +153,7 @@ export async function actionListarReportesDeAlumno(
     const supabase = await createClient();
     const acceso = await resolverAccesoAlumno(supabase, g.sesion, curp);
     if (!acceso.ok) return fallo(acceso.error);
-    const periodoId = await cicloActual();
+    const periodoId = await cicloActual(true);
     if (!periodoId) return { ok: true, reportes: [] };
     const r = await listarReportesVisiblesDeAlumno(supabase, periodoId, acceso.curp);
     return r.ok ? { ok: true, reportes: r.dato } : fallo("No se pudieron leer los reportes.");

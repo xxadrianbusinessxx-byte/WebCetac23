@@ -39,7 +39,7 @@ import {
   JUSTIFICACION_MIME_PERMITIDOS,
   JUSTIFICACION_MOTIVO_MAX,
   listarJustificacionesConDetalle,
-  listarJustificacionesDeCurp,
+  justificacionesParaPintarDeCurp,
   listarJustificacionesDeCurps,
   listarJustificacionesPendientes,
   listarMensajesDeTutorConDetalle,
@@ -431,9 +431,7 @@ export async function actionObtenerJustificacionesDeAlumno(
   const c = curp.trim().toUpperCase();
   if (!c) return { ok: false, error: "CURP inválida." };
   if (!(await sesionAutorizaCurp(supabase, sesion, c))) return NO_AUTORIZADO;
-  const esquema = await verificarEsquemaJustificaciones(supabase);
-  if (!esquema.ok) return { ok: false, error: esquema.error };
-  return listarJustificacionesDeCurp(supabase, c);
+  return justificacionesParaPintarDeCurp(supabase, c); // PROMPT Z: sin sondeo de esquema
 }
 
 /** Tutor: mensajes de justificaciones dirigidos a él, con detalle de la justificación. */

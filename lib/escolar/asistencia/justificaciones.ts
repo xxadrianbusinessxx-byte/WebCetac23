@@ -440,6 +440,25 @@ export async function listarJustificacionesDeCurps(
   return { ok: true, justificaciones: (data ?? []) as FilaJustificacion[] };
 }
 
+/**
+ * PROMPT Z — Justificaciones de UN alumno para pintarlas, SIN el sondeo previo de
+ * `verificarEsquemaJustificaciones` (dos viajes más en cada apertura de la
+ * pestaña). El «esquema pendiente» se deduce del error de la propia lectura,
+ * con el mismo mensaje que daba el sondeo.
+ */
+export async function justificacionesParaPintarDeCurp(
+  supabase: SupabaseClient,
+  curp: string,
+): Promise<
+  { ok: true; justificaciones: FilaJustificacion[] } | { ok: false; error: string }
+> {
+  const r = await listarJustificacionesDeCurp(supabase, curp);
+  if (r.ok) return r;
+  return /does not exist|could not find the table|in the schema cache/i.test(r.error)
+    ? { ok: false, error: ERROR_ESQUEMA_JUSTIFICACIONES_PENDIENTE }
+    : r;
+}
+
 /** Justificaciones de UN alumno, por fecha ascendente. */
 export async function listarJustificacionesDeCurp(
   supabase: SupabaseClient,

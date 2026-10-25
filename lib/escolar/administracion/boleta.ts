@@ -276,7 +276,8 @@ export async function boletaDeAlumno(
     buscarAlumnoPorCurp(supabase, curp),
     leerNumeroControl(supabase, curp),
     resolverIdentidadAlumnoInscripcion(supabase, curp),
-    resolverOperativoConParciales(supabase),
+    // PROMPT Z — lectura que se pinta: el ciclo y sus parciales, con caché corta.
+    resolverOperativoConParciales(supabase, { cache: true }),
   ]);
   // A la familia no se le enseña el error técnico (ciclo, inscripción): para ella
   // la boleta simplemente no está disponible. El personal sí necesita el motivo.
@@ -324,6 +325,7 @@ export async function boletaDeAlumno(
     roster.then((todas) => todas.filter((m) => m.activo)),
     obtenerEstadosAsistenciaAlumno(supabase, {
       roster,
+      cacheCalendario: true, // PROMPT Z
       curp,
       grado,
       grupo,

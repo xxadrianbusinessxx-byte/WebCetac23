@@ -23,6 +23,21 @@
 --   identidades      MateriaIdentidadCatalogo[]
 --   nombres_visibles materias_nombres_visibles[]
 --   comentarios      { CURP, COMENTARIO, FECHA }[] FECHA desc
+--
+-- v2 · PROMPT Z (2026-10-25) — MISMA firma; se aplica con el mismo CREATE OR REPLACE:
+--   perfil_v            2 (la app usa los campos nuevos solo si ve este número)
+--   numero_control      ALUMNOS.numero_control (sin trim: lo normaliza la app)
+--   etiquetas_dinamicas alumno_etiquetas[] del alumno, por orden y created_at
+--   tutor_principal     { id, nombre, apellidos, telefono, correo } del tutor
+--                       activo con menor tipo_relacion ('principal' < 'secundario');
+--                       SIN password_hash
+--   nombres_visibles    SOLO los alias de las tablas del grupo del alumno (antes,
+--                       los 101 de todas las materias: el 80 % de la respuesta).
+--                       Se comparan en mayúsculas y sin espacios: los nombres
+--                       físicos son ASCII (medido el 2026-10-25), así que equivale
+--                       a la comparación normalizada de nombreVisibleDesdeMapa.
+--   Con v2 el perfil pasa de 6 peticiones a Supabase a 2 (la RPC y la tabla de
+--   registro). Sin v2 la app consulta esos tres datos como siempre.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.obtener_perfil_alumno(p_curp text)
@@ -48,6 +63,7 @@ DECLARE
   v_identidades jsonb;
   v_nombres_visibles jsonb;
   v_comentarios jsonb;
+  v_extra jsonb;
 BEGIN
   v_curp := upper(btrim(p_curp));
   IF v_curp = '' THEN
@@ -73,6 +89,26 @@ BEGIN
   -- FASE 2: se añaden EDAD/ESTATURA (campos personales definidos, aditivos).
   -- GRADO/GRUPO/CARRERA se conservan solo por compatibilidad de lectura; la
   -- identidad académica la resuelve la app desde inscripcion/grupo/carrera.
+  -- v2 — lo que solo depende de la CURP, para TODAS las salidas de abajo.
+  v_extra := jsonb_build_object(
+    'perfil_v', 2,
+    'numero_control', (SELECT "numero_control" FROM "ALUMNOS" WHERE "CURP" = v_curp LIMIT 1),
+    'etiquetas_dinamicas', (
+      SELECT COALESCE(jsonb_agg(to_jsonb(e) ORDER BY e.orden, e.created_at), '[]'::jsonb)
+      FROM alumno_etiquetas e WHERE e.curp = v_curp
+    ),
+    'tutor_principal', (
+      SELECT to_jsonb(r) FROM (
+        SELECT t.id, t.nombre, t.apellidos, t.telefono, t.correo
+        FROM tutor_alumnos ta
+        JOIN tutores t ON t.id = ta.tutor_id
+        WHERE ta.curp_alumno = v_curp AND ta.activo = true
+        ORDER BY ta.tipo_relacion ASC
+        LIMIT 1
+      ) r
+    )
+  );
+
   SELECT to_jsonb(r) INTO v_etiquetas
   FROM (
     SELECT "CURP", "GENERO", "GRADO", "GRUPO", "CORREO", "CELULAR",
@@ -103,10 +139,10 @@ BEGIN
       'semestres', (SELECT COALESCE(jsonb_agg(to_jsonb(s) ORDER BY s.semestre), '[]'::jsonb) FROM academico_semestres s),
       'grupo_materias', '[]'::jsonb, 'materias', '[]'::jsonb,
       'identidades', '[]'::jsonb,
-      'nombres_visibles', (SELECT COALESCE(jsonb_agg(to_jsonb(nv) ORDER BY nv.materia_id), '[]'::jsonb) FROM materias_nombres_visibles nv),
+      'nombres_visibles', '[]'::jsonb, -- v2: sin grupo no hay materias que nombrar
       'comentarios', (SELECT COALESCE(jsonb_agg(r ORDER BY r."FECHA" DESC NULLS LAST), '[]'::jsonb)
                       FROM (SELECT "CURP", "COMENTARIO", "FECHA" FROM "COMENTARIOS" WHERE "CURP" = v_curp) r)
-    );
+    ) || v_extra;
   END IF;
 
   v_grupo_id := (v_inscripcion->>'grupo_id')::uuid;
@@ -126,10 +162,10 @@ BEGIN
       'semestres', (SELECT COALESCE(jsonb_agg(to_jsonb(s) ORDER BY s.semestre), '[]'::jsonb) FROM academico_semestres s),
       'grupo_materias', '[]'::jsonb, 'materias', '[]'::jsonb,
       'identidades', '[]'::jsonb,
-      'nombres_visibles', (SELECT COALESCE(jsonb_agg(to_jsonb(nv) ORDER BY nv.materia_id), '[]'::jsonb) FROM materias_nombres_visibles nv),
+      'nombres_visibles', '[]'::jsonb, -- v2: sin grupo no hay materias que nombrar
       'comentarios', (SELECT COALESCE(jsonb_agg(r ORDER BY r."FECHA" DESC NULLS LAST), '[]'::jsonb)
                       FROM (SELECT "CURP", "COMENTARIO", "FECHA" FROM "COMENTARIOS" WHERE "CURP" = v_curp) r)
-    );
+    ) || v_extra;
   END IF;
 
   SELECT to_jsonb(r) INTO v_periodo
@@ -148,10 +184,10 @@ BEGIN
       'semestres', (SELECT COALESCE(jsonb_agg(to_jsonb(s) ORDER BY s.semestre), '[]'::jsonb) FROM academico_semestres s),
       'grupo_materias', '[]'::jsonb, 'materias', '[]'::jsonb,
       'identidades', '[]'::jsonb,
-      'nombres_visibles', (SELECT COALESCE(jsonb_agg(to_jsonb(nv) ORDER BY nv.materia_id), '[]'::jsonb) FROM materias_nombres_visibles nv),
+      'nombres_visibles', '[]'::jsonb, -- v2: sin grupo no hay materias que nombrar
       'comentarios', (SELECT COALESCE(jsonb_agg(r ORDER BY r."FECHA" DESC NULLS LAST), '[]'::jsonb)
                       FROM (SELECT "CURP", "COMENTARIO", "FECHA" FROM "COMENTARIOS" WHERE "CURP" = v_curp) r)
-    );
+    ) || v_extra;
   END IF;
 
   IF (v_grupo->>'carrera_id') IS NOT NULL THEN
@@ -216,9 +252,11 @@ BEGIN
     v_identidades := '[]'::jsonb;
   END IF;
 
-  -- NOMBRES VISIBLES (todas; la app filtra activos como hoy).
+  -- NOMBRES VISIBLES: v2, solo los de las tablas del grupo del alumno (la app
+  -- sigue filtrando los activos, como antes).
   SELECT COALESCE(jsonb_agg(to_jsonb(nv) ORDER BY nv.materia_id), '[]'::jsonb) INTO v_nombres_visibles
-  FROM materias_nombres_visibles nv;
+  FROM materias_nombres_visibles nv
+  WHERE upper(btrim(nv.materia_id)) IN (SELECT upper(btrim(t)) FROM unnest(v_tablas_legacy) t);
 
   -- COMENTARIOS (misma orden que listarComentariosAlumno).
   SELECT COALESCE(jsonb_agg(r ORDER BY r."FECHA" DESC NULLS LAST), '[]'::jsonb) INTO v_comentarios
@@ -237,7 +275,7 @@ BEGIN
     'identidades', v_identidades,
     'nombres_visibles', v_nombres_visibles,
     'comentarios', v_comentarios
-  );
+  ) || v_extra;
 END;
 $$;
 

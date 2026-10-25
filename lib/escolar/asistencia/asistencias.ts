@@ -2,9 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { carreraEscolarDesdeEtiquetas } from "../alumno/informacion-personal.ts";
 import {
   TABLA_ASISTENCIA_ALUMNOS,
-  TABLA_CARRERAS,
   TABLA_ETIQUETAS_PERSONALES,
-  TABLA_GRUPOS,
   TABLA_INSCRIPCIONES_ALUMNO,
 } from "../tables.ts";
 import type { EtiquetasPersonalesRow } from "../types.ts";
@@ -140,9 +138,14 @@ export async function resolverIdentidadAlumnoInscripcion(
 ): Promise<
   { ok: true; identidad: IdentidadAlumnoInscripcion } | { ok: false; error: string }
 > {
+  // PROMPT Z — UNA petición: la inscripción activa con su grupo y la carrera del
+  // grupo incrustados (relaciones `inscripciones_alumno.grupo_id → grupos` y
+  // `grupos.carrera_id → carreras`). Antes eran tres viajes en serie, en cada
+  // boleta y cada asistencia. Mismas reglas: 0 o más de una activa → error;
+  // grupo inexistente o inactivo → error; carrera opcional.
   const { data: inscripciones, error: errIns } = await supabase
     .from(TABLA_INSCRIPCIONES_ALUMNO)
-    .select("grupo_id, activo")
+    .select("grupo_id, activo, grupos(grado, nombre, carrera_id, periodo_id, activo, carreras(clave))")
     .eq("curp", curp)
     .eq("activo", true)
     .limit(2);
@@ -156,32 +159,32 @@ export async function resolverIdentidadAlumnoInscripcion(
     };
   }
 
-  const { data: detalleGrupo, error: errGrupo } = await supabase
-    .from(TABLA_GRUPOS)
-    .select("grado, nombre, carrera_id, periodo_id, activo")
-    .eq("id", inscripciones[0].grupo_id)
-    .maybeSingle();
-  if (errGrupo || !detalleGrupo || detalleGrupo.activo === false) {
+  // PostgREST puede devolver la relación incrustada como objeto o como arreglo
+  // de uno (los tipos generados dicen arreglo): se aceptan las dos formas.
+  type GrupoIncrustado = {
+    grado: string | null;
+    nombre: string | null;
+    carrera_id: string | null;
+    periodo_id: string | null;
+    activo: boolean | null;
+    carreras: { clave: string | null } | { clave: string | null }[] | null;
+  };
+  const uno = <T,>(v: T | T[] | null | undefined): T | null =>
+    Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
+  const fila = inscripciones[0] as unknown as { grupo_id: string; grupos: GrupoIncrustado | GrupoIncrustado[] | null };
+  const detalleGrupo = uno(fila.grupos);
+  if (!detalleGrupo || detalleGrupo.activo === false) {
     return {
       ok: false,
       error: "El grupo del alumno no es válido o está inactivo.",
     };
   }
-
-  let carrera = "";
-  if (detalleGrupo.carrera_id) {
-    const { data: detalleCarrera } = await supabase
-      .from(TABLA_CARRERAS)
-      .select("clave")
-      .eq("id", detalleGrupo.carrera_id)
-      .maybeSingle();
-    carrera = String(detalleCarrera?.clave ?? "");
-  }
+  const carrera = detalleGrupo.carrera_id ? String(uno(detalleGrupo.carreras)?.clave ?? "") : "";
 
   return {
     ok: true,
     identidad: {
-      grupoId: inscripciones[0].grupo_id,
+      grupoId: fila.grupo_id,
       grado: String(detalleGrupo.grado ?? ""),
       grupo: String(detalleGrupo.nombre ?? ""),
       carrera,

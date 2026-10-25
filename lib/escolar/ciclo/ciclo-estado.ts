@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { conCacheReferencia, invalidarCacheReferencia } from "../cache-referencia.ts";
 import { contarDiasClaseDePeriodo } from "./calendario.ts";
 import {
   TABLA_GRUPOS,
@@ -158,6 +159,21 @@ export type ResolucionCicloOperativo = {
 
 export async function obtenerCicloOperativoGlobal(
   supabase: SupabaseClient,
+  /**
+   * PROMPT Z — `cache: true` SOLO desde lecturas que se pintan (boleta,
+   * asistencia del alumno, reportes, `/oceano`): reutiliza el resultado durante
+   * 20 s en esta instancia (`cache-referencia.ts`). Las escrituras no lo pasan.
+   */
+  opciones: { cache?: boolean } = {},
+): Promise<ResolucionCicloOperativo> {
+  if (opciones.cache) {
+    return conCacheReferencia("ciclo", "operativo", () => resolverCicloOperativo(supabase), (r) => r.ok);
+  }
+  return resolverCicloOperativo(supabase);
+}
+
+async function resolverCicloOperativo(
+  supabase: SupabaseClient,
 ): Promise<ResolucionCicloOperativo> {
   const { filas, esquema, error } = await listarPeriodos(supabase);
   if (error) return { ok: false, periodo: null, via: null, error };
@@ -234,6 +250,7 @@ export async function crearCicloBorrador(
     .insert(fila)
     .select("id")
     .maybeSingle();
+  invalidarCacheReferencia("ciclo");
   if (error) return { ok: false, error: error.message };
   const periodoId = data ? String(data.id) : null;
   const nota = esquema.esquema ? "" : ` ${ERROR_ESQUEMA_ESTADO_PENDIENTE}`;
@@ -512,12 +529,14 @@ async function aplicarEstado(
       .from(TABLA_PERIODOS)
       .update({ activo: cambio.activo, estado: cambio.estado })
       .eq("id", cambio.id);
+    invalidarCacheReferencia("ciclo");
     return error?.message ?? null;
   }
   const { error } = await supabase
     .from(TABLA_PERIODOS)
     .update({ activo: cambio.activo })
     .eq("id", cambio.id);
+  invalidarCacheReferencia("ciclo");
   return error?.message ?? null;
 }
 
@@ -711,6 +730,7 @@ export async function activarCicloOperativoAtomico(
   const { data, error } = await supabase.rpc("activar_ciclo_operativo", {
     p_periodo: periodoId,
   });
+  invalidarCacheReferencia("ciclo");
   if (error) {
     const msg = String(error?.message ?? "");
     if (/PGRST202|Could not find the function|function .* does not exist/i.test(msg)) {

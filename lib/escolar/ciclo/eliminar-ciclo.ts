@@ -11,6 +11,7 @@
  * NO decide la seguridad: el RPC es la autoridad final.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { invalidarCacheReferencia } from "../cache-referencia.ts";
 import { consultarPeriodo } from "./ciclo-estado.ts";
 import { ESTADO_OPERATIVO, resolverEstadoPeriodo } from "./ciclo-estado-puro.ts";
 import {
@@ -181,6 +182,7 @@ export async function eliminarCicloRpc(
   const { data, error } = await supabase.rpc("eliminar_ciclo", {
     p_periodo: periodoId,
   });
+  invalidarCacheReferencia("ciclo"); // PROMPT Z
   if (error) {
     const msg = String(error.message ?? "No se pudo eliminar el ciclo.").replace(
       /^eliminar_ciclo:\s*/i,

@@ -28,6 +28,8 @@
  *   --rampa   segundos en los que llegan los N usuarios (0 = todos a la vez)
  *   --pausa   ms máximos de «pensar» entre pantalla y pantalla (al azar 0..pausa)
  *   --timeout tope por petición (ms), como el límite de una función de Vercel
+ *   --descanso segundos de reposo entre niveles (por defecto 30): cada escalón de la
+ *             escalera se mide desde reposo, no sobre la cola del anterior
  * Freno: si un proceso pasa del 10 % de pasos fallidos (tras 50 pasos), sus usuarios
  * dejan de navegar. La prueba no debe prolongar una saturación ya medida.
  */
@@ -66,6 +68,7 @@ async function padre() {
   const PAUSA = Number(opt("pausa", 1000));
   const CLD_MS = Number(opt("cloudinary-ms", 300));
   const TIMEOUT = Number(opt("timeout", 30000));
+  const DESCANSO = Number(opt("descanso", 30));
   const SALIDA = opt("salida", "");
   const informe = { fecha: new Date().toISOString(), procesos: PROCESOS, rampa: RAMPA, pausa: PAUSA, cloudinaryMs: CLD_MS, timeoutMs: TIMEOUT, niveles: [] };
 
@@ -74,7 +77,8 @@ async function padre() {
   console.log(`Mezcla: ${MEZCLA.map((x) => `${x.rol} ${x.peso}%`).join(" · ")}`);
   console.log("=".repeat(78));
 
-  for (const N of NIVELES) {
+  for (const [indice, N] of NIVELES.entries()) {
+    if (indice > 0 && DESCANSO > 0) await new Promise((r) => setTimeout(r, DESCANSO * 1000));
     const t0 = Date.now();
     const partes = await Promise.all(
       Array.from({ length: PROCESOS }, (_, i) => {

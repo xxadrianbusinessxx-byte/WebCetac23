@@ -343,7 +343,7 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
 
   // CICLO GLOBAL — el ciclo y sus parciales salen del periodo OPERATIVO
   // (obtenerCicloOperativoGlobal), nunca de un parámetro del cliente.
-  const operativo = await resolverOperativoConParciales(supabase);
+  const operativo = await resolverOperativoConParciales(supabase, { cache: true }); // PROMPT Z: solo lectura
   if (!operativo.ok) return { ok: false, error: operativo.error };
 
   // Identidad académica SOLO desde la inscripción ACTIVA de la CURP (mismo
@@ -396,6 +396,7 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
     periodoId: operativo.periodoId,
     profesorId: esRol(sesion.rol, "maestro") ? sesion.profesorId : null,
     grupoId,
+    cacheCalendario: true, // PROMPT Z: solo lectura
   });
 
   const resumen = resumenAsistenciaPorParcial(

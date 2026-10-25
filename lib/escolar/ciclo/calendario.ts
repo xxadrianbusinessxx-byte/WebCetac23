@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { conCacheReferencia, invalidarCacheReferencia } from "../cache-referencia.ts";
 import {
   TABLA_CALENDARIO_ESCOLAR,
   TIPOS_DIA_CALENDARIO,
@@ -199,6 +200,7 @@ export async function guardarDiaCalendario(
       },
       { onConflict: "ciclo_escolar,fecha" },
     );
+  invalidarCacheReferencia("ciclo"); // PROMPT Z: el calendario guardado se vuelve a leer
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };
@@ -221,6 +223,7 @@ export async function eliminarDiaCalendario(
     .delete()
     .eq("ciclo_escolar", cicloNorm)
     .eq("fecha", fecha);
+  invalidarCacheReferencia("ciclo"); // PROMPT Z: el calendario guardado se vuelve a leer
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };
@@ -283,6 +286,7 @@ export async function establecerCalendarioBase(
   const { error } = await supabase
     .from(TABLA_CALENDARIO_ESCOLAR)
     .upsert(filas, { onConflict: "ciclo_escolar,fecha" });
+  invalidarCacheReferencia("ciclo"); // PROMPT Z: el calendario guardado se vuelve a leer
 
   if (error) return { ok: false, error: error.message };
   return { ok: true, generados: filas.length };
@@ -319,6 +323,28 @@ export async function verificarColumnaPeriodoIdCalendario(
  * cada boleta y cada asistencia, para una columna poblada al 100 % desde la F5.
  */
 export async function obtenerCalendarioDePeriodo(
+  supabase: SupabaseClient,
+  periodoId: string,
+  periodoNombre: string,
+  /**
+   * PROMPT Z — `cache: true` solo desde lecturas que se pintan (boleta y asistencia
+   * del alumno): el calendario es el mismo para todos y solo cambia cuando se edita
+   * aquí (cada escritura de este archivo invalida). 20 s por instancia.
+   */
+  opciones: { cache?: boolean } = {},
+): Promise<DiaCalendarioRow[]> {
+  if (opciones.cache) {
+    return conCacheReferencia(
+      "ciclo",
+      `calendario:${periodoId}:${periodoNombre}`,
+      () => leerCalendarioDePeriodo(supabase, periodoId, periodoNombre),
+      (dias) => dias.length > 0,
+    );
+  }
+  return leerCalendarioDePeriodo(supabase, periodoId, periodoNombre);
+}
+
+async function leerCalendarioDePeriodo(
   supabase: SupabaseClient,
   periodoId: string,
   periodoNombre: string,
@@ -386,6 +412,7 @@ export async function guardarDiaCalendarioDePeriodo(
       },
       { onConflict: "ciclo_escolar,fecha" },
     );
+  invalidarCacheReferencia("ciclo"); // PROMPT Z: el calendario guardado se vuelve a leer
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -401,6 +428,7 @@ export async function eliminarDiaCalendarioDePeriodo(
     .delete()
     .eq("periodo_id", periodoId)
     .eq("fecha", fecha);
+  invalidarCacheReferencia("ciclo"); // PROMPT Z: el calendario guardado se vuelve a leer
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -456,6 +484,7 @@ export async function establecerCalendarioBaseDePeriodo(
   const { error } = await supabase
     .from(TABLA_CALENDARIO_ESCOLAR)
     .upsert(filas, { onConflict: "ciclo_escolar,fecha" });
+  invalidarCacheReferencia("ciclo"); // PROMPT Z: el calendario guardado se vuelve a leer
   if (error) return { ok: false, error: error.message };
   return { ok: true, generados: filas.length };
 }

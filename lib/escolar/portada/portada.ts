@@ -30,6 +30,7 @@ import {
   TABLA_PORTADA_CARRERAS,
   TABLA_PORTADA_MEDIOS,
 } from "../tables.ts";
+import { conCacheReferencia, invalidarCacheReferencia } from "../cache-referencia.ts";
 import { urlCloudinaryDesdePublicId } from "../../cloudinary/urls.ts";
 import { borrarRecurso, firmarSubida, leerRecurso, type FirmaSubida } from "../../cloudinary/firma.ts";
 import { consultarOembed, resolverEnlaceCortoTikTok } from "../../oembed/oembed.ts";
@@ -235,9 +236,16 @@ export async function cargarPortada(supabase: SupabaseClient): Promise<EstadoPor
   };
 }
 
-/** La portada pública: el estado más los enlaces listos para pintar. */
+/**
+ * La portada pública: el estado más los enlaces listos para pintar.
+ *
+ * PROMPT Z — con caché de 60 s por instancia (`cache-referencia.ts`): `/` es la
+ * página de más tráfico y cada visita costaba 4 peticiones para datos que el
+ * directivo cambia de vez en cuando. Toda escritura de este módulo la invalida;
+ * el panel de Configuración usa `cargarPortada`, que no pasa por la caché.
+ */
 export async function leerPortadaPublica(supabase: SupabaseClient): Promise<PortadaPublica> {
-  const estado = await cargarPortada(supabase);
+  const estado = await conCacheReferencia("portada", "publica", () => cargarPortada(supabase), () => true);
   const a = estado.ajustes;
   const limpio = (x: string | undefined) => (x && x.trim() ? x.trim() : null);
   return {
@@ -398,6 +406,7 @@ export async function registrarMedio(
       .from(TABLA_PORTADA_MEDIOS)
       .update({ public_id_movil: recurso.public_id, version_movil: recurso.version, updated_at: ahora })
       .eq("id", previo!.id));
+    invalidarCacheReferencia("portada"); // PROMPT Z: la portada pública se vuelve a leer
   } else if (previo) {
     anterior = previo.public_id;
     ({ error } = await supabase
@@ -414,6 +423,7 @@ export async function registrarMedio(
         updated_at: ahora,
       })
       .eq("id", previo.id));
+    invalidarCacheReferencia("portada"); // PROMPT Z: la portada pública se vuelve a leer
   } else {
     ({ error } = await supabase.from(TABLA_PORTADA_MEDIOS).insert({
       tipo: e.tipo,
@@ -428,6 +438,7 @@ export async function registrarMedio(
       texto_alt: textoAlt,
       subido_por: subidoPor,
     }));
+    invalidarCacheReferencia("portada"); // PROMPT Z: la portada pública se vuelve a leer
   }
 
   if (error) {
@@ -472,12 +483,14 @@ export async function eliminarMedio(
       .from(TABLA_PORTADA_MEDIOS)
       .update({ public_id_movil: null, version_movil: null, updated_at: new Date().toISOString() })
       .eq("id", id);
+    invalidarCacheReferencia("portada"); // PROMPT Z: la portada pública se vuelve a leer
     if (r.error) return { ok: false, error: "No se pudo quitar la versión para teléfono." };
     await borrarRecurso(movil, "image").catch((x) => console.warn("[portada] huérfano:", movil, x));
     return { ok: true, estado: await cargarPortada(supabase) };
   }
 
   const r = await supabase.from(TABLA_PORTADA_MEDIOS).delete().eq("id", id);
+  invalidarCacheReferencia("portada"); // PROMPT Z: la portada pública se vuelve a leer
   if (r.error) return { ok: false, error: "No se pudo eliminar." };
 
   const tipoRecurso = fila.tipo === "video" ? "video" : "image";
@@ -496,6 +509,7 @@ export async function eliminarMedio(
     const hayHueco = compacto.some((c, i) => restantes[i]?.orden !== c.orden);
     if (hayHueco) {
       const rr = await supabase.rpc("reordenar_portada", { p_ids: compacto.map((c) => c.id) });
+      invalidarCacheReferencia("portada"); // PROMPT Z: la portada pública se vuelve a leer
       if (rr.error) console.error("[portada] no se pudo compactar el orden", rr.error);
     }
   }
@@ -511,6 +525,7 @@ export async function reordenarImagenes(
     return { ok: false, error: "El carrusel cambió mientras lo ordenabas. Recarga la página." };
   }
   const { error } = await supabase.rpc("reordenar_portada", { p_ids: ids });
+  invalidarCacheReferencia("portada"); // PROMPT Z: la portada pública se vuelve a leer
   if (error) {
     console.error("[portada] reordenar", error);
     return { ok: false, error: "No se pudo guardar el nuevo orden." };
@@ -551,6 +566,7 @@ export async function guardarAjustes(
 
   if (guardar.length) {
     const { error } = await supabase.from(TABLA_PORTADA_AJUSTES).upsert(guardar, { onConflict: "clave" });
+    invalidarCacheReferencia("portada"); // PROMPT Z: la portada pública se vuelve a leer
     if (error) {
       console.error("[portada] guardarAjustes", error);
       return { ok: false, error: "No se pudieron guardar los ajustes." };
@@ -558,6 +574,7 @@ export async function guardarAjustes(
   }
   if (borrar.length) {
     const { error } = await supabase.from(TABLA_PORTADA_AJUSTES).delete().in("clave", borrar);
+    invalidarCacheReferencia("portada"); // PROMPT Z: la portada pública se vuelve a leer
     if (error) return { ok: false, error: "No se pudieron quitar algunos ajustes." };
   }
   return { ok: true, estado: await cargarPortada(supabase) };
@@ -636,6 +653,7 @@ export async function guardarCarreraPortada(
           },
           { onConflict: "carrera_id" },
         );
+  invalidarCacheReferencia("portada"); // PROMPT Z: la portada pública se vuelve a leer
   if (error) {
     if (error.code === TABLA_INEXISTENTE) return { ok: false, error: FALTA_SQL_CARRERAS };
     console.error("[portada] guardarCarreraPortada", error);

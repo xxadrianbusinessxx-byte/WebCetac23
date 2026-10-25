@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { conCacheReferencia, invalidarCacheReferencia } from "../cache-referencia.ts";
 import {
   activarCicloOperativoAtomico,
   configuracionPermitidaEnPeriodo,
@@ -218,6 +219,7 @@ export async function actualizarRangoCiclo(
     .from(TABLA_PERIODOS)
     .update({ fecha_inicio: fechaInicio, fecha_fin: fechaFin })
     .eq("id", periodoId);
+  invalidarCacheReferencia("ciclo");
   if (error) return { ok: false, error: error.message };
   return { ok: true, mensaje: "Rango del ciclo actualizado." };
 }
@@ -336,6 +338,7 @@ export async function guardarPeriodoEvaluacion(
       .update(fila)
       .eq("id", idActual)
       .eq("periodo_id", periodoId);
+    invalidarCacheReferencia("ciclo");
     if (error) return { ok: false, error: error.message };
     return { ok: true, mensaje: `Parcial «${v.nombre}» actualizado.` };
   }
@@ -343,6 +346,7 @@ export async function guardarPeriodoEvaluacion(
   const { error } = await supabase
     .from(TABLA_PERIODOS_EVALUACION)
     .upsert(fila, { onConflict: "periodo_id,numero" });
+  invalidarCacheReferencia("ciclo");
   if (error) return { ok: false, error: error.message };
   return { ok: true, mensaje: `Parcial «${v.nombre}» guardado.` };
 }
@@ -365,6 +369,7 @@ export async function setActivoEvaluacion(
     .from(TABLA_PERIODOS_EVALUACION)
     .update({ activo })
     .eq("id", evaluacionId);
+  invalidarCacheReferencia("ciclo");
   if (error) return { ok: false, error: error.message };
   return {
     ok: true,
@@ -433,6 +438,8 @@ export async function resolverCicloEvaluacionPorFecha(
  */
 export async function resolverOperativoConParciales(
   supabase: SupabaseClient,
+  /** PROMPT Z — `cache: true` solo en lecturas que se pintan (ver `cache-referencia.ts`). */
+  opciones: { cache?: boolean } = {},
 ): Promise<
   | {
       ok: true;
@@ -442,7 +449,26 @@ export async function resolverOperativoConParciales(
     }
   | { ok: false; error: string }
 > {
-  const operativo = await obtenerCicloOperativoGlobal(supabase);
+  if (opciones.cache) {
+    return conCacheReferencia("ciclo", "operativo+parciales", () => resolverOperativoConParcialesSinCache(supabase, opciones), (r) => r.ok);
+  }
+  return resolverOperativoConParcialesSinCache(supabase, opciones);
+}
+
+async function resolverOperativoConParcialesSinCache(
+  supabase: SupabaseClient,
+  opciones: { cache?: boolean },
+): Promise<
+  | {
+      ok: true;
+      periodoId: string;
+      periodoNombre: string;
+      parciales: PeriodoEvaluacionRow[];
+    }
+  | { ok: false; error: string }
+> {
+  // Con caché, también la del ciclo solo: la siguiente lectura de «operativo» ya la encuentra.
+  const operativo = await obtenerCicloOperativoGlobal(supabase, opciones);
   if (!operativo.ok) {
     return {
       ok: false,

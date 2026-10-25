@@ -19,7 +19,7 @@ import { obtenerSesionPortal } from "@/lib/auth/session-server";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Cetac23",
+  title: "CETAC 23", //Nombre del proyecto, no del rol. El shell es el mismo para todos los roles.
   description:
     "Shell único del rediseño Océano: tres niveles de navegación parametrizados por rol, sin lógica de datos.",
 };
@@ -121,7 +121,7 @@ export default async function OceanoPage({
     rol === "tecnico" || esDocente || esAdministracion
       ? await (async () => {
           const supabase = await createClient();
-          const ciclo = await obtenerCicloOperativoGlobal(supabase);
+          const ciclo = await obtenerCicloOperativoGlobal(supabase, { cache: true }); // PROMPT Z: solo se pinta
           return ciclo.ok ? ciclo.periodo : null;
         })()
       : null;
