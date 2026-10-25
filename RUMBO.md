@@ -13,10 +13,12 @@
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
 Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
-- **Rama y HEAD:** main · 7ac451d
+- **Rama y HEAD:** main · e899f3a
 
 ## Qué cerró (últimos 10 commits)
 
+- e899f3a · Prompt X, Parte B: boleta generada en el navegador, activada por parcial
+- e56482e · Prompt X, Parte A: boletas_activacion, RPC activar_boleta y capacidad bo…
 - 7ac451d · Cambio de nombre de pagina en page.tsx a Cetac23
 - 3b57a0b · Prompt W: prompt archivado con su retroalimentación e informe
 - dc95ddc · Prompt W: alta manual de alumno en Personas › Alumnos › Inscripciones
@@ -25,8 +27,6 @@ Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
 - 99e7fb0 · Cambio de icono cetac23 reducido en pixeles para su carga fácil
 - 2a58cee · INFORME — PROMPT V (documentación para agentes) Fecha: 2026-10-04. Ejecu…
 - 6fe088e · Prompt V: informe final y retroalimentación
-- 62ee492 · Prompt V, Parte F: vigencia del historial de rendimiento e informes Q–T…
-- 84c26aa · Prompt V, Parte E: una suite comprueba que gen-contexto da a cada tarea…
 
 ## Lo que más pesa hoy
 
