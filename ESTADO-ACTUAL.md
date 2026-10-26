@@ -90,8 +90,8 @@ propia migración verificada (R8).
 - Calendario del operativo: **77 filas** por `periodo_id` (73 clase, 3 descanso, 1 festivo).
 - `asistencia_alumnos`: **3 863 filas**, 0 huérfanos en las 9 FK.
 - `clases_impartidas`: 81 filas históricas **intactas** (autoría irrecuperable, T4).
-- **PROFESORES**: **22** cuentas (2026-09-30, `diag-credenciales-duplicadas.mjs`): la 21 es el
-  rol **técnico** (`Permisos='Tecnico'`) y la 22 **administración escolar** (`Administracion`).
+- **PROFESORES**: **23** cuentas (2026-10-25, `diag-credenciales-duplicadas.mjs`): la 21 es **técnico**
+  (`Permisos='Tecnico'`), la 22 **administración escolar** y la 23 **servicio escolar** (clave aleatoria, sin usar aún).
 
 Lo que de aquí es un **pendiente** —68 filas sin `periodo_id`, claves compartidas,
 `asignaciones_profesor` en 0— vive **solo** en

@@ -18,10 +18,10 @@
   "pendientes": [
     {
       "id": "cuenta-servicio-escolar",
-      "titulo": "Crear la cuenta del rol Servicio Escolar y probarla con sesión real",
-      "detalle": "2026-10-25: el rol `servicio_escolar` existe en el código (5 capacidades, todas de lectura; dos pestañas: Alumnos y Descargas). Para usarlo hace falta UNA fila en PROFESORES con `Permisos` que contenga «Servicio» (p. ej. 'Servicio Escolar'), igual que se hizo con el técnico y con Administración escolar: no hay un segundo camino de autenticación (R6). La crea una persona desde el panel de Supabase o desde la consola del técnico. Falta además probar con esa sesión: que el tab superior muestre SOLO Alumnos y Descargas, que el padrón liste los 357 alumnos por grado/grupo/carrera, y que las tres descargas (roster, etiquetas, situación médica) bajen su .xlsx. La cuenta es temporal por definición: cuando el alumno termine su servicio social, desactivarla.",
+      "titulo": "Servicio Escolar: ponerle clave a la cuenta y probarla con sesión real",
+      "detalle": "2026-10-25: la cuenta YA EXISTE — PROFESORES ID 23, nombre 'SERVICIO ESCOLAR', Permisos 'Servicio Escolar', debe_cambiar_credenciales = true. Se creó con una CLAVE ALEATORIA que nadie conoce (ni quien la creó): la cuenta no se puede usar hasta que alguien le ponga una. FALTA, en este orden: (1) el DIRECTIVO le pone clave desde Personas › Profesores › Reponer clave —el técnico NO puede: validarObjetivoPermitidoParaTecnico solo le deja cuentas cuyo Permisos contenga 'profesor'—; (2) entregarle esa clave al alumno de servicio social, que al entrar tendrá que cambiarla por el flag; (3) probar con esa sesión que el tab superior muestra SOLO Alumnos y Descargas, que el padrón lista los 357 alumnos por grado/grupo/carrera y que las tres descargas (roster, etiquetas, situación médica) bajan su .xlsx. La cuenta es temporal: al terminar el servicio social, desactivarla.",
       "riesgo": "medio",
-      "quien": "persona: crear la fila en PROFESORES y entrar con ella",
+      "quien": "persona: el directivo pone la clave y prueba la sesión",
       "verificar": "node scripts/diag-credenciales-duplicadas.mjs",
       "doc": "docs/historial/informes/INFORME-SERVICIO-ESCOLAR.md",
       "revisado": "2026-10-25",
