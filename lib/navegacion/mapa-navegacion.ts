@@ -428,6 +428,29 @@ const DOCUMENTOS: Pestana = {
   apartados: [act("documentos", "Documentos")],
 };
 
+// ── Servicio Escolar (2026-10-25) ──────────────────────────────────────────
+// El alumno en servicio social. DOS pestañas y ninguna más, y están partidas
+// por TAREA, no por tipo de dato: «Alumnos» es mirar el padrón —por grado,
+// grupo y carrera, que es como se pide una lista en la escuela— y «Descargas»
+// es llevarse los archivos. Nada de lo que hay aquí escribe.
+const ALUMNOS_SERVICIO: Pestana = {
+  id: "alumnos",
+  label: "Alumnos",
+  apartados: [act("padron", "Padrón del ciclo", ["Por grupo", "Lista completa"])],
+};
+
+const DESCARGAS_SERVICIO: Pestana = {
+  id: "descargas",
+  label: "Descargas",
+  apartados: [
+    act("archivos", "Archivos del alumnado", [
+      "Roster",
+      "Etiquetas",
+      "Situación médica",
+    ]),
+  ],
+};
+
 /** Pestañas donde el buscador de alumno fija de quién son los datos. */
 export const PESTANAS_CON_ALUMNO: readonly string[] = [EXPEDIENTE.id, TRAMITES.id];
 
@@ -461,6 +484,9 @@ const MAPA: Record<PortalRole, Pestana[]> = {
     DOCUMENTOS,
     MENSAJES_PERSONAL,
   ],
+  // Dos pestañas. Sin Mensajes a propósito: es una cuenta temporal de servicio
+  // social, no personal del plantel con buzón propio.
+  servicio_escolar: [ALUMNOS_SERVICIO, DESCARGAS_SERVICIO],
 };
 
 /** Pestañas visibles para un rol. Sin sesión, ninguna. */

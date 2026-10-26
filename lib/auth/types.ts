@@ -8,7 +8,22 @@
  * alumnos, tutores, trámites (reportes, constancias), documentos y mensajes; no
  * configura el ciclo ni califica.
  */
-export const ROLES_PORTAL = ["alumno", "maestro", "directivo", "tutor", "tecnico", "administracion"] as const;
+/**
+ * `servicio_escolar` (2026-10-25) es el alumno que hace su servicio social en
+ * la institución. Otra fila normal de PROFESORES, con `Permisos` que contenga
+ * «Servicio». Es el rol más pequeño del portal: CONSULTA Y DESCARGA, y nada
+ * más. No escribe en ninguna tabla — lo que detecta se lo lleva en una hoja a
+ * quien sí puede corregirlo.
+ */
+export const ROLES_PORTAL = [
+  "alumno",
+  "maestro",
+  "directivo",
+  "tutor",
+  "tecnico",
+  "administracion",
+  "servicio_escolar",
+] as const;
 
 export type PortalRole = (typeof ROLES_PORTAL)[number];
 

@@ -25,5 +25,5 @@ export const metadata: Metadata = {
  * `directivo-client.tsx` NO se borra: redirigir es reversible, borrar no (R8).
  */
 export default function DirectivoPage() {
-  redirect("/oceano");
+  redirect("/perfil");
 }

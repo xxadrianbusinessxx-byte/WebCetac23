@@ -52,8 +52,8 @@ export default async function RootLayout({
             <DecoracionFondo />
             {/* La barra de navegación legacy se RETIRÓ el 2026-09-17. Llevaba
                 semanas sin dibujarse en ninguna parte: devolvía null en `/`,
-                `/login` y `/oceano`, y todas las demás rutas ya redirigen al
-                portal. El logo CETAC vive ahora en la barra superior del shell. */}
+                `/login` y en el portal, y todas las demás rutas ya redirigen a él.
+                El logo CETAC vive ahora en la barra superior del shell. */}
             {children}
           </>
         )}

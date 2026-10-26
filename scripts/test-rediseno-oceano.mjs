@@ -33,6 +33,7 @@ const cDoc = await import("../lib/navegacion/contenido-docente.ts");
 const cDir = await import("../lib/navegacion/contenido-directivo.ts");
 const cTec = await import("../lib/navegacion/contenido-tecnico.ts");
 const cAdm = await import("../lib/navegacion/contenido-administracion.ts");
+const cSrv = await import("../lib/navegacion/contenido-servicio-escolar.ts");
 
 // ── 2) Utilidades de prueba ────────────────────────────────────────────────
 let fallos = 0;
@@ -867,6 +868,49 @@ eq(nav.apartado("tecnico", "configuracion", "video-imagenes")?.estado, "activo",
 eq(cTec.piezaDe("configuracion", "video-imagenes"), "portada-medios", "el técnico monta el panel de la portada");
 eq(cDir.piezaDe("configuracion", "video-imagenes"), "portada-medios", "el directivo monta la misma pieza");
 eq(cTec.piezaDe("inventada", "inexistente"), null, "un hueco desconocido devuelve null");
+
+// ── Servicio Escolar (2026-10-25) ──────────────────────────────────────────
+console.log("");
+console.log("servicio escolar");
+eq(
+  nav.pestanasDe("servicio_escolar").map((p) => p.id),
+  ["alumnos", "descargas"],
+  "dos pestañas y ninguna más",
+);
+eq(
+  nav.pestanasDe("servicio_escolar").map((p) => p.label),
+  ["Alumnos", "Descargas"],
+  "con sus rótulos",
+);
+eq(
+  nav.pestana("servicio_escolar", "alumnos").apartados[0].modos,
+  ["Por grupo", "Lista completa"],
+  "el padrón se mira por grupo o de corrido",
+);
+eq(
+  nav.pestana("servicio_escolar", "descargas").apartados[0].modos,
+  ["Roster", "Etiquetas", "Situación médica"],
+  "y se baja uno de los tres archivos",
+);
+eq(cSrv.piezaDe("alumnos", "padron"), { tipo: "padron" }, "Alumnos monta el padrón");
+eq(cSrv.piezaDe("descargas", "archivos"), { tipo: "archivos" }, "Descargas monta los archivos");
+ok(cSrv.piezaDe("alumnos", "inventado") === null, "un hueco desconocido devuelve null");
+// Todo apartado del mapa tiene pieza: sin esto, una pestaña dibujada caería en
+// el marcador y el rol parecería roto.
+for (const pes of nav.pestanasDe("servicio_escolar")) {
+  for (const ap of pes.apartados) {
+    ok(cSrv.piezaDe(pes.id, ap.id) !== null, `${pes.id}/${ap.id} tiene pieza`);
+  }
+}
+// No hereda nada de los demás roles.
+ok(
+  !nav.pestanasDe("servicio_escolar").some((p) => p.id === "mensajes"),
+  "no entra en la mensajería del personal",
+);
+ok(
+  nav.llevaBuscadorAlumno("servicio_escolar", "alumnos", "padron") === false,
+  "no lleva buscador de alumno: no abre el expediente de nadie",
+);
 
 // ── Administración escolar (2026-09-24) ────────────────────────────────────
 console.log("\nadministración escolar");

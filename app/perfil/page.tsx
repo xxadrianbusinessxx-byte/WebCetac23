@@ -1,33 +1,195 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { actionObtenerPerfilAlumno } from "@/app/actions/escolar";
+import { actionListarMateriasConNombreVisible } from "@/app/actions/materias";
+import { actionListarAlumnosDelTutor } from "@/app/actions/tutores";
+import {
+  ShellOceano,
+  type DatosAdministracionOceano,
+  type DatosAlumnoOceano,
+  type DatosDirectivoOceano,
+  type DatosDocenteOceano,
+} from "@/app/components/oceano/shell-oceano";
+import { puede } from "@/lib/auth/permisos";
+import { createClient } from "@/lib/supabase/server";
+import { nombreCompletoAlumno } from "@/lib/escolar/alumno/alumnos";
+import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo/ciclo-estado";
+import { obtenerSesionPortal } from "@/lib/auth/session-server";
 
+// La sesión vive en una cookie firmada: esta ruta no se prerenderiza.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "AulaNube — Perfil",
-  description: "El perfil del alumno vive en el portal.",
+  title: "CETAC 23", //Nombre del proyecto, no del rol. El shell es el mismo para todos los roles.
+  description:
+    "Portal escolar del CETAC 23: cada rol entra a lo suyo desde la misma pantalla.",
 };
 
 /**
- * RUTA RETIRADA (Fase 9 del rediseño Océano) — redirige al portal.
+ * EL PORTAL. Es la pantalla que abre cualquiera que inicie sesión, sea cual
+ * sea su rol: el shell resuelve sus pestañas, su sidebar y sus piezas.
  *
- * Se retira porque `/oceano` la cubre por completo, y eso está VERIFICADO, no
- * supuesto: el informe de la Fase 3.1 recorrió los cuatro tabs de `/perfil`
- * apartado por apartado y la lista de «qué hace aquí que allí no» quedó vacía.
- * Además el portal añade notificaciones con fecha y estado, seguimiento
- * semestral, seguimiento médico separado y los datos crudos de asistencia.
+ * Vivió en `/oceano` mientras duró el rediseño —ese era el nombre de la FASE,
+ * no el de la pantalla— y pasó a `/perfil` el 2026-10-25, que es lo que la
+ * gente viene a abrir. `/oceano` sigue redirigiendo aquí (R8). El directorio
+ * `app/components/oceano/` y los tokens `--oc-*` NO se renombraron: el cambio
+ * era la URL, y arrastrar el nombre por todo el árbol habría sido un diff
+ * enorme sin nada a cambio.
  *
- * `perfil-client.tsx` NO se borra todavía. Redirigir es reversible; borrar no.
- * El archivo queda como red hasta que el portal lleve un tiempo en uso, y su
- * retirada es una decisión propia (R8).
+ * Las rutas que el portal absorbió —`/profesor`, `/directivo`,
+ * `/configuracion`, `/tutor`, `/documentos`— redirigen aquí.
  */
-/**
- * El tipo se conserva porque `perfil-client.tsx` lo importa desde aquí y ese
- * archivo sigue en pie (R8). Desaparece con él, no antes: quitarlo ahora
- * obligaría a tocar un archivo que esta fase ha decidido no tocar.
- */
-export type ModoPerfil = "alumno" | "tutor" | "maestro" | "directivo";
+export default async function PerfilPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ alumno?: string }>;
+}) {
+  const params = await searchParams;
+  const sesion = await obtenerSesionPortal();
+  const rol = sesion?.rol ?? null;
 
-export default function PerfilPage() {
-  redirect("/oceano");
+  // Fase 2/4 — datos de las piezas del alumno. Es la MISMA Server Action que ya
+  // usa el perfil del alumno (`actionObtenerPerfilAlumno`), no una consulta nueva, y se pide
+  // en dos casos:
+  //   · ALUMNO  → su propio perfil (sin curp: la resuelve la action de la sesión).
+  //   · TUTOR   → el alumno VINCULADO que eligió (`?alumno=CURP`); la action
+  //               valida la relación en el servidor antes de devolver nada.
+  // Maestro/directivo necesitan su propio selector y entran en su fase (5-6).
+  const esAlumno = rol === "alumno";
+  const esTutor = rol === "tutor";
+  // Administración escolar (2026-09-24) y, desde el PROMPT U, el directivo en
+  // Alumnos / Tutores: abren el expediente del alumno elegido en el buscador
+  // (`?alumno=CURP`). Quién tiene buscador lo dice la capacidad, no el rol; que
+  // pueda verlo lo decide la action del perfil con `resolverAccesoAlumno`, no
+  // este parámetro.
+  const esAdministracion = rol === "administracion";
+  const abreExpediente = puede(rol, "alumno.ver_expediente");
+
+  // La lista de vinculados se resuelve UNA vez por navegación (no por componente)
+  // y es lo que el selector puede ofrecer. Con un solo alumno se elige solo.
+  const alumnosVinculados = esTutor ? await actionListarAlumnosDelTutor() : [];
+  const curpPedida = (params.alumno ?? "").trim().toUpperCase();
+  const curpConsulta = abreExpediente
+    ? curpPedida || null
+    : !esTutor
+      ? null
+      : (alumnosVinculados.find((a) => a.curp.trim().toUpperCase() === curpPedida)?.curp ??
+        alumnosVinculados[0]?.curp ??
+        null);
+
+  const perfil =
+    esAlumno || esTutor || (abreExpediente && curpConsulta)
+      ? await actionObtenerPerfilAlumno(curpConsulta)
+      : null;
+  const datosAlumno: DatosAlumnoOceano | null =
+    perfil && perfil.acceso?.puedeLeer
+      ? {
+          curp: perfil.alumno?.CURP ?? "",
+          nombre: perfil.alumno ? nombreCompletoAlumno(perfil.alumno) : "",
+          clave: perfil.alumno?.CLAVE ?? "",
+          fotoPerfilUrl: perfil.fotoPerfilUrl,
+          materias: perfil.materias,
+          registro: perfil.registro,
+          etiquetas: perfil.etiquetas,
+          comentarios: perfil.comentarios,
+          etiquetasDinamicas: perfil.etiquetasDinamicas,
+          tutorContacto: perfil.tutorContacto,
+          puedeEditarEtiquetas: perfil.acceso.puedeEditarEtiquetas,
+          puedeImportarEtiquetas: perfil.acceso.puedeImportarEtiquetas,
+          puedeEditarDatosPersonales: perfil.acceso.puedeEditarDatosPersonales,
+          numeroControl: perfil.numeroControl,
+          puedeEditarNumeroControl: puede(rol, "alumno.editar_numero_control"),
+          // UIs pendientes (2026-09-17): los dos flags de Actividades se
+          // resuelven aquí con la MISMA `puede()` del servidor. La UI los
+          // recibe; no pregunta por el rol.
+          puedeEditarActividades: puede(rol, "actividad.editar"),
+          puedeEntregarActividades: puede(rol, "actividad.entregar"),
+          // 2026-10-01: el padre envía justificantes; el alumno ya no.
+          puedeSolicitarJustificaciones: puede(rol, "justificacion.solicitar"),
+        }
+      : null;
+
+  // Fase 5 — catálogo del docente. `actionListarMateriasConNombreVisible` solo
+  // exige `materia.ver_catalogo` y YA aplica el alcance R-4: con asignaciones
+  // activas devuelve las del maestro, sin ellas cae al catálogo del operativo.
+  // La pantalla pinta lo que la action devuelva; nunca pide «todo el catálogo».
+  const esDocente = rol === "maestro" || rol === "directivo";
+  const materiasDocente = esDocente ? await actionListarMateriasConNombreVisible() : [];
+
+  // Fase 9 — el ciclo operativo. Lo pide el técnico para la carga académica y
+  // AHORA también el docente, para que `Calendario › Calendario escolar` abra
+  // en el ciclo en curso y no en el primero de la lista alfabética. Es la misma
+  // lectura de siempre; solo se amplía a quién se le sirve.
+  // Administración escolar además usa sus FECHAS: son el «Semestre del … al …»
+  // de la constancia de estudios. Misma lectura, no una consulta más.
+  const periodoOperativo =
+    rol === "tecnico" || esDocente || esAdministracion
+      ? await (async () => {
+          const supabase = await createClient();
+          const ciclo = await obtenerCicloOperativoGlobal(supabase, { cache: true }); // PROMPT Z: solo se pinta
+          return ciclo.ok ? ciclo.periodo : null;
+        })()
+      : null;
+  const nombreCicloOperativo = periodoOperativo ? String(periodoOperativo.nombre).trim() : "";
+
+  const datosDocente: DatosDocenteOceano | null = esDocente
+    ? {
+        materias: materiasDocente,
+        profesorClave: sesion?.matricula ?? "",
+        nombreProfesor: sesion?.nombre ?? sesion?.matricula ?? "",
+        cicloOperativo: nombreCicloOperativo,
+        // La capacidad la resuelve el SERVIDOR con la misma `puede()` de la
+        // matriz. La UI no pregunta por el rol: recibe la respuesta.
+        puedeResolverJustificaciones: puede(rol, "justificacion.resolver"),
+        // 2026-10-01: envía justificantes quien tiene `solicitar` (padre y
+        // directivo; el profesor ya no). El profesor RECIBE los del padre y
+        // justifica materias: `justificar_clase`.
+        puedeSolicitarJustificaciones: puede(rol, "justificacion.solicitar"),
+        puedeJustificarClase: puede(rol, "justificacion.justificar_clase"),
+      }
+    : null;
+
+  // Fase 6 — lo exclusivo del directivo sale del MISMO catálogo que el docente:
+  // grado, grupo y carrera son facetas de `MateriaIdentidad`, así que no hace
+  // falta ninguna consulta nueva para poblar el selector de ámbito.
+  // PROMPT U: el expediente del alumno elegido en Alumnos / Tutores va AQUÍ, no
+  // como `datosAlumno` (ver el comentario de Administración, abajo).
+  const datosDirectivo: DatosDirectivoOceano | null =
+    rol === "directivo" ? { materias: materiasDocente, alumno: datosAlumno } : null;
+
+  // El expediente va DENTRO de los datos de este rol y no como `datosAlumno`: el
+  // alumno abierto no es quien tiene la sesión, y las piezas del alumno se montan
+  // desde su propio emparejamiento (`contenido-administracion.ts`). Con el
+  // directivo, además, `datosAlumno` haría que Materias › Recursos —que también
+  // existe en el mapa del alumno— montara la pieza del alumno.
+  const datosAdministracion: DatosAdministracionOceano | null = esAdministracion
+    ? {
+        alumno: datosAlumno,
+        cicloOperativo: nombreCicloOperativo,
+        cicloInicio: periodoOperativo?.fecha_inicio ?? null,
+        cicloFin: periodoOperativo?.fecha_fin ?? null,
+      }
+    : null;
+
+  // La carga académica del técnico sigue esperando una lista; se arma con el
+  // mismo nombre que se acaba de leer, sin repetir la consulta.
+  const periodos = rol === "tecnico" && nombreCicloOperativo ? [nombreCicloOperativo] : [];
+
+  // `key={rol}`: si cambia el rol (otra sesión sobre la misma pestaña del
+  // navegador), el shell se remonta con su estado inicial en vez de arrastrar
+  // la pestaña activa de la sesión anterior. Cambiar de ALUMNO no remonta nada:
+  // el alumno elegido se conserva al cambiar de pestaña o de apartado.
+  return (
+    <ShellOceano
+      key={rol ?? "sin-sesion"}
+      rol={rol}
+      nombre={sesion?.nombre ?? sesion?.matricula ?? ""}
+      datosAlumno={abreExpediente ? null : datosAlumno}
+      datosAdministracion={datosAdministracion}
+      datosDocente={datosDocente}
+      datosDirectivo={datosDirectivo}
+      periodos={periodos}
+      alumnosVinculados={esTutor ? alumnosVinculados : undefined}
+      alumnoSeleccionado={curpConsulta}
+    />
+  );
 }

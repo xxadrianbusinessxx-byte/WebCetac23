@@ -13,10 +13,11 @@
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
 Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
-- **Rama y HEAD:** main · 73a7b78
+- **Rama y HEAD:** main · 7801875
 
 ## Qué cerró (últimos 10 commits)
 
+- 7801875 · La carga del roster lleva número de control, y el roster se puede descar…
 - 73a7b78 · Roster de tutores para el técnico y Notificaciones de Administración esc…
 - fda7a88 · Docs y pendientes de los PROMPT Z, Z-bis y el cierre de RLS
 - bff5809 · RLS: el servidor usa service_role y queda listo el SQL que cierra la cla…
@@ -26,7 +27,6 @@ Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
 - 4f38f54 · PROMPT Y: menos viajes por sesión para acercarse a 500 usuarios sin camb…
 - 03b1060 · FASE 11: re-medición de rendimiento con las Server Actions reales
 - ebba3c1 · Prompt X: SQL de boletas_activacion aplicado y verificado
-- 40cb7f5 · Prompt X: prompt archivado con su retroalimentación, informe y pendiente…
 
 ## Lo que más pesa hoy
 

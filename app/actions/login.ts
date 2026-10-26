@@ -29,7 +29,7 @@ function destinationForRole(rol: PortalRole): string {
     case "administracion":
       // 2026-09-24: rol nuevo, sin ruta heredada que redirija. Entra directo al
       // shell, que es donde vive todo lo suyo.
-      return "/oceano";
+      return "/perfil";
     default:
       return "/";
   }

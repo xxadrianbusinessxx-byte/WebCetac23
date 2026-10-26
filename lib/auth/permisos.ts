@@ -53,6 +53,11 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
   tecnico: new Set<Capacidad>([
     "alumno.borrar_roster", // PROMPT-4/T3
     "alumno.cargar_roster",
+    // 2026-10-25: las dos de lectura que estrena Servicio Escolar. El técnico
+    // ya carga el roster y las etiquetas, así que poder BAJARLAS no le añade
+    // poder: solo le da la vía que antes no existía.
+    "alumno.ver_roster",
+    "alumno.descargar_etiquetas",
     "alumno.editar_datos_personales",
     "alumno.editar_etiquetas",
     "alumno.editar_estatus",
@@ -290,6 +295,28 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "documento.asignar_permisos",
     "mensaje_interno.usar",
     "portada.ver",
+    // Es una fila de PROFESORES: cambia su clave como cualquier personal.
+    "profesor.cambiar_clave_propia",
+  ]),
+
+  /**
+   * Servicio Escolar (2026-10-25) — el alumno que hace su servicio social.
+   *
+   * Es el rol más pequeño del portal, y la lista corta NO es un recorte
+   * pendiente de crecer: es la función. Consulta el padrón y se lleva los
+   * archivos; lo que esté mal se lo enseña en persona a quien sí puede
+   * corregirlo. Ninguna de estas cinco escribe en ninguna tabla.
+   *
+   * En particular NO tiene: `alumno.cargar_roster` ni `alumno.editar_*` (son
+   * escrituras), `alumno.ver_expediente` (abriría el expediente completo de
+   * cualquiera, con boleta y asistencia), ni mensajería, documentos o trámites.
+   */
+  servicio_escolar: new Set<Capacidad>([
+    "alumno.ver_roster",
+    "alumno.descargar_etiquetas",
+    // Necesita saber de qué ciclo está mirando el padrón.
+    "ciclo.ver_operativo",
+    "ciclo.ver",
     // Es una fila de PROFESORES: cambia su clave como cualquier personal.
     "profesor.cambiar_clave_propia",
   ]),

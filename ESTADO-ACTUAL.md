@@ -12,9 +12,9 @@ falso.** Si crece más de ~150 líneas, lo que sobra es historial y va a `docs/h
 
 ## 1. Qué es el proyecto
 
-Portal escolar del CETAC 23. Roles: **alumno**, **profesor** (rol `maestro`),
-**directivo**, **tutor**, **técnico** (PROMPT-3) y **administración escolar** (2026-09-24,
-la única que acepta solicitudes de constancia de estudios).
+Portal escolar del CETAC 23, en **`/perfil`** (`/oceano` redirige ahí desde el 2026-10-25). Roles:
+**alumno**, **profesor** (`maestro`), **directivo**, **tutor**, **técnico**, **administración escolar**
+(la única que acepta constancias) y **servicio escolar** (2026-10-25: 5 capacidades, TODAS de lectura).
 Next.js 16.2.6 · React 19.2.4 · Supabase (PostgREST + Storage) · Cloudinary · SheetJS.
 
 La raíz `/` es una **portada pública** (no consulta la sesión) y administrable: carrusel, el video de cada carrera
@@ -126,7 +126,7 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **62 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **63 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
 **Dos de ellas no prueban un módulo: `test-orden` (el repo) y `test-gen-contexto` (el índice y el generador).** `scripts/test-orden.mjs` es la

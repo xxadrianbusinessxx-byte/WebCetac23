@@ -32,5 +32,5 @@ export const metadata: Metadata = {
  * Queda como red hasta que el portal lleve tiempo en uso (R8).
  */
 export default function ConfiguracionPage() {
-  redirect("/oceano");
+  redirect("/perfil");
 }

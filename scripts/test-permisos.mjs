@@ -24,7 +24,8 @@ const root = path.join(__dirname, "..");
 // 1) Módulos puros de lib/auth: Node carga los `.ts` directamente (PROMPT H-bis)
 // ---------------------------------------------------------------------------
 const { CAPACIDADES } = await import("../lib/auth/capacidades.ts");
-const { puede, rolesDe, CAPACIDADES_PUBLICAS } = await import("../lib/auth/permisos.ts");
+const { ROLES_PORTAL } = await import("../lib/auth/types.ts");
+const { puede, rolesDe, matrizHoy, CAPACIDADES_PUBLICAS } = await import("../lib/auth/permisos.ts");
 
 const ROLES = ["alumno", "maestro", "directivo", "tutor", "tecnico"];
 
@@ -226,6 +227,35 @@ ok(puede("administracion", "alumno.editar_numero_control"), "administracion pued
 ok(!puede("tutor", "alumno.editar_numero_control"), "el tutor NO captura el número de control (aunque edite datos personales)");
 ok(!puede("alumno", "alumno.editar_numero_control"), "el alumno NO captura su número de control");
 
+seccion("Servicio Escolar (2026-10-25) — consulta y descarga, y NADA más");
+// La lista exacta, no «al menos estas»: el valor del rol está en lo que NO
+// tiene, así que una capacidad de más tiene que romper la suite, no pasar.
+{
+  const suyas = matrizHoy().servicio_escolar;
+  const esperadas = [
+    "alumno.descargar_etiquetas",
+    "alumno.ver_roster",
+    "ciclo.ver",
+    "ciclo.ver_operativo",
+    "profesor.cambiar_clave_propia",
+  ];
+  ok(
+    JSON.stringify([...suyas].sort()) === JSON.stringify(esperadas),
+    `servicio_escolar tiene EXACTAMENTE sus ${esperadas.length} capacidades`,
+  );
+}
+ok(puede("servicio_escolar", "alumno.ver_roster"), "servicio_escolar puede ver y bajar el padrón");
+ok(puede("servicio_escolar", "alumno.descargar_etiquetas"), "servicio_escolar puede bajar etiquetas y situación médica");
+// Las cinco que lo convertirían en otra cosa.
+ok(!puede("servicio_escolar", "alumno.cargar_roster"), "servicio_escolar NO puede cargar el roster");
+ok(!puede("servicio_escolar", "alumno.editar_etiquetas"), "servicio_escolar NO puede editar etiquetas");
+ok(!puede("servicio_escolar", "alumno.editar_datos_personales"), "servicio_escolar NO puede editar datos del alumno");
+ok(!puede("servicio_escolar", "alumno.ver_expediente"), "servicio_escolar NO abre el expediente completo de nadie");
+ok(!puede("servicio_escolar", "mensaje_interno.usar"), "servicio_escolar NO entra en la mensajería");
+// El técnico conserva lo suyo: la capacidad nueva no le quitó la de cargar.
+ok(puede("tecnico", "alumno.ver_roster"), "el técnico también puede bajar el padrón");
+ok(puede("tecnico", "alumno.cargar_roster"), "…y sigue pudiendo cargarlo");
+
 seccion("Reportes en Notificaciones (2026-10-01) — los de UN alumno, dentro del alcance");
 ok(
   rolesDe("reporte.ver_propios").sort().join(",") === "administracion,alumno,tutor",
@@ -250,15 +280,16 @@ ok(JSON.stringify(rolesDe("constancia.gestionar")) === '["administracion"]', "co
 ok(JSON.stringify(rolesDe("boleta.activar")) === '["directivo"]', "boleta.activar es SOLO del directivo");
 ok(puede("administracion", "calificacion.ver") && !puede("administracion", "boleta.activar"), "Administración escolar ve la boleta pero no la activa");
 
-// Lectura de la §4: cada fila `| capacidad | ... | D | M | Tec | T | A | AE |`.
+// Lectura de la §4: cada fila `| capacidad | ... | D | M | Tec | T | A | AE | SE |`.
 // PROMPT-3/T5: el código = §4 completa (directivo recortado). Desde el 2026-09-24,
-// seis roles: AE = Administración escolar.
-seccion("Código ⇄ §4 (los 6 roles)");
-const ROL_POR_COLUMNA = { D: "directivo", M: "maestro", Tec: "tecnico", T: "tutor", A: "alumno", AE: "administracion" };
+// seis roles: AE = Administración escolar. Desde el 2026-10-25, siete:
+// SE = Servicio Escolar.
+seccion("Código ⇄ §4 (los 7 roles)");
+const ROL_POR_COLUMNA = { D: "directivo", M: "maestro", Tec: "tecnico", T: "tutor", A: "alumno", AE: "administracion", SE: "servicio_escolar" };
 const celdasVacias = [];
-for (const m of doc.matchAll(/^\| `([a-z_]+\.[a-z_]+)` \| [^|]* \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \|/gm)) {
+for (const m of doc.matchAll(/^\| `([a-z_]+\.[a-z_]+)` \| [^|]* \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \| ([^|]*?) \|/gm)) {
   const cap = m[1];
-  const celdas = { D: m[2], M: m[3], Tec: m[4], T: m[5], A: m[6], AE: m[7] };
+  const celdas = { D: m[2], M: m[3], Tec: m[4], T: m[5], A: m[6], AE: m[7], SE: m[8] };
   for (const [col, rol] of Object.entries(ROL_POR_COLUMNA)) {
     const celda = String(celdas[col] ?? "").trim();
     if (celda === "✅") ok(puede(rol, cap), `§4 ${col} ✅ → ${rol} puede ${cap}`);
@@ -276,7 +307,14 @@ if (celdasVacias.length) {
 }
 
 seccion("rolesDe() y públicas");
-ok(rolesDe("portada.ver").length === 6, "portada.ver la tienen los 6 roles");
+// Contra ROLES_PORTAL y no contra un 6 escrito a mano: una capacidad PÚBLICA
+// la tienen todos los roles por definición, así que el día que entre un rol
+// nuevo esto debe seguir siendo verdad sin tocar la cifra (pasó el 2026-10-25
+// con `servicio_escolar`).
+ok(
+  rolesDe("portada.ver").length === ROLES_PORTAL.length,
+  `portada.ver la tienen los ${ROLES_PORTAL.length} roles`,
+);
 ok(!CAPACIDADES_PUBLICAS.has("ciclo.ver"), "ciclo.ver no es pública");
 
 

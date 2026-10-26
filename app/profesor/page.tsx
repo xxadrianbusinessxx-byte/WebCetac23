@@ -22,5 +22,5 @@ export const metadata: Metadata = {
  * `profesor-client.tsx` NO se borra: redirigir es reversible, borrar no (R8).
  */
 export default function ProfesorPage() {
-  redirect("/oceano");
+  redirect("/perfil");
 }

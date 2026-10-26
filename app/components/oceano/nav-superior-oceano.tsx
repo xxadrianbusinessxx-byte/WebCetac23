@@ -33,6 +33,7 @@ export const ROTULO_ROL: Record<PortalRole, string> = {
   tutor: "Tutor / Padre",
   tecnico: "Técnico",
   administracion: "Administración escolar",
+  servicio_escolar: "Servicio Escolar",
 };
 
 export function NavSuperiorOceano({

@@ -67,6 +67,7 @@ pendientes del 17-09):
 | **tutor** | 18 | Tabla `tutores` |
 | **alumno** | 15 | Tabla `ALUMNOS` |
 | **administracion** | 27 (expediente de cualquier alumno, sus datos y su número de control, tutores, reportes, **la única que acepta** solicitudes de constancia, documentos, mensajes) | `Permisos = 'Administracion'` |
+| **servicio_escolar** | 5 (**el más pequeño**: consulta el padrón del ciclo y descarga roster, etiquetas y situación médica; NINGUNA escritura) | `Permisos` que contenga `'Servicio'` |
 
 Directivo ya no es el rol-comodín de configuración: la §4 (recorte T5) le deja la
 lectura (`materia.ver_catalogo`, `semestre.ver`, `ciclo.ver_operativo`) y la
@@ -107,91 +108,93 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `público` | No requiere sesión. Hoy solo `portada.ver`. |
 | vacío | **Sin decidir.** No debe quedar ninguna al implementar. |
 
-| Capacidad | Qué habilita | D | M | Tec | T | A | AE |
-|---|---|---|:-:|:-:|:-:|:-:|:-:|:-:|
-| `ciclo.ver` | Listar ciclos y su contexto (7 actions) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ciclo.crear` | Crear ciclo, con o sin contexto | X | X | ✅ | X | X | X |
-| `ciclo.editar` | Cambiar nombre y rango | X | X | ✅ | X | X | X |
-| `ciclo.activar` | Marcar el ciclo operativo | X | X | ✅ | X | X | X |
-| `ciclo.eliminar` | Borrar ciclo en cascada + su diagnóstico | X | X | ✅ | X | X | X |
-| `ciclo.clonar_contexto` | Clonar contexto académico, cargar materias del catálogo | X | X | ✅ | X | X | X |
-| `ciclo.reparar_tabla_legacy` | Reparar el puente `tabla_legacy` | X | X | ✅ | X | X | X |
-| `ciclo.borrar_datos` | **PROMPT-4/T4**: deshacer los datos de un paso del configurador (contexto/calendario/horario/roster/evaluaciones) sin borrar el ciclo | X | X | ✅ | X | X | X |
-| `calendario.ver` | Ver días del ciclo | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `calendario.editar` | Establecer base, guardar y borrar días (7 actions) | X | X | ✅ | X | X | X |
-| `evaluacion.ver` | Ver parciales | X | X | ✅ | X | X | X |
-| `evaluacion.editar` | Crear y activar parciales | X | X | ✅ | X | X | X |
-| `materia.ver_catalogo` | Listar materias y catálogo (4 actions) | ✅ | ✅ | ✅ | X | X | X |
-| `materia.editar_alias` | Editar el nombre visible | X | X | ✅ | X | X | X |
-| `materia.activar_desactivar` | Activar/desactivar materia del ciclo | X | X | ✅ | X | X | X |
-| `materia.mapear_columnas` | Mapear columnas y pesos de actividades | ✅ | ✅ | X | X | X | X |
-| `materia.descargar_plantilla` | Descargar plantilla de materia | ✅ | ✅ | X | X | X | X |
-| `carga_academica.aplicar` | Previsualizar y aplicar carga académica | X | X | ✅ | X | X | X |
-| `inscripcion.ver` | Ver grupos e inscripciones del periodo (4 actions) | X | X | ✅ | X | X | X |
-| `inscripcion.editar` | Inscribir alumno en el ciclo | X | X | ✅ | X | X | X |
-| `ciclo.ver_contexto` | Leer el contexto académico del configurador (nace en T2) | X | X | ✅ | X | X | X |
-| `ciclo.ver_operativo` | **Saber cuál es el ciclo operativo ahora** (nace en T2). No se mueve: de ella depende toda la subida de asistencia | ✅ | ✅ | ✅ | X | X | X |
-| `horario.descargar_plantilla` | Bajar la plantilla de horario (nace en T2) | ✅ | ✅ | ✅ | X | X | X |
-| `semestre.ver` | Ver oferta de semestres | ✅ | X | ✅ | X | X | X |
-| `semestre.activar` | Activar/desactivar semestre por grado | X | X | ✅ | X | X | X |
-| `horario.importar` | Importar horario desde Excel y su plantilla | X | X | ✅ | X | X | X |
-| `horario.ver_grupo` | Ver horario de un grupo | ✅ | ✅ | X | X | X | X |
-| `horario.ver_alumno` | Ver horario de un alumno | ✅ | ✅ | X | ✅ | ✅ | ✅ |
-| `asistencia.subir` | Plantilla, previsualizar y confirmar asistencia | ✅ | ✅ | X | X | X | X |
-| `asistencia.anular` | Anular asistencia ya subida | ✅ | ✅ | X | X | X | X |
-| `asistencia.ver_grupo` | Ver asistencia de un grupo | ✅ | ✅ | X | X | X | X |
-| `asistencia.ver_alumno` | Ver asistencia de un alumno | ✅ | ✅ | X | ✅ | ✅ | ✅ |
-| `justificacion.solicitar` | Enviar la solicitud de justificación de UN DÍA, con motivo y adjunto. **Desde el 2026-10-01, solo el padre y el directivo** (el alumno y el profesor ya no envían) | ✅ | X | X | ✅ | X | X |
-| `justificacion.ver_propias` | Ver las propias y su hilo (5 actions) | ✅ | ✅ | X | ✅ | ✅ | ✅ |
-| `justificacion.resolver` | Aprobar (día completo y todas sus materias) o rechazar la solicitud del día | ✅ | X | X | X | X | X |
-| `justificacion.justificar_clase` | **2026-10-01**: recibir las solicitudes del padre y justificar solo MATERIAS de ese día. Cuáles —las que el profesor registró, o las que no tienen a quién atribuirse— lo decide `materiasJustificablesPorProfesor`, no la matriz | X | ✅ | X | X | X | X |
-| `justificacion.ver_todas` | Pendientes e historial completo | ✅ | X | X | X | X | X |
-| `alumno.ver_perfil` | Ver perfil y buscar alumno | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `alumno.editar_datos_personales` | Campos personales, comentario, foto | ✅ | X | ✅ | ✅ | X | ✅ |
-| `alumno.editar_etiquetas` | Etiquetas personales y dinámicas (6 actions) | ✅ | X | ✅ | ✅ | X | ✅ |
-| `alumno.editar_estatus` | Estatus académico del alumno | ✅ | X | ✅ | X | X | ✅ |
-| `alumno.comentar` | Comentario del directivo sobre el alumno | ✅ | ✅ | X | X | X | X |
-| `alumno.importar_estatus` | Importar promedios/reprobadas masivo | X | X | ✅ | X | X | X |
-| `alumno.cargar_roster` | Sincronizar alumnos desde archivo | X | X | ✅ | X | X | X |
-| `alumno.borrar_roster` | **PROMPT-4/T3**: sacar a un alumno del roster del ciclo (previsualizar→confirmar; no borra de `ALUMNOS`) | X | X | ✅ | X | X | X |
-| `alumno.ver_expediente` | **2026-09-24**: buscar a CUALQUIER alumno por nombre o CURP y abrir su expediente (Administración escolar). **PROMPT U, 2026-10-01**: también Dirección, en Alumnos / Tutores | ✅ | X | X | X | X | ✅ |
-| `alumno.editar_numero_control` | **2026-09-24**: capturar o corregir el número de control (matrícula) del alumno, el que va en la constancia de estudios | X | X | X | X | X | ✅ |
-| `profesor.cambiar_clave_propia` | Cambiar la propia clave de acceso | ✅ | ✅ | ✅ | X | X | ✅ |
-| `profesor.ver_credenciales_acceso` | Ver/reponer claves de **inicio de sesión** | X | X | ✅ | X | X | X |
-| `profesor.forzar_cambio_clave` | Obligar a cambiar clave en el próximo acceso | X | X | ✅ | X | X | X |
-| `tutor.ver_lista` | Listar tutores y sus credenciales | X | X | ✅ | X | X | ✅ |
-| `tutor.crear` | Crear tutor, consolidar hermanos | X | X | ✅ | X | X | ✅ |
-| `tutor.generar_automaticos` | Generación masiva de tutores | X | X | ✅ | X | X | ✅ |
-| `tutor.ver_propio` | Ver sus datos y sus alumnos (4 actions) | ✅ | X | X | ✅ | X | X |
-| `tutor.cambiar_credenciales_propias` | Cambiar su propia clave | ✅ | X | ✅ | ✅ | X | X |
-| `documento.ver` | Ver y descargar documentos (3 actions) | ✅ | ✅ | ✅ | X | X | ✅ |
-| `documento.subir` | Subir documento | ✅ | ✅ | ✅ | X | X | ✅ |
-| `documento.eliminar` | Eliminar documento | ✅ | ✅ | ✅ | X | X | ✅ |
-| `documento.gestionar_carpetas` | Crear, renombrar, eliminar carpetas | ✅ | X | ✅ | X | X | ✅ |
-| `documento.asignar_permisos` | Dar y quitar acceso a profesores | ✅ | X | ✅ | X | X | ✅ |
-| `calificacion.ver` | Ver materia, registro y boleta (9 actions; la boleta generada del PROMPT X, con su alcance: la familia solo con activación, el maestro nada) | ✅ | ✅ | X | ✅ | ✅ | ✅ |
-| `calificacion.subir` | Subir Excel de materia y registro (4 actions) | ✅ | ✅ | X | X | X | X |
-| `calificacion.eliminar` | Eliminar calificaciones de una materia | ✅ | ✅ | X | X | X | X |
-| `boleta.activar` | **2026-10-24 (PROMPT X)**: activar y desactivar la boleta de un parcial para el plantel, un grado o un grupo, y consultar la de cualquier alumno. Verla es `calificacion.ver` + alcance; el alumno y el tutor, solo con activación. | ✅ | X | X | X | X | X |
-| `noticia.publicar` | Publicar noticia de portada | ✅ | X | ✅ | X | X | X |
-| `portada.ver` | Alumnos estrella y noticias de inicio | público | público | público | público | público | público |
-| `actividad.ver` | Ver las actividades (tareas) de una materia y su estado. El alcance —qué materias— lo resuelve la action, no la capacidad. | ✅ | ✅ | X | ✅ | ✅ | X |
-| `actividad.editar` | Crear, editar y calificar actividades de una materia. | ✅ | ✅ | X | X | X | X |
-| `actividad.entregar` | Que el ALUMNO suba su entrega. Separada de `editar` a propósito: entregar no es gestionar. | X | X | X | X | ✅ | X |
-| `reporte.ver` | Ver los reportes disciplinarios de un grupo. | ✅ | X | X | X | X | ✅ |
-| `reporte.crear` | Levantar un reporte disciplinario sobre un alumno. | ✅ | X | X | X | X | ✅ |
-| `reporte.anular` | Anular un reporte ya levantado. Va aparte de `crear` porque toca el historial de un alumno. | ✅ | X | X | X | X | ✅ |
-| `reporte.ver_propios` | **2026-10-01**: ver los reportes NO anulados de UN alumno en Perfil › Notificaciones — el alumno, los suyos; el tutor, los de sus vinculados; Administración escolar, en el Expediente (alcance: `resolverAccesoAlumno`). | X | X | X | ✅ | ✅ | ✅ |
-| `cita.ver_propias` | Ver las citas propias (alumno) o las del vinculado (tutor). | X | X | X | ✅ | ✅ | X |
-| `cita.solicitar` | Pedir una cita **en un hueco de la agenda de la dirección** (2026-10-01) y ver los huecos libres. | X | X | X | ✅ | ✅ | X |
-| `cita.gestionar` | Aceptar, rechazar y cerrar citas, y **configurar la agenda** (franjas semanales y días sin atención, 2026-10-01). | ✅ | X | X | X | X | X |
-| `constancia.solicitar` | Pedir una constancia. | X | X | X | ✅ | ✅ | X |
-| `constancia.gestionar` | Resolver solicitudes de constancia y adjuntar el documento emitido. **Desde el 2026-09-25, solo Administración escolar** (Dirección la emite directo con `constancia.emitir`). | X | X | X | X | X | ✅ |
-| `constancia.ver_propias` | **2026-09-25**: ver el estado de las constancias pedidas — el alumno, las suyas; el tutor, las de sus vinculados (el alcance lo resuelve la action). | X | X | X | ✅ | ✅ | X |
-| `constancia.emitir` | **2026-09-25**: generar la constancia de estudios de un alumno directamente, por su CURP, sin solicitud. | ✅ | X | X | X | X | ✅ |
-| `buzon.enviar` | Escribir una queja o comentario a la dirección. | X | X | X | ✅ | ✅ | X |
-| `buzon.ver` | Leer el buzón y marcar atendido. | ✅ | X | X | X | X | X |
-| `mensaje_interno.usar` | Mensajería privada entre personal (directivo, técnico, profesor). NO es el chat global retirado, que era alumno↔profesor. | ✅ | ✅ | ✅ | X | X | ✅ |
+| Capacidad | Qué habilita | D | M | Tec | T | A | AE | SE |
+|---|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| `ciclo.ver` | Listar ciclos y su contexto (7 actions) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ciclo.crear` | Crear ciclo, con o sin contexto | X | X | ✅ | X | X | X | X |
+| `ciclo.editar` | Cambiar nombre y rango | X | X | ✅ | X | X | X | X |
+| `ciclo.activar` | Marcar el ciclo operativo | X | X | ✅ | X | X | X | X |
+| `ciclo.eliminar` | Borrar ciclo en cascada + su diagnóstico | X | X | ✅ | X | X | X | X |
+| `ciclo.clonar_contexto` | Clonar contexto académico, cargar materias del catálogo | X | X | ✅ | X | X | X | X |
+| `ciclo.reparar_tabla_legacy` | Reparar el puente `tabla_legacy` | X | X | ✅ | X | X | X | X |
+| `ciclo.borrar_datos` | **PROMPT-4/T4**: deshacer los datos de un paso del configurador (contexto/calendario/horario/roster/evaluaciones) sin borrar el ciclo | X | X | ✅ | X | X | X | X |
+| `calendario.ver` | Ver días del ciclo | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | X |
+| `calendario.editar` | Establecer base, guardar y borrar días (7 actions) | X | X | ✅ | X | X | X | X |
+| `evaluacion.ver` | Ver parciales | X | X | ✅ | X | X | X | X |
+| `evaluacion.editar` | Crear y activar parciales | X | X | ✅ | X | X | X | X |
+| `materia.ver_catalogo` | Listar materias y catálogo (4 actions) | ✅ | ✅ | ✅ | X | X | X | X |
+| `materia.editar_alias` | Editar el nombre visible | X | X | ✅ | X | X | X | X |
+| `materia.activar_desactivar` | Activar/desactivar materia del ciclo | X | X | ✅ | X | X | X | X |
+| `materia.mapear_columnas` | Mapear columnas y pesos de actividades | ✅ | ✅ | X | X | X | X | X |
+| `materia.descargar_plantilla` | Descargar plantilla de materia | ✅ | ✅ | X | X | X | X | X |
+| `carga_academica.aplicar` | Previsualizar y aplicar carga académica | X | X | ✅ | X | X | X | X |
+| `inscripcion.ver` | Ver grupos e inscripciones del periodo (4 actions) | X | X | ✅ | X | X | X | X |
+| `inscripcion.editar` | Inscribir alumno en el ciclo | X | X | ✅ | X | X | X | X |
+| `ciclo.ver_contexto` | Leer el contexto académico del configurador (nace en T2) | X | X | ✅ | X | X | X | X |
+| `ciclo.ver_operativo` | **Saber cuál es el ciclo operativo ahora** (nace en T2). No se mueve: de ella depende toda la subida de asistencia | ✅ | ✅ | ✅ | X | X | X | ✅ |
+| `horario.descargar_plantilla` | Bajar la plantilla de horario (nace en T2) | ✅ | ✅ | ✅ | X | X | X | X |
+| `semestre.ver` | Ver oferta de semestres | ✅ | X | ✅ | X | X | X | X |
+| `semestre.activar` | Activar/desactivar semestre por grado | X | X | ✅ | X | X | X | X |
+| `horario.importar` | Importar horario desde Excel y su plantilla | X | X | ✅ | X | X | X | X |
+| `horario.ver_grupo` | Ver horario de un grupo | ✅ | ✅ | X | X | X | X | X |
+| `horario.ver_alumno` | Ver horario de un alumno | ✅ | ✅ | X | ✅ | ✅ | ✅ | X |
+| `asistencia.subir` | Plantilla, previsualizar y confirmar asistencia | ✅ | ✅ | X | X | X | X | X |
+| `asistencia.anular` | Anular asistencia ya subida | ✅ | ✅ | X | X | X | X | X |
+| `asistencia.ver_grupo` | Ver asistencia de un grupo | ✅ | ✅ | X | X | X | X | X |
+| `asistencia.ver_alumno` | Ver asistencia de un alumno | ✅ | ✅ | X | ✅ | ✅ | ✅ | X |
+| `justificacion.solicitar` | Enviar la solicitud de justificación de UN DÍA, con motivo y adjunto. **Desde el 2026-10-01, solo el padre y el directivo** (el alumno y el profesor ya no envían) | ✅ | X | X | ✅ | X | X | X |
+| `justificacion.ver_propias` | Ver las propias y su hilo (5 actions) | ✅ | ✅ | X | ✅ | ✅ | ✅ | X |
+| `justificacion.resolver` | Aprobar (día completo y todas sus materias) o rechazar la solicitud del día | ✅ | X | X | X | X | X | X |
+| `justificacion.justificar_clase` | **2026-10-01**: recibir las solicitudes del padre y justificar solo MATERIAS de ese día. Cuáles —las que el profesor registró, o las que no tienen a quién atribuirse— lo decide `materiasJustificablesPorProfesor`, no la matriz | X | ✅ | X | X | X | X | X |
+| `justificacion.ver_todas` | Pendientes e historial completo | ✅ | X | X | X | X | X | X |
+| `alumno.ver_perfil` | Ver perfil y buscar alumno | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | X |
+| `alumno.editar_datos_personales` | Campos personales, comentario, foto | ✅ | X | ✅ | ✅ | X | ✅ | X |
+| `alumno.editar_etiquetas` | Etiquetas personales y dinámicas (6 actions) | ✅ | X | ✅ | ✅ | X | ✅ | X |
+| `alumno.editar_estatus` | Estatus académico del alumno | ✅ | X | ✅ | X | X | ✅ | X |
+| `alumno.comentar` | Comentario del directivo sobre el alumno | ✅ | ✅ | X | X | X | X | X |
+| `alumno.importar_estatus` | Importar promedios/reprobadas masivo | X | X | ✅ | X | X | X | X |
+| `alumno.cargar_roster` | Sincronizar alumnos desde archivo | X | X | ✅ | X | X | X | X |
+| `alumno.borrar_roster` | **PROMPT-4/T3**: sacar a un alumno del roster del ciclo (previsualizar→confirmar; no borra de `ALUMNOS`) | X | X | ✅ | X | X | X | X |
+| `alumno.ver_roster` | **2026-10-25**: leer el padrón del ciclo (por grado, grupo y carrera) y descargarlo en `.xlsx`. SOLO LECTURA: existe aparte de `alumno.cargar_roster` para que Servicio Escolar pueda bajar el padrón sin poder sincronizarlo | X | X | ✅ | X | X | X | ✅ |
+| `alumno.descargar_etiquetas` | **2026-10-25**: descargar en `.xlsx` lo guardado en `ETIQUETAS PERSONALES` — contacto y situación médica, en dos hojas distintas. No permite editarlas | X | X | ✅ | X | X | X | ✅ |
+| `alumno.ver_expediente` | **2026-09-24**: buscar a CUALQUIER alumno por nombre o CURP y abrir su expediente (Administración escolar). **PROMPT U, 2026-10-01**: también Dirección, en Alumnos / Tutores | ✅ | X | X | X | X | ✅ | X |
+| `alumno.editar_numero_control` | **2026-09-24**: capturar o corregir el número de control (matrícula) del alumno, el que va en la constancia de estudios | X | X | X | X | X | ✅ | X |
+| `profesor.cambiar_clave_propia` | Cambiar la propia clave de acceso | ✅ | ✅ | ✅ | X | X | ✅ | ✅ |
+| `profesor.ver_credenciales_acceso` | Ver/reponer claves de **inicio de sesión** | X | X | ✅ | X | X | X | X |
+| `profesor.forzar_cambio_clave` | Obligar a cambiar clave en el próximo acceso | X | X | ✅ | X | X | X | X |
+| `tutor.ver_lista` | Listar tutores y sus credenciales | X | X | ✅ | X | X | ✅ | X |
+| `tutor.crear` | Crear tutor, consolidar hermanos | X | X | ✅ | X | X | ✅ | X |
+| `tutor.generar_automaticos` | Generación masiva de tutores | X | X | ✅ | X | X | ✅ | X |
+| `tutor.ver_propio` | Ver sus datos y sus alumnos (4 actions) | ✅ | X | X | ✅ | X | X | X |
+| `tutor.cambiar_credenciales_propias` | Cambiar su propia clave | ✅ | X | ✅ | ✅ | X | X | X |
+| `documento.ver` | Ver y descargar documentos (3 actions) | ✅ | ✅ | ✅ | X | X | ✅ | X |
+| `documento.subir` | Subir documento | ✅ | ✅ | ✅ | X | X | ✅ | X |
+| `documento.eliminar` | Eliminar documento | ✅ | ✅ | ✅ | X | X | ✅ | X |
+| `documento.gestionar_carpetas` | Crear, renombrar, eliminar carpetas | ✅ | X | ✅ | X | X | ✅ | X |
+| `documento.asignar_permisos` | Dar y quitar acceso a profesores | ✅ | X | ✅ | X | X | ✅ | X |
+| `calificacion.ver` | Ver materia, registro y boleta (9 actions; la boleta generada del PROMPT X, con su alcance: la familia solo con activación, el maestro nada) | ✅ | ✅ | X | ✅ | ✅ | ✅ | X |
+| `calificacion.subir` | Subir Excel de materia y registro (4 actions) | ✅ | ✅ | X | X | X | X | X |
+| `calificacion.eliminar` | Eliminar calificaciones de una materia | ✅ | ✅ | X | X | X | X | X |
+| `boleta.activar` | **2026-10-24 (PROMPT X)**: activar y desactivar la boleta de un parcial para el plantel, un grado o un grupo, y consultar la de cualquier alumno. Verla es `calificacion.ver` + alcance; el alumno y el tutor, solo con activación. | ✅ | X | X | X | X | X | X |
+| `noticia.publicar` | Publicar noticia de portada | ✅ | X | ✅ | X | X | X | X |
+| `portada.ver` | Alumnos estrella y noticias de inicio | público | público | público | público | público | público | ✅ |
+| `actividad.ver` | Ver las actividades (tareas) de una materia y su estado. El alcance —qué materias— lo resuelve la action, no la capacidad. | ✅ | ✅ | X | ✅ | ✅ | X | X |
+| `actividad.editar` | Crear, editar y calificar actividades de una materia. | ✅ | ✅ | X | X | X | X | X |
+| `actividad.entregar` | Que el ALUMNO suba su entrega. Separada de `editar` a propósito: entregar no es gestionar. | X | X | X | X | ✅ | X | X |
+| `reporte.ver` | Ver los reportes disciplinarios de un grupo. | ✅ | X | X | X | X | ✅ | X |
+| `reporte.crear` | Levantar un reporte disciplinario sobre un alumno. | ✅ | X | X | X | X | ✅ | X |
+| `reporte.anular` | Anular un reporte ya levantado. Va aparte de `crear` porque toca el historial de un alumno. | ✅ | X | X | X | X | ✅ | X |
+| `reporte.ver_propios` | **2026-10-01**: ver los reportes NO anulados de UN alumno en Perfil › Notificaciones — el alumno, los suyos; el tutor, los de sus vinculados; Administración escolar, en el Expediente (alcance: `resolverAccesoAlumno`). | X | X | X | ✅ | ✅ | ✅ | X |
+| `cita.ver_propias` | Ver las citas propias (alumno) o las del vinculado (tutor). | X | X | X | ✅ | ✅ | X | X |
+| `cita.solicitar` | Pedir una cita **en un hueco de la agenda de la dirección** (2026-10-01) y ver los huecos libres. | X | X | X | ✅ | ✅ | X | X |
+| `cita.gestionar` | Aceptar, rechazar y cerrar citas, y **configurar la agenda** (franjas semanales y días sin atención, 2026-10-01). | ✅ | X | X | X | X | X | X |
+| `constancia.solicitar` | Pedir una constancia. | X | X | X | ✅ | ✅ | X | X |
+| `constancia.gestionar` | Resolver solicitudes de constancia y adjuntar el documento emitido. **Desde el 2026-09-25, solo Administración escolar** (Dirección la emite directo con `constancia.emitir`). | X | X | X | X | X | ✅ | X |
+| `constancia.ver_propias` | **2026-09-25**: ver el estado de las constancias pedidas — el alumno, las suyas; el tutor, las de sus vinculados (el alcance lo resuelve la action). | X | X | X | ✅ | ✅ | X | X |
+| `constancia.emitir` | **2026-09-25**: generar la constancia de estudios de un alumno directamente, por su CURP, sin solicitud. | ✅ | X | X | X | X | ✅ | X |
+| `buzon.enviar` | Escribir una queja o comentario a la dirección. | X | X | X | ✅ | ✅ | X | X |
+| `buzon.ver` | Leer el buzón y marcar atendido. | ✅ | X | X | X | X | X | X |
+| `mensaje_interno.usar` | Mensajería privada entre personal (directivo, técnico, profesor). NO es el chat global retirado, que era alumno↔profesor. | ✅ | ✅ | ✅ | X | X | ✅ | X |
 
 ### Capacidades que aún no existen y las añade el nuevo diseño
 
@@ -204,7 +207,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 ## 5. Inventario completo
 
 <!-- INVENTARIO:INICIO -->
-Generado por `npm run gen:matriz` — **no editar a mano**. 216 Server Actions.
+Generado por `npm run gen:matriz` — **no editar a mano**. 218 Server Actions.
 
 ### `actividades.ts`
 
@@ -537,7 +540,9 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 216 Server Actions.
 
 | Action | Guardia hoy | Capacidad |
 |---|---|---|
-| `actionDescargarPlantillaRoster` | exigir: alumno.cargar_roster | `alumno.cargar_roster` |
+| `actionDescargarPlantillaRoster` | exigir: alumno.ver_roster | `alumno.ver_roster` |
+| `actionPadronDelCiclo` | exigir: alumno.ver_roster | `alumno.ver_roster` |
+| `actionDescargarHojaAlumnado` | exigir: alumno.descargar_etiquetas | `alumno.descargar_etiquetas` |
 
 ### `seguimiento-medico.ts`
 

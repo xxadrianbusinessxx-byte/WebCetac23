@@ -30,6 +30,10 @@ export function rolDesdePermisos(permisos: string): PortalRole {
   // 2026-09-24: Administración escolar, igual que el técnico — una fila normal de
   // PROFESORES con Permisos = 'Administracion'. Sin segundo camino de acceso (R6).
   if (p.includes("administ")) return "administracion";
+  // 2026-10-25: Servicio Escolar — el alumno en servicio social. Va DESPUÉS de
+  // los otros tres a propósito: si una cuenta dijera «Directivo de servicio»,
+  // manda el rol mayor, no el menor.
+  if (p.includes("servicio")) return "servicio_escolar";
   return "maestro";
 }
 

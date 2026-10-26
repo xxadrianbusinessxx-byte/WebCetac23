@@ -32,6 +32,7 @@ import { piezaDe as piezaAdministracionDe } from "@/lib/navegacion/contenido-adm
 import { piezaDe as piezaDirectivoDe } from "@/lib/navegacion/contenido-directivo";
 import { piezaDe as piezaDocenteDe } from "@/lib/navegacion/contenido-docente";
 import { piezaDe as piezaTecnicoDe } from "@/lib/navegacion/contenido-tecnico";
+import { piezaDe as piezaServicioDe } from "@/lib/navegacion/contenido-servicio-escolar";
 import {
   apartadoInicial,
   esNavegable,
@@ -70,6 +71,9 @@ const ContenidoDocenteOceano = dynamic(() =>
 );
 const ContenidoTecnicoOceano = dynamic(() =>
   import("./contenido-tecnico-oceano").then((m) => m.ContenidoTecnicoOceano),
+);
+const ServicioEscolarPanel = dynamic(() =>
+  import("@/app/components/servicio-escolar-panel").then((m) => m.ServicioEscolarPanel),
 );
 
 /** Datos ya resueltos por el servidor para las piezas reales. */
@@ -186,7 +190,7 @@ export function ShellOceano({
               alumnos={alumnosVinculados}
               seleccionado={alumnoSeleccionado}
               onSeleccionar={(curp) =>
-                router.replace(`/oceano?alumno=${encodeURIComponent(curp)}`, {
+                router.replace(`/perfil?alumno=${encodeURIComponent(curp)}`, {
                   scroll: false,
                 })
               }
@@ -199,7 +203,7 @@ export function ShellOceano({
             <BuscadorExpedienteOceano
               seleccionado={expediente ? { curp: expediente.curp, nombre: expediente.nombre } : null}
               onSeleccionar={(curp) =>
-                router.replace(`/oceano?alumno=${encodeURIComponent(curp)}`, {
+                router.replace(`/perfil?alumno=${encodeURIComponent(curp)}`, {
                   scroll: false,
                 })
               }
@@ -248,6 +252,11 @@ export function ShellOceano({
               modo={sel.modo}
               datos={datosAdministracion}
             />
+          ) : activa && activo && piezaServicioDe(activa.id, activo.id) ? (
+            /* Servicio Escolar (2026-10-25) — dos pantallas, las dos de solo
+               lectura. Como el técnico, resuelve sus propias lecturas: no
+               recibe `datos` desde aquí. */
+            <ServicioEscolarPanel pieza={piezaServicioDe(activa.id, activo.id)!} modo={sel.modo} />
           ) : activa && activo && piezaTecnicoDe(activa.id, activo.id) ? (
             /* Fase 7 — el técnico. No lleva `datos`: sus diez paneles ya
                resuelven sus propias lecturas, igual que hacen hoy en

@@ -24,5 +24,5 @@ export const metadata: Metadata = {
  * Redirigir es reversible; borrar no (R8).
  */
 export default function DocumentosPage() {
-  redirect("/oceano");
+  redirect("/perfil");
 }
