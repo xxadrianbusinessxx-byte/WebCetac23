@@ -12,27 +12,33 @@ export type LoginFormState = {
   error?: string;
 };
 
+/**
+ * A dónde entra cada rol tras el login. Hoy TODOS acaban en `/perfil`: las
+ * rutas por rol (`/profesor`, `/directivo`, `/configuracion`, `/tutor`) se
+ * retiraron y solo redirigen allí, así que mandarlos a su ruta vieja es un
+ * salto de más. Se conservan nombradas porque la redirección es reversible y
+ * el día que una vuelva a tener pantalla propia, este es el sitio donde se dice.
+ *
+ * SIN `default`, y es el punto de la función: cuando entró `servicio_escolar`
+ * (2026-10-25) el `default` lo mandó a `/` —la portada pública— y parecía que
+ * el login rebotaba. Un rol nuevo tiene que ROMPER LA COMPILACIÓN aquí, no
+ * caer en silencio en una rama comodín; eso lo garantiza `nunca` abajo.
+ */
 function destinationForRole(rol: PortalRole): string {
   switch (rol) {
     case "alumno":
-      return "/perfil";
     case "maestro":
-      return "/profesor";
     case "directivo":
-      return "/directivo";
     case "tutor":
-      return "/tutor";
     case "tecnico":
-      // PROMPT-3: la consola del técnico vive en /configuracion (T2/T3), la
-      // ruta de quien tenga las capacidades de configuración.
-      return "/configuracion";
     case "administracion":
-      // 2026-09-24: rol nuevo, sin ruta heredada que redirija. Entra directo al
-      // shell, que es donde vive todo lo suyo.
+    case "servicio_escolar":
       return "/perfil";
-    default:
-      return "/";
   }
+  // `rol` aquí es `never`: si se añade un rol y no se nombra arriba, esto no
+  // compila. Es la red que faltaba.
+  const nunca: never = rol;
+  throw new Error(`Rol sin destino de login: ${String(nunca)}`);
 }
 
 export async function loginWithNombreCompleto(
