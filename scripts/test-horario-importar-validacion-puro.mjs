@@ -5,7 +5,8 @@
  *
  * QUÉ MIDE: validación dentro del archivo de horario (forma, duplicados,
  *           solapamientos), el conteo del detalle, las advertencias contra la
- *           hoja resumen, el alias de carrera y la detección del ciclo escolar.
+ *           hoja resumen, el alias de carrera, la detección del ciclo escolar
+ *           y el vínculo de la materia al catálogo (PROMPT AA: exacto primero).
  * QUÉ ESCRIBE: nada. Carga el `.ts` directamente. No toca la base ni la red.
  * CÓMO SE EJECUTA: node scripts/test-horario-importar-validacion-puro.mjs
  */
@@ -102,6 +103,26 @@ const adv = V.advertenciasResumenVsDetalle(
 );
 eq(adv.length, 1, "un aviso (el lunes difiere)");
 ok("el aviso cita el detalle como fuente oficial", adv[0].includes("DETALLE"));
+
+// PROMPT AA — vínculo de la materia al catálogo: el nombre exacto gana.
+const mat = (id, clave, nombre = clave) => ({ id, clave, nombre });
+const indice = V.indiceMateriasDesdeFilas([
+  mat("gen", "INGLES"),
+  mat("ing1", "INGLES I", "Inglés I"),
+  mat("mod", "MODULO IV. SUBMODULO I. HIGIENE Y SEGURIDAD", "Módulo IV. Submódulo I. Higiene y seguridad"),
+]);
+const idDe = (materia, ind = indice) => V.resolverMateriaEnIndice(materia, ind)?.id ?? null;
+eq(idDe("Inglés I"), "ing1", "exacto gana al genérico sin romano");
+eq(idDe("Inglés II"), "gen", "sin exacto, cae al genérico como antes");
+eq(idDe("  ingles   i "), "ing1", "acentos, mayúsculas y espacios no importan");
+eq(idDe("Módulo IV. Submódulo I"), null, "en módulos no se quita el romano ni se busca por prefijo");
+eq(idDe("Módulo IV. Submódulo I. Higiene y seguridad"), "mod", "módulo completo por nombre");
+eq(idDe(""), null, "nombre vacío no vincula");
+const dobles = V.indiceMateriasDesdeFilas([mat("gen", "INGLES"), mat("a", "INGLES I-A", "Inglés I"), mat("b", "INGLES I-B", "Inglés I")]);
+eq(idDe("Inglés I", dobles), null, "dos exactas: ambigüedad real, no cae al genérico");
+const misma = V.indiceMateriasDesdeFilas([mat("x", "TALLER DE ARTE", "Taller de arte")]);
+eq(idDe("Taller de arte", misma), "x", "casa por clave y por nombre: cuenta una vez");
+eq(idDe("Taller de música", misma), null, "sin coincidencia no vincula");
 
 console.log(`\nResultado: ${pasadas + fallos} verificaciones · ${pasadas} pasadas, ${fallos} fallidas`);
 if (fallos > 0) process.exit(1);

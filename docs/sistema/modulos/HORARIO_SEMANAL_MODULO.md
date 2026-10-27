@@ -45,7 +45,9 @@ usa como validación cruzada (advertencias), nunca se persiste.
 - `materia_clave`/`materia_nombre`: identidad de la materia DENTRO del horario
   (texto oficial del archivo; no depende del catálogo).
 - `materia_id`: vínculo OPCIONAL (best-effort) a `materias` cuando el nombre
-  resuelve de forma única.
+  resuelve de forma única. Se prefiere el nombre exacto («Inglés I» → `INGLES I`);
+  el nombre sin romano final (→ `INGLES`) solo si no hay exacto (PROMPT AA,
+  `resolverMateriaEnIndice`).
 - `profesor_nombre`/`profesor_clave`: profesor visible y clave opcional.
   «Sin profesor asignado» = NULL (nunca se convierte en un profesor real).
 - UNIQUE natural `(periodo_id, grupo_id, dia_semana, hora_inicio, materia_clave)`

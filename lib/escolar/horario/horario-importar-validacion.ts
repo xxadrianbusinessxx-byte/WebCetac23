@@ -10,8 +10,6 @@ import {
 } from "../tables.ts";
 import {
   buscarGrupoEnLista,
-  clavesEquivalenciaMateria,
-  materiaClaveHorario,
   normalizarHoraVisible,
   obtenerGruposConCarreraDePeriodo,
   type GrupoConCarrera,
@@ -38,7 +36,10 @@ import {
   analizarFilasHorario,
   detectarCicloEnFilasHorario,
   grupoLegibleTexto,
+  indiceMateriasDesdeFilas,
   normalizarCarreraHorario,
+  resolverMateriaEnIndice,
+  type IndiceMaterias,
 } from "./horario-importar-validacion-puro.ts";
 export {
   advertenciasResumenVsDetalle,
@@ -71,49 +72,15 @@ export type { ResultadoAnalisisFilas } from "./horario-importar-validacion-puro.
  * ------------------------------------------------------------------------- */
 
 
-type IndiceMaterias = {
-  porClave: Map<string, MateriaRow[]>;
-  porNombre: Map<string, MateriaRow[]>;
-};
-
+/** Materias activas del catálogo, indexadas por el módulo puro (PROMPT AA). */
 async function cargarIndiceMaterias(
   supabase: SupabaseClient,
-): Promise<IndiceMaterias> {
-  const porClave = new Map<string, MateriaRow[]>();
-  const porNombre = new Map<string, MateriaRow[]>();
+): Promise<IndiceMaterias<MateriaRow>> {
   const { data, error } = await supabase
     .from(TABLA_MATERIAS)
     .select("id, clave, nombre, activo")
     .eq("activo", true);
-  if (error || !data) return { porClave, porNombre };
-  for (const m of data as MateriaRow[]) {
-    const clave = materiaClaveHorario(m.clave);
-    const nombre = materiaClaveHorario(m.nombre ?? "");
-    const arrC = porClave.get(clave) ?? [];
-    arrC.push(m);
-    porClave.set(clave, arrC);
-    if (nombre) {
-      const arrN = porNombre.get(nombre) ?? [];
-      arrN.push(m);
-      porNombre.set(nombre, arrN);
-    }
-  }
-  return { porClave, porNombre };
-}
-
-/** Resuelve el vínculo de una materia del horario al catálogo (único o null). */
-function resolverMateriaCatalogo(
-  materia: string,
-  indice: IndiceMaterias,
-): MateriaRow | null {
-  const candidatas = clavesEquivalenciaMateria(materia);
-  const encontradas = new Set<MateriaRow>();
-  for (const cand of candidatas) {
-    for (const m of indice.porClave.get(cand) ?? []) encontradas.add(m);
-    for (const m of indice.porNombre.get(cand) ?? []) encontradas.add(m);
-  }
-  if (encontradas.size === 1) return [...encontradas][0]!;
-  return null;
+  return indiceMateriasDesdeFilas(error || !data ? [] : (data as MateriaRow[]));
 }
 
 /** Encuentra el grupo del catálogo que corresponde a la fila del archivo. */
@@ -339,7 +306,7 @@ export async function analizarImportacionHorario(
       });
       continue;
     }
-    const materiaCatalogo = resolverMateriaCatalogo(f.materia, indiceMaterias);
+    const materiaCatalogo = resolverMateriaEnIndice(f.materia, indiceMaterias);
     if (materiaCatalogo) materiasVinculadas++;
     else materiasSinVinculo++;
 

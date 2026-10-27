@@ -4,7 +4,8 @@
  *
  * Validación DENTRO del archivo de horario (forma, duplicados, solapamientos),
  * el conteo del detalle, las advertencias contra la hoja resumen, el alias de
- * carrera y la detección del ciclo escolar. Cero I/O.
+ * carrera, la detección del ciclo escolar y el vínculo de cada materia al
+ * catálogo (PROMPT AA). Cero I/O.
  *
  * Movido desde `horario-importar-validacion.ts` (PROMPT Q · Parte 1 · R-1);
  * `horario-importar-validacion.ts` re-exporta la API pública. `grupoLegibleTexto`
@@ -17,7 +18,11 @@ import {
   normalizarGrupoCatalogo,
   normalizarTextoCatalogo,
 } from "../catalogo/catalogo-academico.ts";
-import { horaAMinutos } from "./horario-semanal-puro.ts";
+import {
+  clavesEquivalenciaMateria,
+  horaAMinutos,
+  materiaClaveHorario,
+} from "./horario-semanal-puro.ts";
 import { filaTexto } from "./horario-importar-lectura.ts";
 import type { FilaHorarioNormalizada, FilaReporteHorario } from "./horario-importar.ts";
 
@@ -26,6 +31,15 @@ export type ResultadoAnalisisFilas = {
   erroresPorFila: FilaReporteHorario[];
   totalValidas: number;
   totalRechazadas: number;
+};
+
+/** Lo mínimo de una fila de `materias` para vincularla desde el horario. */
+export type MateriaIndexable = { id: string; clave: string; nombre: string | null };
+
+/** Materias activas indexadas por clave y por nombre normalizados. */
+export type IndiceMaterias<M extends MateriaIndexable> = {
+  porClave: Map<string, M[]>;
+  porNombre: Map<string, M[]>;
 };
 
 export function grupoLegibleTexto(f: FilaHorarioNormalizada): string {
@@ -267,4 +281,47 @@ export function detectarCicloEnFilasHorario(
   }
   const unicos = [...new Set(encontrados)];
   return unicos.length === 1 ? unicos[0]! : null;
+}
+
+/** Indexa las materias del catálogo por clave y nombre normalizados. */
+export function indiceMateriasDesdeFilas<M extends MateriaIndexable>(
+  filas: readonly M[],
+): IndiceMaterias<M> {
+  const porClave = new Map<string, M[]>();
+  const porNombre = new Map<string, M[]>();
+  for (const m of filas) {
+    const clave = materiaClaveHorario(m.clave);
+    porClave.set(clave, [...(porClave.get(clave) ?? []), m]);
+    const nombre = materiaClaveHorario(m.nombre ?? "");
+    if (nombre) porNombre.set(nombre, [...(porNombre.get(nombre) ?? []), m]);
+  }
+  return { porClave, porNombre };
+}
+
+/**
+ * Vínculo de una materia del horario al catálogo (única o null).
+ *
+ * PROMPT AA: primero el nombre COMPLETO. «Inglés I» casa con `INGLES I` y, sin
+ * romano, con la genérica `INGLES`; juntar las dos lo volvía ambiguo y dejaba la
+ * fila sin vínculo. Solo si no hay materia exacta se prueba sin el romano, que
+ * es lo que siguen necesitando los grupos con materias genéricas. Dos exactas
+ * son una ambigüedad real: no se cae a la genérica.
+ */
+export function resolverMateriaEnIndice<M extends MateriaIndexable>(
+  materia: string,
+  indice: IndiceMaterias<M>,
+): M | null {
+  const [completa, ...sinRomano] = clavesEquivalenciaMateria(materia);
+  if (!completa) return null;
+  const coincidencias = (claves: string[]) => {
+    const encontradas = new Set<M>();
+    for (const c of claves) {
+      for (const m of indice.porClave.get(c) ?? []) encontradas.add(m);
+      for (const m of indice.porNombre.get(c) ?? []) encontradas.add(m);
+    }
+    return [...encontradas];
+  };
+  const exactas = coincidencias([completa]);
+  const candidatas = exactas.length > 0 ? exactas : coincidencias(sinRomano);
+  return candidatas.length === 1 ? candidatas[0]! : null;
 }
