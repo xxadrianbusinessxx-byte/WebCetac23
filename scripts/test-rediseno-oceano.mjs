@@ -933,6 +933,7 @@ eq(
   "Trámites escolares tiene sus dos apartados",
 );
 // Notificaciones (2026-10-25): a quién le falta información primordial.
+// PROMPT AB (2026-10-29): + «Grupo», para los marcados como pendientes.
 eq(
   nav.pestana("administracion", "notificaciones").apartados.map((a) => a.label),
   ["Datos incompletos"],
@@ -940,7 +941,7 @@ eq(
 );
 eq(
   nav.pestana("administracion", "notificaciones").apartados[0].modos,
-  ["Todos", "Número de control", "Nombre", "CURP"],
+  ["Todos", "Número de control", "Grupo", "Nombre", "CURP"],
   "…que se filtra por el dato que falta",
 );
 eq(

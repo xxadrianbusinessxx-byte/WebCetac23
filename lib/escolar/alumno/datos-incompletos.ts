@@ -2,12 +2,17 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { nombreCompletoAlumno } from "./alumnos.ts";
 import { obtenerCicloOperativoGlobal } from "../ciclo/ciclo-estado.ts";
-import { TABLA_ALUMNOS, TABLA_INSCRIPCIONES_ALUMNO } from "../tables.ts";
+import { TABLA_ALUMNO_ETIQUETAS, TABLA_ALUMNOS, TABLA_INSCRIPCIONES_ALUMNO } from "../tables.ts";
 import type { AlumnoRow } from "../types.ts";
 import {
+  curpsARevisar,
+  debeListarse,
   faltantesDeAlumno,
+  notasDePendientes,
   resumenDatosIncompletos,
+  TITULO_ETIQUETA_PENDIENTE,
   type AlumnoIncompleto,
+  type EtiquetaDeAlumno,
   type ResumenDatosIncompletos,
 } from "./datos-incompletos-puro.ts";
 
@@ -22,6 +27,9 @@ import {
  * Alcance: el ROSTER ACTIVO del ciclo operativo, no la tabla ALUMNOS entera.
  * Un alumno que ya no cursa no es un pendiente administrativo, y mezclarlo
  * convertiría el aviso en una lista que nadie puede cerrar.
+ * Excepción (PROMPT AB, 2026-10-29): los alumnos marcados con la etiqueta
+ * «Pendiente de administración» entran aunque no estén inscritos — es
+ * justamente lo que les falta —, y salen cuando Administración quita la marca.
  *
  * Solo lectura: este módulo no escribe nada. Corregir el dato se hace donde ya
  * se hacía (el expediente del alumno), que es la única fuente de esa escritura.
@@ -39,7 +47,8 @@ export type DatosIncompletosDelCiclo = {
 const VACIO: ResumenDatosIncompletos = {
   revisados: 0,
   incompletos: 0,
-  porCampo: { curp: 0, nombre: 0, numero_control: 0 },
+  porConfirmar: 0,
+  porCampo: { curp: 0, nombre: 0, grupo: 0, numero_control: 0 },
 };
 
 type GrupoDeInscripcion = { grado: string | null; nombre: string | null; periodo_id: string | null };
@@ -61,9 +70,9 @@ function descripcionGrupo(g: GrupoDeInscripcion | null): string | null {
 }
 
 /**
- * Revisa el roster activo del ciclo operativo y devuelve a quién le falta qué.
- * Dos viajes: las inscripciones activas con su grupo, y los ALUMNOS de esas
- * CURP por lotes (sin N+1).
+ * Revisa el roster activo del ciclo operativo, más los marcados como
+ * pendientes, y devuelve a quién le falta qué. Tres viajes: las inscripciones
+ * activas con su grupo, las marcas, y los ALUMNOS de esas CURP por lotes (sin N+1).
  */
 export async function leerDatosIncompletosDelCiclo(
   supabase: SupabaseClient,
@@ -95,7 +104,19 @@ export async function leerDatosIncompletosDelCiclo(
     if (!g || String(g.periodo_id ?? "") !== idPeriodo) continue;
     grupoPorCurp.set(curp, descripcionGrupo(g));
   }
-  const curps = [...grupoPorCurp.keys()];
+
+  // Las marcas: `ilike` acota en la base con un patrón holgado (mayúsculas y
+  // espacios de más pasan) y el puro decide del todo.
+  const { data: etiquetas, error: errEtiquetas } = await supabase
+    .from(TABLA_ALUMNO_ETIQUETAS)
+    .select("curp, titulo, valor")
+    .ilike("titulo", `%${TITULO_ETIQUETA_PENDIENTE.split(" ").join("%")}%`);
+  if (errEtiquetas) {
+    return { ok: false, ciclo: nombreCiclo, resumen: VACIO, alumnos: [], error: errEtiquetas.message };
+  }
+  const notaPorCurp = notasDePendientes((etiquetas ?? []) as EtiquetaDeAlumno[]);
+
+  const curps = curpsARevisar([...grupoPorCurp.keys()], notaPorCurp.keys());
   if (curps.length === 0) {
     return { ok: true, ciclo: nombreCiclo, resumen: VACIO, alumnos: [] };
   }
@@ -119,13 +140,16 @@ export async function leerDatosIncompletosDelCiclo(
         pApellido: f.P_APELLIDO,
         sApellido: f.S_APELLIDO,
         numeroControl: f.numero_control ?? null,
+        tieneGrupo: grupoPorCurp.has(curp),
       });
-      if (faltantes.length === 0) continue;
+      const nota = notaPorCurp.get(curp) ?? null;
+      if (!debeListarse(faltantes, nota)) continue;
       incompletos.push({
         curp,
         nombre: nombreCompletoAlumno(f) || curp,
         grupo: grupoPorCurp.get(curp) ?? null,
         faltantes,
+        nota,
       });
     }
   }

@@ -15,6 +15,10 @@
  * es donde vive esa escritura: duplicarla aquí sería un segundo camino para lo
  * mismo.
  *
+ * PROMPT AB (2026-10-29): también salen los alumnos marcados «Pendiente de
+ * administración», con la nota de la marca debajo del nombre. El grupo lo
+ * inscribe el Técnico; la marca la quita Administración en el expediente.
+ *
  * Las clases se declaran como constantes y no como componentes con nombre: C11
  * (`test-orden`) vigila que una pieza de presentación no se redeclare en `app/`.
  */
@@ -26,6 +30,7 @@ import {
   ROTULO_CAMPO,
   filtrarPorCampo,
   mensajeDatosIncompletos,
+  TITULO_ETIQUETA_PENDIENTE,
   type CampoPrimordial,
 } from "@/lib/escolar/alumno/datos-incompletos-puro";
 
@@ -37,12 +42,16 @@ const CLASE_ETIQUETA = "mb-1 block px-2 text-[10px] font-extrabold uppercase tra
 const CLASE_DATO = "text-[11px] font-semibold text-[var(--oc-text)]";
 const CLASE_CHIP =
   "rounded-full border border-amber-400/60 bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-amber-900";
+const CLASE_CHIP_CONFIRMAR =
+  "rounded-full border border-sky-400/60 bg-sky-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-sky-900";
+const CLASE_NOTA = "w-full px-2 text-[10px] font-semibold text-[var(--oc-muted)]";
 
 /** El modo del mapa de navegación decide qué dato filtra la lista. */
 function campoDelModo(modo: string | null): CampoPrimordial | null {
   const m = (modo ?? "").toLowerCase();
   if (m.startsWith("número de control") || m.startsWith("numero de control")) return "numero_control";
   if (m.startsWith("nombre")) return "nombre";
+  if (m.startsWith("grupo")) return "grupo";
   if (m.startsWith("curp")) return "curp";
   return null;
 }
@@ -85,7 +94,7 @@ export function DatosIncompletosPanel({ modo }: { modo: string | null }) {
         {mensaje ? <p className={CLASE_AVISO}>{mensaje}</p> : null}
         {!mensaje ? (
           <p className={CLASE_OK}>
-            Los {datos.resumen.revisados} alumnos del ciclo tienen CURP, nombre completo y número de control.
+            Los {datos.resumen.revisados} alumnos del ciclo tienen CURP, nombre completo, grupo y número de control.
           </p>
         ) : null}
         {mensaje ? (
@@ -98,8 +107,10 @@ export function DatosIncompletosPanel({ modo }: { modo: string | null }) {
           </ul>
         ) : null}
         <p className="mt-3 px-2 text-[10px] font-semibold text-[var(--oc-muted)]">
-          Se revisa el roster ACTIVO del ciclo operativo. El número de control se captura en Trámites
-          escolares › Constancias; el nombre y la CURP, en Alumnos › Datos personales.
+          Se revisa el roster ACTIVO del ciclo operativo y, además, a quien tenga la etiqueta{" "}
+          {`«${TITULO_ETIQUETA_PENDIENTE}»`}. El grupo lo inscribe el Técnico en Inscripciones. El número de
+          control se captura en Trámites escolares › Constancias; el nombre y la CURP, en Alumnos ›
+          Datos personales. Cuando todo esté resuelto, quita la etiqueta en el expediente del alumno.
         </p>
       </div>
 
@@ -120,6 +131,8 @@ export function DatosIncompletosPanel({ modo }: { modo: string | null }) {
                     falta {ROTULO_CAMPO[f]}
                   </span>
                 ))}
+                {a.faltantes.length === 0 ? <span className={CLASE_CHIP_CONFIRMAR}>Por confirmar</span> : null}
+                {a.nota ? <span className={CLASE_NOTA}>{a.nota}</span> : null}
               </li>
             ))}
           </ul>

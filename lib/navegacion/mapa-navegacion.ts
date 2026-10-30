@@ -400,6 +400,7 @@ const NOTIFICACIONES_ADMINISTRACION: Pestana = {
     act("datos-incompletos", "Datos incompletos", [
       "Todos",
       "Número de control",
+      "Grupo",
       "Nombre",
       "CURP",
     ]),
