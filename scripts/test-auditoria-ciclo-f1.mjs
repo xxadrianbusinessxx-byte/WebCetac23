@@ -37,6 +37,8 @@ const lectores = {
   "app/actions/asistencias.ts (actionObtenerCicloActual)": "app/actions/asistencias.ts",
   "app/actions/carga-academica.ts (catálogo reconocimiento)": "app/actions/carga-academica.ts",
   "app/configuracion/page.tsx": "app/configuracion/page.tsx",
+  // 2026-10-31: el portal donde vive hoy ese lector (ver la nota de la comprobación #3).
+  "app/perfil/page.tsx (portal)": "app/perfil/page.tsx",
   "lib/escolar/asistencia/asistencia-configuracion.ts (contexto asistencia)": "lib/escolar/asistencia/asistencia-configuracion.ts",
   "lib/escolar/catalogo/carga-academica.ts (índice grupos)": "lib/escolar/catalogo/carga-academica.ts",
   "lib/escolar/ciclo/semestres.ts (oferta semestres)": "lib/escolar/ciclo/semestres.ts",
@@ -61,9 +63,14 @@ for (const [nombre, rel] of Object.entries(lectores)) {
 // se comprueba (todo lector del ciclo global usa el helper central) es la misma.
 // La comprobación #2 sigue cubriendo `app/actions/carga-academica.ts`, de modo
 // que esa action tampoco puede volver a resolver el ciclo por su cuenta.
+//
+// 2026-10-31: el lector de `app/oceano/page.tsx` se MOVIÓ a `app/perfil/page.tsx`
+// en `0171d9e` (el portal pasó de /oceano a /perfil; /oceano ahora redirige). Es el
+// mismo caso del 2026-09-11: siguen siendo cinco y la regla no se relaja. Desde
+// `0171d9e` hasta hoy esta suite falló por apuntar al archivo viejo.
 const LECTORES_CICLO_GLOBAL = [
   "app/actions/asistencias.ts",
-  "app/oceano/page.tsx",
+  "app/perfil/page.tsx",
   "lib/escolar/asistencia/asistencia-configuracion.ts",
   "lib/escolar/catalogo/carga-academica.ts",
   "lib/escolar/ciclo/semestres.ts",
