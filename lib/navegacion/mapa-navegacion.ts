@@ -468,25 +468,44 @@ export function llevaBuscadorAlumno(rol: PortalRole | null, idPestana: string, i
   return false;
 }
 
+/**
+ * Pestañas RETIRADAS DEL MAPA, no borradas (2026-11-12).
+ *
+ * Toda la mensajería del portal queda fuera «por ahora», por decisión del
+ * responsable: el **Chat** de alumno y tutor (que ya se dibujaba apagado) y los
+ * **Mensajes** del personal (que sí operaban: directivo, maestro, técnico y
+ * administración escolar).
+ *
+ * Lo ÚNICO que se tocó es este mapa. `mensajes-internos-panel.tsx`, sus
+ * Server Actions, `lib/escolar/mensajes-internos.ts`, la capacidad
+ * `mensaje_interno.usar` y las tablas con lo ya escrito siguen intactos (R8):
+ * los mensajes guardados no se han borrado ni se borran al apagar la pestaña.
+ *
+ * **Reactivar es devolver el nombre a la fila del rol en `MAPA`**, aquí abajo.
+ * Nada más. Esta lista existe para que las dos pestañas sigan referenciadas y
+ * para que la suite pueda comprobar que NINGÚN rol las ve mientras estén aquí.
+ */
+export const PESTANAS_APAGADAS: readonly Pestana[] = [CHAT, MENSAJES_PERSONAL];
+
 /** El mapa. Una pestaña ausente para un rol es una pestaña que ese rol NO ve. */
 const MAPA: Record<PortalRole, Pestana[]> = {
-  alumno: [PERFIL_ALUMNO, MATERIAS_ALUMNO, CALENDARIO_ALUMNO, CHAT],
-  tutor: [PERFIL_TUTOR, MATERIAS_ALUMNO, CALENDARIO_ALUMNO, CHAT],
-  // Mensajes va al final en los tres: es transversal, no el trabajo principal
-  // de ninguno. Alumno y tutor NO la tienen — su chat quedó descartado.
-  maestro: [MATERIAS_DOCENTE, CALENDARIO_DOCENTE, MENSAJES_PERSONAL],
-  directivo: [MATERIAS_DOCENTE, GRUPOS_BOLETA, CALENDARIO_DOCENTE, ADMINISTRACION, CONFIGURACION, MENSAJES_PERSONAL],
-  tecnico: [CICLO_ESCOLAR, CATALOGO, PERSONAS, CONTENIDO, CONFIGURACION, MENSAJES_PERSONAL],
+  alumno: [PERFIL_ALUMNO, MATERIAS_ALUMNO, CALENDARIO_ALUMNO],
+  tutor: [PERFIL_TUTOR, MATERIAS_ALUMNO, CALENDARIO_ALUMNO],
+  // 2026-11-12: los cuatro roles del personal perdieron MENSAJES_PERSONAL, y
+  // alumno y tutor su CHAT. Ver `PESTANAS_APAGADAS` arriba.
+  maestro: [MATERIAS_DOCENTE, CALENDARIO_DOCENTE],
+  directivo: [MATERIAS_DOCENTE, GRUPOS_BOLETA, CALENDARIO_DOCENTE, ADMINISTRACION, CONFIGURACION],
+  tecnico: [CICLO_ESCOLAR, CATALOGO, PERSONAS, CONTENIDO, CONFIGURACION],
   administracion: [
     EXPEDIENTE,
     TUTORES_ADMINISTRACION,
     TRAMITES,
     NOTIFICACIONES_ADMINISTRACION,
     DOCUMENTOS,
-    MENSAJES_PERSONAL,
   ],
-  // Dos pestañas. Sin Mensajes a propósito: es una cuenta temporal de servicio
-  // social, no personal del plantel con buzón propio.
+  // Dos pestañas, y nunca tuvo Mensajes: es una cuenta temporal de servicio
+  // social, no personal del plantel con buzón propio. Desde el 2026-11-12 ya
+  // no es la excepción — no lo tiene nadie.
   servicio_escolar: [ALUMNOS_SERVICIO, DESCARGAS_SERVICIO],
 };
 

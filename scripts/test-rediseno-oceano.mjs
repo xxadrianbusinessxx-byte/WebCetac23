@@ -288,22 +288,40 @@ for (const rol of ROLES) {
 }
 eq(nav.pestanasDe(null), [], "sin sesión no hay navegación");
 
-eq(nav.pestanasDe("alumno").map((p) => p.id), ["perfil", "materias", "calendario", "chat"], "pestañas del alumno");
-ok(!nav.pestanasDe("alumno").some((p) => p.id === "mensajes"), "el alumno NO entra en la mensajería del personal");
-// 2026-09-17: el personal gana «Mensajes» (mensajería privada entre directivo,
-// técnico y profesor, pedida por el responsable). Alumno y tutor NO la tienen:
-// su chat quedó descartado.
-eq(nav.pestanasDe("maestro").map((p) => p.id), ["materias", "calendario-asistencias", "mensajes"], "pestañas del profesor");
+// ── La mensajería, apagada en TODOS los roles (2026-11-12) ─────────────────
+// Es la razón del cambio, así que se comprueba como invariante y no de pasada:
+// ningún rol ve Chat ni Mensajes mientras estén en PESTANAS_APAGADAS.
+for (const pes of nav.PESTANAS_APAGADAS) {
+  for (const rol of ROLES) {
+    ok(
+      !nav.pestanasDe(rol).some((x) => x.id === pes.id),
+      `${rol} NO ve la pestaña «${pes.label}»`,
+    );
+  }
+}
+eq(
+  nav.PESTANAS_APAGADAS.map((p) => p.id),
+  ["chat", "mensajes"],
+  "las apagadas son Chat y Mensajes, y siguen definidas (reactivar = devolverlas al MAPA)",
+);
+
+eq(nav.pestanasDe("alumno").map((p) => p.id), ["perfil", "materias", "calendario"], "pestañas del alumno");
+// 2026-11-12: TODA la mensajería del portal sale del mapa por decisión del
+// responsable — el Chat de alumno y tutor (que ya se dibujaba apagado) y los
+// Mensajes del personal (que sí operaban). No se borró nada: las dos pestañas
+// siguen definidas en `PESTANAS_APAGADAS` y reactivarlas es devolver el nombre
+// a la fila del rol. La comprobación de que NADIE las ve está más abajo.
+eq(nav.pestanasDe("maestro").map((p) => p.id), ["materias", "calendario-asistencias"], "pestañas del profesor");
 // 2026-09-23 (PROMPT N): directivo y técnico ganan «Configuración», donde se
 // administra la portada pública. Son los dos roles con `noticia.publicar`.
 eq(
   nav.pestanasDe("directivo").map((p) => p.id),
-  ["materias", "grupos-boleta", "calendario-asistencias", "administracion", "configuracion", "mensajes"],
+  ["materias", "grupos-boleta", "calendario-asistencias", "administracion", "configuracion"],
   "pestañas del directivo",
 );
 eq(
   nav.pestanasDe("tecnico").map((p) => p.id),
-  ["ciclo-escolar", "catalogo", "personas", "contenido", "configuracion", "mensajes"],
+  ["ciclo-escolar", "catalogo", "personas", "contenido", "configuracion"],
   "pestañas del técnico",
 );
 ok(
@@ -393,7 +411,12 @@ ok(cAl.piezaDe("materias", "actividades") !== null, "…y tiene pieza");
 // una columna `materia_interna` en CARPETAS en vez de abrir un camino paralelo.
 eq(nav.apartado("alumno", "materias", "recursos").estado, "activo", "Recursos ya opera, reusando Documentos");
 ok(cAl.piezaDe("materias", "recursos") !== null, "…y tiene pieza");
-eq(nav.apartado("alumno", "chat", "chat").estado, "apagado", "Chat tampoco");
+// 2026-11-12: Chat salió del mapa, así que ya no se le llega por rol. El
+// apartado sigue existiendo —apagado— dentro de la pestaña retirada, y es por
+// ahí por donde se comprueba.
+const CHAT_APAGADO = nav.PESTANAS_APAGADAS.find((p) => p.id === "chat").apartados[0];
+eq(CHAT_APAGADO.estado, "apagado", "Chat sigue siendo un apartado apagado");
+eq(nav.apartado("alumno", "chat", "chat"), null, "…y ningún rol llega a él");
 
 for (const id of ["citas", "reportes", "recursos-administrativos", "buzon", "alumnos-tutores"]) {
   eq(nav.apartado("directivo", "administracion", id).estado, "activo", `${id} ya opera`);
@@ -404,9 +427,8 @@ for (const id of ["citas", "reportes", "recursos-administrativos", "buzon", "alu
 // Una maqueta SE NAVEGA. Si no, no sirve para nada.
 ok(nav.esNavegable(nav.apartado("directivo", "administracion", "citas")), "una maqueta es navegable");
 ok(nav.esNavegable(nav.apartado("alumno", "materias", "calificacion")), "un activo es navegable");
-// El apagado que queda para comprobar la regla es Chat, descartado por decisión
-// del responsable.
-ok(!nav.esNavegable(nav.apartado("alumno", "chat", "chat")), "un apagado NO es navegable");
+// El apagado que queda para comprobar la regla es Chat, hoy fuera del mapa.
+ok(!nav.esNavegable(CHAT_APAGADO), "un apagado NO es navegable");
 ok(!nav.esNavegable(null), "sin apartado no se navega");
 
 // Y lleva su aviso: quien la usa tiene que saber que no guarda.
@@ -710,9 +732,21 @@ console.log("\ncontenido-directivo · contenido-tecnico");
 
 const esActivo = (rol, p, a) => nav.apartado(rol, p, a)?.estado === "activo";
 
+/** Pestañas retiradas del mapa (2026-11-12). Su emparejamiento SE CONSERVA a
+ *  propósito: reactivarlas es devolver el nombre a `MAPA`, y si de paso
+ *  hubiera que reconstruir el hueco, el apagado dejaría de ser reversible. */
+const IDS_APAGADAS = new Set(nav.PESTANAS_APAGADAS.map((p) => p.id));
+
 function compruebaHuecos(modulo, rol, etiqueta) {
   for (const clave of modulo.huecosConPieza()) {
     const [p, a] = clave.split("/");
+    if (IDS_APAGADAS.has(p)) {
+      ok(
+        nav.apartado(rol, p, a) === null,
+        `${etiqueta}: ${clave} conserva su pieza pero ${rol} NO lo ve (pestaña apagada)`,
+      );
+      continue;
+    }
     const ap = nav.apartado(rol, p, a);
     ok(ap !== null, `${etiqueta}: ${clave} existe en el mapa de ${rol}`);
     if (ap) ok(ap.estado === "activo", `${etiqueta}: ${clave} esta activo`);
@@ -919,12 +953,12 @@ eq(
   // 2026-10-25: «notificaciones» entra entre Trámites y Documentos. NO es el
   // apartado «Notificaciones» del expediente (ese es del alumno elegido): esta
   // pestaña mira el roster entero y avisa de a quién le falta información.
-  ["expediente", "tutores", "tramites", "notificaciones", "documentos", "mensajes"],
+  ["expediente", "tutores", "tramites", "notificaciones", "documentos"],
   "pestañas de Administración escolar",
 );
 eq(
   nav.pestanasDe("administracion").map((p) => p.label),
-  ["Alumnos", "Tutores", "Trámites escolares", "Notificaciones", "Documentos", "Mensajes"],
+  ["Alumnos", "Tutores", "Trámites escolares", "Notificaciones", "Documentos"],
   "con los rótulos pedidos: «Trámites escolares» arriba",
 );
 eq(
@@ -953,9 +987,12 @@ ok(
   cAdm.necesitaAlumno({ tipo: "datos-incompletos" }, null) === false,
   "no pide alumno elegido: habla de todo el ciclo, no de uno",
 );
+// 2026-11-12: Mensajes salió del mapa. La comprobación de que era el MISMO
+// objeto que el del técnico se volvería vacua (undefined === undefined), así
+// que lo que se comprueba ahora es que NINGUNO de los dos lo tiene.
 ok(
-  nav.pestana("administracion", "mensajes") === nav.pestana("tecnico", "mensajes"),
-  "Mensajes es el MISMO objeto que el del personal",
+  !nav.pestana("administracion", "mensajes") && !nav.pestana("tecnico", "mensajes"),
+  "ni Administración escolar ni el técnico ven ya Mensajes",
 );
 // No toca contenido académico: ni Materias, ni Calendario docente, ni Ciclo.
 for (const id of ["materias", "calendario-asistencias", "grupos-boleta", "ciclo-escolar", "catalogo", "configuracion"]) {

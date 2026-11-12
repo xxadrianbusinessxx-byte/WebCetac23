@@ -194,7 +194,7 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `constancia.emitir` | **2026-09-25**: generar la constancia de estudios de un alumno directamente, por su CURP, sin solicitud. | ✅ | X | X | X | X | ✅ | X |
 | `buzon.enviar` | Escribir una queja o comentario a la dirección. | X | X | X | ✅ | ✅ | X | X |
 | `buzon.ver` | Leer el buzón y marcar atendido. | ✅ | X | X | X | X | X | X |
-| `mensaje_interno.usar` | Mensajería privada entre personal (directivo, técnico, profesor). NO es el chat global retirado, que era alumno↔profesor. | ✅ | ✅ | ✅ | X | X | ✅ | X |
+| `mensaje_interno.usar` | Mensajería privada entre personal (directivo, técnico, profesor). NO es el chat global retirado, que era alumno↔profesor. **2026-11-12: la pestaña «Mensajes» salió del mapa de navegación por decisión del responsable, así que la capacidad no tiene pantalla que la use. Las actions siguen exigiéndola; nada se borró.** | ✅ | ✅ | ✅ | X | X | ✅ | X |
 
 ### Capacidades que aún no existen y las añade el nuevo diseño
 
