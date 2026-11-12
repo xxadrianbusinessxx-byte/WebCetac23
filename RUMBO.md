@@ -13,20 +13,20 @@
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
 Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
-- **Rama y HEAD:** main · 0171d9e
+- **Rama y HEAD:** main · 1164a80
 
 ## Qué cerró (últimos 10 commits)
 
+- 1164a80 · test-auditoria-ciclo-f1 sigue al lector del ciclo de /oceano a /perfil
+- 0b8066e · CLAUDE.md importa AGENTS.md para que Claude Code cargue las reglas al in…
+- 67d4428 · Prompt e informe: PROMPT_AB / INFORME-PROMPT-AB.
+- d2e5193 · Administración ve a los alumnos pendientes de grupo
+- 4867d46 · El importador de horario prefiere el nombre exacto de la materia
+- a15659c · El login mandaba a la portada a cualquier rol que no estuviera nombrado
+- 5dad222 · Cuenta del rol Servicio Escolar creada (PROFESORES ID 23)
 - 0171d9e · Rol Servicio Escolar (solo lectura) y el portal pasa de /oceano a /perfi…
 - 7801875 · La carga del roster lleva número de control, y el roster se puede descar…
 - 73a7b78 · Roster de tutores para el técnico y Notificaciones de Administración esc…
-- fda7a88 · Docs y pendientes de los PROMPT Z, Z-bis y el cierre de RLS
-- bff5809 · RLS: el servidor usa service_role y queda listo el SQL que cierra la cla…
-- 1a25364 · PROMPT Z-bis: la ráfaga del login se degrada en vez de derrumbarse
-- 544857e · PROMPT Z: capacidad gradual hasta 800 usuarios simultáneos sin cambiar d…
-- b9038cf · Docs y pendientes de la FASE 11 y el PROMPT Y
-- 4f38f54 · PROMPT Y: menos viajes por sesión para acercarse a 500 usuarios sin camb…
-- 03b1060 · FASE 11: re-medición de rendimiento con las Server Actions reales
 
 ## Lo que más pesa hoy
 

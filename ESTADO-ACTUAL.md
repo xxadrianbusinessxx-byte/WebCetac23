@@ -90,8 +90,8 @@ propia migración verificada (R8).
 - Calendario del operativo: **77 filas** por `periodo_id` (73 clase, 3 descanso, 1 festivo).
 - `asistencia_alumnos`: **3 863 filas**, 0 huérfanos en las 9 FK.
 - `clases_impartidas`: 81 filas históricas **intactas** (autoría irrecuperable, T4).
-- **PROFESORES**: **23** cuentas (2026-10-25, `diag-credenciales-duplicadas.mjs`): la 21 es **técnico**
-  (`Permisos='Tecnico'`), la 22 **administración escolar** y la 23 **servicio escolar** (clave aleatoria, sin usar aún).
+- **PROFESORES**: **24** cuentas (2026-11-12): 21 **técnico**, 22 **administración escolar**, 23 **servicio
+  escolar**, 24 **DIRECTIVO** genérica (clave aleatoria). `ALUMNOS.es_prueba`: la lee SOLO `alumnos-prueba.ts`; 0 marcados.
 
 Lo que de aquí es un **pendiente** —68 filas sin `periodo_id`, claves compartidas,
 `asignaciones_profesor` en 0— vive **solo** en
@@ -126,7 +126,7 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **63 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **64 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
 **Dos de ellas no prueban un módulo: `test-orden` (el repo) y `test-gen-contexto` (el índice y el generador).** `scripts/test-orden.mjs` es la

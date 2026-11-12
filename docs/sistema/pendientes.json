@@ -17,6 +17,17 @@
   ],
   "pendientes": [
     {
+      "id": "perfiles-de-visualizacion",
+      "titulo": "Perfiles de visualización: cuenta DIRECTIVO y alumno + tutor de prueba",
+      "detalle": "2026-11-12, PROMPT AC. YA HECHO: columna ALUMNOS.es_prueba aplicada (supabase/agregar-alumno-de-prueba.sql PASO 1), cuenta genérica DIRECTIVO creada (PROFESORES ID 24, Permisos 'Directivo', clave aleatoria, debe_cambiar_credenciales = true), y el código que saca a los marcados de las listas del personal. Profesor (19), técnico (21), Administración escolar (22, se reusa) y Servicio Escolar (23) ya tenían cuenta. FALTA, de persona y en este orden: (1) desplegar; (2) el técnico da de alta al alumno de prueba por Alta manual (crea alumno + inscripción + tutor) con una CURP INVENTADA que no se escribe en el repo ni en un chat; (3) correr el PASO 3 del SQL (update es_prueba = true por esa CURP; debe decir UPDATE 1; diag-alumnos-prueba debe pasar a 1 marcado y padrón 358 → 357 sin él); (4) un directivo le pone clave a DIRECTIVO desde Personas › Profesores › Reponer clave; (5) probar las sesiones de alumno, tutor, Administración y DIRECTIVO, y que el alumno de prueba NO sale en el padrón de Servicio Escolar, la plantilla del roster, Datos incompletos, la plantilla de asistencia ni la boleta de su grupo.",
+      "riesgo": "bajo",
+      "quien": "persona: despliega, hace el alta, marca al alumno y prueba las sesiones",
+      "verificar": "node scripts/diag-alumnos-prueba.mjs",
+      "doc": "docs/historial/prompts/PROMPT_AC_PERFILES_DE_VISUALIZACION.md",
+      "revisado": "2026-11-12",
+      "estado": "abierto"
+    },
+    {
       "id": "cuenta-servicio-escolar",
       "titulo": "Servicio Escolar: ponerle clave a la cuenta y probarla con sesión real",
       "detalle": "2026-10-25: la cuenta YA EXISTE — PROFESORES ID 23, nombre 'SERVICIO ESCOLAR', Permisos 'Servicio Escolar', debe_cambiar_credenciales = true. Se creó con una CLAVE ALEATORIA que nadie conoce (ni quien la creó): la cuenta no se puede usar hasta que alguien le ponga una. FALTA, en este orden: (1) el DIRECTIVO le pone clave desde Personas › Profesores › Reponer clave —el técnico NO puede: validarObjetivoPermitidoParaTecnico solo le deja cuentas cuyo Permisos contenga 'profesor'—; (2) entregarle esa clave al alumno de servicio social, que al entrar tendrá que cambiarla por el flag; (3) probar con esa sesión que el tab superior muestra SOLO Alumnos y Descargas, que el padrón lista los 357 alumnos por grado/grupo/carrera y que las tres descargas (roster, etiquetas, situación médica) bajan su .xlsx. La cuenta es temporal: al terminar el servicio social, desactivarla.",

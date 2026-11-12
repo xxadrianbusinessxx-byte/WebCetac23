@@ -27,6 +27,8 @@ import {
 import type { FilaCalificacion, TipoCalificacion } from "./calificaciones-puro.ts";
 import { tablaLegacyDeGrupoMateria } from "./puente-grupo-materia.ts";
 import { listarAliasPorGrupoMateria } from "./nombres-visibles.ts";
+import { leerCurpsDePrueba } from "../alumno/alumnos-prueba.ts";
+import { quitarCurpsDePrueba } from "../alumno/alumnos-prueba-puro.ts";
 
 export type CalificacionRow = {
   id: string;
@@ -428,10 +430,14 @@ export async function curpsDelGrupoMateria(
     .eq("activo", true);
   if (error || !data) return null;
 
-  return new Set(
+  // PROMPT AC: el alumno de prueba no está en el padrón contra el que se valida
+  // la subida; una nota suya se rechaza como la de cualquiera fuera del grupo.
+  const curpsPrueba = await leerCurpsDePrueba(supabase);
+  return quitarCurpsDePrueba(
     (data as { curp: string | null }[])
       .map((f) => (f.curp ?? "").trim().toUpperCase())
       .filter((c) => c.length > 0),
+    curpsPrueba,
   );
 }
 

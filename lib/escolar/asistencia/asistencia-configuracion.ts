@@ -16,6 +16,8 @@ import {
 import {
   nombreCompletoAlumno,
 } from "../alumno/alumnos.ts";
+import { leerCurpsDePrueba } from "../alumno/alumnos-prueba.ts";
+import { quitarCurpsDePrueba } from "../alumno/alumnos-prueba-puro.ts";
 import {
   claveOrdenAlumno,
   compararPorClaveOrden,
@@ -182,11 +184,18 @@ export async function cargarContextoCatalogoAsistencia(
   return { periodoNombre: periodo.nombre, periodoId: periodo.id, indice };
 }
 
-/** CURPs con inscripciÃ³n ACTIVA en un grupo del catÃ¡logo (paginado). */
+/**
+ * CURPs con inscripciÃ³n ACTIVA en un grupo del catÃ¡logo (paginado), sin el
+ * alumno de prueba (PROMPT AC): es el padrón de la plantilla de asistencia y de
+ * la boleta por grupo. `curpsPrueba` se pasa cuando el llamador recorre varios
+ * grupos, para leerlo una sola vez; si no llega, se lee aquí.
+ */
 export async function obtenerCurpsInscritasGrupo(
   supabase: SupabaseClient,
   grupoId: string,
+  curpsPrueba?: ReadonlySet<string>,
 ): Promise<Set<string>> {
+  const prueba = curpsPrueba ?? (await leerCurpsDePrueba(supabase));
   const curps = new Set<string>();
   let desde = 0;
   while (true) {
@@ -204,7 +213,7 @@ export async function obtenerCurpsInscritasGrupo(
     if (data.length < TAMANO_PAGINA) break;
     desde += TAMANO_PAGINA;
   }
-  return curps;
+  return quitarCurpsDePrueba(curps, prueba);
 }
 
 /** Nombres completos desde ALUMNOS para un set de CURPs (paginado, sin N+1). */

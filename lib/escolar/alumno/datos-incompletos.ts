@@ -4,6 +4,8 @@ import { nombreCompletoAlumno } from "./alumnos.ts";
 import { obtenerCicloOperativoGlobal } from "../ciclo/ciclo-estado.ts";
 import { TABLA_ALUMNO_ETIQUETAS, TABLA_ALUMNOS, TABLA_INSCRIPCIONES_ALUMNO } from "../tables.ts";
 import type { AlumnoRow } from "../types.ts";
+import { leerCurpsDePrueba } from "./alumnos-prueba.ts";
+import { quitarAlumnosDePrueba } from "./alumnos-prueba-puro.ts";
 import {
   curpsARevisar,
   debeListarse,
@@ -116,7 +118,14 @@ export async function leerDatosIncompletosDelCiclo(
   }
   const notaPorCurp = notasDePendientes((etiquetas ?? []) as EtiquetaDeAlumno[]);
 
-  const curps = curpsARevisar([...grupoPorCurp.keys()], notaPorCurp.keys());
+  // PROMPT AC: el alumno de prueba no es un pendiente administrativo; se quita
+  // ANTES de contar, para que tampoco infle el «de N revisados» del resumen.
+  const curpsPrueba = await leerCurpsDePrueba(supabase);
+  const curps = quitarAlumnosDePrueba(
+    curpsARevisar([...grupoPorCurp.keys()], notaPorCurp.keys()),
+    (c) => c,
+    curpsPrueba,
+  );
   if (curps.length === 0) {
     return { ok: true, ciclo: nombreCiclo, resumen: VACIO, alumnos: [] };
   }

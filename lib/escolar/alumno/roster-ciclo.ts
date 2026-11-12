@@ -4,6 +4,8 @@ import { obtenerCicloOperativoGlobal } from "../ciclo/ciclo-estado.ts";
 import { TABLA_ALUMNOS, TABLA_INSCRIPCIONES_ALUMNO } from "../tables.ts";
 import type { AlumnoRow } from "../types.ts";
 import type { FilaRoster } from "./roster-ciclo-puro.ts";
+import { leerCurpsDePrueba } from "./alumnos-prueba.ts";
+import { quitarAlumnosDePrueba } from "./alumnos-prueba-puro.ts";
 
 /**
  * roster-ciclo.ts — LA lectura del padrón del ciclo operativo. 2026-10-25.
@@ -99,5 +101,8 @@ export async function leerRosterDelCiclo(supabase: SupabaseClient): Promise<Rost
     }
   }
 
-  return { ok: true, ciclo: nombreCiclo, filas };
+  // PROMPT AC: el alumno de prueba no es parte del padrón que ve el personal
+  // (pantalla de Servicio Escolar, plantilla del roster, etiquetas y situación médica).
+  const curpsPrueba = await leerCurpsDePrueba(supabase);
+  return { ok: true, ciclo: nombreCiclo, filas: quitarAlumnosDePrueba(filas, (f) => f.curp, curpsPrueba) };
 }
