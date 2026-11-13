@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 export default async function PerfilPage({
   searchParams,
 }: {
-  searchParams: Promise<{ alumno?: string }>;
+  searchParams: Promise<{ alumno?: string; pestana?: string; apartado?: string; modo?: string }>;
 }) {
   const params = await searchParams;
   const sesion = await obtenerSesionPortal();
@@ -190,6 +190,7 @@ export default async function PerfilPage({
       periodos={periodos}
       alumnosVinculados={esTutor ? alumnosVinculados : undefined}
       alumnoSeleccionado={curpConsulta}
+      seleccionPedida={{ pestana: params.pestana, apartado: params.apartado, modo: params.modo }}
     />
   );
 }

@@ -23,7 +23,7 @@
  * Sin lógica de datos: por eso es el ÚNICO archivo con "use client" de la
  * carpeta; las piezas de los tres niveles son presentacionales.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { PortalRole } from "@/lib/auth/types";
@@ -43,6 +43,13 @@ import {
   textoMaqueta,
   type Apartado,
 } from "@/lib/navegacion/mapa-navegacion";
+import {
+  busquedaConSeleccion,
+  rutaPerfil,
+  seleccionDesdeParametros,
+  type ParametrosSeleccion,
+  type Seleccion,
+} from "@/lib/navegacion/seleccion-url";
 import { BarraModoOceano } from "./barra-modo-oceano";
 import { BuscadorExpedienteOceano } from "./buscador-expediente-oceano";
 import type { DatosAdministracionOceano } from "./contenido-administracion-oceano";
@@ -79,24 +86,22 @@ const ServicioEscolarPanel = dynamic(() =>
 /** Datos ya resueltos por el servidor para las piezas reales. */
 export type { DatosAdministracionOceano, DatosAlumnoOceano, DatosDirectivoOceano, DatosDocenteOceano };
 
-type Seleccion = {
-  idPestana: string;
-  idApartado: string | null;
-  modo: string | null;
-};
-
-/** Estado inicial: la primera pestaña del rol y su primer apartado NAVEGABLE
- *  (`apartadoInicial` salta los apagados; `null` = la pestaña no tiene ninguno,
- *  y entonces se muestra el estado de la pestaña en vez de contenido). */
-function seleccionInicial(rol: PortalRole | null): Seleccion {
-  const primera = pestanasDe(rol)[0] ?? null;
-  if (!primera) return { idPestana: "", idApartado: null, modo: null };
-  const inicial = apartadoInicial(rol, primera.id);
-  return {
-    idPestana: primera.id,
-    idApartado: inicial?.id ?? null,
-    modo: inicial?.modos[0] ?? null,
-  };
+/**
+ * 2026-11-13 — la selección vive TAMBIÉN en la dirección (`?pestana=&apartado=&modo=`)
+ * para que una pantalla se pueda enlazar. Se escribe con `history.replaceState`
+ * y no con `router.replace`: cambiar de pestaña no debe volver a pedir al
+ * servidor los datos de la página, que no cambian. Qué es válido lo decide
+ * `seleccion-url.ts` contra el mapa; aquí solo se escribe.
+ */
+function escribirEnDireccion(sel: Seleccion) {
+  // Sin rol no hay selección que escribir: borrar los parámetros aquí rompería el
+  // enlace que alguien abrió antes de iniciar sesión.
+  if (typeof window === "undefined" || !sel.idPestana) return;
+  const busqueda = busquedaConSeleccion(window.location.search, sel);
+  const destino = `${window.location.pathname}${busqueda ? `?${busqueda}` : ""}`;
+  if (destino !== `${window.location.pathname}${window.location.search}`) {
+    window.history.replaceState(window.history.state, "", destino);
+  }
 }
 
 export function ShellOceano({
@@ -109,6 +114,7 @@ export function ShellOceano({
   periodos = [],
   alumnosVinculados,
   alumnoSeleccionado = null,
+  seleccionPedida = {},
 }: {
   rol: PortalRole | null;
   nombre: string;
@@ -133,9 +139,16 @@ export function ShellOceano({
   alumnosVinculados?: readonly { curp: string; nombre: string }[];
   /** CURP del alumno activo (el que fija de quién son los datos). */
   alumnoSeleccionado?: string | null;
+  /** La pestaña, el apartado y el modo que pide la dirección; se validan contra el mapa. */
+  seleccionPedida?: ParametrosSeleccion;
 }) {
   const router = useRouter();
-  const [sel, setSel] = useState<Seleccion>(() => seleccionInicial(rol));
+  const [sel, setSel] = useState<Seleccion>(() => seleccionDesdeParametros(rol, seleccionPedida));
+
+  // La dirección sigue a la selección: así lo que se ve se puede copiar y enlazar.
+  useEffect(() => {
+    escribirEnDireccion(sel);
+  }, [sel]);
 
   const pestanas = pestanasDe(rol);
   // La pestaña activa se RE-VALIDA contra el mapa en cada render: si el rol no
@@ -189,11 +202,7 @@ export function ShellOceano({
             <SelectorAlumnoOceano
               alumnos={alumnosVinculados}
               seleccionado={alumnoSeleccionado}
-              onSeleccionar={(curp) =>
-                router.replace(`/perfil?alumno=${encodeURIComponent(curp)}`, {
-                  scroll: false,
-                })
-              }
+              onSeleccionar={(curp) => router.replace(rutaPerfil(sel, curp), { scroll: false })}
             />
           ) : null}
           {/* Administración escolar y el directivo — el buscador ocupa el mismo
@@ -202,11 +211,7 @@ export function ShellOceano({
           {activa && llevaBuscadorAlumno(rol, activa.id, activo?.id ?? "") ? (
             <BuscadorExpedienteOceano
               seleccionado={expediente ? { curp: expediente.curp, nombre: expediente.nombre } : null}
-              onSeleccionar={(curp) =>
-                router.replace(`/perfil?alumno=${encodeURIComponent(curp)}`, {
-                  scroll: false,
-                })
-              }
+              onSeleccionar={(curp) => router.replace(rutaPerfil(sel, curp), { scroll: false })}
             />
           ) : null}
         </SidebarOceano>
