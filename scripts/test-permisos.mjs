@@ -227,16 +227,18 @@ ok(puede("administracion", "alumno.editar_numero_control"), "administracion pued
 ok(!puede("tutor", "alumno.editar_numero_control"), "el tutor NO captura el número de control (aunque edite datos personales)");
 ok(!puede("alumno", "alumno.editar_numero_control"), "el alumno NO captura su número de control");
 
-seccion("Servicio Escolar (2026-10-25) — consulta y descarga, y NADA más");
+seccion("Servicio Escolar (2026-11-16) — captura asistencia, y NADA más");
 // La lista exacta, no «al menos estas»: el valor del rol está en lo que NO
 // tiene, así que una capacidad de más tiene que romper la suite, no pasar.
 {
   const suyas = matrizHoy().servicio_escolar;
   const esperadas = [
-    "alumno.descargar_etiquetas",
-    "alumno.ver_roster",
+    "asistencia.anular",
+    "asistencia.subir",
+    "asistencia.ver_grupo",
     "ciclo.ver",
     "ciclo.ver_operativo",
+    "horario.ver_grupo",
     "profesor.cambiar_clave_propia",
   ];
   ok(
@@ -244,16 +246,23 @@ seccion("Servicio Escolar (2026-10-25) — consulta y descarga, y NADA más");
     `servicio_escolar tiene EXACTAMENTE sus ${esperadas.length} capacidades`,
   );
 }
-ok(puede("servicio_escolar", "alumno.ver_roster"), "servicio_escolar puede ver y bajar el padrón");
-ok(puede("servicio_escolar", "alumno.descargar_etiquetas"), "servicio_escolar puede bajar etiquetas y situación médica");
-// Las cinco que lo convertirían en otra cosa.
+ok(puede("servicio_escolar", "asistencia.subir"), "servicio_escolar puede subir asistencia");
+ok(puede("servicio_escolar", "asistencia.anular"), "…y deshacer su propio error");
+ok(puede("servicio_escolar", "horario.ver_grupo"), "…y ver las materias del grupo (salen del horario)");
+// 2026-11-16: el rol cambió de oficio. Lo que tenía antes se retiró con sus
+// pestañas; si alguien devuelve la capacidad sin devolver la pestaña, esto lo dice.
+ok(!puede("servicio_escolar", "alumno.ver_roster"), "ya NO consulta el padrón");
+ok(!puede("servicio_escolar", "alumno.descargar_etiquetas"), "ya NO baja etiquetas ni situación médica");
+// Las que lo convertirían en otra cosa.
 ok(!puede("servicio_escolar", "alumno.cargar_roster"), "servicio_escolar NO puede cargar el roster");
 ok(!puede("servicio_escolar", "alumno.editar_etiquetas"), "servicio_escolar NO puede editar etiquetas");
 ok(!puede("servicio_escolar", "alumno.editar_datos_personales"), "servicio_escolar NO puede editar datos del alumno");
 ok(!puede("servicio_escolar", "alumno.ver_expediente"), "servicio_escolar NO abre el expediente completo de nadie");
+ok(!puede("servicio_escolar", "calificacion.subir"), "servicio_escolar NO califica");
 ok(!puede("servicio_escolar", "mensaje_interno.usar"), "servicio_escolar NO entra en la mensajería");
-// El técnico conserva lo suyo: la capacidad nueva no le quitó la de cargar.
-ok(puede("tecnico", "alumno.ver_roster"), "el técnico también puede bajar el padrón");
+// El técnico conserva lo suyo: retirarle las dos al servicio no le quitó nada.
+ok(puede("tecnico", "alumno.ver_roster"), "el técnico sigue pudiendo bajar el padrón");
+ok(puede("tecnico", "alumno.descargar_etiquetas"), "…y las etiquetas");
 ok(puede("tecnico", "alumno.cargar_roster"), "…y sigue pudiendo cargarlo");
 
 seccion("Reportes en Notificaciones (2026-10-01) — los de UN alumno, dentro del alcance");

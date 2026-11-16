@@ -136,11 +136,11 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `semestre.ver` | Ver oferta de semestres | ✅ | X | ✅ | X | X | X | X |
 | `semestre.activar` | Activar/desactivar semestre por grado | X | X | ✅ | X | X | X | X |
 | `horario.importar` | Importar horario desde Excel y su plantilla | X | X | ✅ | X | X | X | X |
-| `horario.ver_grupo` | Ver horario de un grupo | ✅ | ✅ | X | X | X | X | X |
+| `horario.ver_grupo` | Ver horario de un grupo | ✅ | ✅ | X | X | X | X | ✅ |
 | `horario.ver_alumno` | Ver horario de un alumno | ✅ | ✅ | X | ✅ | ✅ | ✅ | X |
-| `asistencia.subir` | Plantilla, previsualizar y confirmar asistencia | ✅ | ✅ | X | X | X | X | X |
-| `asistencia.anular` | Anular asistencia ya subida | ✅ | ✅ | X | X | X | X | X |
-| `asistencia.ver_grupo` | Ver asistencia de un grupo | ✅ | ✅ | X | X | X | X | X |
+| `asistencia.subir` | Plantilla, previsualizar y confirmar asistencia | ✅ | ✅ | X | X | X | X | ✅ |
+| `asistencia.anular` | Anular asistencia ya subida | ✅ | ✅ | X | X | X | X | ✅ |
+| `asistencia.ver_grupo` | Ver asistencia de un grupo | ✅ | ✅ | X | X | X | X | ✅ |
 | `asistencia.ver_alumno` | Ver asistencia de un alumno | ✅ | ✅ | X | ✅ | ✅ | ✅ | X |
 | `justificacion.solicitar` | Enviar la solicitud de justificación de UN DÍA, con motivo y adjunto. **Desde el 2026-10-01, solo el padre y el directivo** (el alumno y el profesor ya no envían) | ✅ | X | X | ✅ | X | X | X |
 | `justificacion.ver_propias` | Ver las propias y su hilo (5 actions) | ✅ | ✅ | X | ✅ | ✅ | ✅ | X |
@@ -155,8 +155,8 @@ Leyenda de celdas — **esta notación es normativa**, la matriz implementada se
 | `alumno.importar_estatus` | Importar promedios/reprobadas masivo | X | X | ✅ | X | X | X | X |
 | `alumno.cargar_roster` | Sincronizar alumnos desde archivo | X | X | ✅ | X | X | X | X |
 | `alumno.borrar_roster` | **PROMPT-4/T3**: sacar a un alumno del roster del ciclo (previsualizar→confirmar; no borra de `ALUMNOS`) | X | X | ✅ | X | X | X | X |
-| `alumno.ver_roster` | **2026-10-25**: leer el padrón del ciclo (por grado, grupo y carrera) y descargarlo en `.xlsx`. SOLO LECTURA: existe aparte de `alumno.cargar_roster` para que Servicio Escolar pueda bajar el padrón sin poder sincronizarlo | X | X | ✅ | X | X | X | ✅ |
-| `alumno.descargar_etiquetas` | **2026-10-25**: descargar en `.xlsx` lo guardado en `ETIQUETAS PERSONALES` — contacto y situación médica, en dos hojas distintas. No permite editarlas | X | X | ✅ | X | X | X | ✅ |
+| `alumno.ver_roster` | **2026-10-25**: leer el padrón del ciclo (por grado, grupo y carrera) y descargarlo en `.xlsx`. SOLO LECTURA: existe aparte de `alumno.cargar_roster` para que Servicio Escolar pueda bajar el padrón sin poder sincronizarlo | X | X | ✅ | X | X | X | X |
+| `alumno.descargar_etiquetas` | **2026-10-25**: descargar en `.xlsx` lo guardado en `ETIQUETAS PERSONALES` — contacto y situación médica, en dos hojas distintas. No permite editarlas | X | X | ✅ | X | X | X | X |
 | `alumno.ver_expediente` | **2026-09-24**: buscar a CUALQUIER alumno por nombre o CURP y abrir su expediente (Administración escolar). **PROMPT U, 2026-10-01**: también Dirección, en Alumnos / Tutores | ✅ | X | X | X | X | ✅ | X |
 | `alumno.editar_numero_control` | **2026-09-24**: capturar o corregir el número de control (matrícula) del alumno, el que va en la constancia de estudios | X | X | X | X | X | ✅ | X |
 | `profesor.cambiar_clave_propia` | Cambiar la propia clave de acceso | ✅ | ✅ | ✅ | X | X | ✅ | ✅ |

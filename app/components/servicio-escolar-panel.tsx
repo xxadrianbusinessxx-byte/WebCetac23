@@ -15,6 +15,7 @@
  * (`test-orden`) vigila que una pieza de presentación no se redeclare en `app/`.
  */
 import { useEffect, useState } from "react";
+import { AsistenciasPanel } from "@/app/components/asistencias-panel";
 import {
   actionDescargarHojaAlumnado,
   actionDescargarPlantillaRoster,
@@ -91,6 +92,18 @@ export function ServicioEscolarPanel({
   pieza: PiezaServicioEscolar;
   modo: string | null;
 }) {
+  // 2026-11-16 — el oficio del rol: el MISMO panel que usa el profesor. No hay
+  // una versión aparte, porque lo que cambia no es la pantalla sino el alcance,
+  // y ese lo decide el servidor: la guarda de `app/actions/asistencias.ts` le
+  // impide tocar una materia que ya tiene profesor.
+  // `mostrarPlantillaMateria={false}` quita el único botón del panel que no es
+  // de asistencia —la plantilla de calificaciones—, que este rol ni captura ni
+  // tiene capacidad para descargar.
+  if (pieza.tipo === "asistencias") {
+    return <AsistenciasPanel nombreProfesor="Servicio Escolar" mostrarPlantillaMateria={false} />;
+  }
+  // Las dos de abajo quedaron fuera del mapa el 2026-11-16: su pieza sigue aquí
+  // para que devolverlas sea una línea en `MAPA`, no reconstruir el panel.
   if (pieza.tipo === "archivos") return <ArchivosDelAlumnado modo={modo} />;
   return <PadronDelCiclo modo={modo} />;
 }

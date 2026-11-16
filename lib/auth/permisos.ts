@@ -312,9 +312,21 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
    * cualquiera, con boleta y asistencia), ni mensajería, documentos o trámites.
    */
   servicio_escolar: new Set<Capacidad>([
-    "alumno.ver_roster",
-    "alumno.descargar_etiquetas",
-    // Necesita saber de qué ciclo está mirando el padrón.
+    // 2026-11-16 — el rol cambia de oficio: deja de consultar el padrón y pasa
+    // a CAPTURAR ASISTENCIA, que es el trabajo que se le quiere encomendar.
+    // `alumno.ver_roster` y `alumno.descargar_etiquetas` se retiraron con sus
+    // dos pestañas (ver `PESTANAS_APAGADAS` en el mapa): nada se borró, y
+    // devolverlas es volver a escribirlas aquí.
+    //
+    // Sube en CUALQUIER materia, no solo en las suyas —no tiene asignaciones—,
+    // pero NO en las que ya tienen profesor: eso lo impide la guarda de alcance
+    // de `app/actions/asistencias.ts`, porque subir dispara el traspaso de la
+    // materia a quien sube.
+    "asistencia.subir",
+    "asistencia.anular", // puede deshacer su propio error sin depender de nadie
+    "asistencia.ver_grupo", // listar los grupos a los que subir
+    "horario.ver_grupo", // las materias del grupo salen del horario, no de asignaciones
+    // Necesita saber en qué ciclo y parcial está capturando.
     "ciclo.ver_operativo",
     "ciclo.ver",
     // Es una fila de PROFESORES: cambia su clave como cualquier personal.

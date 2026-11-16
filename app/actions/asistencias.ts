@@ -4,6 +4,7 @@ import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo/ciclo-estado";
 
 import { exigir } from "@/lib/auth/exigir";
 import { esRol } from "@/lib/auth/permisos";
+import type { PortalRole } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
 import {
   resolverOperativoConParciales,
@@ -38,12 +39,65 @@ import {
   materiasDelHorario,
   totalBloquesGrupoPorDia,
 } from "@/lib/escolar/horario/horario-semanal";
-import { listarGrupoIdsAsignadosProfesor } from "@/lib/escolar/catalogo/asignaciones-profesor";
+import {
+  listarGrupoIdsAsignadosProfesor,
+  profesorActivoDeMateria,
+} from "@/lib/escolar/catalogo/asignaciones-profesor";
+import { resolverGrupoMateriaIdSubida } from "@/lib/escolar/asistencia/asistencia-materia-resolucion";
+import {
+  ERROR_MATERIA_DE_OTRO_PROFESOR,
+  bloqueaSubidaDeAsistencia,
+} from "@/lib/escolar/asistencia/guarda-alcance-puro";
 import { leerFormData } from "@/lib/validacion/leer-form-data";
 import { esquemaArchivoAsistencias } from "@/lib/validacion/esquemas-puro";
 import { consultarPeriodo } from "@/lib/escolar/ciclo/ciclo-estado";
 import { obtenerNombreCompletoAlumno } from "@/lib/escolar/alumno/alumnos";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores";
+
+/**
+ * GUARDA DE ALCANCE — Servicio Escolar no le quita una materia a su profesor.
+ * 2026-11-16.
+ *
+ * Por qué existe. Subir asistencia no solo escribe asistencia: antes de
+ * guardar, `traspasar_materia_a_profesor` le DA la materia a quien sube —
+ * desactiva la asignación de quien la tuviera y mueve a su nombre las clases y
+ * asistencias ya registradas (archivando las originales). Eso es correcto
+ * cuando quien sube es el profesor; con la cuenta de servicio social
+ * significaría que, materia a materia, se las va quitando a todos.
+ *
+ * Qué hace. Si el rol es `servicio_escolar` y la materia YA tiene asignación
+ * activa de otro profesor, se rechaza con un mensaje que dice qué hacer. Donde
+ * nadie la ha reclamado, sube con normalidad.
+ *
+ * Qué NO hace, a propósito: no toca la capacidad (`asistencia.subir` es la
+ * misma para todos), ni el dominio, ni la RPC, ni el esquema. Es una regla de
+ * ALCANCE («sobre qué»), y `ORDEN.md` §2 las pone aquí, en la action, igual
+ * que `resolverAccesoAlumno`. La excepción se activa sola: en cuanto un
+ * profesor adquiere la materia, el servicio deja de poder tocarla.
+ */
+async function materiaDeOtroProfesor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sesion: { rol: PortalRole; profesorId?: number | null },
+  ctx: Parameters<typeof resolverGrupoMateriaIdSubida>[1],
+): Promise<string | null> {
+  if (!esRol(sesion.rol, "servicio_escolar")) return null;
+
+  const res = await resolverGrupoMateriaIdSubida(supabase, ctx);
+  // Materia sin resolver: no es cosa de esta guarda — el dominio ya lo rechaza
+  // después con su propio mensaje.
+  if (!res.ok || !res.grupoMateriaId) return null;
+
+  const dueno = await profesorActivoDeMateria(supabase, res.grupoMateriaId);
+
+  // La DECISIÓN vive en el módulo puro (`guarda-alcance-puro.ts`), con su
+  // suite; aquí solo se reúnen los dos datos que necesita.
+  const bloquea = bloqueaSubidaDeAsistencia({
+    esServicioEscolar: true,
+    profesorIdSesion: sesion.profesorId,
+    duenoProfesorId: dueno?.profesorId ?? null,
+  });
+  return bloquea ? ERROR_MATERIA_DE_OTRO_PROFESOR : null;
+}
 
 /**
  * Server Actions de ASISTENCIAS DEL PROFESOR (Bloque 5B + Prompt C/D).
@@ -153,6 +207,19 @@ export async function actionDescargarPlantillaAsistencia(
     evaluacionId ?? null,
   );
   if (!operativo.ok) return { ok: false, error: operativo.error };
+  // GUARDA DE ALCANCE (2026-11-16): Servicio Escolar no toca una materia que
+  // ya tiene profesor — subirla se la quitaría. Ver `materiaDeOtroProfesor`.
+  const ajena = await materiaDeOtroProfesor(supabase, sesion, {
+    grado,
+    grupo,
+    carrera,
+    ciclo: operativo.periodoNombre,
+    periodoId: operativo.periodoId,
+    materiaClave,
+    profesorClave: sesion.matricula,
+    profesorNombre: sesion.nombre || sesion.matricula,
+  });
+  if (ajena) return { ok: false, error: ajena };
   const resultado = await generarPlantillaAsistencia(supabase, {
     grado,
     grupo,
@@ -208,6 +275,19 @@ export async function actionPrevisualizarAsistencias(
     evaluacionId ?? null,
   );
   if (!operativo.ok) return { ok: false, error: operativo.error };
+  // GUARDA DE ALCANCE (2026-11-16): Servicio Escolar no toca una materia que
+  // ya tiene profesor — subirla se la quitaría. Ver `materiaDeOtroProfesor`.
+  const ajena = await materiaDeOtroProfesor(supabase, sesion, {
+    grado,
+    grupo,
+    carrera,
+    ciclo: operativo.periodoNombre,
+    periodoId: operativo.periodoId,
+    materiaClave,
+    profesorClave: sesion.matricula,
+    profesorNombre: sesion.nombre || sesion.matricula,
+  });
+  if (ajena) return { ok: false, error: ajena };
   const resultado = await previsualizarAsistencias(supabase, entrada.datos.archivo, {
     grado,
     grupo,
@@ -255,6 +335,19 @@ export async function actionConfirmarAsistencias(
     evaluacionId ?? null,
   );
   if (!operativo.ok) return { ok: false, error: operativo.error };
+  // GUARDA DE ALCANCE (2026-11-16): Servicio Escolar no toca una materia que
+  // ya tiene profesor — subirla se la quitaría. Ver `materiaDeOtroProfesor`.
+  const ajena = await materiaDeOtroProfesor(supabase, sesion, {
+    grado,
+    grupo,
+    carrera,
+    ciclo: operativo.periodoNombre,
+    periodoId: operativo.periodoId,
+    materiaClave,
+    profesorClave: sesion.matricula,
+    profesorNombre: sesion.nombre || sesion.matricula,
+  });
+  if (ajena) return { ok: false, error: ajena };
   const resultado = await confirmarAsistencias(supabase, entrada.datos.archivo, {
     grado,
     grupo,

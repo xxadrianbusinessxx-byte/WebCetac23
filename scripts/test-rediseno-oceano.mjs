@@ -301,8 +301,8 @@ for (const pes of nav.PESTANAS_APAGADAS) {
 }
 eq(
   nav.PESTANAS_APAGADAS.map((p) => p.id),
-  ["chat", "mensajes"],
-  "las apagadas son Chat y Mensajes, y siguen definidas (reactivar = devolverlas al MAPA)",
+  ["chat", "mensajes", "alumnos", "descargas"],
+  "las apagadas siguen definidas (reactivar = devolverlas al MAPA)",
 );
 
 eq(nav.pestanasDe("alumno").map((p) => p.id), ["perfil", "materias", "calendario"], "pestañas del alumno");
@@ -906,28 +906,40 @@ eq(cTec.piezaDe("inventada", "inexistente"), null, "un hueco desconocido devuelv
 // ── Servicio Escolar (2026-10-25) ──────────────────────────────────────────
 console.log("");
 console.log("servicio escolar");
+// 2026-11-16 — el rol cambió de oficio: de consultar el padrón a CAPTURAR
+// ASISTENCIA. Sus dos pestañas anteriores salieron del mapa (PESTANAS_APAGADAS)
+// con su emparejamiento intacto, para que devolverlas sea una línea.
 eq(
   nav.pestanasDe("servicio_escolar").map((p) => p.id),
-  ["alumnos", "descargas"],
-  "dos pestañas y ninguna más",
+  ["asistencias"],
+  "una pestaña y ninguna más",
 );
 eq(
   nav.pestanasDe("servicio_escolar").map((p) => p.label),
-  ["Alumnos", "Descargas"],
-  "con sus rótulos",
+  ["Asistencias"],
+  "con su rótulo",
 );
 eq(
-  nav.pestana("servicio_escolar", "alumnos").apartados[0].modos,
-  ["Por grupo", "Lista completa"],
-  "el padrón se mira por grupo o de corrido",
+  nav.pestana("servicio_escolar", "asistencias").apartados.map((a) => a.label),
+  ["Capturar asistencia"],
+  "un solo apartado: el panel lleva dentro su propio recorrido",
 );
 eq(
-  nav.pestana("servicio_escolar", "descargas").apartados[0].modos,
-  ["Roster", "Etiquetas", "Situación médica"],
-  "y se baja uno de los tres archivos",
+  cSrv.piezaDe("asistencias", "capturar"),
+  { tipo: "asistencias" },
+  "Asistencias monta el panel de captura",
 );
-eq(cSrv.piezaDe("alumnos", "padron"), { tipo: "padron" }, "Alumnos monta el padrón");
-eq(cSrv.piezaDe("descargas", "archivos"), { tipo: "archivos" }, "Descargas monta los archivos");
+// Las dos retiradas CONSERVAN su pieza, y ningún rol llega a ellas.
+eq(cSrv.piezaDe("alumnos", "padron"), { tipo: "padron" }, "el padrón conserva su pieza");
+eq(cSrv.piezaDe("descargas", "archivos"), { tipo: "archivos" }, "las descargas también");
+ok(
+  nav.apartado("servicio_escolar", "alumnos", "padron") === null,
+  "…pero el padrón ya no se alcanza",
+);
+ok(
+  nav.apartado("servicio_escolar", "descargas", "archivos") === null,
+  "…ni las descargas",
+);
 ok(cSrv.piezaDe("alumnos", "inventado") === null, "un hueco desconocido devuelve null");
 // Todo apartado del mapa tiene pieza: sin esto, una pestaña dibujada caería en
 // el marcador y el rol parecería roto.

@@ -13,10 +13,12 @@
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
 Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
-- **Rama y HEAD:** main · 100f675
+- **Rama y HEAD:** main · c51b03b
 
 ## Qué cerró (últimos 10 commits)
 
+- c51b03b · El portal se puede enlazar: pestaña, apartado y modo viven en la direcci…
+- 1511684 · Toda la mensajería del portal sale del mapa: ningún rol ve Chat ni Mensa…
 - 100f675 · Prompt e informe: PROMPT_AC / INFORME-PROMPT-AC.
 - 8bab6d2 · Alumno de prueba fuera de las listas del personal y cuenta DIRECTIVO
 - 1164a80 · test-auditoria-ciclo-f1 sigue al lector del ciclo de /oceano a /perfil
@@ -25,8 +27,6 @@ Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
 - d2e5193 · Administración ve a los alumnos pendientes de grupo
 - 4867d46 · El importador de horario prefiere el nombre exacto de la materia
 - a15659c · El login mandaba a la portada a cualquier rol que no estuviera nombrado
-- 5dad222 · Cuenta del rol Servicio Escolar creada (PROFESORES ID 23)
-- 0171d9e · Rol Servicio Escolar (solo lectura) y el portal pasa de /oceano a /perfi…
 
 ## Lo que más pesa hoy
 

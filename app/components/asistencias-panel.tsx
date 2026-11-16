@@ -158,10 +158,17 @@ const DIAS_LARGO = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
 export function AsistenciasPanel({
   nombreProfesor,
+  mostrarPlantillaMateria = true,
 }: {
   /** Nombre visible del profesor de la sesión. Solo presentación: la identidad
    *  real (profesor_id) la resuelve SIEMPRE el servidor. */
   nombreProfesor?: string | null;
+  /** 2026-11-16 — la plantilla de MATERIA (CURP | NOMBRE) es para capturar
+   *  CALIFICACIONES, no asistencia: comparte panel por historia, no por
+   *  parentesco. El rol Servicio Escolar la oculta porque no califica, y
+   *  además no tiene `materia.descargar_plantilla`: dejarla visible sería un
+   *  botón que el servidor rechaza. */
+  mostrarPlantillaMateria?: boolean;
 } = {}) {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   // CICLO GLOBAL — periodo OPERATIVO resuelto en la Server Action; el profesor
@@ -769,23 +776,27 @@ export function AsistenciasPanel({
           )}
         </div>
 
-        {/* Plantilla de MATERIA para calificaciones (CURP | NOMBRE). */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <PillButton
-            onClick={() => void onDescargarPlantillaMateria()}
-            disabled={!grado || !grupo || descargandoMateria}
-            className=""
-          >
-            {descargandoMateria
-              ? "Generando…"
-              : "Descargar plantilla de materia (calificaciones)"}
-          </PillButton>
-          {mensajeDescargaMateria && (
-            <p className="text-xs font-semibold text-[var(--oc-text)]" role="status">
-              {mensajeDescargaMateria}
-            </p>
-          )}
-        </div>
+        {/* Plantilla de MATERIA para calificaciones (CURP | NOMBRE). No es
+            asistencia: comparte panel por historia. Quien no califica no la ve
+            (2026-11-16). */}
+        {mostrarPlantillaMateria && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <PillButton
+              onClick={() => void onDescargarPlantillaMateria()}
+              disabled={!grado || !grupo || descargandoMateria}
+              className=""
+            >
+              {descargandoMateria
+                ? "Generando…"
+                : "Descargar plantilla de materia (calificaciones)"}
+            </PillButton>
+            {mensajeDescargaMateria && (
+              <p className="text-xs font-semibold text-[var(--oc-text)]" role="status">
+                {mensajeDescargaMateria}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

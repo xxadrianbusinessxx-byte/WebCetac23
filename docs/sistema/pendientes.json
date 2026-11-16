@@ -19,12 +19,12 @@
     {
       "id": "mensajeria-apagada",
       "titulo": "Mensajería apagada «por ahora»: decidir si vuelve y cuándo",
-      "detalle": "2026-11-12, por decisión del responsable: TODA la mensajería del portal salió del mapa de navegación. El **Chat** de alumno y tutor (que ya se dibujaba apagado, sin backend) y los **Mensajes** del personal (bandeja interna de directivo, maestro, técnico y administración escolar), que SÍ operaban. Lo único que se tocó es `lib/navegacion/mapa-navegacion.ts`: las dos pestañas siguen definidas en `PESTANAS_APAGADAS`, y el panel, las Server Actions, `lib/escolar/mensajes-internos.ts`, la capacidad `mensaje_interno.usar` y las tablas con los mensajes ya escritos están intactos (R8). Ningún mensaje se borró. REACTIVAR = devolver el nombre de la pestaña a la fila del rol en `MAPA`; la suite comprueba hoy que ningún rol las ve. Lo que falta es una decisión de persona: si la mensajería vuelve (y para qué roles) o se retira de verdad, en cuyo caso habría que retirar también panel, actions, capacidad y tablas en su propio cambio.",
+      "detalle": "2026-11-12, por decisión del responsable: TODA la mensajería del portal salió del mapa de navegación. El **Chat** de alumno y tutor (que ya se dibujaba apagado, sin backend) y los **Mensajes** del personal (bandeja interna de directivo, maestro, técnico y administración escolar), que SÍ operaban. Lo único que se tocó es `lib/navegacion/mapa-navegacion.ts`: las dos pestañas siguen definidas en `PESTANAS_APAGADAS`, y el panel, las Server Actions, `lib/escolar/mensajes-internos.ts`, la capacidad `mensaje_interno.usar` y las tablas con los mensajes ya escritos están intactos (R8). Ningún mensaje se borró. REACTIVAR = devolver el nombre de la pestaña a la fila del rol en `MAPA`; la suite comprueba hoy que ningún rol las ve. Lo que falta es una decisión de persona: si la mensajería vuelve (y para qué roles) o se retira de verdad, en cuyo caso habría que retirar también panel, actions, capacidad y tablas en su propio cambio. 2026-11-16: a esa lista se suman las dos pestañas de Servicio Escolar (Alumnos y Descargas), retiradas por el mismo mecanismo cuando el rol pasó a capturar asistencia.",
       "riesgo": "bajo",
       "quien": "persona: decidir si la mensajería vuelve",
       "verificar": "node scripts/test-rediseno-oceano.mjs",
       "doc": "docs/historial/informes/INFORME-MENSAJERIA-APAGADA.md",
-      "revisado": "2026-11-12",
+      "revisado": "2026-11-16",
       "estado": "abierto"
     },
     {
@@ -40,13 +40,13 @@
     },
     {
       "id": "cuenta-servicio-escolar",
-      "titulo": "Servicio Escolar: ponerle clave a la cuenta y probarla con sesión real",
-      "detalle": "2026-10-25: la cuenta YA EXISTE — PROFESORES ID 23, nombre 'SERVICIO ESCOLAR', Permisos 'Servicio Escolar', debe_cambiar_credenciales = true. Se creó con una CLAVE ALEATORIA que nadie conoce (ni quien la creó): la cuenta no se puede usar hasta que alguien le ponga una. FALTA, en este orden: (1) el DIRECTIVO le pone clave desde Personas › Profesores › Reponer clave —el técnico NO puede: validarObjetivoPermitidoParaTecnico solo le deja cuentas cuyo Permisos contenga 'profesor'—; (2) entregarle esa clave al alumno de servicio social, que al entrar tendrá que cambiarla por el flag; (3) probar con esa sesión que el tab superior muestra SOLO Alumnos y Descargas, que el padrón lista los 357 alumnos por grado/grupo/carrera y que las tres descargas (roster, etiquetas, situación médica) bajan su .xlsx. La cuenta es temporal: al terminar el servicio social, desactivarla.",
+      "titulo": "Servicio Escolar: ponerle clave a la cuenta y probar la captura de asistencia",
+      "detalle": "La cuenta existe: PROFESORES ID 23, 'SERVICIO ESCOLAR', Permisos 'Servicio Escolar', debe_cambiar_credenciales = true, con una clave aleatoria que nadie conoce. FALTA, en este orden: (1) el DIRECTIVO le pone clave desde Personas › Profesores › Reponer clave (el técnico NO puede: validarObjetivoPermitidoParaTecnico solo le deja cuentas cuyo Permisos contenga 'profesor'); (2) entregarle la clave al alumno de servicio social, que al entrar tendrá que cambiarla; (3) probar con esa sesión que el tab superior muestra SOLO «Asistencias», que el panel lista grupos y las materias del horario, y que una subida real queda guardada. 2026-11-16: el rol cambió de oficio — ya no consulta el padrón ni descarga archivos, ahora CAPTURA ASISTENCIA en cualquier materia SIN profesor asignado; donde ya hay profesor, la guarda de app/actions/asistencias.ts lo rechaza para no quitarle la materia. Eso último tampoco se ha probado contra la base. La cuenta es temporal: al terminar el servicio social, desactivarla.",
       "riesgo": "medio",
       "quien": "persona: el directivo pone la clave y prueba la sesión",
       "verificar": "node scripts/diag-credenciales-duplicadas.mjs",
       "doc": "docs/historial/informes/INFORME-SERVICIO-ESCOLAR.md",
-      "revisado": "2026-10-25",
+      "revisado": "2026-11-16",
       "estado": "abierto"
     },
     {

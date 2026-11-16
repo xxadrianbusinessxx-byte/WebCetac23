@@ -626,3 +626,31 @@ export async function listarGrupoIdsAsignadosProfesor(
 }
 
 
+
+/**
+ * Dueño ACTIVO de una materia de grupo, o `null` si no lo tiene. 2026-11-16.
+ *
+ * Lectura mínima, sin decidir nada: quién decide qué hacer con el dato es quien
+ * la llama. Nació para la guarda de alcance del rol Servicio Escolar en
+ * `app/actions/asistencias.ts` — subir asistencia dispara
+ * `traspasar_materia_a_profesor`, que le daría la materia a quien sube, así
+ * que antes hay que saber si ya tiene profesor.
+ */
+export async function profesorActivoDeMateria(
+  supabase: SupabaseClient,
+  grupoMateriaId: string,
+): Promise<{ profesorId: number | null; profesorClave: string | null } | null> {
+  if (!grupoMateriaId) return null;
+  const { data, error } = await supabase
+    .from(TABLA_ASIGNACIONES_PROFESOR)
+    .select("profesor_id, profesor_clave")
+    .eq("grupo_materia_id", grupoMateriaId)
+    .eq("activo", true)
+    .limit(1);
+  if (error || !data || data.length === 0) return null;
+  const fila = data[0] as { profesor_id?: number | null; profesor_clave?: string | null };
+  return {
+    profesorId: typeof fila.profesor_id === "number" ? fila.profesor_id : null,
+    profesorClave: fila.profesor_clave ?? null,
+  };
+}

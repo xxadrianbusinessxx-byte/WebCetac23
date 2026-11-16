@@ -440,6 +440,18 @@ const ALUMNOS_SERVICIO: Pestana = {
   apartados: [act("padron", "Padrón del ciclo", ["Por grupo", "Lista completa"])],
 };
 
+/**
+ * 2026-11-16 — el oficio del rol: capturar asistencia. Un solo apartado y sin
+ * modos: el panel ya lleva dentro su propio recorrido (grupo → materia →
+ * plantilla → subir), y partirlo en modos sería inventar una navegación que la
+ * pantalla no tiene.
+ */
+const ASISTENCIAS_SERVICIO: Pestana = {
+  id: "asistencias",
+  label: "Asistencias",
+  apartados: [act("capturar", "Capturar asistencia")],
+};
+
 const DESCARGAS_SERVICIO: Pestana = {
   id: "descargas",
   label: "Descargas",
@@ -485,7 +497,16 @@ export function llevaBuscadorAlumno(rol: PortalRole | null, idPestana: string, i
  * Nada más. Esta lista existe para que las dos pestañas sigan referenciadas y
  * para que la suite pueda comprobar que NINGÚN rol las ve mientras estén aquí.
  */
-export const PESTANAS_APAGADAS: readonly Pestana[] = [CHAT, MENSAJES_PERSONAL];
+export const PESTANAS_APAGADAS: readonly Pestana[] = [
+  CHAT,
+  MENSAJES_PERSONAL,
+  // 2026-11-16 — las dos de Servicio Escolar: el rol pasó a capturar
+  // asistencia y «solo asistencias» quiere decir solo eso. El panel del padrón
+  // y el de descargas siguen en pie, y sus capacidades se devuelven en
+  // `permisos.ts` el día que vuelvan al mapa.
+  ALUMNOS_SERVICIO,
+  DESCARGAS_SERVICIO,
+];
 
 /** El mapa. Una pestaña ausente para un rol es una pestaña que ese rol NO ve. */
 const MAPA: Record<PortalRole, Pestana[]> = {
@@ -503,10 +524,11 @@ const MAPA: Record<PortalRole, Pestana[]> = {
     NOTIFICACIONES_ADMINISTRACION,
     DOCUMENTOS,
   ],
-  // Dos pestañas, y nunca tuvo Mensajes: es una cuenta temporal de servicio
-  // social, no personal del plantel con buzón propio. Desde el 2026-11-12 ya
-  // no es la excepción — no lo tiene nadie.
-  servicio_escolar: [ALUMNOS_SERVICIO, DESCARGAS_SERVICIO],
+  // UNA pestaña (2026-11-16): el rol pasó de consultar el padrón a capturar
+  // asistencia, y «solo asistencias» quiere decir solo eso. Nunca tuvo
+  // Mensajes: es una cuenta temporal de servicio social, no personal del
+  // plantel con buzón propio.
+  servicio_escolar: [ASISTENCIAS_SERVICIO],
 };
 
 /** Pestañas visibles para un rol. Sin sesión, ninguna. */

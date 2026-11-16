@@ -7,10 +7,17 @@
  * es la función, no una fase intermedia.
  */
 
-export type PiezaServicioEscolar = { tipo: "padron" } | { tipo: "archivos" };
+export type PiezaServicioEscolar =
+  | { tipo: "asistencias" }
+  | { tipo: "padron" }
+  | { tipo: "archivos" };
 
 /** Clave = `idPestana/idApartado`, tal cual los devuelve el mapa. */
 const HUECOS: Readonly<Record<string, PiezaServicioEscolar>> = {
+  // 2026-11-16 — el oficio del rol.
+  "asistencias/capturar": { tipo: "asistencias" },
+  // Las dos de abajo CONSERVAN su emparejamiento aunque sus pestañas estén
+  // fuera del mapa: borrarlo haría irreversible el apagado (la suite lo exige).
   "alumnos/padron": { tipo: "padron" },
   "descargas/archivos": { tipo: "archivos" },
 };
