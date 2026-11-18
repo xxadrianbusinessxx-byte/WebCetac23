@@ -679,3 +679,53 @@ export async function listarDuenosActivosDeMaterias(
   }
   return duenos;
 }
+
+/**
+ * Lo que el profesor tiene ASIGNADO (activo): sus materias de grupo y los grupos
+ * donde están. Es el alcance de lectura de asistencia (2026-11-18): el dueño de
+ * una materia ve su asistencia aunque la haya capturado otro (Servicio Escolar,
+ * el directivo). Una consulta, sin N+1. Sin asignaciones, o si la lectura falla,
+ * conjuntos vacíos: quien llama cae en la regla anterior (lo que él capturó).
+ */
+export async function listarAlcanceAsignadoProfesor(
+  supabase: SupabaseClient,
+  profesorId: number,
+): Promise<{
+  materias: Set<string>;
+  grupos: { grupoId: string; grado: string; grupo: string }[];
+}> {
+  const materias = new Set<string>();
+  const grupos = new Map<string, { grupoId: string; grado: string; grupo: string }>();
+  const id = Number(profesorId);
+  if (!Number.isInteger(id) || id <= 0) return { materias, grupos: [] };
+
+  const { data, error } = await supabase
+    .from(TABLA_ASIGNACIONES_PROFESOR)
+    .select("grupo_materia_id, grupo_materias!inner(grupo_id, grupos!inner(grado, nombre))")
+    .eq("profesor_id", id)
+    .eq("activo", true)
+    .limit(500);
+  if (error || !data) return { materias, grupos: [] };
+
+  // PostgREST puede devolver la relación incrustada como objeto o como arreglo de uno.
+  const uno = <T,>(v: T | T[] | null | undefined): T | null =>
+    Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
+  type Grupo = { grado: string | null; nombre: string | null };
+  type GrupoMateria = { grupo_id: string | null; grupos: Grupo | Grupo[] | null };
+  for (const fila of data as unknown as {
+    grupo_materia_id: string;
+    grupo_materias: GrupoMateria | GrupoMateria[] | null;
+  }[]) {
+    if (fila.grupo_materia_id) materias.add(String(fila.grupo_materia_id));
+    const gm = uno(fila.grupo_materias);
+    const g = uno(gm?.grupos);
+    if (gm?.grupo_id && !grupos.has(gm.grupo_id)) {
+      grupos.set(gm.grupo_id, {
+        grupoId: String(gm.grupo_id),
+        grado: String(g?.grado ?? "").trim().toUpperCase(),
+        grupo: String(g?.nombre ?? "").trim().toUpperCase(),
+      });
+    }
+  }
+  return { materias, grupos: [...grupos.values()] };
+}

@@ -36,6 +36,12 @@ import {
   materiasDelAlumno,
   type MateriaDelAlumno,
 } from "../materia/calificaciones.ts";
+import {
+  accesoProfesorAGrupo,
+  filtrarPorAlcanceProfesor,
+  type FilaConAutoria,
+} from "./alcance-profesor-puro.ts";
+import { listarAlcanceAsignadoProfesor } from "../catalogo/asignaciones-profesor.ts";
 /**
  * Deriva el estado de asistencia de un alumno para una fecha concreta.
  * Pura (sin I/O): recibe los datos ya cargados y resuelve el estado.
@@ -91,6 +97,39 @@ export async function profesorImparteEnGrupo(
 }
 
 /**
+ * Alcance del profesor en un grupo (2026-11-18). Tiene ACCESO si alguna
+ * materia del grupo le está asignada (`asignaciones_profesor`) o si ya capturó
+ * clases ahí (`profesorImparteEnGrupo`, la regla anterior). Devuelve además sus
+ * materias asignadas, que son las que ve aunque las haya capturado otro.
+ *
+ * El grupo se reconoce por `grupoId` si quien llama lo tiene (inscripción
+ * resuelta); si no, por grado + nombre del grupo.
+ */
+export async function resolverAlcanceProfesorEnGrupo(
+  supabase: SupabaseClient,
+  input: {
+    profesorId: number;
+    grado: string;
+    grupo: string;
+    grupoId?: string | null;
+  },
+): Promise<{ acceso: boolean; materiasAsignadas: Set<string> }> {
+  const asignado = await listarAlcanceAsignadoProfesor(supabase, input.profesorId);
+  const g = norm(input.grado);
+  const gr = norm(input.grupo);
+  const asignadoEnGrupo = asignado.grupos.some((x) =>
+    input.grupoId ? x.grupoId === input.grupoId : x.grado === g && x.grupo === gr,
+  );
+  const capturoEnGrupo = asignadoEnGrupo
+    ? false
+    : await profesorImparteEnGrupo(supabase, g, gr, input.profesorId);
+  return {
+    acceso: accesoProfesorAGrupo({ asignadoEnGrupo, capturoEnGrupo }),
+    materiasAsignadas: asignado.materias,
+  };
+}
+
+/**
  * Obtiene el calendario de asistencia de un alumno (por CURP) para un ciclo.
  *
  * Consultas FIJAS: el calendario y, en paralelo, clases_impartidas,
@@ -98,8 +137,10 @@ export async function profesorImparteEnGrupo(
  * Resuelve los estados en memoria (sin N+1). Reutilizable para el perfil del
  * alumno, el perfil del padre y el calendario visual futuro.
  *
- * Si se pasa `profesorClave`, se limita a ese profesor (estado por profesor).
- * Si no, se agrega el aporte de todos los profesores del grupo (estado global).
+ * Con `profesorId` se limita al ALCANCE de ese profesor: sus materias
+ * asignadas (capture quien capture) más lo que él capturó
+ * (`alcance-profesor-puro.ts`, 2026-11-18). Sin él, se agrega el aporte de
+ * todos los profesores del grupo (estado global).
  */
 export async function obtenerEstadosAsistenciaAlumno(
   supabase: SupabaseClient,
@@ -115,6 +156,10 @@ export async function obtenerEstadosAsistenciaAlumno(
     /** PROMPT C (R-2) — identidad estructural del profesor: se prefiere
      *  `profesor_id` cuando existe; `profesor_clave` solo si es NULL. */
     profesorId?: number | null;
+    /** 2026-11-18 — con `profesorId`: las materias de grupo que tiene ASIGNADAS
+     *  (`resolverAlcanceProfesorEnGrupo`). Ve esas materias capture quien
+     *  capture, más lo que él capturó. Sin ellas, solo lo que él capturó. */
+    materiasAsignadas?: ReadonlySet<string>;
     /** PROMPT S (B) — id del grupo ya resuelto por la action; evita que
      *  `materiasDelAlumno` repita la consulta a `inscripciones_alumno`. */
     grupoId?: string | null;
@@ -160,23 +205,29 @@ export async function obtenerEstadosAsistenciaAlumno(
   }
   if (profesorId && !scopePorId) return [];
 
-  // 2) Clases impartidas del grupo, con su materia. Alcance por profesor si
-  //    corresponde; si no, el total del grupo.
-  let qClases = supabase
+  // 2) Clases impartidas del grupo, con su materia.
+  // 3) Asistencia del alumno, con su materia y el marcador de justificación.
+  // Alcance por profesor (2026-11-18): ya NO se filtra por `profesor_id` en la
+  // consulta —es AUTORÍA, y el dueño de una materia debe ver lo que otro
+  // capturó por él—. Se lee el grupo y se filtra en memoria con la regla pura
+  // `filtrarPorAlcanceProfesor` (materias asignadas ∪ lo que él capturó).
+  const qClases = supabase
     .from(TABLA_CLASES_IMPARTIDAS)
-    .select("fecha, grupo_materia_id, clases")
+    .select("fecha, grupo_materia_id, profesor_id, clases")
     .eq("grado", g)
     .eq("grupo", gr);
-  if (scopePorId && profesorId) qClases = qClases.eq("profesor_id", profesorId);
-
-  // 3) Asistencia del alumno, con su materia y el marcador de justificación.
-  let qAsist = supabase
+  const qAsist = supabase
     .from(TABLA_ASISTENCIA_ALUMNOS)
     .select("fecha, grupo_materia_id, profesor_clave, profesor_id, clases_asistidas")
     .eq("curp", input.curp)
     .eq("grado", g)
     .eq("grupo", gr);
-  if (scopePorId && profesorId) qAsist = qAsist.eq("profesor_id", profesorId);
+  const alcance =
+    scopePorId && profesorId
+      ? { profesorId, materiasAsignadas: input.materiasAsignadas ?? new Set<string>() }
+      : null;
+  const enAlcance = <T extends FilaConAutoria>(filas: T[]): T[] =>
+    alcance ? filtrarPorAlcanceProfesor(filas, alcance) : filas;
 
   // PROMPT S (B) — las dos consultas corren en paralelo con el roster de
   // materias del alumno. `grupoIds` evita repetir la consulta a inscripciones.
@@ -197,24 +248,25 @@ export async function obtenerEstadosAsistenciaAlumno(
   }
 
   const clasesPorFecha = new Map<string, FilaClaseDia[]>();
-  for (const r of (resClases.data ?? []) as {
+  for (const r of enAlcance((resClases.data ?? []) as {
     fecha: string;
     grupo_materia_id: string | null;
+    profesor_id: number | null;
     clases: number;
-  }[]) {
+  }[])) {
     const lista = clasesPorFecha.get(r.fecha) ?? [];
     lista.push({ grupo_materia_id: r.grupo_materia_id ?? null, clases: r.clases });
     clasesPorFecha.set(r.fecha, lista);
   }
 
   const asistPorFecha = new Map<string, FilaAsistenciaDia[]>();
-  for (const r of (resAsist.data ?? []) as {
+  for (const r of enAlcance((resAsist.data ?? []) as {
     fecha: string;
     grupo_materia_id: string | null;
     profesor_clave: string | null;
     profesor_id: number | null;
     clases_asistidas: number;
-  }[]) {
+  }[])) {
     const lista = asistPorFecha.get(r.fecha) ?? [];
     lista.push({
       grupo_materia_id: r.grupo_materia_id ?? null,

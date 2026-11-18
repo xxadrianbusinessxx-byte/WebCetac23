@@ -151,3 +151,48 @@ Mías:
 - **El reemplazo desde Técnico no se ha ejercido con sesión.**
 - **0 asignaciones activas**: hasta que el técnico asigne (pendiente
   `asignar-materias-desde-tecnico`), cualquier profesor ve y justifica cualquier falta.
+
+---
+
+## 8. Corrección del 2026-11-18 — el dueño no veía lo que otro capturó por él
+
+**Lo reportó el usuario** al probar con sesión real: asignó 1RO A · Ciencias Naturales I
+al profesor 19 y el profesor seguía sin ver la asistencia de sus alumnos.
+
+**Medición** (solo lectura): la asignación estaba activa (profesor 19). Las 444 filas de
+`asistencia_alumnos` y las 29 de `clases_impartidas` de esa materia tenían `profesor_id = 23`
+(Servicio Escolar). El profesor 19 tenía 0 filas propias.
+
+**Causa:** la Fase 1 cambió quién ESCRIBE (`profesor_id` = autoría), pero la LECTURA del
+profesor seguía saliendo de la autoría:
+- `profesorImparteEnGrupo` (validación de acceso) busca clases con `profesor_id = sesión`, así que respondía «Solo puedes consultar asistencias de los grupos donde impartes clase»;
+- `obtenerEstadosAsistenciaAlumno` filtraba clases y asistencias por `profesor_id = sesión`;
+- `listarAportesDeProfesorEnDia` (anular) igual.
+
+**Corrección** (opción A, elegida por el usuario): el alcance del profesor = sus materias
+**asignadas** (capture quien capture) **∪** lo que él capturó. El acceso al grupo = asignado
+en él **o** ya capturó ahí (se conserva la regla anterior para quien aún no tiene asignaciones).
+
+| Archivo | Qué cambió |
+|---|---|
+| `lib/escolar/asistencia/alcance-profesor-puro.ts` | **nuevo**: `filaEnAlcanceProfesor`, `filtrarPorAlcanceProfesor`, `accesoProfesorAGrupo` |
+| `lib/escolar/catalogo/asignaciones-profesor.ts` | `listarAlcanceAsignadoProfesor`: materias y grupos asignados, una consulta |
+| `lib/escolar/asistencia/asistencia-estados.ts` | `resolverAlcanceProfesorEnGrupo`; la lectura filtra con la regla pura, ya no con `.eq("profesor_id")` |
+| `lib/escolar/asistencia/asistencias.ts` | `listarAportesDeProfesorEnDia` aplica la misma regla |
+| `app/actions/asistencias.ts` | ver y anular usan el alcance; la action solo pasa datos |
+| `scripts/test-alcance-profesor.mjs` | **nueva** suite (16 checks) |
+
+**Medición después** (lib real contra la base, solo lectura, un alumno de 1RO A):
+
+| | regla anterior | regla nueva |
+|---|---|---|
+| profesor 19 (asignado) | sin acceso; 0 días de la materia | acceso; **29** días, igual que la vista del directivo |
+| Servicio Escolar (23, capturó) | 29 | 29 |
+| profesor 7 (ajeno al grupo) | sin acceso | sin acceso |
+
+Lo que no cambia: la vista sin profesor (directivo, administración, alumno, tutor) y el
+dueño de la falta en justificantes (ya salía de la asignación). El campo `profesorId` de
+cada materia del día (`asistencia-dia-materia.ts`) sigue siendo autoría, pero ninguna UI
+lo lee; los justificantes lo reemplazan por el asignado.
+
+**No verificado:** la vista y el anular con sesión real del profesor 19 después del despliegue.

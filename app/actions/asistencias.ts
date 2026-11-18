@@ -21,7 +21,7 @@ import {
   obtenerAlumnosDelGrupo,
   obtenerEstadosAsistenciaAlumno,
   previsualizarAsistencias,
-  profesorImparteEnGrupo,
+  resolverAlcanceProfesorEnGrupo,
   resolverIdentidadAlumnoInscripcion,
   resumenAsistenciaPorParcial,
   type DiaEstadoAsistencia,
@@ -360,9 +360,12 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
     };
   }
 
-  // Maestro: debe impartir en el grupo del alumno y ve SOLO su propio aporte.
+  // Maestro: necesita acceso al grupo del alumno y ve SOLO su alcance: sus
+  // materias asignadas (capture quien capture) más lo que él capturó
+  // (2026-11-18; antes, solo lo que él capturó).
   // PROMPT C/D: la identidad es SIEMPRE `profesor_id` (PROFESORES.ID); sin ella
   // la sesión es vieja → volver a iniciar sesión (no se consulta por clave).
+  let materiasAsignadas: Set<string> | undefined;
   if (esRol(sesion.rol, "maestro")) {
     const pidMaestro = Number(sesion.profesorId);
     if (!Number.isInteger(pidMaestro) || pidMaestro <= 0) {
@@ -372,19 +375,20 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
           "Tu sesión no incluye la identidad de profesor (PROFESORES.ID). Vuelve a iniciar sesión para consultar asistencias.",
       };
     }
-    const imparte = await profesorImparteEnGrupo(
-      supabase,
+    const alcance = await resolverAlcanceProfesorEnGrupo(supabase, {
+      profesorId: pidMaestro,
       grado,
       grupo,
-      sesion.profesorId,
-    );
-    if (!imparte) {
+      grupoId,
+    });
+    if (!alcance.acceso) {
       return {
         ok: false,
         error:
           "Solo puedes consultar asistencias de los grupos donde impartes clase.",
       };
     }
+    materiasAsignadas = alcance.materiasAsignadas;
   }
 
   const dias = await obtenerEstadosAsistenciaAlumno(supabase, {
@@ -395,6 +399,7 @@ export async function actionObtenerEstadosAsistenciaAlumno(input: {
     ciclo: operativo.periodoNombre,
     periodoId: operativo.periodoId,
     profesorId: esRol(sesion.rol, "maestro") ? sesion.profesorId : null,
+    materiasAsignadas,
     grupoId,
     cacheCalendario: true, // PROMPT Z: solo lectura
   });
@@ -512,11 +517,12 @@ function esFechaFuturaLocal(fecha: string): boolean {
 
 /**
  * BLOQUE 9 (PIEZA 4) + PROMPT C/D + PROMPT S (A5) — Anula (resta 1 a) el aporte
- * de asistencia que el profesor registró para un alumno en una fecha concreta.
+ * de asistencia de un alumno en una fecha concreta, dentro del alcance del profesor.
  *
  * SEGURIDAD:
  *   - SOLO rol «maestro» o «directivo».
- *   - El profesor debe impartir en el grupo (profesorImparteEnGrupo).
+ *   - El profesor necesita acceso al grupo (resolverAlcanceProfesorEnGrupo:
+ *     asignado en él o ya capturó ahí).
  *   - La identidad es SIEMPRE `profesor_id` (PROFESORES.ID). `profesor_clave`
  *     ya NO es criterio (regla D-4: la comparten 16 profesores).
  *   - Con atribución por materia puede haber VARIAS filas del mismo
@@ -524,7 +530,9 @@ function esFechaFuturaLocal(fecha: string): boolean {
  *     con `grupoMateriaId` solo esa fila; sin él y una sola fila, esa; sin él
  *     y varias, se pide indicar la materia. La decisión es PURA
  *     (`elegirFilaParaAnular`).
- *   - UPDATE puntual sobre el `id` de esa fila; NUNCA la de otro profesor.
+ *   - UPDATE puntual sobre el `id` de esa fila; NUNCA fuera de su alcance: sus
+ *     materias asignadas (capture quien capture) o lo que él capturó
+ *     (2026-11-18, `alcance-profesor-puro.ts`).
  *   - Resta 1 con piso en 0 (GREATEST(clases_asistidas - 1, 0) emulado con
  *     Math.max; el CHECK `clases_asistidas >= 0` sigue protegiendo).
  */
@@ -567,13 +575,13 @@ export async function actionAnularAsistenciaProfesor(input: {
         "Tu sesión no incluye la identidad de profesor (PROFESORES.ID). Vuelve a iniciar sesión para anular asistencias.",
     };
   }
-  const imparte = await profesorImparteEnGrupo(
-    supabase,
+  // Acceso: asignado en el grupo o ya capturó ahí (2026-11-18).
+  const alcance = await resolverAlcanceProfesorEnGrupo(supabase, {
+    profesorId,
     grado,
     grupo,
-    profesorId,
-  );
-  if (!imparte) {
+  });
+  if (!alcance.acceso) {
     return {
       ok: false,
       error: "Solo puedes anular asistencias en los grupos donde impartes clase.",
@@ -590,9 +598,11 @@ export async function actionAnularAsistenciaProfesor(input: {
     };
   }
 
-  // Filas de ESTE profesor para ese alumno/día (puede haber una por materia).
+  // Filas de su alcance para ese alumno/día (puede haber una por materia):
+  // las de sus materias asignadas, capture quien capture, y las que capturó él.
   const aportes = await listarAportesDeProfesorEnDia(supabase, {
     profesorId,
+    materiasAsignadas: alcance.materiasAsignadas,
     curp,
     fecha,
     grado,
@@ -606,7 +616,7 @@ export async function actionAnularAsistenciaProfesor(input: {
     return {
       ok: false,
       error:
-        "No hay asistencia registrada por ti ese día para este alumno (las filas históricas sin profesor_id no son atribuibles).",
+        "No hay asistencia de tus materias ni capturada por ti ese día para este alumno (las filas históricas sin profesor_id no son atribuibles).",
     };
   }
 
@@ -621,7 +631,8 @@ export async function actionAnularAsistenciaProfesor(input: {
   // Resta 1 con piso en 0 (GREATEST(clases_asistidas - 1, 0)).
   const nuevoValor = Math.max((Number(objetivo.clases_asistidas) || 0) - 1, 0);
 
-  // UPDATE puntual sobre la fila concreta (id) — nunca la de otro profesor.
+  // UPDATE puntual sobre la fila concreta (id) — nunca fuera de su alcance
+  // (sus materias asignadas o lo que él capturó).
   return fijarClasesAsistidas(supabase, String(objetivo.id), nuevoValor);
 }
 

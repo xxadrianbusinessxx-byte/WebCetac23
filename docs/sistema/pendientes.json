@@ -175,7 +175,7 @@
     {
       "id": "asignar-materias-desde-tecnico",
       "titulo": "El técnico tiene que asignar cada materia a su profesor (Técnico › Asignaciones)",
-      "detalle": "2026-11-17: la propiedad de una materia ya no la da subir asistencia; vive SOLO en asignaciones_profesor y la asigna el técnico. Hoy hay 0 asignaciones activas. Mientras una materia no tenga profesor asignado: cualquier profesor ve y justifica sus faltas, y los profesores sin ninguna asignación siguen viendo todas las materias (los fallbacks de materias.ts, horario.ts y acceso-alumno.ts). Capturar asistencia funciona igual con o sin asignación.",
+      "detalle": "2026-11-17: la propiedad de una materia ya no la da subir asistencia; vive SOLO en asignaciones_profesor y la asigna el técnico. Hoy hay 0 asignaciones activas. Mientras una materia no tenga profesor asignado: cualquier profesor ve y justifica sus faltas, y los profesores sin ninguna asignación siguen viendo todas las materias (los fallbacks de materias.ts, horario.ts y acceso-alumno.ts). Capturar asistencia funciona igual con o sin asignación. 2026-11-18: la asignación es también lo que deja al profesor VER y anular la asistencia de su materia cuando la capturó otro (Servicio Escolar, el directivo); sin asignación solo ve lo que él capturó. Primera asignación real: 1RO A · Ciencias Naturales I → profesor 19, que ya ve las 444 filas que capturó Servicio Escolar.",
       "riesgo": "medio",
       "quien": "persona — el técnico, desde Técnico › Asignaciones",
       "verificar": "node scripts/diag-propiedad-materias.mjs",

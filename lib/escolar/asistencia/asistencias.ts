@@ -6,6 +6,7 @@ import {
   TABLA_INSCRIPCIONES_ALUMNO,
 } from "../tables.ts";
 import type { EtiquetasPersonalesRow } from "../types.ts";
+import { filtrarPorAlcanceProfesor } from "./alcance-profesor-puro.ts";
 import {
   cargarContextoCatalogoAsistencia,
   type GrupoAsistencia,
@@ -205,14 +206,20 @@ export async function esquemaAtribucionDisponible(
 }
 
 /**
- * Aportes de asistencia de ESTE profesor para un alumno/día/grupo. Con
- * atribución por materia puede haber VARIAS filas (una por materia); las
- * devuelve crudas para que la action elija la de mayor aporte.
+ * Filas de asistencia de un alumno/día/grupo que ESTE profesor puede anular. Con
+ * atribución por materia puede haber VARIAS (una por materia); las devuelve
+ * crudas para que la action elija la de su materia.
+ *
+ * Alcance (2026-11-18, `alcance-profesor-puro.ts`): las de sus materias
+ * ASIGNADAS, capture quien capture, más las que capturó él. `profesor_id` es
+ * autoría, por eso ya no se filtra en la consulta sino con la regla pura.
  */
 export async function listarAportesDeProfesorEnDia(
   supabase: SupabaseClient,
   filtro: {
     profesorId: number;
+    /** Sus materias de grupo asignadas (activas); sin ellas, solo lo suyo. */
+    materiasAsignadas?: ReadonlySet<string>;
     curp: string;
     fecha: string;
     grado: string;
@@ -224,21 +231,32 @@ export async function listarAportesDeProfesorEnDia(
 > {
   const { data: filas, error } = await supabase
     .from(TABLA_ASISTENCIA_ALUMNOS)
-    .select("id, clases_asistidas, grupo_materia_id")
-    .eq("profesor_id", filtro.profesorId)
+    .select("id, clases_asistidas, grupo_materia_id, profesor_id")
     .eq("curp", filtro.curp)
     .eq("fecha", filtro.fecha)
     .eq("grado", filtro.grado)
     .eq("grupo", filtro.grupo)
     .limit(50);
   if (error) return { ok: false, error: error.message };
-  return {
-    ok: true,
-    filas: (filas ?? []) as {
+  const enAlcance = filtrarPorAlcanceProfesor(
+    (filas ?? []) as {
       id: string;
       clases_asistidas: number;
       grupo_materia_id: string | null;
+      profesor_id: number | null;
     }[],
+    {
+      profesorId: filtro.profesorId,
+      materiasAsignadas: filtro.materiasAsignadas ?? new Set<string>(),
+    },
+  );
+  return {
+    ok: true,
+    filas: enAlcance.map((f) => ({
+      id: f.id,
+      clases_asistidas: f.clases_asistidas,
+      grupo_materia_id: f.grupo_materia_id,
+    })),
   };
 }
 

@@ -92,6 +92,7 @@ Correr las que apliquen **antes y después** de cualquier cambio de dominio.
 | `test-reparar-tabla-legacy.mjs` | `lib/escolar/ciclo/contexto-ciclo.ts` |
 | `test-traspaso-materia.mjs` | `lib/escolar/materia/traspaso-materia.ts` |
 | `test-asignacion-materia.mjs` | `lib/escolar/catalogo/asignacion-materia-puro.ts` — (2026-11-17) un dueño activo por materia: asignar reemplaza al anterior (desactivado, nunca borrado), reconciliación legacy por CLAVE, y el alta en lote NO reemplaza |
+| `test-alcance-profesor.mjs` | `lib/escolar/asistencia/alcance-profesor-puro.ts` — (2026-11-18) qué asistencia ve y anula un profesor: sus materias ASIGNADAS aunque las capture otro (Servicio Escolar, directivo), más lo que él capturó; nunca materias ajenas capturadas por otros; acceso al grupo por asignación o por captura previa |
 | `test-calificaciones-io.mjs` | `lib/escolar/materia/calificaciones.ts` — el CONTRATO con PostgREST contra un doble del cliente: clave de `upsert` (re-subir actualiza, no duplica), filtro por CURP en la consulta y no en memoria, desactivar en vez de borrar. No abre conexión |
 | `test-materia-identidad.mjs` · `test-materia-avance.mjs` · `test-columnas-calificaciones.mjs` | identidad y columnas de materia |
 | `test-importar-etiquetas.mjs` · `test-inscripciones-f3.mjs` · `test-ciclo-f3-pipeline.mjs` | importación y pipeline de ciclo |
