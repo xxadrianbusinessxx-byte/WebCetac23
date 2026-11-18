@@ -144,11 +144,10 @@ Mías:
 
 ## 7. Lo no verificado / pendiente
 
-- **El SQL no está aplicado** (pendiente `aplicar-unicidad-clases-por-materia`). Hasta que
-  lo esté, cada subida responde 42P10 y no guarda nada. Va **antes** de desplegar.
+- ~~El SQL no está aplicado~~ **Aplicado el 2026-11-17** (los dos archivos), por Claude con
+  `apply_migration` a petición del usuario. Verificado en `pg_indexes`:
+  `clases_impartidas_gm_fecha_uidx` y `asignaciones_profesor_un_dueno_activo_uidx` existen.
 - **Nadie ha capturado con sesión real** con el código nuevo.
-- **El SQL de un dueño activo tampoco está aplicado.** Sin él el código igual deja un solo
-  dueño; lo que falta es la red de la base para dos técnicos a la vez.
 - **El reemplazo desde Técnico no se ha ejercido con sesión.**
 - **0 asignaciones activas**: hasta que el técnico asigne (pendiente
   `asignar-materias-desde-tecnico`), cualquier profesor ve y justifica cualquier falta.

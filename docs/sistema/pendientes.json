@@ -169,7 +169,8 @@
       "verificar": "SQL Editor: select indexname from pg_indexes where indexname in ('clases_impartidas_gm_fecha_uidx', 'asignaciones_profesor_un_dueno_activo_uidx')",
       "doc": "supabase/agregar-unicidad-clases-por-materia.sql",
       "revisado": "2026-11-17",
-      "estado": "abierto"
+      "estado": "cerrado",
+      "cierre": "2026-11-17: aplicados los dos por Claude con apply_migration, a petición del usuario. Verificado en pg_indexes: clases_impartidas_gm_fecha_uidx (grupo_materia_id, fecha) y asignaciones_profesor_un_dueno_activo_uidx (grupo_materia_id) WHERE activo; asistencia_alumnos_curp_gm_fecha_uidx ya existía. diag-propiedad-materias: 0 asignaciones activas, 0 materias con más de un dueño."
     },
     {
       "id": "asignar-materias-desde-tecnico",
