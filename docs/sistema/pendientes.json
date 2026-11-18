@@ -470,6 +470,17 @@
       "doc": "docs/historial/informes/INFORME-COMENTARIO-PERSONAL.md",
       "revisado": "2026-11-17",
       "estado": "abierto"
+    },
+    {
+      "id": "probar-subida-asistencia-con-sesion",
+      "titulo": "La subida de asistencia y la de calificaciones cambiaron de control de archivo: falta una subida real",
+      "detalle": "2026-11-17: el <input type=\"file\"> crudo de asistencias y el <label hidden> de calificaciones se sustituyeron por una sola pieza, app/components/ui/selector-archivo.tsx. Verificado contra el DOM vivo en una ruta temporal ya retirada: el input queda alcanzable con Tab (antes con hidden NO lo estaba), el anillo de foco se dibuja en la pildora, el nombre del archivo se anuncia con role=status y el deshabilitado se dice con aria-disabled. Lo que NO se probo: una subida de punta a punta. Falta (a) un profesor eligiendo un Excel lleno con la pildora, previsualizando y confirmando en Materias > Asistencia; (b) comprobar que elegir DOS VECES el mismo archivo vuelve a leerlo (la pieza limpia input.value para eso); (c) lo mismo en Materias > Calificaciones > Configuracion, que abre el asistente de columnas. Sin sesion real no se puede: el riesgo es que el FormData salga vacio y la subida falle en silencio.",
+      "riesgo": "medio",
+      "quien": "persona — una sesion de profesor y un Excel lleno",
+      "verificar": "subir una plantilla de asistencia y ver el resumen de previsualizacion",
+      "doc": "docs/historial/informes/INFORME-SELECTOR-DE-ARCHIVO.md",
+      "revisado": "2026-11-17",
+      "estado": "abierto"
     }
   ]
 }

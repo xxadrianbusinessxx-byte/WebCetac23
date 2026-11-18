@@ -11,6 +11,7 @@ import {
   type MateriaHorarioUI,
 } from "@/app/actions/asistencias";
 import { actionDescargarPlantillaMateria } from "@/app/actions/materias";
+import { SelectorArchivo } from "@/app/components/ui/selector-archivo";
 import type { ResumenAsistencia } from "@/lib/escolar/asistencia/asistencias";
 
 
@@ -392,12 +393,14 @@ export function AsistenciasPanel({
     }
   }
 
-  function onArchivoElegido(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0] ?? null;
+  // Recibe el File ya elegido: limpiar el `input` para que volver a elegir el
+  // mismo archivo dispare `change` es trabajo de `SelectorArchivo`, no de aquí.
+  // Elegir otro archivo invalida la previsualización anterior: si no se borrara,
+  // se podría confirmar el resumen de un archivo con el contenido de otro.
+  function onArchivoElegido(f: File) {
     setArchivo(f);
     setPreview(null);
     setMensajeConfirmar(null);
-    e.target.value = "";
   }
 
   async function onPrevisualizar() {
@@ -668,11 +671,14 @@ export function AsistenciasPanel({
 
         {/* Subir la plantilla llena (asistencias de la materia) */}
         <div className="rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-surface)] p-4">
+          {/* 2026-11-17 — los rótulos de esta caja subían a 10px, por debajo del
+              suelo legible; subir calificaciones explica lo suyo en 12px frase
+              normal. Mismo tamaño aquí, misma jerarquía. */}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
               Sube la plantilla llena
             </p>
-            <span className="text-[10px] font-semibold text-[var(--oc-muted)]">
+            <span className="text-[11px] font-semibold text-[var(--oc-muted)]">
               CURP | NOMBRE | fechas · re-subir no duplica
             </span>
           </div>
@@ -682,7 +688,7 @@ export function AsistenciasPanel({
               equivocado. */}
           {seleccionCompleta ? (
             <div className="mt-3 rounded-2xl border border-[var(--oc-border-active)] bg-[var(--oc-input)] px-4 py-3">
-              <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
+              <p className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">
                 Vas a subir la plantilla de:
               </p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -704,18 +710,23 @@ export function AsistenciasPanel({
                   </span>
                 ))}
               </div>
+              {/* 2026-11-17 — este texto deja de prometer un traspaso. Hasta el
+                  commit a1f1546 la subida llamaba a `traspasar_materia_a_profesor`
+                  y la materia PASABA a quien subía; ya no. Capturar es capturar:
+                  la fila guarda la AUTORÍA y la propiedad la asigna el técnico. */}
               <p className="mt-2 text-[11px] font-semibold text-[var(--oc-text)]">
-                Se atribuirá a{" "}
+                Quedará registrado que lo capturó{" "}
                 <span className="font-extrabold">
                   {nombreProfesor?.trim() || "tu perfil"}
                 </span>
-                : al confirmar, esta materia y todos sus registros de asistencia
-                pasan a ser tuyos. Si otro profesor la tenía, deja de tenerla
-                (conserva sus demás materias).
+                . Capturar asistencia <span className="font-extrabold">no</span>{" "}
+                te da la materia: su profesor lo asigna el técnico, y subir aquí
+                no se la quita a nadie.
               </p>
-              <p className="mt-1 text-[10px] font-semibold text-[var(--oc-alert-text)]">
+              <p className="mt-1 text-[11px] font-semibold text-[var(--oc-alert-text)]">
                 Verifica que el archivo corresponda a esta materia y parcial
-                antes de continuar.
+                antes de continuar: volver a subir el mismo día sustituye lo que
+                ya hubiera guardado.
               </p>
             </div>
           ) : (
@@ -732,14 +743,19 @@ export function AsistenciasPanel({
               . La plantilla se guarda en la materia que quede seleccionada.
             </p>
           )}
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <input
-              type="file"
+          {/* 2026-11-17 — MISMA pieza y mismo aspecto que subir calificaciones
+              (`ui/selector-archivo.tsx`). Antes aquí iba el `<input type="file">`
+              crudo: el botón lo dibujaba el sistema operativo, con su propio
+              tamaño, tipografía y contraste, y no se parecía a nada del portal. */}
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <SelectorArchivo
               accept=".csv,.xlsx,.xls,text/csv"
-              onChange={onArchivoElegido}
+              etiqueta="Elegir archivo"
+              etiquetaAccesible="Elegir la plantilla de asistencia llena"
               disabled={!seleccionCompleta}
-              className="max-w-xs rounded-xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-3 py-2 text-xs font-semibold text-[var(--oc-text)] outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="Seleccionar plantilla de asistencia llena"
+              nombreArchivo={archivo?.name ?? null}
+              ayuda="CSV o Excel · la plantilla que descargaste arriba"
+              onArchivo={onArchivoElegido}
             />
             <PillButton
               onClick={() => void onPrevisualizar()}

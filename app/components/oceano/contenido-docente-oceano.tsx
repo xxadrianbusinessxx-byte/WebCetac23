@@ -30,6 +30,7 @@ import {
 } from "@/app/components/materia-mapeo-columnas";
 import { MateriaSelector } from "@/app/components/materia-selector";
 import { MateriaTablaVistaPanel } from "@/app/components/materia-tabla-vista";
+import { SelectorArchivo } from "@/app/components/ui/selector-archivo";
 import { esModoConfiguracion, type PiezaDocente } from "@/lib/navegacion/contenido-docente";
 import type { MateriaConNombreVisible } from "@/lib/escolar/materia/nombres-visibles";
 import type { MateriaTablaVista } from "@/lib/escolar/types";
@@ -181,19 +182,16 @@ export function ContenidoDocenteOceano({
                 La configuración de columnas se abre con el archivo que vas a
                 subir: elige el Excel y te preguntaré qué columna es cada cosa.
               </Aviso>
-              <label className="w-fit cursor-pointer rounded-full border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-2 text-[11px] font-extrabold uppercase tracking-wide text-[var(--oc-text)] transition hover:brightness-110">
-                Elegir archivo
-                <input
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) void abrir(f, seleccionada);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
+              {/* 2026-11-17 — la MISMA pieza que usa la subida de asistencia
+                  (`ui/selector-archivo.tsx`). Antes el `input` iba `hidden`, que
+                  lo dejaba fuera del tabulador: con teclado no se llegaba. */}
+              <SelectorArchivo
+                accept=".csv,.xlsx,.xls"
+                etiqueta="Elegir archivo"
+                etiquetaAccesible="Elegir el Excel de calificaciones a subir"
+                ayuda="CSV o Excel · se te preguntará qué columna es cada cosa"
+                onArchivo={(f) => void abrir(f, seleccionada)}
+              />
             </>
           )
         ) : cargando ? (
