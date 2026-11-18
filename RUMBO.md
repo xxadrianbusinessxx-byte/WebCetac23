@@ -13,10 +13,11 @@
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
 Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
-- **Rama y HEAD:** main · 738d897
+- **Rama y HEAD:** main · 44d9c48
 
 ## Qué cerró (últimos 10 commits)
 
+- 44d9c48 · Pedir un archivo se hace de una sola forma en todo el portal
 - 738d897 · El comentario personal del alumno se puede escribir, y solo tres lo escr…
 - 617718b · Aplicados los dos SQL de la propiedad de materias
 - 54b1faa · La materia la asigna el técnico, y tiene un solo dueño activo
@@ -26,7 +27,6 @@ Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
 - 1511684 · Toda la mensajería del portal sale del mapa: ningún rol ve Chat ni Mensa…
 - 100f675 · Prompt e informe: PROMPT_AC / INFORME-PROMPT-AC.
 - 8bab6d2 · Alumno de prueba fuera de las listas del personal y cuenta DIRECTIVO
-- 1164a80 · test-auditoria-ciclo-f1 sigue al lector del ciclo de /oceano a /perfil
 
 ## Lo que más pesa hoy
 

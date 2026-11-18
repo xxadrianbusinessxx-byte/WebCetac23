@@ -120,9 +120,9 @@ decidir cuál de las dos formas era la buena; ninguna lo era del todo.
 4. **Subí los rótulos de 10px solo en la caja de subida**, no en todo el panel. El resto
    del panel de asistencias (horario, selectores, clases por día) sigue en 10px; hacerlo
    entero es otro cambio y se dice aquí para que se decida aparte.
-5. **No reestructuré el panel.** Calificaciones es *catálogo a la izquierda + una tarjeta
-   a la derecha*; asistencias son siete tarjetas apiladas. Parecerse del todo significa
-   reescribir un componente de 800 líneas que funciona, y eso no se hace de pasada.
+5. **No reestructuré el panel en la primera pasada.** Calificaciones es *catálogo a la
+   izquierda + una tarjeta a la derecha*; asistencias eran siete tarjetas apiladas.
+   Quedó fuera por prudencia y **se hizo después**, a petición expresa: ver §8.
 
 ## 7. Lo no verificado / pendiente
 
@@ -131,5 +131,50 @@ decidir cuál de las dos formas era la buena; ninguna lo era del todo.
   prueba que cambiar el control no rompió el envío del `FormData`. También conviene
   comprobar que **volver a elegir el mismo archivo** dispara de nuevo la lectura.
 - **Subir calificaciones** con la pieza nueva: mismo motivo, otra pantalla.
-- **El resto del panel de asistencias** sigue con rótulos de 10px (punto 4 de §6).
-- **La reestructuración a dos columnas** queda sin hacer, a propósito (punto 5 de §6).
+- **La reestructuración a dos columnas** ya está hecha: §8.
+
+---
+
+## 8. Segunda parte: la forma completa, no solo el botón
+
+La petición se concretó con dos capturas: asistencia tenía que **verse como**
+calificaciones. No era el control de archivo: era la forma de la pantalla.
+
+**Antes.** Una sola columna con siete tarjetas apiladas —cabecera, horario oficial en
+píldoras, una fila de seis `<select>`, clases por día, descargar, subir, plantilla de
+calificaciones— todas con el mismo borde, el mismo fondo y el mismo peso. Todo pedía la
+misma atención, así que nada la tenía; y la materia elegida —lo que decide dónde se
+guarda la plantilla— era un `<select>` más, perdido entre otros cinco.
+
+**Ahora.** La misma forma que calificaciones:
+
+| | Izquierda | Derecha |
+|---|---|---|
+| Calificaciones | `MateriaSelector`: buscador, filtros, filas altas | una tarjeta con el avance |
+| Asistencia | `CatalogoMateriasAsistencia`: buscador, grado/grupo/carrera, parcial, ciclo, filas altas | una tarjeta con clases por día, descargar y subir |
+
+**Por qué una pieza nueva y no `MateriaSelector`.** Aquel lista el CATÁLOGO académico
+(`MateriaConNombreVisible`: identidad, tabla física, facetas propias) y filtra por
+grado/grupo/carrera **dentro** de una lista ya cargada. En asistencia las materias salen
+del **horario oficial del grupo** (`MateriaHorarioUI`), así que grado y grupo no filtran:
+son lo que hace existir la lista, y hasta elegirlos no hay nada que listar. Forzar un
+selector sobre el otro habría obligado a inventarle a estas materias un `idInterno` y
+unas facetas que no tienen. **Se comparte el aspecto, no la lógica** — y eso se dice en
+la cabecera del archivo, para que nadie lo «arregle» más tarde.
+
+**Lo que se retiró**: el bloque «Horario oficial del grupo» (sus materias ahora SON la
+lista), la fila de seis selectores (grado, grupo y carrera viven en el catálogo; el ciclo
+se enseña, no se elige), y `SelectField`, que se quedó sin usar. El panel baja de **820 a
+653 líneas** y el catálogo son 252 en su propio archivo.
+
+**Verificado en el navegador**, con datos de ejemplo en una ruta temporal ya retirada:
+estado vacío («Elige una materia del catálogo…»), **un clic real** en una materia que
+cambia la tarjeta de la derecha (título, clases por día, contexto), la fila activa
+marcada, y sin desbordamiento horizontal ni en 1240px ni en 375px (`scrollWidth ===
+clientWidth` en los dos). Más tsc, lint, 67/67 suites, test-orden 20/20 con **C11 en
+21/21** (la pieza nueva no duplica ningún nombre) y build limpio: doce rutas, ninguna
+temporal.
+
+**Sigue sin probarse con sesión real**, y ahora con más motivo: cambió la forma de
+elegir grado, grupo, parcial y materia, que es lo que arma el `FormData` de la subida.
+El pendiente `probar-subida-asistencia-con-sesion` lo cubre.
