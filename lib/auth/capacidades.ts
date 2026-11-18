@@ -24,6 +24,11 @@ export const CAPACIDADES = [
   "alumno.ver_perfil",
   "alumno.editar_datos_personales",
   "alumno.editar_etiquetas",
+  // 2026-11-17: escribir el «Comentario personal» del expediente. Separada de
+  // `alumno.editar_datos_personales` A PROPÓSITO: esa la tiene también el técnico
+  // (carga el padrón) y esta nota es solo del directivo, de administración y del
+  // tutor vinculado. La regla: lib/escolar/alumno/comentario-personal-puro.ts.
+  "alumno.editar_comentario_personal",
   "alumno.editar_estatus",
   "alumno.comentar",
   "alumno.importar_estatus",

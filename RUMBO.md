@@ -13,10 +13,11 @@
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
 Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
-- **Rama y HEAD:** HEAD · 54b1faa
+- **Rama y HEAD:** main · 617718b
 
 ## Qué cerró (últimos 10 commits)
 
+- 617718b · Aplicados los dos SQL de la propiedad de materias
 - 54b1faa · La materia la asigna el técnico, y tiene un solo dueño activo
 - a1f1546 · Subir asistencia es capturar: ya no le da la materia a quien sube
 - 29ef742 · Servicio Escolar pasa a capturar asistencia, sin quitarle la materia a n…
@@ -26,7 +27,6 @@ Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
 - 8bab6d2 · Alumno de prueba fuera de las listas del personal y cuenta DIRECTIVO
 - 1164a80 · test-auditoria-ciclo-f1 sigue al lector del ciclo de /oceano a /perfil
 - 0b8066e · CLAUDE.md importa AGENTS.md para que Claude Code cargue las reglas al in…
-- 67d4428 · Prompt e informe: PROMPT_AB / INFORME-PROMPT-AB.
 
 ## Lo que más pesa hoy
 

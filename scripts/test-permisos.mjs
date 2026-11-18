@@ -326,6 +326,22 @@ ok(
 );
 ok(!CAPACIDADES_PUBLICAS.has("ciclo.ver"), "ciclo.ver no es pública");
 
+seccion("Comentario personal del alumno (2026-11-17) — capacidad PROPIA");
+// Por qué no reutiliza `alumno.editar_datos_personales`: esa la tiene también
+// el TÉCNICO, y la nota del expediente no es suya. El ALCANCE (tutor vinculado)
+// lo prueba scripts/test-comentario-personal.mjs; aquí se prueba la CAPACIDAD.
+ok(puede("directivo", "alumno.editar_comentario_personal"), "directivo escribe el comentario personal");
+ok(puede("administracion", "alumno.editar_comentario_personal"), "administracion escribe el comentario personal");
+ok(puede("tutor", "alumno.editar_comentario_personal"), "tutor escribe el comentario personal (de su vinculado)");
+ok(!puede("tecnico", "alumno.editar_comentario_personal"), "el técnico NO, aunque edite datos personales");
+ok(!puede("alumno", "alumno.editar_comentario_personal"), "el alumno NO escribe su propia nota");
+ok(!puede("maestro", "alumno.editar_comentario_personal"), "el maestro NO: lo suyo es alumno.comentar");
+ok(!puede("servicio_escolar", "alumno.editar_comentario_personal"), "servicio_escolar NO escribe nada del expediente");
+ok(
+  rolesDe("alumno.editar_comentario_personal").length === 3,
+  "la tienen exactamente 3 roles",
+);
+
 
 
 console.log(`\nResultado: ${pasos} pasadas, ${fallos} fallidas`);

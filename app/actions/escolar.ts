@@ -33,6 +33,10 @@ import {
   titulosEtiquetasPersonales,
   valoresEtiquetasPersonales,
 } from "@/lib/escolar/alumno/etiquetas";
+import {
+  puedeEditarComentarioPersonal,
+  validarComentarioPersonal,
+} from "@/lib/escolar/alumno/comentario-personal-puro";
 import { buscarIndiceFilaAlumno, normalizarCurp } from "@/lib/escolar/buscar-en-filas";
 import { listarCurpsDeTutor } from "@/lib/escolar/tutores/tutores";
 import { vistaConColumnasIdentificadas } from "@/lib/escolar/materia/columnas-calificaciones";
@@ -423,29 +427,37 @@ export async function actionActualizarEstatusDirectivo(
   );
 }
 
+/**
+ * Guarda el «Comentario personal» del expediente. 2026-11-17: la escritura es
+ * del DIRECTIVO, de ADMINISTRACIÓN ESCOLAR y del TUTOR VINCULADO; nadie más.
+ *
+ * Las dos puertas son distintas y las dos hacen falta:
+ *   · CAPACIDAD `alumno.editar_comentario_personal` — QUÉ puede hacer el rol.
+ *     Es propia y no `editar_datos_personales`, que el técnico también tiene.
+ *   · ALCANCE — SOBRE QUIÉN. `resolverAccesoAlumno` comprueba el vínculo real
+ *     (`tutor_alumnos`) y devuelve el modo; la regla la decide el módulo puro.
+ *
+ * Guardar el texto VACÍO es borrar la nota: es válido a propósito.
+ */
 export async function actionGuardarComentarioPersonal(
   curp: string,
   comentario: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const g = await exigir("alumno.editar_datos_personales");
+  const g = await exigir("alumno.editar_comentario_personal");
   if (!g.ok) return { ok: false, error: "No tienes permiso." };
   const sesion = g.sesion;
   const supabase = await createClient();
   const res = await resolverAccesoAlumno(supabase, sesion, curp);
   if (!res.ok) return { ok: false, error: res.error };
-  if (!res.acceso.puedeEditarDatosPersonales) {
+  if (!puedeEditarComentarioPersonal(res.acceso.modo)) {
     return { ok: false, error: "No tienes permiso." };
   }
-  if (comentario.length > COMENTARIO_MAX_LENGTH) {
-    return {
-      ok: false,
-      error: `Máximo ${COMENTARIO_MAX_LENGTH} caracteres.`,
-    };
-  }
+  const texto = validarComentarioPersonal(comentario, COMENTARIO_MAX_LENGTH);
+  if (!texto.ok) return { ok: false, error: texto.error };
   return actualizarEtiquetasPersonales(
     supabase,
-    curp,
-    patchComentarioPersonal(comentario),
+    res.curp,
+    patchComentarioPersonal(texto.texto),
   );
 }
 

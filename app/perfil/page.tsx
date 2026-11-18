@@ -12,6 +12,7 @@ import {
 import { puede } from "@/lib/auth/permisos";
 import { createClient } from "@/lib/supabase/server";
 import { nombreCompletoAlumno } from "@/lib/escolar/alumno/alumnos";
+import { puedeEditarComentarioPersonal } from "@/lib/escolar/alumno/comentario-personal-puro";
 import { obtenerCicloOperativoGlobal } from "@/lib/escolar/ciclo/ciclo-estado";
 import { obtenerSesionPortal } from "@/lib/auth/session-server";
 
@@ -96,6 +97,13 @@ export default async function PerfilPage({
           puedeEditarEtiquetas: perfil.acceso.puedeEditarEtiquetas,
           puedeImportarEtiquetas: perfil.acceso.puedeImportarEtiquetas,
           puedeEditarDatosPersonales: perfil.acceso.puedeEditarDatosPersonales,
+          // 2026-11-17 — el «Comentario personal» lo escriben directivo,
+          // administración y tutor vinculado. Las DOS puertas, aquí y en la
+          // action: la capacidad (QUÉ) y el modo de acceso (SOBRE QUIÉN, que ya
+          // trae comprobado el vínculo `tutor_alumnos`).
+          puedeEditarComentarioPersonal:
+            puede(rol, "alumno.editar_comentario_personal") &&
+            puedeEditarComentarioPersonal(perfil.acceso.modo),
           numeroControl: perfil.numeroControl,
           puedeEditarNumeroControl: puede(rol, "alumno.editar_numero_control"),
           // UIs pendientes (2026-09-17): los dos flags de Actividades se

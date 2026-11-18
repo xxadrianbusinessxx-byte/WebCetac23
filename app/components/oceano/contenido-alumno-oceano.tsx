@@ -23,6 +23,7 @@ import type { VistaCalificacionesAlumno } from "@/app/actions/calificaciones-nor
 import { actionGuardarCamposPersonales } from "@/app/actions/etiquetas-dinamicas";
 import { MensajesTutorPanel } from "@/app/components/mensajes-tutor-panel";
 import { NumeroControlAlumno } from "./numero-control-alumno";
+import { ComentarioPersonalAlumno } from "./comentario-personal-alumno";
 import { HistorialSeguimientoMedico } from "./historial-seguimiento-medico";
 import { AsistenciaTabularAlumno } from "./asistencia-tabular-alumno";
 import { NotificacionesAlumno } from "./notificaciones-alumno";
@@ -69,6 +70,10 @@ export type DatosAlumnoOceano = {
   /** Fase 4 — el TUTOR puede editar los campos personales; el alumno no. El
    *  flag lo resuelve la action (`resolverAccesoAlumno`), no la UI. */
   puedeEditarDatosPersonales: boolean;
+  /** 2026-11-17 — ¿puede ESCRIBIR el «Comentario personal»? Directivo,
+   *  administración escolar y tutor VINCULADO; el alumno y el maestro no. Lo
+   *  resuelve el servidor (capacidad + `resolverAccesoAlumno`), no la UI. */
+  puedeEditarComentarioPersonal: boolean;
   /** 2026-09-24 — número de control (matrícula). Lo ve quien ve la ficha; lo edita
    *  quien tenga `alumno.editar_numero_control`, resuelto en el servidor. */
   numeroControl: string | null;
@@ -629,16 +634,13 @@ export function ContenidoAlumnoOceano({
           )}
         </Tira>
 
-        {/* Fase 3.1 — comentario personal del alumno, solo lectura. */}
+        {/* Fase 3.1 — comentario personal. 2026-11-17: editable para directivo,
+            administración y tutor vinculado; solo lectura para los demás. */}
         <Tira>
-          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-widest text-[var(--oc-muted)]">
-            Comentario personal
-          </p>
-          <textarea
-            readOnly
-            rows={3}
-            value={comentarioPersonalDesdeFila(etiquetas)}
-            className="w-full resize-none rounded-2xl border border-[var(--oc-border)] bg-[var(--oc-input)] px-4 py-3 text-sm font-semibold text-[var(--oc-text)]"
+          <ComentarioPersonalAlumno
+            curp={curp}
+            valor={comentarioPersonalDesdeFila(etiquetas)}
+            puedeEditar={datos.puedeEditarComentarioPersonal}
           />
         </Tira>
 

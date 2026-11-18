@@ -77,6 +77,7 @@ propia migración verificada (R8).
 - **Propiedad de materias (2026-11-17)**: el dueño vive SOLO en `asignaciones_profesor` y lo asigna el técnico (un dueño activo por materia). Subir asistencia es **capturar**: no traspasa la materia; la fila guarda quién la capturó (`profesor_id` de sesión) contra la clave natural alumno + materia + día.
 - **Justificantes (2026-10-01)**: envían padre y directivo; el profesor justifica solo materias **asignadas** a él o sin dueño (`justificar_clase`), el directivo el día completo; efecto derivado al leer (`justificacion-dias.ts`).
 - **Reportes, citas, historial médico (2026-10-01)**: reportes no anulados en Notificaciones (`reporte.ver_propios`); citas solo en la agenda del directivo (`agenda-citas-puro.ts`); el historial médico solo se añade. Dirección los consulta por alumno en Alumnos / Tutores (`alumno.ver_expediente`, PROMPT U).
+- **Comentario personal del alumno (2026-11-17)**: lo escriben directivo, administración y tutor VINCULADO, con capacidad propia (`alumno.editar_comentario_personal`) y regla de alcance en `comentario-personal-puro.ts`; el técnico queda fuera aunque tenga `editar_datos_personales`. El alumno solo LEE; el maestro usa el tablón firmado (`alumno.comentar`).
 - Todo `scripts/` corre con `service_role` y salta RLS. No hay entorno de staging.
 
 ## 5. Estado de datos — última medición conocida
@@ -88,8 +89,7 @@ propia migración verificada (R8).
 - Grupos / materias activas / inscripciones activas / bloques de horario:
   **24 / 241 / 357 / 168**. **0 CURPs con más de una inscripción activa.**
 - Calendario del operativo: **77 filas** por `periodo_id` (73 clase, 3 descanso, 1 festivo).
-- `asistencia_alumnos`: **3 863 filas**, 0 huérfanos en las 9 FK.
-- `clases_impartidas`: 81 filas históricas **intactas** (autoría irrecuperable, T4).
+- `asistencia_alumnos` y `clases_impartidas`: **0 filas** — vaciadas el 2026-11-16 a petición (4 642 + 100 eran de prueba, sin copia; ninguna FK apuntaba a ellas).
 - **PROFESORES**: **24** cuentas (2026-11-12): 21 **técnico**, 22 **administración escolar**, 23 **servicio
   escolar**, 24 **DIRECTIVO** genérica (clave aleatoria). `ALUMNOS.es_prueba`: la lee SOLO `alumnos-prueba.ts`; 0 marcados.
 
@@ -126,7 +126,7 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **66 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **67 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
 **Dos de ellas no prueban un módulo: `test-orden` (el repo) y `test-gen-contexto` (el índice y el generador).** `scripts/test-orden.mjs` es la

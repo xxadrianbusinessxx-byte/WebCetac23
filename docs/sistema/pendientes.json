@@ -459,6 +459,17 @@
       "revisado": "2026-09-24",
       "estado": "cerrado",
       "cierre": "2026-09-24: las diez añadidas a una lista ÚNICA, lib/escolar/materia/tablas-sistema.ts, que usan la app y el generador (antes cada uno tenía su copia). Arreglo de fondo: la regla C15 de test-orden falla si una tabla creada en supabase/*.sql o declarada en tables.ts no está clasificada. Medido contra la base: 426 tablas, 360 materias, 0 colándose."
+    },
+    {
+      "id": "probar-comentario-personal-con-sesion",
+      "titulo": "Comentario personal editable: falta probarlo con sesion real (directivo, administracion y tutor)",
+      "detalle": "Cambio del 2026-11-17: el Comentario personal del expediente paso de solo lectura a editable para directivo, administracion escolar y tutor VINCULADO, con capacidad propia (alumno.editar_comentario_personal) y regla de alcance en lib/escolar/alumno/comentario-personal-puro.ts. Verificado sin sesion: tsc, lint, 67/67 suites (14 checks del modulo puro + 8 de la matriz de permisos), test-orden 20/20, build, y los textos nuevos presentes en los bundles de cliente y de SSR. Lo que NO se pudo verificar: abrir la ficha con una sesion real y guardar. Firmar una cookie de sesion en local exige leer AULANUBE_SESSION_SECRET de .env.local y el clasificador lo bloqueo (correctamente). Falta por tanto: (a) que un directivo o administracion abra Alumnos/Tutores > Informacion personal de un alumno, escriba la nota y la vea tras recargar; (b) que un tutor vinculado haga lo mismo con su alumno y que un tutor NO vinculado reciba No tienes relacion con ese alumno; (c) que el alumno vea el bloque sin boton; (d) que vaciar el texto y guardar borre la nota.",
+      "riesgo": "bajo",
+      "quien": "persona — cuatro sesiones reales, sin SQL",
+      "verificar": "node scripts/test-comentario-personal.mjs && node scripts/test-permisos.mjs",
+      "doc": "docs/historial/informes/INFORME-COMENTARIO-PERSONAL.md",
+      "revisado": "2026-11-17",
+      "estado": "abierto"
     }
   ]
 }

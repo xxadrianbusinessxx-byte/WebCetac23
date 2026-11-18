@@ -34,11 +34,14 @@ import { normalizarCurp } from "../buscar-en-filas.ts";
 import { buscarAlumnoPorClave } from "./alumnos.ts";
 import { profesorTieneAccesoAlumno } from "../catalogo/catalogo-academico.ts";
 import { listarCurpsDeTutor } from "../tutores/tutores.ts";
+import type { ModoAccesoAlumno } from "./comentario-personal-puro.ts";
 
 /** Permisos efectivos para un alumno, calculados SIEMPRE en el servidor. */
 export type AccesoAlumno = {
-  /** Rol con el que se accede (presentación y semántica). */
-  modo: "alumno" | "tutor" | "directivo" | "maestro" | "administracion";
+  /** Rol con el que se accede (presentación y semántica). La unión vive en
+   *  `comentario-personal-puro.ts` porque la decisión que la consume se prueba
+   *  sin base de datos; aquí se importa para que no puedan desincronizarse. */
+  modo: ModoAccesoAlumno;
   puedeLeer: boolean;
   /** Editar etiquetas dinámicas (alumno_etiquetas). */
   puedeEditarEtiquetas: boolean;

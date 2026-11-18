@@ -116,6 +116,9 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
   ]),
 
   tutor: new Set<Capacidad>([
+    // 2026-11-17 — el «Comentario personal» del alumno VINCULADO. El vínculo
+    // activo lo comprueba `resolverAccesoAlumno`, no esta matriz.
+    "alumno.editar_comentario_personal",
     "alumno.editar_datos_personales",
     "alumno.editar_etiquetas",
     "alumno.ver_perfil",
@@ -183,6 +186,8 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     // T5 (PROMPT-3): directivo queda en LECTURA del catálogo y del ciclo
     // operativo; pierde la configuración. La §4 del documento es la fuente.
     "alumno.comentar",
+    // 2026-11-17 — escribe el «Comentario personal» del expediente.
+    "alumno.editar_comentario_personal",
     "alumno.editar_datos_personales",
     "alumno.editar_etiquetas",
     "alumno.editar_estatus",
@@ -268,6 +273,8 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     "horario.ver_alumno",
     "justificacion.ver_propias",
     // …y modificar sus datos.
+    // 2026-11-17 — escribe el «Comentario personal» del expediente.
+    "alumno.editar_comentario_personal",
     "alumno.editar_datos_personales",
     "alumno.editar_etiquetas",
     "alumno.editar_estatus",

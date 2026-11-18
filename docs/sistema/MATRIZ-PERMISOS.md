@@ -389,7 +389,7 @@ Generado por `npm run gen:matriz` — **no editar a mano**. 218 Server Actions.
 | `actionGuardarEtiquetasPersonales` | exigir: alumno.editar_etiquetas | `alumno.editar_etiquetas` |
 | `actionActualizarEtiquetasPersonales` | exigir: alumno.editar_etiquetas | `alumno.editar_etiquetas` |
 | `actionActualizarEstatusDirectivo` | exigir: alumno.editar_estatus | `alumno.editar_estatus` |
-| `actionGuardarComentarioPersonal` | exigir: alumno.editar_datos_personales | `alumno.editar_datos_personales` |
+| `actionGuardarComentarioPersonal` | exigir: alumno.editar_comentario_personal | `alumno.editar_comentario_personal` |
 | `actionSubirMateriaExcel` | exigir: calificacion.subir | `calificacion.subir` |
 | `actionActualizarMateriaExcel` | exigir: calificacion.subir | `calificacion.subir` |
 | `actionSubirRegistroExcel` | exigir: calificacion.subir | `calificacion.subir` |
