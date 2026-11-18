@@ -162,11 +162,11 @@
     },
     {
       "id": "aplicar-unicidad-clases-por-materia",
-      "titulo": "Aplicar supabase/agregar-unicidad-clases-por-materia.sql ANTES de desplegar: sin él la subida de asistencia falla",
-      "detalle": "2026-11-17: la subida escribe clases_impartidas contra la clave natural (grupo_materia_id, fecha), ya sin profesor_id, para que dos personas que capturan la misma materia el mismo día no dupliquen la fila. Esa UNIQUE no existe todavía en la base: hasta aplicarla, cada subida responde 42P10 y no guarda nada. La de asistencia_alumnos (curp, grupo_materia_id, fecha) ya existe. Es aditivo y reversible, y hoy clases_impartidas tiene 0 filas.",
+      "titulo": "Aplicar los dos SQL de la propiedad de materias ANTES de desplegar: sin el de clases la subida de asistencia falla",
+      "detalle": "2026-11-17. (1) supabase/agregar-unicidad-clases-por-materia.sql: la subida escribe clases_impartidas contra la clave natural (grupo_materia_id, fecha), ya sin profesor_id, para que dos personas que capturan la misma materia el mismo día no dupliquen la fila. Esa UNIQUE no existe todavía: hasta aplicarla, cada subida responde 42P10 y no guarda nada. La de asistencia_alumnos (curp, grupo_materia_id, fecha) ya existe. (2) supabase/agregar-unicidad-dueno-materia.sql: UNIQUE parcial «un dueño activo por materia» en asignaciones_profesor; el código ya lo cumple al asignar, el índice lo impone si dos técnicos asignan a la vez. Los dos son aditivos y reversibles; hoy clases_impartidas tiene 0 filas y hay 0 asignaciones activas.",
       "riesgo": "alto",
       "quien": "persona — aplicar el SQL (o autorizar a Claude a aplicarlo)",
-      "verificar": "SQL Editor: select indexname from pg_indexes where indexname = 'clases_impartidas_gm_fecha_uidx'",
+      "verificar": "SQL Editor: select indexname from pg_indexes where indexname in ('clases_impartidas_gm_fecha_uidx', 'asignaciones_profesor_un_dueno_activo_uidx')",
       "doc": "supabase/agregar-unicidad-clases-por-materia.sql",
       "revisado": "2026-11-17",
       "estado": "abierto"

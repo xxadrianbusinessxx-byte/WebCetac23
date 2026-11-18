@@ -86,6 +86,8 @@ export type CrearAsignacionInput = {
   grupoMateriaId: unknown;
   desde?: unknown;
   hasta?: unknown;
+  /** true = reemplazar al dueño activo actual (alta individual). */
+  reemplazar?: unknown;
 };
 
 /** Crea una asignación explícita (solo directivo; validaciones server-side). */

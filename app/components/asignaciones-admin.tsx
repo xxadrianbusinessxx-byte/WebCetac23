@@ -39,6 +39,7 @@ export function AsignacionesProfesorAdmin() {
   const [resumenLote, setResumenLote] = useState<{
     ok: number;
     existentes: number;
+    conOtroProfesor: number;
     errores: number;
     total: number;
   } | null>(null);
@@ -79,6 +80,7 @@ export function AsignacionesProfesorAdmin() {
         g.materiaClave.toLowerCase().includes(q),
     );
   }, [materiasDelGrupo, busquedaMateria]);
+  const materiaElegida = oferta.find((g) => g.grupoMateriaId === grupoMateriaId);
   const materiasDelLote = useMemo(
     () => oferta.filter((g) => g.descripcion === loteGrupo),
     [oferta, loteGrupo],
@@ -141,9 +143,12 @@ export function AsignacionesProfesorAdmin() {
   }, []);
 
   const crear = async () => {
+    // Alta individual: el técnico ve al dueño actual en el selector, así que
+    // asignar lo REEMPLAZA (un dueño activo por materia, 2026-11-17).
     const r = await actionCrearAsignacionProfesor({
       profesorId,
       grupoMateriaId,
+      reemplazar: true,
     });
     setMensaje(
       r.ok
@@ -155,13 +160,15 @@ export function AsignacionesProfesorAdmin() {
 
   // PROMPT-3 (T3) — Alta en lote por grupo. Consume la MISMA action de alta
   // individual (una llamada por materia activa del grupo), de forma secuencial,
-  // y resume creadas/existentes/errores.
+  // y resume creadas/existentes/errores. NO reemplaza: una materia que ya tiene
+  // otro profesor se salta y se cuenta aparte (2026-11-17).
   const crearLote = async () => {
     if (!profesorId || !loteGrupo || materiasDelLote.length === 0) return;
     setProcesandoLote(true);
     setMensaje(null);
     let ok = 0;
     let existentes = 0;
+    let conOtroProfesor = 0;
     let errores = 0;
     for (const gm of materiasDelLote) {
       const r = await actionCrearAsignacionProfesor({
@@ -170,9 +177,16 @@ export function AsignacionesProfesorAdmin() {
       });
       if (r.ok) ok++;
       else if (/Ya existe/i.test(r.error)) existentes++;
+      else if (/ya tiene profesor/i.test(r.error)) conOtroProfesor++;
       else errores++;
     }
-    setResumenLote({ ok, existentes, errores, total: materiasDelLote.length });
+    setResumenLote({
+      ok,
+      existentes,
+      conOtroProfesor,
+      errores,
+      total: materiasDelLote.length,
+    });
     setProcesandoLote(false);
     await recargar();
   };
@@ -288,9 +302,17 @@ export function AsignacionesProfesorAdmin() {
                 {materiasFiltradas.map((g) => (
                   <option key={g.grupoMateriaId} value={g.grupoMateriaId}>
                     {g.materiaNombre} · {g.periodoNombre}
+                    {g.profesorActual ? ` · actual: ${g.profesorActual.nombre}` : " · sin profesor"}
                   </option>
                 ))}
               </select>
+              {materiaElegida?.profesorActual && (
+                <p className="mt-1 text-[11px] font-semibold text-[var(--oc-alert-text)]">
+                  Esta materia ya es de {materiaElegida.profesorActual.nombre}.
+                  Asignarla la pasa al profesor seleccionado; la anterior queda
+                  inactiva, con historial.
+                </p>
+              )}
             </div>
           </div>
 
@@ -312,9 +334,10 @@ export function AsignacionesProfesorAdmin() {
               Alta en lote por grupo
             </h3>
             <p className="mt-1 text-[11px] font-semibold text-[var(--oc-muted)]">
-              Asigna al profesor seleccionado todas las materias activas de un
-              grupo. Es la vía cómoda para 20 profesores × 24 grupos × 241
-              materias.
+              Asigna al profesor seleccionado las materias activas de un grupo
+              que no tienen profesor (o ya son suyas). Las que tienen otro
+              profesor no se tocan: para cambiarlas, usa la asignación
+              individual.
             </p>
             <select
               value={loteGrupo}
@@ -331,8 +354,10 @@ export function AsignacionesProfesorAdmin() {
             </select>
             {loteGrupo && (
               <p className="mt-2 text-[11px] font-bold text-[var(--oc-text)]">
-                {materiasDelLote.length} materias de {loteGrupo} se asignarán
-                al profesor seleccionado.
+                {materiasDelLote.length} materias de {loteGrupo}:{" "}
+                {materiasDelLote.filter((m) => !m.profesorActual).length} sin
+                profesor se asignarán al seleccionado; las que ya tienen otro
+                profesor se saltan.
               </p>
             )}
             <button
@@ -355,7 +380,8 @@ export function AsignacionesProfesorAdmin() {
                 role="status"
               >
                 Lote: {resumenLote.ok} creadas · {resumenLote.existentes} ya
-                existían · {resumenLote.errores} con error (de{" "}
+                existían · {resumenLote.conOtroProfesor} con otro profesor (no
+                se tocaron) · {resumenLote.errores} con error (de{" "}
                 {resumenLote.total}).
               </p>
             )}

@@ -34,6 +34,27 @@ Claude.
 | suites `test-atribucion-profesor`, `test-traspaso-materia`, `test-justificacion-circuito` | la regla nueva |
 | `lib/auth/permisos.ts` | solo el comentario del rol Servicio Escolar; ninguna capacidad cambia |
 
+Commit: `a1f1546`.
+
+### Fase 2 — la propiedad la asigna el técnico, un dueño activo por materia
+
+| Antes | Ahora |
+|---|---|
+| Técnico › Asignaciones permitía VARIOS dueños activos de la misma materia | Asignar **reemplaza** al dueño activo (pasa a inactivo, con `hasta`; nunca se borra) |
+| El selector de materias no decía de quién era cada una | Cada materia muestra «actual: <profesor>» o «sin profesor», y un aviso antes de reemplazar |
+| El alta en lote por grupo asignaba todas las materias del grupo | Asigna solo las que no tienen profesor (o ya son suyas); las de otro profesor **no se tocan** y se cuentan aparte |
+| La exclusividad no existía en la base | UNIQUE parcial `(grupo_materia_id) WHERE activo` |
+
+| Archivo | Qué cambió |
+|---|---|
+| `lib/escolar/catalogo/asignacion-materia-puro.ts` | **nuevo**: `planAsignarMateria`, `bloqueaPorOtroDueno`, `errorMateriaConOtroDueno` |
+| `lib/escolar/catalogo/asignaciones-profesor.ts` | `crearAsignacion` sigue el plan (desactiva antes de activar) y acepta `reemplazar`; la oferta trae `profesorActual` |
+| `app/actions/asignaciones-profesor.ts` | el tipo de entrada suma `reemplazar` (la action no cambia) |
+| `app/components/asignaciones-admin.tsx` | dueño actual en el selector, aviso de reemplazo, lote que no reemplaza |
+| `supabase/agregar-unicidad-dueno-materia.sql` | **nuevo**: un dueño activo por materia |
+| `scripts/test-asignacion-materia.mjs` | **nueva** suite (19 checks) |
+| `docs/sistema/MAPA-DEL-SISTEMA.md` | «quién es el dueño de una materia» y «la falta la justifica otro» |
+
 ## 2. Quién lo ejecutó y qué pudo / no pudo hacer
 
 **Claude**, a petición del usuario. Toca `lib/auth/` (un comentario) y la fuente de verdad
@@ -71,9 +92,22 @@ el traspaso; ahora lo impide la clave natural.
 | UNIQUE `clases_impartidas (grupo_materia_id, fecha)` | **no existe**; 0 duplicados por esa clave |
 | `asistencia_traspasos_historico` | 0 filas |
 
+**Por qué el alta en lote no reemplaza.** Asigna TODAS las materias de un grupo a UN
+profesor. Con «asignar = reemplazar» habría dejado sin materia, de un clic, a todos los
+demás profesores del grupo. El reemplazo solo ocurre en el alta individual, donde el técnico
+ve al dueño actual; la decisión (`bloqueaPorOtroDueno`) es pura y tiene suite.
+
+**Por qué desactivar ANTES de activar.** La UNIQUE parcial no admite dos activos ni un
+instante. Si el segundo paso fallara, la materia queda sin dueño (se reintenta), nunca con dos.
+
 **Verificación (Fase 1):** `test-atribucion-profesor` 28/28 · `test-traspaso-materia` 26/26 ·
 `test-justificacion-circuito` 48/48 · `test-orden` 20/20 · `npx tsc --noEmit` limpio ·
-`npm run test:ci` (en el árbol del commit; ver §7).
+`npm run test:ci` en un worktree con SOLO el cambio de la Fase 1: todo en verde salvo el
+build, que Turbopack no corre con un `node_modules` enlazado fuera del worktree; el build se
+corrió en el árbol principal.
+
+**Verificación (Fase 2):** `test-asignacion-materia` 19/19 · `test-orden` · `tsc` · lint ·
+`npm run test:ci` (ver el commit).
 
 ## 4. Qué normas respetó (CONTRATO §2)
 
@@ -113,5 +147,8 @@ Mías:
 - **El SQL no está aplicado** (pendiente `aplicar-unicidad-clases-por-materia`). Hasta que
   lo esté, cada subida responde 42P10 y no guarda nada. Va **antes** de desplegar.
 - **Nadie ha capturado con sesión real** con el código nuevo.
+- **El SQL de un dueño activo tampoco está aplicado.** Sin él el código igual deja un solo
+  dueño; lo que falta es la red de la base para dos técnicos a la vez.
+- **El reemplazo desde Técnico no se ha ejercido con sesión.**
 - **0 asignaciones activas**: hasta que el técnico asigne (pendiente
   `asignar-materias-desde-tecnico`), cualquier profesor ve y justifica cualquier falta.

@@ -33,6 +33,12 @@ import {
 import { resolverGrupoMateria, resolverGrupoMateriasBatch } from "./catalogo-academico.ts";
 import { nombreProfesor, type ProfesorRow } from "./profesores.ts";
 import {
+  bloqueaPorOtroDueno,
+  errorMateriaConOtroDueno,
+  planAsignarMateria,
+  type FilaAsignacionDeMateria,
+} from "./asignacion-materia-puro.ts";
+import {
   listarNombresVisiblesMaterias,
   nombreVisibleDesdeMapa,
 } from "../materia/nombres-visibles.ts";
@@ -142,7 +148,9 @@ export async function obtenerProfesoresPorIds(
  * ------------------------------------------------------------------------- */
 
 /**
- * Crea una asignación explícita profesor → grupo_materia.
+ * Asigna una materia de grupo a un profesor: crea (o reactiva) su asignación y
+ * REEMPLAZA al dueño activo que tuviera (2026-11-17: un dueño activo por
+ * materia; es la ÚNICA vía para dar la propiedad — subir asistencia ya no la da).
  * Todas las validaciones son server-side; el servidor deriva grupo, materia,
  * carrera, periodo y tabla_legacy desde `grupo_materias` (nunca del cliente).
  */
@@ -153,6 +161,9 @@ export async function crearAsignacion(
     grupoMateriaId: unknown;
     desde?: unknown;
     hasta?: unknown;
+    /** true = si la materia ya tiene otro dueño activo, reemplazarlo. Por
+     *  defecto NO: el alta en lote nunca barre a los demás profesores. */
+    reemplazar?: unknown;
   },
 ): Promise<ResultadoAdmin> {
   const profesorId = parsearProfesorId(input.profesorId);
@@ -212,83 +223,79 @@ export async function crearAsignacion(
     return { ok: false, error: esquema.error ?? ERROR_DDL_PENDIENTE };
   }
 
-  // C4.28 — RECONCILIACIÓN MÍNIMA ANTI-DUPLICADOS.
-  // Conviven dos constraints: la UNIQUE legacy (grupo_materia_id,
-  // profesor_clave) = "asignaciones_profesor_unico", y la UNIQUE parcial
-  // estructural (grupo_materia_id, profesor_id) WHERE profesor_id IS NOT NULL.
-  // El error "duplicate key ... asignaciones_profesor_unico" aparece cuando una
-  // fila legacy (profesor_id NULL + profesor_clave) ya ocupa el par
-  // (grupo_materia_id, profesor_clave) y se intenta INSERTAR de nuevo.
-  // Por eso se inspeccionan TODAS las filas del grupo_materia y se resuelve:
-  //   a) fila ESTRUCTURAL con profesor_id == PROFESORES.ID:
-  //        activa → mensaje claro (no insertar);
-  //        inactiva → reactivar (activo=true, hasta=null) conservando historial.
-  //   b) fila LEGACY con profesor_id NULL y profesor_clave == CLAVE:
-  //        reconciliar: profesor_id = PROFESORES.ID, activo = true; se conserva
-  //        historial y datos. CLAVE solo actúa como MATCH HISTÓRICO de filas
-  //        legacy, NUNCA como identidad.
-  //   c) ninguna → INSERT normal.
+  // Un dueño ACTIVO por materia (2026-11-17). La decisión —reactivar,
+  // reconciliar una fila legacy (C4.28), insertar, y qué otros dueños activos
+  // se reemplazan— es pura: `planAsignarMateria`. Conviven dos UNIQUE legacy
+  // ((grupo_materia_id, profesor_clave) y la parcial por profesor_id), por eso
+  // se inspeccionan TODAS las filas de la materia. La CLAVE solo es match
+  // histórico de filas legacy, NUNCA identidad.
   const { data: filasGm, error: eDup } = await supabase
     .from(TABLA_ASIGNACIONES_PROFESOR)
-    .select("id, profesor_id, profesor_clave, activo, desde, hasta")
+    .select("id, profesor_id, profesor_clave, activo")
     .eq("grupo_materia_id", grupoMateriaId);
   if (eDup) return { ok: false, error: eDup.message };
 
-  type FilaAsignacionGm = {
-    id: string;
-    profesor_id: number | null;
-    profesor_clave: string | null;
-    activo: boolean;
-    desde: string | null;
-    hasta: string | null;
-  };
-  const filas = (filasGm ?? []) as FilaAsignacionGm[];
-  const claveProf = String(profesor.CLAVE ?? "").trim().toUpperCase();
+  const plan = planAsignarMateria(
+    (filasGm ?? []) as FilaAsignacionDeMateria[],
+    profesorId,
+    String(profesor.CLAVE ?? ""),
+  );
   const etiqueta = `${resuelto.grupo.grado} ${resuelto.grupo.nombre} / ${resuelto.materia.nombre}`;
 
-  // a) Estructural por PROFESORES.ID.
-  const estructural = filas.find(
-    (f) => typeof f.profesor_id === "number" && f.profesor_id === profesorId,
-  );
-  if (estructural) {
-    if (estructural.activo) {
-      return {
-        ok: false,
-        error: `Ya existe una asignación ACTIVA de PROFESORES.ID ${profesorId} para ese grupo-materia (${etiqueta}).`,
-      };
-    }
+  if (bloqueaPorOtroDueno(plan, input.reemplazar === true)) {
+    return { ok: false, error: errorMateriaConOtroDueno(plan.reemplazados) };
+  }
+
+  if (plan.accion.tipo === "ya_activa") {
+    return {
+      ok: false,
+      error: `Ya existe una asignación ACTIVA de PROFESORES.ID ${profesorId} para ese grupo-materia (${etiqueta}).`,
+    };
+  }
+
+  // 1) Reemplazo: los otros dueños activos pasan a inactivos ANTES de activar
+  //    al nuevo (la UNIQUE parcial de un dueño activo lo exige). Si lo que
+  //    sigue fallara, la materia queda sin dueño —nunca con dos— y basta con
+  //    reintentar.
+  if (plan.desactivar.length > 0) {
+    const { error: eDes } = await supabase
+      .from(TABLA_ASIGNACIONES_PROFESOR)
+      .update({ activo: false, hasta: new Date().toISOString() })
+      .in("id", plan.desactivar);
+    if (eDes) return { ok: false, error: eDes.message };
+  }
+  const reemplazo = plan.reemplazados.length
+    ? ` Reemplaza a PROFESORES.ID ${plan.reemplazados.join(", ")} (queda inactiva, con historial).`
+    : "";
+
+  // 2) El nuevo dueño.
+  if (plan.accion.tipo === "reactivar") {
     const { error: eUp } = await supabase
       .from(TABLA_ASIGNACIONES_PROFESOR)
       .update({ activo: true, hasta: null })
-      .eq("id", estructural.id);
+      .eq("id", plan.accion.filaId);
     if (eUp) return { ok: false, error: eUp.message };
     return {
       ok: true,
-      mensaje: `Asignación REACTIVADA: PROFESORES.ID ${profesorId} → ${etiqueta} (historial conservado).`,
-      asignacionId: estructural.id,
+      mensaje: `Asignación REACTIVADA: PROFESORES.ID ${profesorId} → ${etiqueta} (historial conservado).${reemplazo}`,
+      asignacionId: plan.accion.filaId,
     };
   }
 
-  // b) Fila legacy con profesor_id NULL y profesor_clave == CLAVE.
-  const legacy = filas.find(
-    (f) =>
-      f.profesor_id === null &&
-      String(f.profesor_clave ?? "").trim().toUpperCase() === claveProf,
-  );
-  if (legacy) {
+  if (plan.accion.tipo === "reconciliar") {
     const { error: eUp } = await supabase
       .from(TABLA_ASIGNACIONES_PROFESOR)
       .update({ profesor_id: profesorId, activo: true, hasta: null })
-      .eq("id", legacy.id);
+      .eq("id", plan.accion.filaId);
     if (eUp) return { ok: false, error: eUp.message };
     return {
       ok: true,
-      mensaje: `Asignación legacy RECONCILIADA: la fila existente (${legacy.id.slice(0, 8)}…) se actualizó con PROFESORES.ID ${profesorId} → ${etiqueta}. Historial conservado; CLAVE solo queda como dato histórico.`,
-      asignacionId: legacy.id,
+      mensaje: `Asignación legacy RECONCILIADA: la fila existente (${plan.accion.filaId.slice(0, 8)}…) se actualizó con PROFESORES.ID ${profesorId} → ${etiqueta}. Historial conservado; CLAVE solo queda como dato histórico.${reemplazo}`,
+      asignacionId: plan.accion.filaId,
     };
   }
 
-  // c) INSERT. `profesor_clave` se copia desde la fila de PROFESORES como dato
+  // INSERT. `profesor_clave` se copia desde la fila de PROFESORES como dato
   // HISTÓRICO (columna NOT NULL legacy); no resuelve identidad ni autoriza.
   const { data: nueva, error: eIns } = await supabase
     .from(TABLA_ASIGNACIONES_PROFESOR)
@@ -306,7 +313,7 @@ export async function crearAsignacion(
 
   return {
     ok: true,
-    mensaje: `Asignación creada: PROFESORES.ID ${profesorId} → ${etiqueta}.`,
+    mensaje: `Asignación creada: PROFESORES.ID ${profesorId} → ${etiqueta}.${reemplazo}`,
     asignacionId: (nueva as { id?: string })?.id,
   };
 }
@@ -509,6 +516,8 @@ export type GrupoMateriaParaAsignacion = {
   periodoNombre: string;
   /** Nombre físico de la tabla; solo debugging (la UI NO lo expone). */
   tablaLegacy: string | null;
+  /** Dueño ACTIVO hoy (2026-11-17), o null. Asignar la materia a otro lo reemplaza. */
+  profesorActual: { id: number; nombre: string } | null;
 };
 
 /**
@@ -565,6 +574,14 @@ export async function listarGruposMateriasParaAsignacion(
 
   const aliases = await listarNombresVisiblesMaterias(supabase);
 
+  // Dueño activo de cada materia: el selector lo muestra para que el técnico
+  // sepa a quién reemplaza. Dos consultas fijas, sin N+1.
+  const duenos = await listarDuenosActivosDeMaterias(
+    supabase,
+    gms.map((g) => g.id),
+  );
+  const profesoresDueno = await obtenerProfesoresPorIds(supabase, [...duenos.values()]);
+
   return gms.map((g) => {
     const grupo = aUno(g.grupos);
     const materia = aUno(g.materias);
@@ -591,6 +608,12 @@ export async function listarGruposMateriasParaAsignacion(
         ? (periodoPorId.get(grupo.periodo_id) ?? "—")
         : "—",
       tablaLegacy: g.tabla_legacy ?? null,
+      profesorActual: (() => {
+        const id = duenos.get(g.id);
+        if (id === undefined) return null;
+        const p = profesoresDueno.get(id);
+        return { id, nombre: (p && nombreProfesor(p)) || `ID ${id}` };
+      })(),
     };
   });
 }

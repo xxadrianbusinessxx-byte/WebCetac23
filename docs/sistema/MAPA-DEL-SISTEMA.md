@@ -73,7 +73,8 @@ Excepciones (dominios cuya lógica está repartida):
 | «El alumno no ve su boleta», o sale otro parcial | `boletas_activacion` (vigentes del operativo) → `boleta-puro.ts::activacionQueAplica` (grupo > grado > plantel) y `alcanceVistaBoleta`; armado: `lib/escolar/administracion/boleta.ts::boletaDeAlumno`, servido por `app/actions/boletas.ts`. La nota es la fila `promedio` más reciente de `calificaciones`: sin ella, «Sin calificar» | `diag-boletas.mjs`, `test-boleta.mjs` |
 | «Falta una columna en la tabla de materia» | DDL en caliente: `materia-avance.ts` → RPC `escolar_agregar_columnas`; `schema-tabla.ts` → `escolar_sync_columns` | `probe-schema-tabla.mjs`, `probe-columnas-materia.mjs` |
 | «El nombre de la materia sale raro» | `nombreVisible` (presentación) vs `idInterno` (tabla real): `materia-identidad.ts`, `nombres-visibles.ts` | `test-materia-identidad.mjs` |
-| «Se traspasó mal una materia entre profesores» | `lib/escolar/materia/traspaso-materia.ts` → RPC `traspasar_materia_a_profesor` | `test-traspaso-materia.mjs` |
+| «Una materia tiene el profesor equivocado» / «quién es el dueño de una materia» | Técnico › Asignaciones → `lib/escolar/catalogo/asignaciones-profesor.ts` (`asignaciones_profesor`, la ÚNICA fuente; subir asistencia ya no la cambia desde 2026-11-17) | `test-asignacion-materia.mjs` |
+| «Una falta la justifica el profesor que no es» | `lib/escolar/asistencia/justificacion-dias.ts` → `asignarDuenoPorMateria` (dueño = profesor asignado) | `test-justificacion-circuito.mjs` |
 | «El perfil del alumno carga incompleto o lento» | `app/actions/escolar.ts::actionObtenerPerfilAlumno` tiene **dos caminos**: primero la RPC `supabase/crear-rpc-obtener-perfil-alumno.sql` (una llamada); si falla o no existe, el flujo directo O1 (consultas en paralelo, mismo resultado). Un fallo puede estar en cualquiera de los dos | `fase11-perfil.mjs --solo=entrada_alumno` (ejecuta la action real y da viajes, bytes y latencia por paso) |
 
 ### Horario
