@@ -93,9 +93,9 @@ export function ServicioEscolarPanel({
   modo: string | null;
 }) {
   // 2026-11-16 — el oficio del rol: el MISMO panel que usa el profesor. No hay
-  // una versión aparte, porque lo que cambia no es la pantalla sino el alcance,
-  // y ese lo decide el servidor: la guarda de `app/actions/asistencias.ts` le
-  // impide tocar una materia que ya tiene profesor.
+  // una versión aparte. Desde 2026-11-17 capturar asistencia no da la propiedad
+  // de la materia (la asigna el técnico), así que este rol sube en cualquier
+  // materia, tenga profesor o no, sin quitársela a nadie.
   // `mostrarPlantillaMateria={false}` quita el único botón del panel que no es
   // de asistencia —la plantilla de calificaciones—, que este rol ni captura ni
   // tiene capacidad para descargar.

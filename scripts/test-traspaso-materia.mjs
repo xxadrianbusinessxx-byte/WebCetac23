@@ -2,6 +2,11 @@
  * test-traspaso-materia.mjs - Pruebas PURAS del traspaso TOTAL de una materia
  * al profesor que la sube (Prompt D), sin Supabase.
  *
+ * 2026-11-17: la SUBIDA ya no traspasa (capturar no da la propiedad; la asigna
+ * el técnico). La RPC sigue desplegada y su modelo se sigue probando aquí
+ * porque nada se retira de la base sin demostrar que no hay consumidores (R8);
+ * la sección 7 comprueba que ningún camino de subida la llama.
+ *
  * El traspaso REAL vive en la RPC `traspasar_materia_a_profesor`
  * (supabase/crear-rpc-traspasar-materia.sql): una sola transacción. Como este
  * entorno no tiene psql/Postgres local (mismo bloqueo documentado para la RPC
@@ -323,14 +328,15 @@ console.log("7) Nunca se busca ni se escribe por profesor_clave (estático)");
     (sql.match(/profesor_clave\s*=\s*NULL/g) ?? []).length >= 2 &&
       /profesor_clave_origen/.test(sql),
   );
+  // 2026-11-17: la subida ya NO traspasa. Capturar asistencia no da la
+  // propiedad de la materia (la asigna el técnico); la RPC sigue en la base
+  // (R8) pero ningún camino de subida la llama.
   ok(
-    "confirmarAsistencias llama a la RPC ANTES de los UPSERT de asistencia",
+    "confirmarAsistencias ya NO llama a la RPC de traspaso",
     (() => {
       const fn = mod.slice(mod.indexOf("export async function confirmarAsistencias"));
-      const iRpc = fn.indexOf("traspasarMateriaAProfesor(");
-      const iUpsertClases = fn.indexOf("Error en clases impartidas");
-      const iUpsertAsist = fn.indexOf("Error en asistencias");
-      return iRpc !== -1 && iRpc < iUpsertClases && iRpc < iUpsertAsist;
+      return fn.indexOf("traspasarMateriaAProfesor(") === -1 &&
+        !/traspaso-materia/.test(mod);
     })(),
   );
   ok(

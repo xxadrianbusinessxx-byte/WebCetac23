@@ -6,8 +6,10 @@ import {
   TABLA_JUSTIFICACIONES_ASISTENCIA,
 } from "../tables.ts";
 import { materiasDelAlumno } from "../materia/calificaciones.ts";
+import { listarDuenosActivosDeMaterias } from "../catalogo/asignaciones-profesor.ts";
 import { listarJustificacionesConDetalle } from "./justificaciones.ts";
 import {
+  asignarDuenoPorMateria,
   decidirHistorialProfesor,
   type MateriaJustificadaHistorial,
 } from "./justificaciones-puro.ts";
@@ -148,6 +150,16 @@ export async function cargarDiasAJustificar(
     // ahí, y sin filas de clases no hay líneas que justificar.
     const { materias } = resolverDiaMateria("clase", filasClases, filasAsist, nombres, justDia);
     resultado.set(claveDia(curp, fecha), materias);
+  }
+
+  // El dueño de cada falta es el profesor ASIGNADO a la materia, no quien la
+  // capturó (2026-11-17). Una sola consulta para todos los días.
+  const gmIds = [...resultado.values()].flatMap((ms) =>
+    ms.map((m) => m.grupoMateriaId).filter((g): g is string => Boolean(g)),
+  );
+  const duenos = await listarDuenosActivosDeMaterias(supabase, gmIds);
+  for (const [clave, materias] of resultado) {
+    resultado.set(clave, asignarDuenoPorMateria(materias, duenos));
   }
   return resultado;
 }

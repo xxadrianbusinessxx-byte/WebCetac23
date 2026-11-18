@@ -215,5 +215,34 @@ console.log("12) Historial del profesor: lo suyo y lo que no tiene dueño");
     J.decidirHistorialProfesor(sol("aprobada"), [], legacy, 99).visible);
 }
 
+console.log("12) El dueño es el profesor ASIGNADO, no quien capturó (2026-11-17)");
+{
+  // Servicio Escolar (23) capturó Matemáticas; el profesor asignado es el 7.
+  const SERVICIO = 23;
+  const capturadoPorServicio = D.resolverDiaMateria(
+    "clase",
+    [{ grupo_materia_id: MAT, clases: 3 }],
+    [{ grupo_materia_id: MAT, clases_asistidas: 0, profesor_clave: null, profesor_id: SERVICIO }],
+    NOMBRES,
+  ).materias;
+  const conDueno = J.asignarDuenoPorMateria(capturadoPorServicio, new Map([[MAT, PROF_MAT]]));
+  ok("la falta queda a nombre del profesor asignado", conDueno[0].profesorId === PROF_MAT);
+  ok("la justifica el asignado", J.materiasJustificablesPorProfesor(conDueno, PROF_MAT).length === 1);
+  ok("NO la justifica otro profesor", J.materiasJustificablesPorProfesor(conDueno, PROF_FIS).length === 0);
+  ok("NO queda a nombre de quien capturó",
+    J.materiasJustificablesPorProfesor(conDueno, SERVICIO).length === 0);
+
+  const sinAsignar = J.asignarDuenoPorMateria(capturadoPorServicio, new Map());
+  ok("materia sin asignación: sin dueño", sinAsignar[0].profesorId === null);
+  ok("materia sin asignación: la ve cualquier profesor",
+    J.materiasJustificablesPorProfesor(sinAsignar, 99).length === 1);
+
+  const legacy = D.resolverDiaMateria("clase", [{ grupo_materia_id: null, clases: 1 }],
+    [{ grupo_materia_id: null, clases_asistidas: 0, profesor_clave: "4321", profesor_id: 5 }], NOMBRES).materias;
+  ok("una línea sin materia nunca recibe dueño",
+    J.asignarDuenoPorMateria(legacy, new Map([[MAT, PROF_MAT]]))[0].profesorId === null);
+  ok("no muta la entrada", capturadoPorServicio[0].profesorId === SERVICIO);
+}
+
 console.log(`Resultado: ${pasadas} pasadas, ${fallidas} fallidas`);
 if (fallidas > 0) process.exit(1);

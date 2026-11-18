@@ -8,10 +8,12 @@
  * Casos de la VALIDACIÓN del prompt (R-3 + R-2):
  *  1. un profesor sube 2 materias distintas del MISMO grupo y día → 2 filas de
  *     clases_impartidas (distintas por grupo_materia_id), no una sobrescrita;
- *  2. subir dos veces la misma materia → 1 sola asignación (idempotente) y la
- *     misma fila objetivo (la clave de conflicto incluye la materia);
- *  3. un profesor con 2 materias tiene 2 asignaciones activas;
- *  4. desactivar una asignación deja la otra intacta (nunca DELETE);
+ *  2. subir dos veces la misma materia → la misma fila objetivo (idempotente);
+ *  3. (2026-11-17) OTRA persona que captura la misma materia y día —Servicio
+ *     Escolar, el directivo— cae en la MISMA clave natural (no duplica) y su
+ *     fila lleva SU profesor_id (autoría de la sesión);
+ *  4. (2026-11-17) subir NO da la propiedad: el resultado no trae asignación y
+ *     la clave de conflicto no lleva profesor_id;
  *  5. sin profesorId en sesión → error, y las filas NUEVAS nunca se escriben
  *     con profesor_clave (la contraseña deja de ser identidad).
  */
@@ -115,20 +117,15 @@ if (subidaMat.ok && subidaHis.ok) {
   );
 }
 
-console.log("2) Subir dos veces la misma materia => 1 sola asignacion (idempotente)");
+console.log("2) Subir dos veces la misma materia => misma fila objetivo (idempotente)");
 {
   const segunda = M.atribuirMateriaAlPlan(planDia, {
     profesorId: PROFESOR,
     grupoMateriaId: GM_MAT,
-    profesorClave: "P7",
     periodoId: PERIODO,
   });
   ok("segunda subida MAT ok", segunda.ok);
   if (subidaMat.ok && segunda.ok) {
-    ok(
-      "misma claveAsignacion (dedupe en asignaciones_profesor)",
-      subidaMat.claveAsignacion === segunda.claveAsignacion,
-    );
     ok(
       "misma fila objetivo para clases_impartidas",
       JSON.stringify(subidaMat.clasesImpartidas[0]) ===
@@ -139,44 +136,61 @@ console.log("2) Subir dos veces la misma materia => 1 sola asignacion (idempoten
       JSON.stringify(subidaMat.asistencias[0]) ===
         JSON.stringify(segunda.asistencias[0]),
     );
+  }
+}
+
+console.log("3) Otra persona captura la misma materia y dia => misma clave natural, su autoria");
+{
+  const SERVICIO = 23;
+  const captura = M.atribuirMateriaAlPlan(planDia, {
+    profesorId: SERVICIO,
+    grupoMateriaId: GM_MAT,
+    periodoId: PERIODO,
+  });
+  ok("captura de Servicio Escolar ok", captura.ok);
+  if (subidaMat.ok && captura.ok) {
+    const valoresClave = (fila, claves) =>
+      claves.split(",").map((c) => String(fila[c])).join("|");
     ok(
-      "asignacion siempre activo=true",
-      subidaMat.asignacionActiva.activo === true &&
-        segunda.asignacionActiva.activo === true,
+      "clases: misma clave natural que la del profesor (no duplica)",
+      valoresClave(captura.clasesImpartidas[0], captura.conflictoClases) ===
+        valoresClave(subidaMat.clasesImpartidas[0], subidaMat.conflictoClases),
+    );
+    ok(
+      "asistencia: misma clave natural que la del profesor (no duplica)",
+      valoresClave(captura.asistencias[0], captura.conflictoAsistencia) ===
+        valoresClave(subidaMat.asistencias[0], subidaMat.conflictoAsistencia),
+    );
+    ok(
+      "la fila lleva el profesor_id de la SESION que captura (autoria)",
+      captura.asistencias[0].profesor_id === SERVICIO &&
+        captura.clasesImpartidas[0].profesor_id === SERVICIO,
     );
   }
 }
 
-console.log("3) Un profesor con 2 materias tiene 2 asignaciones activas");
+console.log("4) Subir NO da la propiedad de la materia");
 {
-  ok("asignacion MAT activa", subidaMat.ok && subidaMat.asignacionActiva.activo);
-  ok("asignacion HIS activa", subidaHis.ok && subidaHis.asignacionActiva.activo);
-  if (subidaMat.ok && subidaHis.ok) {
-    const claves = new Set([subidaMat.claveAsignacion, subidaHis.claveAsignacion]);
-    ok("2 claves de asignacion distintas", claves.size === 2);
-    ok(
-      "claveAsignacion = profesorId|gm (identidad natural)",
-      subidaMat.claveAsignacion ===
-        M.claveAsignacionProfesorMateria(PROFESOR, GM_MAT),
-    );
-  }
-}
-
-console.log("4) Desactivar una asignacion deja la otra intacta");
-{
-  if (subidaMat.ok && subidaHis.ok) {
-    const inactiva = M.asignacionInactiva(
-      subidaMat.asignacionActiva,
-      "2026-09-30T00:00:00.000Z",
-    );
-    ok("MAT quedo inactiva (activo=false)", inactiva.activo === false);
-    ok("MAT tiene hasta (no DELETE)", typeof inactiva.hasta === "string");
-    ok("HIS sigue activa", subidaHis.asignacionActiva.activo === true);
-    ok(
-      "HIS conserva su materia",
-      subidaHis.asignacionActiva.grupo_materia_id === GM_HIS,
-    );
-  }
+  ok(
+    "la clave de conflicto de clases no lleva profesor_id",
+    !M.CLAVES_CONFLICTO_CLASES_CON_MATERIA.split(",").includes("profesor_id"),
+  );
+  ok(
+    "la clave de conflicto de asistencia no lleva profesor_id",
+    !M.CLAVES_CONFLICTO_ASISTENCIA_CON_MATERIA.split(",").includes("profesor_id"),
+  );
+  ok(
+    "clave natural de asistencia = curp + materia + fecha",
+    M.CLAVES_CONFLICTO_ASISTENCIA_CON_MATERIA === "curp,grupo_materia_id,fecha",
+  );
+  ok(
+    "clave natural de clases = materia + fecha",
+    M.CLAVES_CONFLICTO_CLASES_CON_MATERIA === "grupo_materia_id,fecha",
+  );
+  ok(
+    "el resultado no trae asignacion que escribir",
+    subidaMat.ok && !("asignacionActiva" in subidaMat) && !("claveAsignacion" in subidaMat),
+  );
 }
 
 console.log("5) Sin profesorId en sesion => error y NUNCA se escribe con profesor_clave");
@@ -184,7 +198,6 @@ console.log("5) Sin profesorId en sesion => error y NUNCA se escribe con profeso
   const sinId = M.atribuirMateriaAlPlan(planDia, {
     profesorId: null,
     grupoMateriaId: GM_MAT,
-    profesorClave: "P7",
     periodoId: PERIODO,
   });
   ok("rechazado sin profesorId", sinId.ok === false);
@@ -213,7 +226,6 @@ console.log("6) Materia no resuelta => error controlado");
   const sinMateria = M.atribuirMateriaAlPlan(planDia, {
     profesorId: PROFESOR,
     grupoMateriaId: null,
-    profesorClave: "P7",
     periodoId: PERIODO,
   });
   ok("rechazado sin grupo_materia_id", sinMateria.ok === false);
@@ -228,7 +240,6 @@ console.log("7) Sin periodoId => error y NO se escribe (A4)");
   const sinPeriodo = M.atribuirMateriaAlPlan(planDia, {
     profesorId: PROFESOR,
     grupoMateriaId: GM_MAT,
-    profesorClave: "P7",
     periodoId: null,
   });
   ok("rechazado sin periodoId", sinPeriodo.ok === false);

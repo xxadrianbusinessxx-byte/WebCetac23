@@ -318,10 +318,10 @@ const MATRIZ_HOY: Record<PortalRole, ReadonlySet<Capacidad>> = {
     // dos pestañas (ver `PESTANAS_APAGADAS` en el mapa): nada se borró, y
     // devolverlas es volver a escribirlas aquí.
     //
-    // Sube en CUALQUIER materia, no solo en las suyas —no tiene asignaciones—,
-    // pero NO en las que ya tienen profesor: eso lo impide la guarda de alcance
-    // de `app/actions/asistencias.ts`, porque subir dispara el traspaso de la
-    // materia a quien sube.
+    // Sube en CUALQUIER materia, tenga profesor o no. Desde 2026-11-17 subir
+    // asistencia es CAPTURAR: no da la propiedad de la materia (esa la asigna
+    // el técnico en `asignaciones_profesor`), así que no le quita la materia a
+    // nadie. La guarda de alcance del 2026-11-16 se retiró con el traspaso.
     "asistencia.subir",
     "asistencia.anular", // puede deshacer su propio error sin depender de nadie
     "asistencia.ver_grupo", // listar los grupos a los que subir

@@ -678,8 +678,8 @@ export function AsistenciasPanel({
           </div>
           {/* Contexto EXPLÍCITO de la subida: qué materia/grupo/parcial se va a
               guardar y a quién se le atribuye. Sin esto, unos selectores
-              olvidados arriba hacen que la plantilla se guarde (y la materia se
-              traspase) en el sitio equivocado. */}
+              olvidados arriba hacen que la plantilla se guarde en el sitio
+              equivocado. */}
           {seleccionCompleta ? (
             <div className="mt-3 rounded-2xl border border-[var(--oc-border-active)] bg-[var(--oc-input)] px-4 py-3">
               <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--oc-text)]">

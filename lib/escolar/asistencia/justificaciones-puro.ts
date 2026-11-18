@@ -110,6 +110,22 @@ export type LineaJustificable = Pick<
   "grupoMateriaId" | "tipo" | "clases" | "asistidas" | "profesorId" | "clasesJustificadas"
 >;
 
+/**
+ * Pone en cada línea al profesor ASIGNADO a su materia como dueño de la falta
+ * (2026-11-17). `duenos` es `Map<grupoMateriaId, profesorId>` con las
+ * asignaciones ACTIVAS. Una materia sin asignación queda sin dueño (`null`): la
+ * ve cualquier profesor. Las líneas sin materia (legacy, justificación) nunca
+ * tienen dueño. No muta la entrada.
+ */
+export function asignarDuenoPorMateria<
+  T extends { grupoMateriaId: string | null; profesorId: number | null },
+>(lineas: readonly T[], duenos: ReadonlyMap<string, number>): T[] {
+  return lineas.map((l) => ({
+    ...l,
+    profesorId: l.grupoMateriaId ? (duenos.get(l.grupoMateriaId) ?? null) : null,
+  }));
+}
+
 /** ¿La línea tiene falta registrada que aún no está cubierta? */
 function faltaSinCubrir(m: LineaJustificable): boolean {
   if (m.tipo === "justificacion") return false;
@@ -131,10 +147,15 @@ export function diaTieneFaltaJustificable(
 /**
  * Materias de ese día que ESTE profesor puede justificar.
  *
- * Regla del directivo (2026-10-01): si la falta tiene dueño —el `profesor_id`
- * que la registró— solo la ve y la justifica ese profesor; si no hay a quién
- * atribuirla, la ve cualquier profesor. El registro anterior sin materia no se
- * puede justificar por materia: solo el directivo, con el día completo.
+ * Regla del directivo (2026-10-01): si la falta tiene dueño solo la ve y la
+ * justifica ese profesor; si no hay a quién atribuirla, la ve cualquier
+ * profesor. El registro anterior sin materia no se puede justificar por
+ * materia: solo el directivo, con el día completo.
+ *
+ * El dueño es el profesor ASIGNADO a la materia (`asignarDuenoPorMateria`),
+ * desde 2026-11-17. Antes era quien capturó la falta; ahora capturar no da la
+ * propiedad (Servicio Escolar o el directivo capturan por el profesor), así
+ * que la autoría ya no dice quién es el profesor de la materia.
  */
 export function materiasJustificablesPorProfesor<T extends LineaJustificable>(
   materias: readonly T[],
@@ -211,8 +232,8 @@ export type DecisionHistorialProfesor = {
 /**
  * ¿Esta solicitud va en el historial del profesor, y con qué materias?
  *
- * - `lineas`: el desglose del día (`resolverDiaMateria`), que trae el dueño de
- *   cada falta en `profesorId`.
+ * - `lineas`: el desglose del día (`resolverDiaMateria` + `asignarDuenoPorMateria`),
+ *   que trae el dueño de cada falta en `profesorId`.
  * - Le corresponden las materias con falta registrada cuyo dueño es él o no
  *   tiene dueño; y siempre las que él mismo justificó.
  * - Un día en el que NINGUNA falta tiene dueño (registro anterior, sin materia)

@@ -10,22 +10,26 @@
  *   - el acceso a Supabase queda en la capa que ya conoce el catálogo
  *     (`lib/escolar/asistencias.ts` / `app/actions/asistencias.ts`).
  *
- * Reglas congeladas (R-3 del prompt C):
+ * Reglas congeladas (R-3 del prompt C; 3 y 4 reescritas el 2026-11-17):
  *   1. La identidad de la escritura es `profesor_id` (PROFESORES.ID) que sale
  *      SIEMPRE de la sesión; NUNCA del cliente. Sin `profesorId` NO se escribe
  *      nada (ni siquiera con `profesor_clave`).
  *   2. Cada materia subida se guarda como filas DISTINTAS del mismo grupo/día
  *      (`grupo_materia_id` forma parte de la clave de conflicto del UPSERT).
- *   3. Volver a subir la MISMA materia del MISMO grupo/día actualiza la misma
- *      fila (idempotencia): la clave de conflicto depende de la materia.
- *   4. La atribución en `asignaciones_profesor` es un UPSERT idempotente de
- *      `(profesor_id, grupo_materia_id)` con `activo=true`. Desactivar una
- *      asignación NUNCA borra la otra (2+ materias = 2+ filas activas).
+ *   3. La clave de conflicto es la NATURAL del dato —alumno + materia + día
+ *      (asistencia) y materia + día (clases)— y NO lleva `profesor_id`: si
+ *      otra persona captura la misma materia el mismo día, actualiza la misma
+ *      fila en vez de duplicarla. `profesor_id` queda como AUTORÍA: quién
+ *      capturó la fila por última vez.
+ *   4. Subir asistencia NO da la propiedad de la materia. La propiedad vive
+ *      SOLO en `asignaciones_profesor` y la asigna el técnico
+ *      (`lib/escolar/catalogo/asignaciones-profesor.ts`). Antes la subida
+ *      llamaba a `traspasar_materia_a_profesor` y se quedaba con la materia;
+ *      eso hacía que Servicio Escolar o el directivo se la quitaran a su
+ *      profesor (retirado 2026-11-17).
  *   5. `profesor_clave` se conserva como columna LEGACY (el SQL R-1 la relaja
  *      a nullable): las filas NUEVAS NO escriben la contraseña
- *      (`profesor_clave = NULL`) y su identidad es `profesor_id`. La clave de
- *      la sesión solo se copia como dato histórico en `asignaciones_profesor`
- *      (columna legacy NOT NULL de esa tabla).
+ *      (`profesor_clave = NULL`) y su identidad es `profesor_id`.
  */
 
 export const UUID_CERO = "00000000-0000-0000-0000-000000000000";
@@ -35,17 +39,20 @@ export const UUID_RE =
 
 /**
  * Claves de conflicto (`onConflict` de supabase-js) para cada tabla.
- * Con materia, la materia forma parte de la clave natural: dos materias del
- * mismo grupo y día NO colisionan y re-subir la misma materia NO duplica.
+ * Con materia, la clave es la NATURAL del dato y no lleva `profesor_id`: dos
+ * materias del mismo grupo y día NO colisionan, y re-subir la misma materia
+ * —la suba quien la suba— actualiza la misma fila, NO duplica.
+ *   · asistencia: UNIQUE `asistencia_alumnos_curp_gm_fecha_uidx`
+ *     (supabase/agregar-indices-asistencia.sql), aplicada.
+ *   · clases: UNIQUE `clases_impartidas_gm_fecha_uidx`
+ *     (supabase/agregar-unicidad-clases-por-materia.sql).
  */
 export const CLAVES_CONFLICTO_CLASES_SIN_MATERIA =
   "profesor_clave,grado,grupo,fecha";
-export const CLAVES_CONFLICTO_CLASES_CON_MATERIA =
-  "profesor_id,grupo_materia_id,grado,grupo,fecha";
+export const CLAVES_CONFLICTO_CLASES_CON_MATERIA = "grupo_materia_id,fecha";
 export const CLAVES_CONFLICTO_ASISTENCIA_SIN_MATERIA =
   "profesor_clave,curp,grado,grupo,fecha";
-export const CLAVES_CONFLICTO_ASISTENCIA_CON_MATERIA =
-  "profesor_id,grupo_materia_id,curp,grado,grupo,fecha";
+export const CLAVES_CONFLICTO_ASISTENCIA_CON_MATERIA = "curp,grupo_materia_id,fecha";
 
 export const ERROR_ATRIBUCION_SIN_PROFESOR_ID =
   "Tu sesión no incluye la identidad de profesor (PROFESORES.ID). Vuelve a iniciar sesión para guardar asistencias; no se escribirá nada usando la contraseña como identidad.";
@@ -121,9 +128,6 @@ export type AtribucionSubida = {
   profesorId: number | null;
   /** UUID del grupo_materias ACTIVO resuelto en el servidor. */
   grupoMateriaId: string | null;
-  /** CLAVE legacy de la sesión: solo para el dato histórico de
-   *  asignaciones_profesor (NOT NULL legacy). No se escribe en asistencia. */
-  profesorClave?: string | null;
   /** PROMPT S (A4) — id del periodo OPERATIVO (`periodos.id`). Sin él NO se
    *  escribe: las filas nuevas llevan `periodo_id` para no crecer sin índice. */
   periodoId: string | null;
@@ -132,15 +136,6 @@ export type AtribucionSubida = {
 export type PlanSubida = {
   clasesImpartidas: FilaClasesCandidata[];
   asistencias: FilaAsistenciaCandidata[];
-};
-
-export type FilaAsignacionActiva = {
-  profesor_id: number;
-  profesor_clave: string;
-  grupo_materia_id: string;
-  activo: true;
-  desde: string;
-  hasta: null;
 };
 
 export type ResultadoAtribucion =
@@ -152,10 +147,6 @@ export type ResultadoAtribucion =
       conflictoClases: string;
       /** Clave de conflicto del UPSERT de asistencia_alumnos (con materia). */
       conflictoAsistencia: string;
-      /** Fila idempotente para asignaciones_profesor (activo=true). */
-      asignacionActiva: FilaAsignacionActiva;
-      /** Identidad natural de la asignación (profesorId | grupoMateriaId). */
-      claveAsignacion: string;
     }
   | { ok: false; error: string };
 
@@ -164,9 +155,10 @@ export type ResultadoAtribucion =
  *   - rechaza sin `profesorId` (nunca escribe con la contraseña);
  *   - rechaza sin materia resuelta (sin ella no existe atribución posible);
  *   - rechaza sin `periodoId` (las filas nuevas llevan `periodo_id`);
- *   - devuelve las filas enriquecidas con `profesor_id`, `grupo_materia_id` y
- *     `periodo_id`, y las claves de conflicto que garantizan «2 materias ≠
- *     colisión» e «idempotencia por materia».
+ *   - devuelve las filas enriquecidas con `profesor_id` (autoría),
+ *     `grupo_materia_id` y `periodo_id`, y las claves de conflicto que
+ *     garantizan «2 materias ≠ colisión» e «idempotencia por materia».
+ *   - NO devuelve asignación: subir no da la propiedad de la materia (regla 4).
  */
 export function atribuirMateriaAlPlan(
   plan: PlanSubida,
@@ -212,51 +204,11 @@ export function atribuirMateriaAlPlan(
     periodo_id: periodoId,
   }));
 
-  const ahora = new Date().toISOString();
   return {
     ok: true,
     clasesImpartidas,
     asistencias,
     conflictoClases: claveConflictoClases(true),
     conflictoAsistencia: claveConflictoAsistencia(true),
-    asignacionActiva: {
-      profesor_id: profesorId,
-      profesor_clave: (atribucion.profesorClave ?? "").trim(),
-      grupo_materia_id: grupoMateriaId,
-      activo: true,
-      desde: ahora,
-      hasta: null,
-    },
-    claveAsignacion: claveAsignacionProfesorMateria(profesorId, grupoMateriaId),
-  };
-}
-
-/**
- * Identidad natural de UNA asignación: `(profesor_id, grupo_materia_id)`.
- * Subir la misma materia dos veces produce la MISMA clave (idempotente);
- * dos materias del mismo profesor producen claves DISTINTAS.
- */
-export function claveAsignacionProfesorMateria(
-  profesorId: number,
-  grupoMateriaId: string,
-): string {
-  return `${Number(profesorId)}|${grupoMateriaId.trim().toLowerCase()}`;
-}
-
-/** Estado inactivo de una asignación (UPDATE, nunca DELETE). */
-export function asignacionInactiva(
-  activa: FilaAsignacionActiva,
-  hastaIso: string,
-): {
-  activo: false;
-  hasta: string;
-  profesor_id: number;
-  grupo_materia_id: string;
-} {
-  return {
-    profesor_id: activa.profesor_id,
-    grupo_materia_id: activa.grupo_materia_id,
-    activo: false,
-    hasta: hastaIso,
   };
 }

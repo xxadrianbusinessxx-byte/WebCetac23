@@ -13,10 +13,11 @@
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
 Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
-- **Rama y HEAD:** main · c51b03b
+- **Rama y HEAD:** HEAD · 29ef742
 
 ## Qué cerró (últimos 10 commits)
 
+- 29ef742 · Servicio Escolar pasa a capturar asistencia, sin quitarle la materia a n…
 - c51b03b · El portal se puede enlazar: pestaña, apartado y modo viven en la direcci…
 - 1511684 · Toda la mensajería del portal sale del mapa: ningún rol ve Chat ni Mensa…
 - 100f675 · Prompt e informe: PROMPT_AC / INFORME-PROMPT-AC.
@@ -26,12 +27,11 @@ Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
 - 67d4428 · Prompt e informe: PROMPT_AB / INFORME-PROMPT-AB.
 - d2e5193 · Administración ve a los alumnos pendientes de grupo
 - 4867d46 · El importador de horario prefiere el nombre exacto de la materia
-- a15659c · El login mandaba a la portada a cualquier rol que no estuviera nombrado
 
 ## Lo que más pesa hoy
 
 - sql-agenda-citas — Agenda de citas: el directivo no ha publicado ningún horario (SQL ya aplicado) · `node scripts/diag-agenda-citas.mjs` · persona
-- traspaso-sin-estrenar — asignaciones_profesor sigue con 0 filas · `node scripts/diag-asignaciones-profesor.mjs` · persona
+- aplicar-unicidad-clases-por-materia — Aplicar supabase/agregar-unicidad-clases-por-materia.sql ANTES de desplegar: sin él la subida de asistencia falla · `SQL Editor: select indexname from pg_indexes where indexname = 'clases_impartidas_gm_fecha_uidx'` · persona
 - claves-compartidas-profesores — 15 de 22 profesores comparten contraseña · `node scripts/diag-credenciales-duplicadas.mjs` · persona
 - rotar-password-supabase — Rotar la contraseña de Supabase · sin comando de verificación · persona
 - tabla-calificaciones-inexistente — archivos_calificaciones: una action viva apunta a una tabla que no esta en public · `node scripts/check-supabase-public.mjs` · persona

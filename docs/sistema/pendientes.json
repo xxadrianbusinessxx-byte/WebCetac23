@@ -41,7 +41,7 @@
     {
       "id": "cuenta-servicio-escolar",
       "titulo": "Servicio Escolar: ponerle clave a la cuenta y probar la captura de asistencia",
-      "detalle": "La cuenta existe: PROFESORES ID 23, 'SERVICIO ESCOLAR', Permisos 'Servicio Escolar', debe_cambiar_credenciales = true, con una clave aleatoria que nadie conoce. FALTA, en este orden: (1) el DIRECTIVO le pone clave desde Personas › Profesores › Reponer clave (el técnico NO puede: validarObjetivoPermitidoParaTecnico solo le deja cuentas cuyo Permisos contenga 'profesor'); (2) entregarle la clave al alumno de servicio social, que al entrar tendrá que cambiarla; (3) probar con esa sesión que el tab superior muestra SOLO «Asistencias», que el panel lista grupos y las materias del horario, y que una subida real queda guardada. 2026-11-16: el rol cambió de oficio — ya no consulta el padrón ni descarga archivos, ahora CAPTURA ASISTENCIA en cualquier materia SIN profesor asignado; donde ya hay profesor, la guarda de app/actions/asistencias.ts lo rechaza para no quitarle la materia. Eso último tampoco se ha probado contra la base. La cuenta es temporal: al terminar el servicio social, desactivarla.",
+      "detalle": "La cuenta existe: PROFESORES ID 23, 'SERVICIO ESCOLAR', Permisos 'Servicio Escolar', debe_cambiar_credenciales = true, con una clave aleatoria que nadie conoce. FALTA, en este orden: (1) el DIRECTIVO le pone clave desde Personas › Profesores › Reponer clave (el técnico NO puede: validarObjetivoPermitidoParaTecnico solo le deja cuentas cuyo Permisos contenga 'profesor'); (2) entregarle la clave al alumno de servicio social, que al entrar tendrá que cambiarla; (3) probar con esa sesión que el tab superior muestra SOLO «Asistencias», que el panel lista grupos y las materias del horario, y que una subida real queda guardada. 2026-11-16: el rol cambió de oficio — ya no consulta el padrón ni descarga archivos, ahora CAPTURA ASISTENCIA en cualquier materia. 2026-11-17: capturar ya no da la propiedad de la materia (la asigna el técnico), así que el rol sube también donde ya hay profesor sin quitársela; la guarda del 2026-11-16 se retiró. La cuenta es temporal: al terminar el servicio social, desactivarla.",
       "riesgo": "medio",
       "quien": "persona: el directivo pone la clave y prueba la sesión",
       "verificar": "node scripts/diag-credenciales-duplicadas.mjs",
@@ -154,9 +154,32 @@
       "detalle": "La consola del técnico está lista (PROMPT-3/T3) y el traspaso probado con 26 casos puros, pero nadie ha subido una plantilla. Es código entero sin estrenar en producción: el riesgo más alto del sistema.",
       "riesgo": "alto",
       "quien": "persona — es operación, no código",
-      "verificar": "node scripts/diag-asignaciones-profesor.mjs",
-      "doc": "docs/historial/informes/INFORME-PROMPT-D_TRASPASO_MATERIA.md",
-      "revisado": "2026-09-16",
+      "verificar": "node scripts/diag-propiedad-materias.mjs",
+      "doc": "docs/historial/informes/INFORME-PROPIEDAD-DE-MATERIAS.md",
+      "revisado": "2026-11-17",
+      "estado": "cerrado",
+      "cierre": "2026-11-17: la subida de asistencia YA NO traspasa la materia. Capturar no da la propiedad (Servicio Escolar o el directivo se la quitaban a su profesor); la propiedad la asigna solo el técnico en asignaciones_profesor. La RPC traspasar_materia_a_profesor sigue en la base sin consumidores (R8). Lo que queda abierto —que el técnico asigne las materias— es el pendiente asignar-materias-desde-tecnico."
+    },
+    {
+      "id": "aplicar-unicidad-clases-por-materia",
+      "titulo": "Aplicar supabase/agregar-unicidad-clases-por-materia.sql ANTES de desplegar: sin él la subida de asistencia falla",
+      "detalle": "2026-11-17: la subida escribe clases_impartidas contra la clave natural (grupo_materia_id, fecha), ya sin profesor_id, para que dos personas que capturan la misma materia el mismo día no dupliquen la fila. Esa UNIQUE no existe todavía en la base: hasta aplicarla, cada subida responde 42P10 y no guarda nada. La de asistencia_alumnos (curp, grupo_materia_id, fecha) ya existe. Es aditivo y reversible, y hoy clases_impartidas tiene 0 filas.",
+      "riesgo": "alto",
+      "quien": "persona — aplicar el SQL (o autorizar a Claude a aplicarlo)",
+      "verificar": "SQL Editor: select indexname from pg_indexes where indexname = 'clases_impartidas_gm_fecha_uidx'",
+      "doc": "supabase/agregar-unicidad-clases-por-materia.sql",
+      "revisado": "2026-11-17",
+      "estado": "abierto"
+    },
+    {
+      "id": "asignar-materias-desde-tecnico",
+      "titulo": "El técnico tiene que asignar cada materia a su profesor (Técnico › Asignaciones)",
+      "detalle": "2026-11-17: la propiedad de una materia ya no la da subir asistencia; vive SOLO en asignaciones_profesor y la asigna el técnico. Hoy hay 0 asignaciones activas. Mientras una materia no tenga profesor asignado: cualquier profesor ve y justifica sus faltas, y los profesores sin ninguna asignación siguen viendo todas las materias (los fallbacks de materias.ts, horario.ts y acceso-alumno.ts). Capturar asistencia funciona igual con o sin asignación.",
+      "riesgo": "medio",
+      "quien": "persona — el técnico, desde Técnico › Asignaciones",
+      "verificar": "node scripts/diag-propiedad-materias.mjs",
+      "doc": "docs/historial/informes/INFORME-PROPIEDAD-DE-MATERIAS.md",
+      "revisado": "2026-11-17",
       "estado": "abierto"
     },
     {

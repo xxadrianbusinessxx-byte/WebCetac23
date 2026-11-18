@@ -47,8 +47,10 @@ export type MateriaDelDia = {
   asistidas: number | null;
   estado: EstadoMateria;
   tipo: TipoLineaDia;
-  /** Dueño de la falta: el `profesor_id` que registró la fila. null = no hay
-   *  a quién atribuirla (legacy, o filas de varios profesores). Decide qué
+  /** Dueño de la falta. Aquí sale de la AUTORÍA (el `profesor_id` que capturó
+   *  la fila; null = legacy o varios). Desde 2026-11-17 los justificantes lo
+   *  reemplazan por el profesor ASIGNADO a la materia
+   *  (`asignarDuenoPorMateria`): capturar ya no da la propiedad. Decide qué
    *  profesor puede justificar esta materia (justificaciones-puro.ts). */
   profesorId: number | null;
   /** Clases de esta línea que una justificación APROBADA cubre (derivado,

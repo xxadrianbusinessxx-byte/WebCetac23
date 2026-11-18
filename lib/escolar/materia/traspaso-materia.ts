@@ -8,6 +8,14 @@
  *
  * Si la RPC no está desplegada devuelve error explícito (mismo patrón que
  * `activarCicloOperativoAtomico`): sin ella NO se escribe nada.
+ *
+ * SIN CONSUMIDORES desde 2026-11-17. La subida de asistencia lo llamaba para
+ * que quien subía se quedara con la materia; eso hacía que Servicio Escolar o el
+ * directivo se la quitaran a su profesor. Ahora la propiedad la asigna solo el
+ * técnico (`asignaciones-profesor.ts`) y las filas guardan la AUTORÍA real, así
+ * que mover registros de un profesor a otro falsearía quién capturó. Se conserva
+ * (R8): la RPC sigue en la base y `test-traspaso-materia.mjs` vigila que ningún
+ * camino de subida vuelva a llamarla.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 

@@ -43,9 +43,6 @@ import {
   extraerMarcadorMateria,
   validarMarcadorMateria,
 } from "./asistencia-marcador.ts";
-import {
-  traspasarMateriaAProfesor,
-} from "../materia/traspaso-materia.ts";
 import type {
   EtiquetasPersonalesRow,
 } from "../types.ts";
@@ -477,11 +474,13 @@ export async function analizarPlantillaAsistencia(
   const alumnos = await obtenerAlumnosDelGrupo(supabase, g, gr, c);
   const alumnosPorCurp = new Map(alumnos.map((a) => [a.curp, a.nombre]));
 
-  // 6/7) Registros previos de ESTE profesor en este grupo (para detectar
-  //      "sin cambios" y como respaldo del máximo). PROMPT C/D: el alcance es
-  //      SIEMPRE `profesor_id` (nunca la contraseña). Sin profesorId o sin la
-  //      columna (esquema pendiente) no se comparan previos (todo pasa a
-  //      "actualizado"), lo cual es seguro y nunca mezcla aportes ajenos.
+  // 6/7) Registros previos de ESTA materia en este grupo (para detectar
+  //      "sin cambios" y como respaldo del máximo). Desde 2026-11-17 la clave
+  //      de escritura es la natural (alumno + materia + día), así que el previo
+  //      es la fila que se va a sobrescribir, la haya capturado quien la haya
+  //      capturado: ya no se acota por `profesor_id`. Nunca por la contraseña.
+  //      Sin profesorId o sin la columna (esquema pendiente) no se comparan
+  //      previos (todo pasa a "actualizado"), lo cual es seguro.
   const pidPrevio =
     ctx.profesorId != null &&
     Number.isInteger(Number(ctx.profesorId)) &&
@@ -502,7 +501,6 @@ export async function analizarPlantillaAsistencia(
     const { data: clasesPrevias } = await supabase
       .from(TABLA_CLASES_IMPARTIDAS)
       .select("fecha, clases")
-      .eq("profesor_id", pidPrevio)
       .eq("grado", g)
       .eq("grupo", gr)
       .eq("grupo_materia_id", resMateria.grupoMateriaId);
@@ -513,7 +511,6 @@ export async function analizarPlantillaAsistencia(
     const { data: asistenciasPrevias } = await supabase
       .from(TABLA_ASISTENCIA_ALUMNOS)
       .select("curp, fecha, clases_asistidas")
-      .eq("profesor_id", pidPrevio)
       .eq("grado", g)
       .eq("grupo", gr)
       .eq("grupo_materia_id", resMateria.grupoMateriaId);
@@ -802,14 +799,16 @@ async function verificarEsquemaAtribucion(
  *  3. Reusa la materia resuelta por `analizarPlantillaAsistencia` (UNA
  *     resolución por subida, validada contra el marcador MATERIA) y rechaza
  *     si no es atribuible al grupo en el catálogo.
- *  4. LLAMA la RPC `traspasar_materia_a_profesor` (Prompt D) ANTES de escribir:
- *     el que sube la plantilla se convierte en dueño de la materia (asignación
- *     y registros previos se traspasan) en una sola transacción. Si la RPC no
- *     está desplegada, NO se escribe nada.
+ *  4. NO cambia la propiedad de la materia (2026-11-17). Hasta entonces llamaba
+ *     a la RPC `traspasar_materia_a_profesor` y quien subía se quedaba con la
+ *     materia; ahora la propiedad solo la asigna el técnico
+ *     (`asignaciones_profesor`) y subir es CAPTURAR: lo puede hacer el
+ *     profesor, el directivo o Servicio Escolar sin quitársela a nadie.
  *  5. Una sola petición UPSERT POR TABLA (A3) de clases_impartidas /
- *     asistencia_alumnos con `profesor_id` + `grupo_materia_id` + `periodo_id`
- *     y la clave de conflicto POR MATERIA (2 materias del mismo grupo y día =
- *     2 filas; re-subir la misma = actualizar, no duplicar).
+ *     asistencia_alumnos con `profesor_id` (autoría) + `grupo_materia_id` +
+ *     `periodo_id` y la clave de conflicto NATURAL (alumno + materia + día): 2
+ *     materias del mismo grupo y día = 2 filas; re-subir la misma, la suba
+ *     quien la suba = actualizar, no duplicar.
  */
 export async function confirmarAsistencias(
   supabase: SupabaseClient,
@@ -861,28 +860,15 @@ export async function confirmarAsistencias(
   }
 
   // Decisión pura de escritura (filas enriquecidas + claves de conflicto).
-  // Va ANTES del traspaso: el traspaso es un efecto que no se deshace, y una
-  // subida que la decisión pura va a rechazar no debe cambiar de dueño la materia.
   const atribuido = atribuirMateriaAlPlan(
     { clasesImpartidas: plan.clasesImpartidas, asistencias: plan.asistencias },
     {
       profesorId,
       grupoMateriaId,
-      profesorClave: ctx.profesorClave,
       periodoId: ctx.periodoId ?? null,
     },
   );
   if (!atribuido.ok) return atribuido;
-
-  // PROMPT D — TRASPASO antes de escribir: la RPC deja la materia completa a
-  // este profesor (asignaciones de otros → inactivas; sus registros → su id).
-  // Cero N+1: una sola llamada por subida. Si falla, NO se escribe nada.
-  const traspaso = await traspasarMateriaAProfesor(
-    supabase,
-    grupoMateriaId,
-    profesorId,
-  );
-  if (!traspaso.ok) return { ok: false, error: traspaso.error };
 
   // PROMPT S (A3) — una sola petición UPSERT por tabla (cada petición de
   // PostgREST es una transacción). Orden: primero clases, después asistencias.
@@ -893,7 +879,7 @@ export async function confirmarAsistencias(
     return { ok: false, error: `Error en clases impartidas: ${errClases.message}` };
   }
 
-  // UPSERT asistencia_alumnos (profesor_id + materia + curp + grupo + fecha).
+  // UPSERT asistencia_alumnos (clave natural: curp + materia + fecha).
   // Si falla, los días quedan PENDIENTES (nunca en falta) y volver a subir el
   // mismo archivo es idempotente.
   const { error: errAsist } = await supabase

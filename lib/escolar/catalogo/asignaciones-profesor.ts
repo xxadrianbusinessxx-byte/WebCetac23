@@ -628,29 +628,31 @@ export async function listarGrupoIdsAsignadosProfesor(
 
 
 /**
- * Dueño ACTIVO de una materia de grupo, o `null` si no lo tiene. 2026-11-16.
+ * Dueño ACTIVO de cada materia de grupo pedida → `Map<grupoMateriaId,
+ * profesorId>`. Una materia sin asignación activa no aparece en el mapa.
  *
- * Lectura mínima, sin decidir nada: quién decide qué hacer con el dato es quien
- * la llama. Nació para la guarda de alcance del rol Servicio Escolar en
- * `app/actions/asistencias.ts` — subir asistencia dispara
- * `traspasar_materia_a_profesor`, que le daría la materia a quien sube, así
- * que antes hay que saber si ya tiene profesor.
+ * La propiedad de una materia vive SOLO en `asignaciones_profesor` y la asigna
+ * el técnico (2026-11-17): subir asistencia ya no la da. La usan los
+ * justificantes para saber qué profesor justifica cada falta. Una sola
+ * consulta, sin N+1. Lectura mínima: quien llama decide qué hacer con el dato.
  */
-export async function profesorActivoDeMateria(
+export async function listarDuenosActivosDeMaterias(
   supabase: SupabaseClient,
-  grupoMateriaId: string,
-): Promise<{ profesorId: number | null; profesorClave: string | null } | null> {
-  if (!grupoMateriaId) return null;
+  grupoMateriaIds: readonly string[],
+): Promise<Map<string, number>> {
+  const duenos = new Map<string, number>();
+  const ids = [...new Set(grupoMateriaIds.filter(Boolean))];
+  if (ids.length === 0) return duenos;
   const { data, error } = await supabase
     .from(TABLA_ASIGNACIONES_PROFESOR)
-    .select("profesor_id, profesor_clave")
-    .eq("grupo_materia_id", grupoMateriaId)
-    .eq("activo", true)
-    .limit(1);
-  if (error || !data || data.length === 0) return null;
-  const fila = data[0] as { profesor_id?: number | null; profesor_clave?: string | null };
-  return {
-    profesorId: typeof fila.profesor_id === "number" ? fila.profesor_id : null,
-    profesorClave: fila.profesor_clave ?? null,
-  };
+    .select("grupo_materia_id, profesor_id")
+    .in("grupo_materia_id", ids)
+    .eq("activo", true);
+  if (error || !data) return duenos;
+  for (const fila of data as { grupo_materia_id: string; profesor_id: number | null }[]) {
+    if (typeof fila.profesor_id === "number") {
+      duenos.set(fila.grupo_materia_id, fila.profesor_id);
+    }
+  }
+  return duenos;
 }

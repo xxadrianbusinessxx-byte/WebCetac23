@@ -74,8 +74,8 @@ propia migración verificada (R8).
 - **`directivo` es un supervisor global**: tiene `asistencia.subir`, `ciclo.ver` y
   `justificacion.solicitar` para operar sin depender de asignaciones (R-4). Consecuencia
   intencionada: puede **solicitar y aprobar** la misma justificación.
-- **Justificantes (2026-10-01)**: envían padre y directivo; el profesor justifica solo materias (`justificar_clase`:
-  las suyas o sin dueño) y el directivo el día completo. Efecto derivado al leer (`justificacion-dias.ts`).
+- **Propiedad de materias (2026-11-17)**: el dueño vive SOLO en `asignaciones_profesor` y lo asigna el técnico (un dueño activo por materia). Subir asistencia es **capturar**: no traspasa la materia; la fila guarda quién la capturó (`profesor_id` de sesión) contra la clave natural alumno + materia + día.
+- **Justificantes (2026-10-01)**: envían padre y directivo; el profesor justifica solo materias **asignadas** a él o sin dueño (`justificar_clase`), el directivo el día completo; efecto derivado al leer (`justificacion-dias.ts`).
 - **Reportes, citas, historial médico (2026-10-01)**: reportes no anulados en Notificaciones (`reporte.ver_propios`); citas solo en la agenda del directivo (`agenda-citas-puro.ts`); el historial médico solo se añade. Dirección los consulta por alumno en Alumnos / Tutores (`alumno.ver_expediente`, PROMPT U).
 - Todo `scripts/` corre con `service_role` y salta RLS. No hay entorno de staging.
 
@@ -126,7 +126,7 @@ scripts/  vivos · _peligrosos/ (no ejecutar) · _archivo/ (no re-ejecutar)
 docs/     normativo/ (obliga) · sistema/ (el presente) · historial/ (el pasado)
 ```
 
-Red de pruebas: **66 suites** y un workflow de CI que las corre junto a tipos, lint,
+Red de pruebas: **65 suites** y un workflow de CI que las corre junto a tipos, lint,
 permisos y build (`.github/workflows/verificacion.yml` es la lista viva).
 
 **Dos de ellas no prueban un módulo: `test-orden` (el repo) y `test-gen-contexto` (el índice y el generador).** `scripts/test-orden.mjs` es la
