@@ -480,6 +480,18 @@
       "verificar": "subir una plantilla de asistencia y ver el resumen de previsualizacion",
       "doc": "docs/historial/informes/INFORME-SELECTOR-DE-ARCHIVO.md",
       "revisado": "2026-11-17",
+      "estado": "cerrado",
+      "cierre": "2026-11-17: PROBADO por la persona con sesion real — 1RO grupo A, Ciencias Naturales I, PARCIAL 2. Con eso queda ejercitado el camino entero de la pantalla nueva: elegir grado y grupo (que es lo que carga las materias del horario), elegir un parcial que NO es el primero de la lista, elegir la materia en el catalogo de la izquierda, descargar la plantilla, elegirla con la pildora ELEGIR ARCHIVO, previsualizar y confirmar. Es decir: el FormData sigue saliendo lleno despues de cambiar el control de archivo y la forma de elegir el contexto. NO lo midio el agente: la consulta de verificacion a asistencia_alumnos quedo bloqueada por el clasificador y no se busco otra via, asi que esto es el reporte de la persona, no una cifra leida de la base."
+    },
+    {
+      "id": "probar-subida-calificaciones-con-selector",
+      "titulo": "Subir calificaciones con el selector de archivo nuevo sigue sin probarse",
+      "detalle": "El 2026-11-17 las dos subidas del portal pasaron a usar la misma pieza, app/components/ui/selector-archivo.tsx. La de ASISTENCIA ya se probo con sesion real (1RO A, Ciencias Naturales I, parcial 2). La de CALIFICACIONES no: Materias > Calificaciones > Configuracion de columnas usa el mismo control pero abre otro flujo —el asistente de mapeo de columnas, que lee el Excel en el CLIENTE antes de subir nada (useMateriaMapeo.abrir)—, asi que el camino es distinto y no queda cubierto por la prueba de asistencia. Falta ademas, en cualquiera de las dos: comprobar que elegir DOS VECES el mismo archivo vuelve a leerlo (la pieza limpia input.value justo para eso; sin ese detalle, quien corrige el Excel y lo vuelve a elegir se queda con el de antes sin enterarse).",
+      "riesgo": "bajo",
+      "quien": "persona — una sesion de profesor y un Excel de calificaciones",
+      "verificar": "abrir Materias > Calificaciones > Configuracion de columnas, elegir un Excel y ver que arranca el asistente de mapeo",
+      "doc": "docs/historial/informes/INFORME-SELECTOR-DE-ARCHIVO.md",
+      "revisado": "2026-11-17",
       "estado": "abierto"
     }
   ]

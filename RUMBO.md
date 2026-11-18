@@ -13,10 +13,11 @@
 
 <!-- GENERADO: no editar a mano, lo reescribe scripts/gen-rumbo.mjs -->
 Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
-- **Rama y HEAD:** main · 44d9c48
+- **Rama y HEAD:** main · e662b33
 
 ## Qué cerró (últimos 10 commits)
 
+- e662b33 · Asistencia toma la forma de calificaciones: catálogo y una tarjeta
 - 44d9c48 · Pedir un archivo se hace de una sola forma en todo el portal
 - 738d897 · El comentario personal del alumno se puede escribir, y solo tres lo escr…
 - 617718b · Aplicados los dos SQL de la propiedad de materias
@@ -26,7 +27,6 @@ Contexto, no alcance: nada de esto entra en tu tarea si el prompt no lo nombra.
 - c51b03b · El portal se puede enlazar: pestaña, apartado y modo viven en la direcci…
 - 1511684 · Toda la mensajería del portal sale del mapa: ningún rol ve Chat ni Mensa…
 - 100f675 · Prompt e informe: PROMPT_AC / INFORME-PROMPT-AC.
-- 8bab6d2 · Alumno de prueba fuera de las listas del personal y cuenta DIRECTIVO
 
 ## Lo que más pesa hoy
 

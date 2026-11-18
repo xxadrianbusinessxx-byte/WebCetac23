@@ -175,6 +175,22 @@ clientWidth` en los dos). Más tsc, lint, 67/67 suites, test-orden 20/20 con **C
 21/21** (la pieza nueva no duplica ningún nombre) y build limpio: doce rutas, ninguna
 temporal.
 
-**Sigue sin probarse con sesión real**, y ahora con más motivo: cambió la forma de
-elegir grado, grupo, parcial y materia, que es lo que arma el `FormData` de la subida.
-El pendiente `probar-subida-asistencia-con-sesion` lo cubre.
+## 9. Probado con sesión real (2026-11-17)
+
+La persona subió asistencia desde la pantalla nueva: **1RO grupo A, Ciencias
+Naturales I, PARCIAL 2**. Con eso queda ejercitado el camino entero —elegir grado y
+grupo (que es lo que carga las materias del horario), elegir un parcial que **no** es
+el primero de la lista, elegir la materia en el catálogo de la izquierda, descargar la
+plantilla, elegirla con la píldora, previsualizar y confirmar—, que era justo el riesgo
+abierto: que el `FormData` saliera vacío después de cambiar el control de archivo y la
+forma de elegir el contexto. Se cierra `probar-subida-asistencia-con-sesion`.
+
+**Quien lo comprobó fue la persona, no el agente.** La consulta de verificación a
+`asistencia_alumnos` quedó bloqueada por el clasificador y no se buscó otra vía: aquí
+no hay ninguna cifra leída de la base, hay un reporte.
+
+**Lo que sigue sin probarse**: la subida de CALIFICACIONES con la misma pieza. Usa el
+mismo control pero abre otro flujo —el asistente de mapeo de columnas, que lee el Excel
+en el CLIENTE antes de subir nada—, así que la prueba de asistencia no lo cubre. Y, en
+cualquiera de las dos, elegir **dos veces el mismo archivo** para comprobar que vuelve
+a leerlo. Pendiente `probar-subida-calificaciones-con-selector`.
